@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Lightning">
+  <defs>
+    <linearGradient id="bolt-fill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe566"/>
+      <stop offset="55%" stop-color="#ffcb05"/>
+      <stop offset="100%" stop-color="#e6a800"/>
+    </linearGradient>
+  </defs>
+  <path
+    d="M36 4 L18 34 H30 L22 60 L46 28 H34 L36 4 Z"
+    fill="url(#bolt-fill)"
+    stroke="#8b6914"
+    stroke-width="2.5"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M34 10 L22 32 H31 L26 52 L40 30 H32 L34 10 Z"
+    fill="#fff8b0"
+    opacity="0.45"
+  />
+</svg>

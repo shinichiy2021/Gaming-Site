@@ -1,0 +1,3 @@
+wp-content/themes/gaming-hub/node_modules/
+**/node_modules/
+.git/

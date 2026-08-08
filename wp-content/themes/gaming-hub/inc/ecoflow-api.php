@@ -1,0 +1,174 @@
+<?php
+/**
+ * EcoFlow Developer API client
+ *
+ * @package Gaming_Hub
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+class Gaming_Hub_Ecoflow_Api {
+
+	/** @var string */
+	private $access_key;
+
+	/** @var string */
+	private $secret_key;
+
+	/** @var string */
+	private $base_url;
+
+	/**
+	 * @param string $access_key API access key.
+	 * @param string $secret_key API secret key.
+	 * @param string $region     API region: us or eu.
+	 */
+	public function __construct( $access_key, $secret_key, $region = 'us' ) {
+		$this->access_key = $access_key;
+		$this->secret_key = $secret_key;
+		$this->base_url   = ( 'eu' === $region ) ? 'https://api-e.ecoflow.com' : 'https://api.ecoflow.com';
+	}
+
+	/**
+	 * Get bound devices.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function get_device_list() {
+		$data = $this->request( 'GET', '/iot-open/sign/device/list' );
+		return is_array( $data ) ? $data : array();
+	}
+
+	/**
+	 * Get all quota values for a device.
+	 *
+	 * @param string $device_sn Device serial number.
+	 * @return array<string, mixed>
+	 */
+	public function get_device_quota( $device_sn ) {
+		$data = $this->request(
+			'GET',
+			'/iot-open/sign/device/quota/all',
+			array( 'sn' => $device_sn )
+		);
+
+		if ( is_wp_error( $data ) ) {
+			return $data;
+		}
+
+		return is_array( $data ) ? $data : array();
+	}
+
+	/**
+	 * Make signed API request.
+	 *
+	 * @param string               $method   HTTP method.
+	 * @param string               $endpoint API path.
+	 * @param array<string, mixed> $params   Query or body params.
+	 * @return mixed
+	 */
+	private function request( $method, $endpoint, $params = array() ) {
+		$timestamp = (string) round( microtime( true ) * 1000 );
+		$nonce     = (string) wp_rand( 100000, 999999 );
+		$sign_body = ( 'GET' === $method ) ? $params : $params;
+		$params_str = $this->sort_and_concat_params( $sign_body );
+
+		$auth_str = 'accessKey=' . $this->access_key . '&nonce=' . $nonce . '&timestamp=' . $timestamp;
+		$sign_str = $params_str ? $params_str . '&' . $auth_str : $auth_str;
+		$sign     = hash_hmac( 'sha256', $sign_str, $this->secret_key );
+
+		$headers = array(
+			'accessKey' => $this->access_key,
+			'timestamp' => $timestamp,
+			'nonce'     => $nonce,
+			'sign'      => $sign,
+		);
+
+		if ( 'GET' === $method ) {
+			$url = $this->base_url . $endpoint;
+			if ( $params_str ) {
+				$url .= '?' . $params_str;
+			}
+
+			$response = wp_remote_get(
+				$url,
+				array(
+					'headers' => $headers,
+					'timeout' => 20,
+				)
+			);
+		} else {
+			$headers['Content-Type'] = 'application/json;charset=UTF-8';
+			$response = wp_remote_post(
+				$this->base_url . $endpoint,
+				array(
+					'headers' => $headers,
+					'body'    => wp_json_encode( $params ),
+					'timeout' => 20,
+				)
+			);
+		}
+
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error( 'ecoflow_request_failed', $response->get_error_message() );
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $body ) ) {
+			return new WP_Error( 'ecoflow_invalid_response', __( 'Invalid EcoFlow API response.', 'gaming-hub' ) );
+		}
+
+		$code = isset( $body['code'] ) ? (string) $body['code'] : '';
+		if ( ! in_array( $code, array( '0', '200' ), true ) ) {
+			$message = isset( $body['message'] ) ? $body['message'] : __( 'EcoFlow API error.', 'gaming-hub' );
+			return new WP_Error( 'ecoflow_api_error', $message, array( 'code' => $code ) );
+		}
+
+		return isset( $body['data'] ) ? $body['data'] : array();
+	}
+
+	/**
+	 * Flatten and sort params for signature.
+	 *
+	 * @param array<string, mixed> $params Request params.
+	 * @return string
+	 */
+	private function sort_and_concat_params( $params ) {
+		$flat = $this->flatten_params( $params );
+		ksort( $flat );
+
+		$parts = array();
+		foreach ( $flat as $key => $value ) {
+			$parts[] = $key . '=' . $value;
+		}
+
+		return implode( '&', $parts );
+	}
+
+	/**
+	 * Flatten nested params.
+	 *
+	 * @param array<string, mixed> $params  Params.
+	 * @param string               $prefix Key prefix.
+	 * @return array<string, string>
+	 */
+	private function flatten_params( $params, $prefix = '' ) {
+		$items = array();
+
+		foreach ( $params as $key => $value ) {
+			$new_key = $prefix ? $prefix . '.' . $key : $key;
+
+			if ( is_array( $value ) ) {
+				$items = array_merge( $items, $this->flatten_params( $value, $new_key ) );
+			} elseif ( is_bool( $value ) ) {
+				$items[ $new_key ] = $value ? 'true' : 'false';
+			} else {
+				$items[ $new_key ] = (string) $value;
+			}
+		}
+
+		return $items;
+	}
+}

@@ -1,0 +1,13 @@
+---
+description: EcoFlow React canvas flow diagram
+globs: wp-content/themes/gaming-hub/src/ecoflow/**/*
+alwaysApply: false
+---
+
+# EcoFlow React Bundle
+
+- Source: `src/ecoflow/`; output: `assets/js/ecoflow-flow.js` (IIFE, do not edit by hand)
+- After JS changes: `npm run build:ecoflow` or `npm run dev:ecoflow` (watch)
+- Canvas animation in `useFlowCanvas.js`; pause when `document.hidden`
+- Data updates via `gamingHubEcoflowStatus` CustomEvent from `ecoflow-dashboard.js`
+- PHP initial state: `#ecoflow-energy-flow-root[data-initial]`

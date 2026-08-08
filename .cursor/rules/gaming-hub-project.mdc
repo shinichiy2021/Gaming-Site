@@ -1,0 +1,34 @@
+---
+description: Gaming Hub WordPress project context and dev workflow
+alwaysApply: true
+---
+
+# Gaming Hub Project
+
+WordPress site at `/Users/shinichiy/my-gaming-site` with custom theme `gaming-hub`.
+
+## Local URLs
+- WordPress: http://localhost:8080
+- phpMyAdmin: http://localhost:8081
+- EcoFlow dashboard: http://localhost:8080/tag/ecoflow/
+
+## Theme layout
+- PHP: `wp-content/themes/gaming-hub/` (`inc/`, `template-parts/`, `functions.php`)
+- CSS: `assets/css/main.css`
+- React (EcoFlow flow): `src/ecoflow/` → build to `assets/js/ecoflow-flow.js` via Vite
+- Version constant: `GAMING_HUB_VERSION` in `functions.php` (bump on asset changes)
+
+## Conventions
+- Feature pattern: `inc/*.php` + `template-parts/` + conditional enqueue in feature file
+- EcoFlow Delta Pro 3 uses quota keys like `powInSumW`, `powOutSumW`, `bmsChgDsgState` (0=待機, 1=放電, 2=充電)
+- Do not commit `.env`; EcoFlow keys via env or Customizer
+- Only commit when user explicitly asks
+
+## Dev commands
+```bash
+docker compose up -d
+cd wp-content/themes/gaming-hub && npm run dev:ecoflow   # watch
+cd wp-content/themes/gaming-hub && npm run build:ecoflow # production build
+```
+
+Use **Terminal → Run Task** in Cursor for common tasks.

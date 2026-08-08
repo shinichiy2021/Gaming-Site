@@ -1,0 +1,15 @@
+---
+description: WordPress theme PHP conventions for gaming-hub
+globs: wp-content/themes/gaming-hub/**/*.php
+alwaysApply: false
+---
+
+# WordPress Theme (gaming-hub)
+
+- Prefix functions with `gaming_hub_`
+- Load features from `functions.php` via `require ... /inc/*.php`
+- Use transients for external API/RSS cache; expose REST under `gaming-hub/v1`
+- Template partials: `get_template_part( 'template-parts/slug', 'variant', array( 'key' => $value ) )`
+- Escape output: `esc_html`, `esc_attr`, `esc_url`; translate with `__()` / `esc_html_e()`
+- Match existing tab-indent style in surrounding files
+- Bump `GAMING_HUB_VERSION` when changing enqueued CSS/JS
