@@ -23,9 +23,9 @@ log "Starting compose stack (WordPress, MySQL, phpMyAdmin, EcoFlow bridge)..."
 # -p keeps the project name stable through sudo (which strips env vars).
 sudo docker compose -p "$COMPOSE_PROJECT_NAME" up -d
 
-# The compose network is (re)created above; re-assert the bridge fix so
-# container-to-container traffic is not dropped.
-apply_bridge_fix
+# The compose network is (re)created above; re-assert the network fixes so
+# container-to-container and outbound traffic are not dropped.
+apply_network_fixes
 
 wait_for_wordpress "http://localhost:8080/" 40 || true
 

@@ -4,15 +4,25 @@
 
 log() { echo "[cloud-agent] $*"; }
 
-# Nested Cloud Agent VMs bridge L2 frames through the netfilter FORWARD chain,
-# which drops container-to-container traffic on Docker's user-defined networks.
-# Letting bridged frames bypass iptables restores compose service-to-service
-# connectivity (e.g. WordPress -> MySQL). These sysctls reset on every boot.
-apply_bridge_fix() {
+# The nested Cloud Agent VM needs two networking adjustments for Docker's
+# user-defined (compose) bridge networks. Both reset on every boot.
+apply_network_fixes() {
+  # 1. Bridged L2 frames are pushed through the netfilter FORWARD chain, which
+  #    drops container-to-container traffic on user-defined networks (e.g.
+  #    WordPress -> MySQL). Let bridged frames bypass iptables.
   sudo sysctl -w \
     net.bridge.bridge-nf-call-iptables=0 \
     net.bridge.bridge-nf-call-ip6tables=0 \
     net.bridge.bridge-nf-call-arptables=0 >/dev/null 2>&1 || true
+
+  # 2. The VM ships a legacy-iptables FORWARD policy of DROP (with rules only
+  #    for docker0). Docker 29 programs its rules via the nft backend, so the
+  #    kernel's parallel legacy hook silently drops forwarded/outbound traffic
+  #    from nft-created bridges -- containers then have no internet access.
+  #    Open the legacy FORWARD policy so the nft rules govern instead.
+  if command -v iptables-legacy >/dev/null 2>&1; then
+    sudo iptables-legacy -P FORWARD ACCEPT >/dev/null 2>&1 || true
+  fi
 }
 
 # Start the Docker daemon if it is not already running. The Cloud Agent VM does
@@ -20,7 +30,7 @@ apply_bridge_fix() {
 ensure_dockerd() {
   if sudo docker info >/dev/null 2>&1; then
     log "Docker daemon already running."
-    apply_bridge_fix
+    apply_network_fixes
     return 0
   fi
   log "Starting Docker daemon..."
@@ -28,7 +38,7 @@ ensure_dockerd() {
   for _ in $(seq 1 30); do
     if sudo docker info >/dev/null 2>&1; then
       log "Docker daemon is up."
-      apply_bridge_fix
+      apply_network_fixes
       return 0
     fi
     sleep 1
