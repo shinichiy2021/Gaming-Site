@@ -31,10 +31,14 @@ if ! command -v docker >/dev/null 2>&1; then
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
     | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
   sudo apt-get update -qq
+  # fuse3 (a fuse-overlayfs dependency) ships an interactive conffile prompt
+  # for /etc/fuse.conf; the force-conf* dpkg options keep it non-interactive so
+  # apt does not abort on EOF stdin during an unattended build.
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+    -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin \
     docker-compose-plugin fuse-overlayfs
-  # fuse3 ships an interactive conffile prompt; resolve it non-interactively.
+  # Safety net in case any package was left half-configured.
   sudo DEBIAN_FRONTEND=noninteractive dpkg --configure -a \
     --force-confdef --force-confold || true
 else
