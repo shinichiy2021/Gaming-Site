@@ -5,17 +5,30 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname( fileURLToPath( import.meta.url ) );
 
+const entries = {
+	ecoflow: {
+		input: 'src/ecoflow/main.jsx',
+		out: 'ecoflow-flow.js',
+	},
+	powerwall: {
+		input: 'src/powerwall/main.jsx',
+		out: 'powerwall-flow.js',
+	},
+};
+
+const target = process.env.FLOW_TARGET || 'ecoflow';
+const selected = entries[ target ] || entries.ecoflow;
+
 export default defineConfig( {
 	plugins: [ react() ],
 	build: {
 		outDir: path.resolve( __dirname, 'assets/js' ),
 		emptyOutDir: false,
 		rollupOptions: {
-			input: path.resolve( __dirname, 'src/ecoflow/main.jsx' ),
+			input: path.resolve( __dirname, selected.input ),
 			output: {
-				entryFileNames: 'ecoflow-flow.js',
+				entryFileNames: selected.out,
 				format: 'iife',
-				name: 'GamingHubEcoflowFlow',
 				inlineDynamicImports: true,
 			},
 		},

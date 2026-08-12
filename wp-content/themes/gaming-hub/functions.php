@@ -9,13 +9,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.3.7' );
+define( 'GAMING_HUB_VERSION', '1.5.2' );
 
 require get_template_directory() . '/inc/pokemon-go.php';
 require get_template_directory() . '/inc/pokemon-go-youtube.php';
 require get_template_directory() . '/inc/ecoflow.php';
 require get_template_directory() . '/inc/looop.php';
 require get_template_directory() . '/inc/powerwall.php';
+require get_template_directory() . '/inc/powerwall-solar.php';
+require get_template_directory() . '/inc/powerwall-flow.php';
+require get_template_directory() . '/inc/powerwall-home.php';
+require get_template_directory() . '/inc/powerwall-model3.php';
+require get_template_directory() . '/inc/powerwall-cost.php';
+require get_template_directory() . '/inc/tesla.php';
 
 function gaming_hub_setup() {
 	load_theme_textdomain( 'gaming-hub', get_template_directory() . '/languages' );
@@ -371,6 +377,84 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 }
 add_action( 'customize_register', 'gaming_hub_customize_register' );
+
+function gaming_hub_customize_register_tesla( $wp_customize ) {
+	$wp_customize->add_section(
+		'gaming_hub_tesla_api',
+		array(
+			'title'    => __( 'Tesla API (Model 3)', 'gaming-hub' ),
+			'priority' => 37,
+		)
+	);
+
+	$wp_customize->add_setting(
+		'tesla_client_id',
+		array(
+			'default'           => '',
+			'sanitize_callback' => 'sanitize_text_field',
+		)
+	);
+	$wp_customize->add_control(
+		'tesla_client_id',
+		array(
+			'label'       => __( 'Client ID', 'gaming-hub' ),
+			'description' => __( 'developer.tesla.com のアプリ Client ID（.env の TESLA_CLIENT_ID でも可）', 'gaming-hub' ),
+			'section'     => 'gaming_hub_tesla_api',
+			'type'        => 'text',
+		)
+	);
+
+	$wp_customize->add_setting(
+		'tesla_client_secret',
+		array(
+			'default'           => '',
+			'sanitize_callback' => 'sanitize_text_field',
+		)
+	);
+	$wp_customize->add_control(
+		'tesla_client_secret',
+		array(
+			'label'   => __( 'Client Secret', 'gaming-hub' ),
+			'section' => 'gaming_hub_tesla_api',
+			'type'    => 'password',
+		)
+	);
+
+	$wp_customize->add_setting(
+		'tesla_vehicle_vin',
+		array(
+			'default'           => '',
+			'sanitize_callback' => 'sanitize_text_field',
+		)
+	);
+	$wp_customize->add_control(
+		'tesla_vehicle_vin',
+		array(
+			'label'       => __( 'Model 3 VIN', 'gaming-hub' ),
+			'description' => __( '車両識別番号（17桁）', 'gaming-hub' ),
+			'section'     => 'gaming_hub_tesla_api',
+			'type'        => 'text',
+		)
+	);
+
+	$wp_customize->add_setting(
+		'tesla_refresh_token',
+		array(
+			'default'           => '',
+			'sanitize_callback' => 'sanitize_text_field',
+		)
+	);
+	$wp_customize->add_control(
+		'tesla_refresh_token',
+		array(
+			'label'       => __( 'Refresh Token', 'gaming-hub' ),
+			'description' => __( 'Powerwall ページの「Tesla で認証」後に自動保存。手動設定も可。', 'gaming-hub' ),
+			'section'     => 'gaming_hub_tesla_api',
+			'type'        => 'password',
+		)
+	);
+}
+add_action( 'customize_register', 'gaming_hub_customize_register_tesla' );
 
 function gaming_hub_fallback_menu() {
 	echo '<ul class="nav-menu">';

@@ -72,6 +72,40 @@ function gaming_hub_get_looop_forecast( $force_refresh = false ) {
 }
 
 /**
+ * Map today's LOOOP hourly total price (¥/kWh) by hour 0–23.
+ *
+ * @param bool $force_refresh Skip LOOOP cache.
+ * @return array{map: array<int, float>, fallback: float, forecast: array<string, mixed>}|WP_Error
+ */
+function gaming_hub_looop_hourly_price_map_today( $force_refresh = false ) {
+	$forecast = gaming_hub_get_looop_forecast( $force_refresh );
+
+	if ( is_wp_error( $forecast ) ) {
+		return $forecast;
+	}
+
+	$map = array();
+	foreach ( $forecast['hourly_today'] ?? array() as $row ) {
+		$map[ (int) $row['hour'] ] = (float) $row['total_price'];
+	}
+
+	$fallback = 0.0;
+	if ( ! empty( $map ) ) {
+		$fallback = array_sum( $map ) / count( $map );
+	} else {
+		$api    = new Gaming_Hub_Looop_Api();
+		$fixed  = $api->get_fixed_cost_breakdown();
+		$fallback = $fixed['total'] + 12.0;
+	}
+
+	return array(
+		'map'      => $map,
+		'fallback' => round( $fallback, 2 ),
+		'forecast' => $forecast,
+	);
+}
+
+/**
  * Forecast mark label.
  *
  * @param string $mark Mark key.

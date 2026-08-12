@@ -1,3 +1,4 @@
+# Production stack — WordPress listens on localhost:8080; nginx on the host terminates TLS.
 services:
   db:
     image: mysql:8.0
@@ -6,8 +7,8 @@ services:
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-wordpress}
       MYSQL_USER: ${MYSQL_USER:-wordpress}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
     volumes:
       - db_data:/var/lib/mysql
     networks:
@@ -20,12 +21,18 @@ services:
     depends_on:
       - db
     ports:
-      - "${WP_PORT:-8080}:80"
+      - "127.0.0.1:8080:80"
     environment:
       WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_USER: ${MYSQL_USER:-wordpress}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wordpress}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', '${WP_HOME:-https://shinichiy-gaming-hub.com}');
+        define('WP_SITEURL', '${WP_SITEURL:-https://shinichiy-gaming-hub.com}');
+        if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+          $$_SERVER['HTTPS'] = 'on';
+        }
       ECOFLOW_ACCESS_KEY: ${ECOFLOW_ACCESS_KEY:-}
       ECOFLOW_SECRET_KEY: ${ECOFLOW_SECRET_KEY:-}
       ECOFLOW_DEVICE_SN: ${ECOFLOW_DEVICE_SN:-}
@@ -37,8 +44,8 @@ services:
       TESLA_CLIENT_SECRET: ${TESLA_CLIENT_SECRET:-}
       TESLA_VEHICLE_VIN: ${TESLA_VEHICLE_VIN:-}
       TESLA_REFRESH_TOKEN: ${TESLA_REFRESH_TOKEN:-}
-      TESLA_FLEET_API_BASE_URL: ${TESLA_FLEET_API_BASE_URL:-}
-      TESLA_REDIRECT_URI: ${TESLA_REDIRECT_URI:-}
+      TESLA_FLEET_API_BASE_URL: ${TESLA_FLEET_API_BASE_URL:-https://fleet-api.prd.na.vn.cloud.tesla.com}
+      TESLA_REDIRECT_URI: ${TESLA_REDIRECT_URI:-https://shinichiy-gaming-hub.com/wp-json/gaming-hub/v1/tesla/oauth/callback}
     volumes:
       - wp_data:/var/www/html
       - ./wp-content/themes/gaming-hub:/var/www/html/wp-content/themes/gaming-hub
@@ -62,20 +69,6 @@ services:
       - ./wp-content/themes/gaming-hub:/app
       - ./wp-content/ecoflow-cache:/cache
     command: sh -c "npm install --omit=dev && node scripts/ecoflow-bridge-daemon.mjs"
-    networks:
-      - gaming-network
-
-  phpmyadmin:
-    image: phpmyadmin:latest
-    container_name: gaming-site-pma
-    restart: unless-stopped
-    depends_on:
-      - db
-    ports:
-      - "${PMA_PORT:-8081}:80"
-    environment:
-      PMA_HOST: db
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
     networks:
       - gaming-network
 

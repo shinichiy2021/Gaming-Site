@@ -41,6 +41,20 @@ get_header();
 		</div>
 	</section>
 
+	<section class="section pw-flow-section">
+		<div class="container">
+			<?php
+			get_template_part(
+				'template-parts/powerwall',
+				'flow',
+				array(
+					'status' => gaming_hub_get_powerwall_flow_status(),
+				)
+			);
+			?>
+		</div>
+	</section>
+
 	<section class="section pw-specs-section">
 		<div class="container">
 			<?php gaming_hub_render_powerwall_specs(); ?>

@@ -100,6 +100,31 @@ Delta 3 1500 を Delta Pro 3 の AC 100V 出力に接続している場合、`EC
 
 または **外観 → カスタマイズ → EcoFlow API** から設定できます。
 
+### Tesla Model 3（Powerwall フロー連携）
+
+`/powerwall/` の電力フロー図で Model 3 の充電状態・SOC・充電電力を Tesla Fleet API から取得できます。
+
+1. [Tesla Developer](https://developer.tesla.com/) でアプリを作成し Client ID / Secret を取得
+2. Redirect URI に以下を登録:
+   `http://localhost:8080/wp-json/gaming-hub/v1/tesla/oauth/callback`
+3. `.env` に設定:
+
+```env
+TESLA_CLIENT_ID=your_client_id
+TESLA_CLIENT_SECRET=your_client_secret
+TESLA_VEHICLE_VIN=your_model3_vin
+# 日本は通常 NA リージョン（自動検出。失敗時のみ手動設定）:
+# TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.na.vn.cloud.tesla.com
+# 初回 OAuth 後に自動保存。手動設定も可:
+# TESLA_REFRESH_TOKEN=...
+```
+
+4. `docker compose up -d` で再起動
+5. **外観 → カスタマイズ → Tesla API (Model 3)** で VIN を入力
+6. Powerwall ページの **「Tesla で認証」** からアカウント連携
+
+ソーラー / Powerwall は引き続きデモ（2kW パネル想定）。Model 3 のみ実データです。
+
 ## URLs
 
 | Service    | URL                      |
@@ -156,6 +181,49 @@ Hero section text can be customized via **Appearance → Customize → Hero Sect
 - **Docker: Start** — WordPress 起動
 - **Theme: EcoFlow React (watch)** — Canvas アニメーションのホットリロード
 - **Theme: EcoFlow React (build)** — 本番ビルド（デフォルト Build タスク `Cmd+Shift+B`）
+
+## Production Deploy (https://shinichiy-gaming-hub.com)
+
+本番 VPS（nginx + Docker）へソースをデプロイします。
+
+### 初回のみ（サーバー上）
+
+```bash
+# ローカルからファイルをサーバーへ（SSH ユーザー名を指定）
+DEPLOY_USER=ubuntu ./scripts/deploy.sh
+
+# サーバーに SSH して初期セットアップ（Docker / nginx / Let's Encrypt）
+ssh ubuntu@shinichiy-gaming-hub.com
+sudo CERTBOT_EMAIL=you@example.com bash /opt/gaming-hub/scripts/server-bootstrap.sh
+```
+
+`.env` を編集（パスワード・API キー）:
+
+```bash
+sudo nano /opt/gaming-hub/.env
+cd /opt/gaming-hub && docker compose -f docker-compose.prod.yml up -d
+```
+
+### 2回目以降
+
+```bash
+DEPLOY_USER=ubuntu ./scripts/deploy.sh
+```
+
+### WordPress 初回
+
+1. https://shinichiy-gaming-hub.com/ でインストール
+2. **設定 → 一般** — URL が `https://shinichiy-gaming-hub.com` であることを確認
+3. **外観 → テーマ** — Gaming Hub を有効化
+4. Tesla Redirect URI: `https://shinichiy-gaming-hub.com/wp-json/gaming-hub/v1/tesla/oauth/callback`
+
+### Tesla 公開鍵
+
+```bash
+# サーバー上
+cp public-key.pem /opt/gaming-hub/tesla/public-key.pem
+curl -sI https://shinichiy-gaming-hub.com/.well-known/appspecific/com.tesla.3p.public-key.pem
+```
 
 ## Commands
 

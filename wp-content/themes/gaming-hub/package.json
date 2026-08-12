@@ -3,8 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:ecoflow": "vite build",
-    "dev:ecoflow": "vite build --watch",
+    "build:ecoflow": "FLOW_TARGET=ecoflow vite build",
+    "build:powerwall": "FLOW_TARGET=powerwall vite build",
+    "build:flows": "npm run build:ecoflow && npm run build:powerwall",
+    "dev:ecoflow": "FLOW_TARGET=ecoflow vite build --watch",
     "poll:ecoflow-app": "node scripts/ecoflow-app-quota.mjs",
     "bridge:ecoflow-app": "node scripts/ecoflow-bridge-daemon.mjs"
   },
