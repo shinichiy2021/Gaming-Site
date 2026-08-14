@@ -174,7 +174,7 @@
 			ups_source: data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
 				? 'switchbot'
 				: 'ecoflow',
-			solar_in_source: data.solar_in_source || 'theoretical_lv',
+			solar_in_source: data.solar_in_source || (data.secondary && data.secondary.solar_in_source) || 'theoretical_lv',
 			extra: extraBatterySlice(delta.extra || (data.secondary && data.secondary.extra)),
 		};
 	}
@@ -820,6 +820,13 @@
 		setField('hv_in', formatWatts(data.hv_in));
 		setField('ac_out', formatWatts(data.ac_out));
 		setField('dc_out', formatWatts(data.dc_out));
+		const lvSource = (data.secondary && data.secondary.solar_in_source) || data.solar_in_source || 'theoretical_lv';
+		setField(
+			'solar_delta_label',
+			lvSource === 'theoretical_lv' || lvSource === ''
+				? 'Low Volt 入力 (理論 HV×50%)'
+				: 'Low Volt 入力 (実測)'
+		);
 		setField('solar_delta', formatWatts(data.secondary && data.secondary.solar_in));
 		if (data.secondary && data.secondary.battery_percent !== null && data.secondary.battery_percent !== undefined) {
 			setField('secondary_soc', Number(data.secondary.battery_percent) + '%');
@@ -860,6 +867,13 @@
 			setField(
 				'secondary_remain',
 				formatPack(data.secondary.remain_capacity, data.secondary.capacity_wh || 2500)
+			);
+			const capacitySource = data.secondary.capacity_source || 'default';
+			setField(
+				'secondary_remain_label',
+				capacitySource !== 'default'
+					? '残容量 (1500 + Extra · 実測)'
+					: '残容量 (1500 + Extra)'
 			);
 			if (data.secondary.grid_rescue) {
 				setField(
