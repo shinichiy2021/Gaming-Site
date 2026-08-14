@@ -13,7 +13,7 @@ require get_template_directory() . '/inc/ecoflow-api.php';
 require get_template_directory() . '/inc/ecoflow-app.php';
 
 define( 'GAMING_HUB_ECOFLOW_TAG_SLUG', 'ecoflow' );
-define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY', 'gaming_hub_ecoflow_status_v4' );
+define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY', 'gaming_hub_ecoflow_status_v5' );
 define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_TTL', 5 );
 
 /**
@@ -106,16 +106,8 @@ function gaming_hub_get_ecoflow_status( $force_refresh = false ) {
 		return $primary;
 	}
 
-	$status = $primary;
-
-	if ( ! empty( $config['device_sn_2'] ) ) {
-		$secondary = gaming_hub_fetch_ecoflow_device_status( $api, $devices, $config['device_sn_2'], $primary );
-		if ( is_wp_error( $secondary ) ) {
-			$status['secondary_error'] = $secondary->get_error_message();
-		} else {
-			$status['secondary'] = $secondary;
-		}
-	}
+	$status              = $primary;
+	$status['secondary'] = gaming_hub_ecoflow_delta1500_from_pro_dc( $primary );
 
 	set_transient( GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY, $status, GAMING_HUB_ECOFLOW_STATUS_CACHE_TTL );
 
@@ -286,6 +278,7 @@ function gaming_hub_ecoflow_device_flow_slice( array $device ) {
 		'solar_in'            => (int) ( $device['solar_in'] ?? 0 ),
 		'ac_in'               => (int) ( $device['ac_in'] ?? 0 ),
 		'ac_out'              => (int) ( $device['ac_out'] ?? 0 ),
+		'dc_out'              => (int) ( $device['dc_out'] ?? 0 ),
 		'input_total'         => (int) ( $device['input_total'] ?? 0 ),
 		'output_total'        => (int) ( $device['output_total'] ?? 0 ),
 		'battery_percent'     => isset( $device['battery_percent'] ) && null !== $device['battery_percent']
@@ -303,29 +296,57 @@ function gaming_hub_ecoflow_device_flow_slice( array $device ) {
 }
 
 /**
- * Estimate AC link watts between Delta Pro 3 output and Delta 3 1500 input.
+ * DC 12V link watts from Delta Pro 3 into Delta 3 1500.
  *
- * @param array<string, mixed> $primary   Primary device status.
- * @param array<string, mixed> $secondary Secondary device status.
+ * @param array<string, mixed> $primary Primary device status.
  */
-function gaming_hub_ecoflow_link_watts( array $primary, array $secondary ) {
-	$pro_ac_out    = (int) ( $primary['ac_out'] ?? 0 );
-	$delta_ac_in   = (int) ( $secondary['ac_in'] ?? 0 );
-	$delta_charging = ! empty( $secondary['is_charging'] );
+function gaming_hub_ecoflow_link_watts( array $primary ) {
+	return max( 0, (int) ( $primary['dc_out'] ?? 0 ) );
+}
 
-	if ( $pro_ac_out >= 8 && $delta_ac_in >= 8 ) {
-		return min( $pro_ac_out, $delta_ac_in );
-	}
+/**
+ * Visual Delta 3 1500 node inferred from Pro DC 12V output (no live 1500 telemetry).
+ *
+ * @param array<string, mixed> $primary Primary (Pro 3) status.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_delta1500_from_pro_dc( array $primary ) {
+	$dc_out    = max( 0, (int) ( $primary['dc_out'] ?? 0 ) );
+	$charging  = $dc_out >= 8;
+	$charge    = $charging
+		? __( 'DC 12V 受電中', 'gaming-hub' )
+		: __( '待機', 'gaming-hub' );
 
-	if ( $delta_ac_in >= 8 ) {
-		return $delta_ac_in;
-	}
+	return array(
+		'device_sn'       => '',
+		'device_name'     => __( 'Delta 3 1500', 'gaming-hub' ),
+		'online'          => $charging,
+		'battery_percent' => null,
+		'solar_in'        => 0,
+		'input_total'     => $dc_out,
+		'output_total'    => 0,
+		'ac_in'           => 0,
+		'ac_out'          => 0,
+		'dc_out'          => 0,
+		'battery_temp'    => null,
+		'remain_time'     => null,
+		'remain_capacity' => null,
+		'is_charging'     => $charging,
+		'is_discharging'  => false,
+		'charge_state'    => $charge,
+		'inferred'        => true,
+		'inferred_note'   => __( 'Pro の DC 12V 出力から表示（1500 はライブ計測なし）', 'gaming-hub' ),
+		'updated_at'      => $primary['updated_at'] ?? wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+	);
+}
 
-	if ( $pro_ac_out >= 8 && $delta_charging ) {
-		return $pro_ac_out;
-	}
-
-	return 0;
+/**
+ * Theme-relative EcoFlow diagram image URL.
+ *
+ * @param string $file Filename in assets/images.
+ */
+function gaming_hub_ecoflow_image_url( $file ) {
+	return get_template_directory_uri() . '/assets/images/' . ltrim( $file, '/' );
 }
 
 /**
@@ -337,37 +358,28 @@ function gaming_hub_ecoflow_link_watts( array $primary, array $secondary ) {
 function gaming_hub_ecoflow_flow_payload( array $status ) {
 	$pro = gaming_hub_ecoflow_device_flow_slice( $status );
 
+	$delta = ! empty( $status['secondary'] ) && is_array( $status['secondary'] )
+		? $status['secondary']
+		: gaming_hub_ecoflow_delta1500_from_pro_dc( $status );
+
 	$payload = array(
-		'dual'        => ! empty( $status['secondary'] ) && is_array( $status['secondary'] ),
-		'solar_in'    => $pro['solar_in'],
-		'grid_in'     => $pro['ac_in'],
-		'ac_in'       => $pro['ac_in'],
-		'pro'         => $pro,
-		'battery_percent' => $pro['battery_percent'],
-		'is_charging' => $pro['is_charging'],
-		'charge_state' => $pro['charge_state'],
-		'input_total' => $pro['input_total'],
-		'output_total' => $pro['output_total'],
-		'remain_time' => $pro['remain_time'],
-		'remain_time_label' => $pro['remain_time_label'],
+		'dual'                => true,
+		'solar_in'            => $pro['solar_in'],
+		'grid_in'             => $pro['ac_in'],
+		'ac_in'               => $pro['ac_in'],
+		'pro'                 => $pro,
+		'battery_percent'     => $pro['battery_percent'],
+		'is_charging'         => $pro['is_charging'],
+		'charge_state'        => $pro['charge_state'],
+		'input_total'         => $pro['input_total'],
+		'output_total'        => $pro['output_total'],
+		'remain_time'         => $pro['remain_time'],
+		'remain_time_label'   => $pro['remain_time_label'],
 		'remain_time_display' => $pro['remain_time_display'],
+		'delta'               => gaming_hub_ecoflow_device_flow_slice( $delta ),
+		'link_watts'          => gaming_hub_ecoflow_link_watts( $status ),
+		'home_out'            => (int) ( $status['ac_out'] ?? 0 ),
 	);
-
-	if ( ! $payload['dual'] ) {
-		return $payload;
-	}
-
-	$delta = gaming_hub_ecoflow_device_flow_slice( $status['secondary'] );
-	$link  = gaming_hub_ecoflow_link_watts( $status, $status['secondary'] );
-
-	$home_out = (int) ( $delta['output_total'] ?? 0 );
-	if ( $home_out <= 0 ) {
-		$home_out = max( 0, (int) ( $delta['ac_out'] ?? 0 ) + (int) ( $status['secondary']['dc_out'] ?? 0 ) );
-	}
-
-	$payload['delta']      = $delta;
-	$payload['link_watts'] = $link;
-	$payload['home_out']   = $home_out;
 
 	return $payload;
 }
@@ -640,7 +652,7 @@ function gaming_hub_render_ecoflow_setup_instructions() {
 			<li><?php esc_html_e( 'デバイスのシリアル番号 (SN) を確認', 'gaming-hub' ); ?></li>
 			<li><?php esc_html_e( '.env または 外観 → カスタマイズ → EcoFlow API に設定', 'gaming-hub' ); ?></li>
 			<li><?php esc_html_e( 'Delta 3 1500 を連携する場合は ECOFLOW_DEVICE_SN_2 も設定', 'gaming-hub' ); ?></li>
-			<li><?php esc_html_e( 'Delta 3 の MQTT 取得: Googleログインのみの場合は EcoFlow アプリで「ログインパスワード」を先に設定', 'gaming-hub' ); ?></li>
+			<li><?php esc_html_e( 'Delta 3 の MQTT: 日本のアカウントは API Region を Asia にする。Googleログインのみならアプリで「ログインパスワード」を設定', 'gaming-hub' ); ?></li>
 		</ol>
 		<p>
 			<a href="https://developer.ecoflow.com/us/" target="_blank" rel="noopener noreferrer">
@@ -760,14 +772,23 @@ function gaming_hub_ecoflow_scripts() {
 			'labels' => array(
 				'solar'       => __( 'ソーラー', 'gaming-hub' ),
 				'grid'        => __( 'グリッド', 'gaming-hub' ),
-				'home'        => __( 'ホーム', 'gaming-hub' ),
+				'home'        => __( '慎一の部屋', 'gaming-hub' ),
 				'battery'     => __( 'バッテリー', 'gaming-hub' ),
 				'pro'         => __( 'Delta Pro 3', 'gaming-hub' ),
 				'delta'       => __( 'Delta 3 1500', 'gaming-hub' ),
-				'acLink'      => __( 'AC 100V', 'gaming-hub' ),
+				'dcLink'      => __( 'DC 12V', 'gaming-hub' ),
+				'acLink'      => __( 'DC 12V', 'gaming-hub' ),
+				'acOut'       => __( 'AC 出力', 'gaming-hub' ),
 				'flow'        => __( '電力フロー', 'gaming-hub' ),
 				'inputTotal'  => __( '入力合計', 'gaming-hub' ),
 				'outputTotal' => __( '出力合計', 'gaming-hub' ),
+			),
+			'images' => array(
+				'solar' => gaming_hub_ecoflow_image_url( 'ecoflow-solar-gaming.jpg' ),
+				'pro'   => gaming_hub_ecoflow_image_url( 'ecoflow-pro-gaming.jpg' ),
+				'dc12v' => gaming_hub_ecoflow_image_url( 'ecoflow-dc12v-gaming.jpg' ),
+				'delta' => gaming_hub_ecoflow_image_url( 'ecoflow-delta1500-gaming.jpg' ),
+				'room'  => gaming_hub_ecoflow_image_url( 'ecoflow-room-gaming.jpg' ),
 			),
 		)
 	);

@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.5.2' );
+define( 'GAMING_HUB_VERSION', '1.6.8' );
 
 require get_template_directory() . '/inc/pokemon-go.php';
 require get_template_directory() . '/inc/pokemon-go-youtube.php';
@@ -253,7 +253,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_title', array(
-		'default'           => __( 'Level Up Your Gaming Experience', 'gaming-hub' ),
+		'default'           => __( '家庭の電力と、ゲームの最新情報をひとつに', 'gaming-hub' ),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'hero_title', array(
@@ -263,7 +263,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_subtitle', array(
-		'default'           => __( 'Latest reviews, news, and guides for gamers', 'gaming-hub' ),
+		'default'           => __( 'Powerwall・LOOOP・EcoFlow の見える化と、Pokémon GO / ゲームレビュー。毎日の電気代から遊びまで、このサイトでチェック。', 'gaming-hub' ),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'hero_subtitle', array(
@@ -273,7 +273,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_cta_text', array(
-		'default'           => __( 'Explore Reviews', 'gaming-hub' ),
+		'default'           => __( 'Powerwall を見る', 'gaming-hub' ),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'hero_cta_text', array(
@@ -283,7 +283,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_cta_url', array(
-		'default'           => '#reviews',
+		'default'           => '/powerwall/',
 		'sanitize_callback' => 'esc_url_raw',
 	) );
 	$wp_customize->add_control( 'hero_cta_url', array(
@@ -371,7 +371,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 		'type'    => 'select',
 		'choices' => array(
 			'us' => 'US / Global (api.ecoflow.com)',
-			'a'  => 'Asia (api-a.ecoflow.com)',
+			'a'  => 'Asia / 日本 (api-a.ecoflow.com)',
 			'eu' => 'Europe (api-e.ecoflow.com)',
 		),
 	) );
@@ -459,12 +459,60 @@ add_action( 'customize_register', 'gaming_hub_customize_register_tesla' );
 function gaming_hub_fallback_menu() {
 	echo '<ul class="nav-menu">';
 	echo '<li><a href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Home', 'gaming-hub' ) . '</a></li>';
-	echo '<li><a href="' . esc_url( home_url( '/category/reviews/' ) ) . '">' . esc_html__( 'Reviews', 'gaming-hub' ) . '</a></li>';
-	echo '<li><a href="' . esc_url( home_url( '/category/news/' ) ) . '">' . esc_html__( 'News', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_pokemon_go_url() ) . '">' . esc_html__( 'Pokémon GO', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_ecoflow_url() ) . '">' . esc_html__( 'EcoFlow', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_looop_url() ) . '">' . esc_html__( 'LOOOP', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_powerwall_url() ) . '">' . esc_html__( 'Powerwall', 'gaming-hub' ) . '</a></li>';
-	echo '<li><a href="' . esc_url( home_url( '/category/guides/' ) ) . '">' . esc_html__( 'Guides', 'gaming-hub' ) . '</a></li>';
 	echo '</ul>';
 }
+
+/**
+ * Category slugs hidden from navigation (Reviews / News / Guides).
+ *
+ * @return array<int, string>
+ */
+function gaming_hub_hidden_nav_category_slugs() {
+	return array( 'reviews', 'news', 'guides' );
+}
+
+/**
+ * Remove Reviews / News / Guides items from WordPress menus.
+ *
+ * @param array<int, WP_Post> $items Menu items.
+ * @return array<int, WP_Post>
+ */
+function gaming_hub_hide_nav_categories( $items ) {
+	$hidden = gaming_hub_hidden_nav_category_slugs();
+
+	return array_values(
+		array_filter(
+			$items,
+			static function ( $item ) use ( $hidden ) {
+				$slug = '';
+
+				if ( 'category' === ( $item->object ?? '' ) && ! empty( $item->object_id ) ) {
+					$term = get_term( (int) $item->object_id, 'category' );
+					if ( $term && ! is_wp_error( $term ) ) {
+						$slug = (string) $term->slug;
+					}
+				}
+
+				$title = strtolower( trim( (string) ( $item->title ?? '' ) ) );
+				$url   = strtolower( (string) ( $item->url ?? '' ) );
+
+				if ( in_array( $slug, $hidden, true ) || in_array( $title, $hidden, true ) ) {
+					return false;
+				}
+
+				foreach ( $hidden as $hidden_slug ) {
+					if ( false !== strpos( $url, '/category/' . $hidden_slug ) ) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+		)
+	);
+}
+add_filter( 'wp_nav_menu_objects', 'gaming_hub_hide_nav_categories' );

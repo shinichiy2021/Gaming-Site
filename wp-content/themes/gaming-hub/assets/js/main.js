@@ -27,15 +27,11 @@
 
 	const header = document.querySelector('.site-header');
 	if (header) {
-		let lastScroll = 0;
-		window.addEventListener('scroll', function () {
+		function updateHeader() {
 			const currentScroll = window.pageYOffset;
-			if (currentScroll > 100) {
-				header.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.3)';
-			} else {
-				header.style.boxShadow = 'none';
-			}
-			lastScroll = currentScroll;
-		});
+			header.classList.toggle('is-scrolled', currentScroll > 40);
+		}
+		updateHeader();
+		window.addEventListener('scroll', updateHeader, { passive: true });
 	}
 })();

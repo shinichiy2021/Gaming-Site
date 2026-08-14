@@ -1,34 +1,34 @@
 export const FLOW_THRESHOLD = 8;
 
-/** Powerwall 3 + Model 3 connections (grid import only). */
+/** Overlay connections on the house diagram. */
 export const FLOW_CONNECTIONS = [
 	{
 		id: 'solar',
-		from: { id: 'solar', side: 'right' },
-		to: { id: 'powerwall', side: 'left' },
-		axis: 'horizontal',
+		from: { id: 'solar', side: 'bottom' },
+		to: { id: 'powerwall', side: 'top' },
 		color: '#ffb300',
+		showLabel: true,
 	},
 	{
 		id: 'home',
-		from: { id: 'powerwall', side: 'right' },
-		to: { id: 'home', side: 'left' },
-		axis: 'horizontal',
+		from: { id: 'powerwall', side: 'left' },
+		to: { id: 'home', side: 'right' },
 		color: '#69f0ae',
+		showLabel: true,
 	},
 	{
 		id: 'car',
 		from: { id: 'powerwall', side: 'bottom' },
 		to: { id: 'model3', side: 'top' },
-		axis: 'vertical',
 		color: '#e82127',
+		showLabel: true,
 	},
 	{
 		id: 'gridImport',
-		from: { id: 'grid', side: 'top' },
-		to: { id: 'powerwall', side: 'bottom' },
-		axis: 'vertical',
+		from: { id: 'grid', side: 'left' },
+		to: { id: 'powerwall', side: 'right' },
 		color: '#64b5f6',
+		showLabel: true,
 	},
 ];
 
