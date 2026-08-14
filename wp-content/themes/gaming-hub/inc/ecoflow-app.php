@@ -66,6 +66,13 @@ function gaming_hub_ecoflow_format_bridge_error( $error ) {
 		);
 	}
 
+	if ( false !== stripos( $error, 'not authorized' ) || false !== stripos( $error, 'MQTT 認証' ) ) {
+		return __(
+			'MQTT 認証に失敗しました。日本の EcoFlow アカウントは「外観 → カスタマイズ → EcoFlow API → API Region」を Asia にしてください。保存後、docker compose restart ecoflow-bridge を実行してください。',
+			'gaming-hub'
+		);
+	}
+
 	if ( false !== stripos( $error, 'Waiting for' ) || false !== stripos( $error, 'bridge-config' ) ) {
 		return __(
 			'MQTT ブリッジの設定待ちです。外観 → カスタマイズ → EcoFlow API に App Login を入力し、docker compose up -d ecoflow-bridge を実行してください。',
@@ -173,7 +180,7 @@ function gaming_hub_ecoflow_read_bridge_quota( $device_sn ) {
 }
 
 /**
- * Infer Delta 3 status from Delta Pro 3 when AC output feeds the secondary unit.
+ * Independent Delta 3 placeholder when App Login / MQTT quota is unavailable.
  *
  * @param array<string, mixed> $primary     Primary (Pro 3) status.
  * @param string               $device_sn   Secondary serial.
@@ -192,42 +199,28 @@ function gaming_hub_ecoflow_infer_secondary_from_primary( array $primary, $devic
 		$bridge_hint = ' ' . __( 'MQTT ブリッジ待機中 — docker compose up -d ecoflow-bridge', 'gaming-hub' );
 	}
 
-	$pro_ac_out = (int) ( $primary['ac_out'] ?? 0 );
-	$pro_dsg    = ! empty( $primary['is_discharging'] );
-
-	$ac_in          = null;
-	$input_total    = null;
-	$output_total   = null;
-	$is_charging    = false;
-	$is_discharging = false;
-	$charge_state   = __( '待機中', 'gaming-hub' );
-
-	if ( $pro_ac_out >= 8 && $pro_dsg ) {
-		$ac_in        = $pro_ac_out;
-		$input_total  = $pro_ac_out;
-		$is_charging  = true;
-		$charge_state = __( '充電中', 'gaming-hub' );
-	}
-
-	return array(
+	$inferred = array(
 		'device_sn'       => $device_sn,
 		'device_name'     => $device_name,
 		'online'          => $online,
 		'battery_percent' => null,
-		'solar_in'        => null,
-		'input_total'     => $input_total,
-		'output_total'    => $output_total,
-		'ac_in'           => $ac_in,
-		'ac_out'          => null,
-		'dc_out'          => null,
+		'solar_in'        => 0,
+		'hv_in'           => 0,
+		'input_total'     => 0,
+		'output_total'    => 0,
+		'ac_in'           => 0,
+		'ac_out'          => 0,
+		'dc_out'          => 0,
 		'battery_temp'    => null,
 		'remain_time'     => null,
-		'remain_capacity' => null,
-		'is_charging'     => $is_charging,
-		'is_discharging'  => $is_discharging,
-		'charge_state'    => $charge_state,
+		'is_charging'     => false,
+		'is_discharging'  => false,
+		'charge_state'    => __( '独立運転', 'gaming-hub' ),
 		'inferred'        => true,
-		'inferred_note'   => ( $reason ?: __( 'Developer API 非対応 — Pro 3 の AC 出力から推定', 'gaming-hub' ) ) . $bridge_hint,
+		'inferred_note'   => ( $reason ?: __( 'Developer API 非対応 — Low Volt ソーラーは 1500 へ独立入力。Extra Battery 1kW 接続。合算 2.5 kWh', 'gaming-hub' ) ) . $bridge_hint,
 		'updated_at'      => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		'extra'           => gaming_hub_ecoflow_extra_battery_slice(),
 	);
+
+	return array_merge( $inferred, gaming_hub_ecoflow_delta1500_pack_energy( $inferred['battery_percent'] ) );
 }

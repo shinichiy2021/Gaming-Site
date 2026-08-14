@@ -184,7 +184,40 @@ Hero section text can be customized via **Appearance → Customize → Hero Sect
 
 ## Production Deploy (https://shinichiy-gaming-hub.com)
 
-本番 VPS（nginx + Docker）へソースをデプロイします。
+本番 AWS EC2（nginx + Docker）へデプロイします。
+
+### 自動デプロイ（GitHub Actions）
+
+`master` ブランチへ push すると [Deploy to AWS](.github/workflows/deploy-aws.yml) が EC2 へ rsync + `docker compose up -d` します。手動実行は **Actions → Deploy to AWS → Run workflow** でも可能です。
+
+**初回セットアップ（ローカル）**
+
+```bash
+brew install gh          # 未インストール時
+gh auth login            # GitHub にログイン
+./scripts/setup-github-actions.sh
+```
+
+スクリプトは Secrets / Variables / `production` 環境を登録します。SSH 鍵はリポジトリ直下の `private-key.pem` を使います（別パスなら `DEPLOY_SSH_KEY_FILE=~/.ssh/your_key ./scripts/setup-github-actions.sh`）。
+
+**GitHub リポジトリ設定（手動でも可: Settings → Secrets and variables → Actions）**
+
+| 種類 | 名前 | 値 |
+|------|------|-----|
+| Secret | `DEPLOY_HOST` | `shinichiy-gaming-hub.com` |
+| Secret | `DEPLOY_USER` | `ubuntu`（SSH ユーザー） |
+| Secret | `DEPLOY_SSH_KEY` | EC2 用 SSH **秘密鍵**の全文 |
+| Variable | `DEPLOY_PATH` | `/opt/gaming-hub`（任意） |
+
+`production` 環境を作成すると、デプロイ前に GitHub の承認ゲートを挟めます（Settings → Environments → production）。
+
+EC2 の `~/.ssh/authorized_keys` に、上記秘密鍵と対になる**公開鍵**が登録されている必要があります。
+
+### 手動デプロイ（ローカル）
+
+```bash
+DEPLOY_USER=ubuntu ./scripts/deploy.sh
+```
 
 ### 初回のみ（サーバー上）
 
@@ -206,9 +239,8 @@ cd /opt/gaming-hub && docker compose -f docker-compose.prod.yml up -d
 
 ### 2回目以降
 
-```bash
-DEPLOY_USER=ubuntu ./scripts/deploy.sh
-```
+- **自動**: `master` へ merge / push
+- **手動**: `DEPLOY_USER=ubuntu ./scripts/deploy.sh`
 
 ### WordPress 初回
 

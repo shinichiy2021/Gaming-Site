@@ -1,15 +1,7 @@
 export const FLOW_THRESHOLD = 8;
 
-/** Dual-device: Solar/Grid → Pro → DC 12V → 1500, Pro AC → room. */
+/** Independent: Grid → Pro → room, LV solar → Delta 3 1500. */
 export const FLOW_CONNECTIONS_DUAL = [
-	{
-		id: 'solar',
-		from: { id: 'solar', side: 'bottom' },
-		to: { id: 'pro', side: 'top' },
-		axis: 'vertical',
-		color: '#00f5d4',
-		showLabel: true,
-	},
 	{
 		id: 'grid',
 		from: { id: 'grid', side: 'right' },
@@ -19,25 +11,35 @@ export const FLOW_CONNECTIONS_DUAL = [
 		showLabel: true,
 	},
 	{
-		id: 'proToLink',
-		from: { id: 'pro', side: 'right' },
-		to: { id: 'link', side: 'left' },
+		id: 'hv',
+		from: { id: 'hv', side: 'right' },
+		to: { id: 'pro', side: 'left' },
 		axis: 'horizontal',
-		color: '#ffe600',
+		color: '#ff9100',
 		showLabel: true,
-	},
-	{
-		id: 'linkToDelta',
-		from: { id: 'link', side: 'right' },
-		to: { id: 'delta', side: 'left' },
-		axis: 'horizontal',
-		color: '#ffe600',
-		showLabel: false,
 	},
 	{
 		id: 'proToHome',
 		from: { id: 'pro', side: 'bottom' },
 		to: { id: 'home', side: 'top' },
+		axis: 'vertical',
+		align: 'from',
+		color: '#69f0ae',
+		showLabel: true,
+		alwaysLabel: true,
+	},
+	{
+		id: 'solar',
+		from: { id: 'solar', side: 'right' },
+		to: { id: 'delta', side: 'left' },
+		axis: 'horizontal',
+		color: '#00f5d4',
+		showLabel: true,
+	},
+	{
+		id: 'deltaToUps',
+		from: { id: 'delta', side: 'bottom' },
+		to: { id: 'ups', side: 'top' },
 		axis: 'vertical',
 		align: 'from',
 		color: '#69f0ae',
@@ -83,8 +85,68 @@ export function formatWatts( value ) {
 	return `${ Math.round( value ).toLocaleString() } W`;
 }
 
-export function linkWatts( pro ) {
-	return Number( pro?.dc_out ) || 0;
+export function formatWh( value ) {
+	if ( value === null || value === undefined ) {
+		return '—';
+	}
+
+	if ( Number( value ) > 1000 ) {
+		return `${ ( Number( value ) / 1000 ).toLocaleString( undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 } ) } kWh`;
+	}
+
+	return `${ Math.round( value ).toLocaleString() } Wh`;
+}
+
+export function formatPack( remain, full ) {
+	if ( ! Number.isFinite( Number( full ) ) || Number( full ) <= 0 ) {
+		return formatWh( remain );
+	}
+
+	return `${ formatWh( remain ) } / ${ formatWh( full ) }`;
+}
+
+export function solarToDelta( status ) {
+	if ( ! status ) {
+		return 0;
+	}
+
+	return Number( status.delta?.solar_in ) || Number( status.solar_in ) || 0;
+}
+
+export function proGridCharge( status ) {
+	if ( ! status ) {
+		return { active: false, watts: 0, message: '' };
+	}
+
+	if ( status.pro_grid_charge && typeof status.pro_grid_charge === 'object' ) {
+		return {
+			active: !! status.pro_grid_charge.active,
+			watts: Number( status.pro_grid_charge.watts ) || 0,
+			message: status.pro_grid_charge.message || '',
+		};
+	}
+
+	return { active: false, watts: 0, message: '' };
+}
+
+export function hvInput( status ) {
+	if ( ! status ) {
+		return 0;
+	}
+
+	return Number( status.hv_in ) || Number( status.pro?.hv_in ) || 0;
+}
+
+export function upsOutput( status ) {
+	if ( ! status ) {
+		return 0;
+	}
+
+	if ( Object.prototype.hasOwnProperty.call( status, 'ups_out' ) && status.ups_out !== null && status.ups_out !== undefined ) {
+		return Number( status.ups_out ) || 0;
+	}
+
+	return Number( status.delta?.ac_out ) || 0;
 }
 
 export function homeOutput( status ) {

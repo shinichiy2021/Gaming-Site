@@ -2,7 +2,7 @@
 /**
  * Tajimi (Gifu) solar generation simulation with live weather.
  *
- * Assumes a 2 kW rooftop array (30° south, PR 0.85). Uses JMA 1991–2020
+ * Assumes a 1.5 kW rooftop array (30° south, PR 0.85). Uses JMA 1991–2020
  * monthly sunshine normals for 多治見 and Open-Meteo for cloud / irradiance.
  *
  * @package Gaming_Hub
@@ -12,14 +12,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX', 'gaming_hub_tajimi_solar_' );
+define( 'GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX', 'gaming_hub_tajimi_solar_v2_' );
 define( 'GAMING_HUB_TAJIMI_SOLAR_CACHE_TTL', HOUR_IN_SECONDS );
 
-/** Installed rooftop solar array (watts). */
-define( 'GAMING_HUB_POWERWALL_SOLAR_CAPACITY_W', 2000 );
+/** Installed rooftop solar array (watts). Max rated output 1.5 kW. */
+define( 'GAMING_HUB_POWERWALL_SOLAR_CAPACITY_W', 1500 );
 
 /**
- * Installed solar capacity in watts (2 kW panels).
+ * Installed solar capacity in watts (1.5 kW panels).
  */
 function gaming_hub_powerwall_solar_capacity_w() {
 	return (int) GAMING_HUB_POWERWALL_SOLAR_CAPACITY_W;
@@ -32,7 +32,7 @@ function gaming_hub_powerwall_solar_panel_label() {
 	return sprintf(
 		/* translators: %s: panel capacity in kW */
 		__( '%s kW パネル', 'gaming-hub' ),
-		number_format_i18n( gaming_hub_powerwall_solar_capacity_w() / 1000, 0 )
+		number_format_i18n( gaming_hub_powerwall_solar_capacity_w() / 1000, 1 )
 	);
 }
 
@@ -105,6 +105,22 @@ function gaming_hub_tajimi_weather_label( $code ) {
 }
 
 /**
+ * Today's daily weather label from an Open-Meteo payload.
+ *
+ * @param array<string, mixed> $payload Open-Meteo JSON.
+ */
+function gaming_hub_tajimi_today_weather_from_payload( array $payload ) {
+	$daily = is_array( $payload['daily'] ?? null ) ? $payload['daily'] : array();
+	if ( isset( $daily['weather_code'][0] ) ) {
+		return gaming_hub_tajimi_weather_label( (int) $daily['weather_code'][0] );
+	}
+
+	$parsed = gaming_hub_tajimi_parse_open_meteo_hour( $payload );
+
+	return gaming_hub_tajimi_weather_label( (int) ( $parsed['weather_code'] ?? 0 ) );
+}
+
+/**
  * Clear-sky hourly shape for Tajimi (0–1), weighted by month sunshine.
  *
  * @param int $hour   Local hour 0–23.
@@ -143,8 +159,9 @@ function gaming_hub_tajimi_fetch_open_meteo() {
 			'longitude'      => $loc['lon'],
 			'timezone'       => 'Asia/Tokyo',
 			'forecast_days'  => 1,
-			'current'        => 'cloud_cover,is_day,weather_code,global_tilted_irradiance',
-			'hourly'         => 'global_tilted_irradiance,cloud_cover,is_day,weather_code',
+			'current'        => 'cloud_cover,is_day,weather_code,global_tilted_irradiance,temperature_2m',
+			'hourly'         => 'global_tilted_irradiance,cloud_cover,is_day,weather_code,temperature_2m',
+			'daily'          => 'weather_code',
 			'tilt'           => 30,
 			'azimuth'        => 0,
 		),
@@ -231,7 +248,7 @@ function gaming_hub_tajimi_parse_open_meteo_hour( array $payload ) {
 }
 
 /**
- * Estimate watts from irradiance (2 kW array, 30° south, PR 0.85).
+ * Estimate watts from irradiance (1.5 kW array, 30° south, PR 0.85).
  *
  * @param float|null $gti W/m² global tilted irradiance.
  * @param int        $capacity_w Panel capacity watts.
@@ -312,7 +329,7 @@ function gaming_hub_powerwall_get_solar_generation( $force_refresh = false ) {
 		$cloud  = $parsed['cloud_cover'];
 		$gti    = $parsed['global_tilted_irradiance'];
 		$slot   = str_replace( 'T', ' ', $parsed['hour_slot'] );
-		$weather = gaming_hub_tajimi_weather_label( $parsed['weather_code'] );
+		$weather = gaming_hub_tajimi_today_weather_from_payload( $payload );
 
 		if ( empty( $parsed['is_day'] ) ) {
 			$watts = 0;
@@ -356,7 +373,7 @@ function gaming_hub_powerwall_get_solar_generation( $force_refresh = false ) {
  */
 function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 	$date       = wp_date( 'Y-m-d' );
-	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'day_' . $date;
+	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv3_' . $date;
 	$capacity_w = gaming_hub_powerwall_solar_capacity_w();
 	$month      = (int) wp_date( 'n' );
 
@@ -368,6 +385,7 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 	}
 
 	$profile = array_fill( 0, 24, 0 );
+	$temps   = array_fill( 0, 24, null );
 	$payload = gaming_hub_tajimi_fetch_open_meteo();
 	$source  = 'tajimi-normal';
 
@@ -390,6 +408,10 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 				? (int) $hourly['cloud_cover'][ $index ]
 				: null;
 
+			if ( isset( $hourly['temperature_2m'][ $index ] ) ) {
+				$temps[ $hour ] = (float) $hourly['temperature_2m'][ $index ];
+			}
+
 			if ( ! $is_day ) {
 				$profile[ $hour ] = 0;
 			} elseif ( null !== $gti ) {
@@ -404,10 +426,42 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 		}
 	}
 
+	$weather = __( '不明', 'gaming-hub' );
+	if ( ! is_wp_error( $payload ) ) {
+		$weather = gaming_hub_tajimi_today_weather_from_payload( $payload );
+	} else {
+		$weather = __( '天気取得不可', 'gaming-hub' );
+	}
+
+	$loc = gaming_hub_tajimi_solar_location();
+
+	$temp_now = null;
+	$temp_max = null;
+	$temp_min = null;
+	$numeric_temps = array_values( array_filter( $temps, 'is_numeric' ) );
+	if ( $numeric_temps ) {
+		$temp_max = max( $numeric_temps );
+		$temp_min = min( $numeric_temps );
+		$now_h    = (int) wp_date( 'G' );
+		$temp_now = isset( $temps[ $now_h ] ) && is_numeric( $temps[ $now_h ] )
+			? (float) $temps[ $now_h ]
+			: (float) $numeric_temps[0];
+	}
+	if ( ! is_wp_error( $payload ) && isset( $payload['current']['temperature_2m'] ) ) {
+		$temp_now = (float) $payload['current']['temperature_2m'];
+	}
+
 	$result = array(
-		'hours'  => $profile,
-		'date'   => $date,
-		'source' => $source,
+		'hours'     => $profile,
+		'temps'     => $temps,
+		'temp_now'  => $temp_now,
+		'temp_max'  => $temp_max,
+		'temp_min'  => $temp_min,
+		'date'      => $date,
+		'source'    => $source,
+		'today_kwh' => round( array_sum( $profile ) / 1000, 2 ),
+		'weather'   => $weather,
+		'location'  => $loc['name'],
 	);
 
 	set_transient( $cache_key, $result, GAMING_HUB_TAJIMI_SOLAR_CACHE_TTL );

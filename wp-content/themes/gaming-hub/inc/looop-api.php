@@ -78,7 +78,7 @@ class Gaming_Hub_Looop_Api {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public function get_forecast( $force_refresh = false ) {
-		$cache_key = 'gaming_hub_looop_forecast_v3';
+		$cache_key = 'gaming_hub_looop_forecast_v4';
 		$cache_ttl = HOUR_IN_SECONDS;
 
 		if ( ! $force_refresh ) {
@@ -271,28 +271,28 @@ class Gaming_Hub_Looop_Api {
 	public function get_fixed_cost_breakdown() {
 		$monthly_basic = ( self::CHUBU_TRANSMISSION_BASIC_PER_KW + self::CHUBU_CAPACITY_PER_KW ) * self::DEFAULT_CONTRACT_KW;
 		$basic_per_kwh = $monthly_basic / self::DEFAULT_MONTHLY_KWH;
+		$volumetric    = self::CHUBU_SERVICE_FEE + self::CHUBU_TRANSMISSION_VOLUMETRIC + self::RENEWABLE_SURCHARGE;
 
 		return array(
-			'service_fee'           => self::CHUBU_SERVICE_FEE,
+			'service_fee'            => self::CHUBU_SERVICE_FEE,
 			'transmission_volumetric'=> self::CHUBU_TRANSMISSION_VOLUMETRIC,
-			'renewable_surcharge'   => self::RENEWABLE_SURCHARGE,
-			'basic_amortized'       => round( $basic_per_kwh, 2 ),
-			'total'                 => round(
-				self::CHUBU_SERVICE_FEE + self::CHUBU_TRANSMISSION_VOLUMETRIC + self::RENEWABLE_SURCHARGE + $basic_per_kwh,
-				2
-			),
+			'renewable_surcharge'    => self::RENEWABLE_SURCHARGE,
+			'basic_amortized'        => round( $basic_per_kwh, 2 ),
+			'volumetric_total'       => round( $volumetric, 2 ),
+			'total'                  => round( $volumetric, 2 ),
 		);
 	}
 
 	/**
-	 * Total usage price per kWh (variable + fixed components).
+	 * LOOOP 請求単価 (¥/kWh): 電源料金 + サービス料 + 託送従量 + 再エネ賦課金.
+	 * kW 課金の託送基本・容量拠出金は含まない.
 	 *
 	 * @param float $power_price Tax-included 電源料金.
 	 */
 	public function to_total_price( $power_price ) {
 		$fixed = $this->get_fixed_cost_breakdown();
 
-		return round( $power_price + $fixed['total'], 2 );
+		return round( $power_price + (float) $fixed['volumetric_total'], 2 );
 	}
 
 	/**
@@ -331,14 +331,9 @@ class Gaming_Hub_Looop_Api {
 			'has_tomorrow'  => ! empty( $days['tomorrow']['slots'] ),
 			'cheapest_hour' => $this->find_cheapest_hour( $hourly_today ),
 			'fixed_costs'   => $fixed_costs,
-			'pricing_note'  => sprintf(
-				/* translators: 1: contract kW, 2: monthly kWh */
-				__( '基本料金按分: 契約 %1$s kW · 月 %2$s kWh 想定', 'gaming-hub' ),
-				number_format( self::DEFAULT_CONTRACT_KW, 1 ),
-				number_format( self::DEFAULT_MONTHLY_KWH, 0 )
-			),
+			'pricing_note'  => __( '請求単価 = 電源料金 + サービス料 7.00 + 託送従量 7.91 + 再エネ 4.18。託送基本・容量拠出金は月額のため含みません。', 'gaming-hub' ),
 			'source'        => 'JEPX / japanesepower.org',
-			'disclaimer'    => __( 'JEPX中部エリアプライスから電源料金を算出し、サービス料・託送従量料金・再エネ賦課金・基本料金（按分）を加算した概算単価です。割引や燃料費調整は含みません。', 'gaming-hub' ),
+			'disclaimer'    => __( 'LOOOP スマートタイムONE（電灯）の請求単価です。JEPX中部エリアから電源料金を算出し、サービス料・託送従量料金・再エネ賦課金を加算しています。月額の制度対応費（託送基本・容量拠出金）は含みません。', 'gaming-hub' ),
 		);
 	}
 
