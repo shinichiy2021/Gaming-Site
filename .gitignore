@@ -25,3 +25,9 @@ Thumbs.db
 # Node
 node_modules/
 wp-content/themes/gaming-hub/node_modules/
+deploy.tar.gz
+
+# SSH / TLS keys (never commit)
+*.pem
+private-key.pem
+public-key.pem

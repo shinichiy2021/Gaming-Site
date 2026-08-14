@@ -106,7 +106,7 @@ function gaming_hub_powerwall_calculate_daily_cost( $force_refresh = false ) {
 
 	return array(
 		'contract_kw'            => Gaming_Hub_Looop_Api::DEFAULT_CONTRACT_KW,
-		'provider'               => __( '中部電力 LOOOP', 'gaming-hub' ),
+		'provider'               => __( 'LOOOP スマートタイムONE（電灯）', 'gaming-hub' ),
 		'date'                   => wp_date( 'Y-m-d' ),
 		'date_label'             => wp_date( get_option( 'date_format' ) ),
 		'total_kwh'              => round( $load_kwh, 2 ),

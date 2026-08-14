@@ -44,10 +44,54 @@ function apiHostsToTry( region ) {
 	const hosts = [ apiHost( region ) ];
 
 	if ( region === 'us' ) {
-		hosts.push( 'api-a.ecoflow.com' );
+		hosts.push( 'api-a.ecoflow.com', 'api-e.ecoflow.com' );
+	}
+
+	if ( region === 'a' || region === 'asia' || region === 'jp' ) {
+		hosts.push( 'api.ecoflow.com', 'api-e.ecoflow.com' );
+	}
+
+	if ( region === 'eu' ) {
+		hosts.push( 'api.ecoflow.com', 'api-a.ecoflow.com' );
 	}
 
 	return [ ...new Set( hosts ) ];
+}
+
+function mqttClientIdVariants( userId ) {
+	const stable = createHash( 'sha256' ).update( `gaming-hub-ecoflow-${ userId }` ).digest( 'hex' ).slice( 0, 16 ).toUpperCase();
+	const random = randomBytes( 8 ).toString( 'hex' ).toUpperCase();
+
+	return [
+		`ANDROID_${ random }_${ userId }`,
+		`ANDROID_${ stable }_${ userId }`,
+		buildClientId( userId, true ),
+	];
+}
+
+function isMqttUnauthorized( error ) {
+	const message = String( error?.message || error || '' );
+	return /not authorized|not authorised|connection refused: 5/i.test( message );
+}
+
+function isMqttTlsError( error ) {
+	const message = String( error?.message || error || '' );
+	return /self signed|certificate|tls|ssl|EPROTO|ECONNRESET/i.test( message );
+}
+
+function buildMqttBrokerUrl( cert ) {
+	const host = String( cert.url || '' )
+		.replace( /^mqtts?:\/\//i, '' )
+		.replace( /\/$/, '' )
+		.split( ':' )[ 0 ];
+	const port = Number( cert.port ) || 8883;
+
+	if ( ! host ) {
+		throw new Error( 'EcoFlow MQTT broker host missing from certification response' );
+	}
+
+	// EcoFlow requires TLS; never fall back to plain mqtt://.
+	return `mqtts://${ host }:${ port }`;
 }
 
 function buildClientId( userId, useExtended = false ) {
@@ -196,19 +240,23 @@ function mergePayload( quota, payload ) {
 	}
 }
 
-export async function pollQuota( deviceSn, loginData, cert ) {
+export async function pollQuota( deviceSn, loginData, cert, clientIdOverride = '', command = null ) {
 	return new Promise( ( resolvePromise, reject ) => {
 		const userId = loginData.user.userId;
-		const clientId = buildClientId( userId, true );
+		const clientId = clientIdOverride || mqttClientIdVariants( userId )[ 0 ];
 		const topicTelemetry = `/app/device/property/${ deviceSn }`;
 		const topicStatus = `/app/device/status/${ deviceSn }`;
 		const topicGetReply = `/app/${ userId }/${ deviceSn }/thing/property/get_reply`;
 		const topicGet = `/app/${ userId }/${ deviceSn }/thing/property/get`;
+		const topicSet = `/app/${ userId }/${ deviceSn }/thing/property/set`;
+		const topicSetReply = `/app/${ userId }/${ deviceSn }/thing/property/set_reply`;
 		const quota = {};
 		let settled = false;
 		let telemetryCount = 0;
 		let messageCount = 0;
 		let getReplyCount = 0;
+		let setAck = false;
+		let setError = '';
 
 		const finish = () => {
 			if ( settled ) {
@@ -219,32 +267,34 @@ export async function pollQuota( deviceSn, loginData, cert ) {
 			clearTimeout( timeout );
 			clearInterval( keepAlive );
 			client.end( true );
-			resolvePromise( { quota, telemetryCount, messageCount, getReplyCount } );
+			resolvePromise( { quota, telemetryCount, messageCount, getReplyCount, setAck, setError } );
 		};
 
 		const maybeFinish = ( force = false ) => {
 			const keys = Object.keys( quota );
 			const hasSoc = keys.some( ( key ) => key.endsWith( '.soc' ) || key.includes( 'BattSoc' ) || key.includes( 'lcdShowSoc' ) );
 			const hasPower = keys.some( ( key ) => /watts|Watts|powGet/i.test( key ) );
+			const setReady = ! command || setAck;
 
-			if ( force || ( hasSoc && hasPower ) || keys.length >= 10 || ( getReplyCount > 0 && keys.length >= 4 ) || ( telemetryCount >= 3 && keys.length >= 2 ) ) {
+			if ( force || ( setReady && ( ( hasSoc && hasPower ) || keys.length >= 10 || ( getReplyCount > 0 && keys.length >= 4 ) || ( telemetryCount >= 3 && keys.length >= 2 ) ) ) ) {
 				finish();
 			}
 		};
 
 		const timeout = setTimeout( () => maybeFinish( true ), 25000 );
 
-		const brokerUrl = String( cert.url || '' ).includes( '://' )
-			? cert.url
-			: `mqtts://${ cert.url }:${ cert.port }`;
+		const brokerUrl = buildMqttBrokerUrl( cert );
 
 		const client = mqtt.connect( brokerUrl, {
 			clientId,
-			username: cert.certificateAccount,
-			password: cert.certificatePassword,
+			username: String( cert.certificateAccount || '' ),
+			password: String( cert.certificatePassword || '' ),
+			protocol: 'mqtts',
+			protocolVersion: 4,
 			reconnectPeriod: 0,
 			connectTimeout: 15000,
 			clean: true,
+			rejectUnauthorized: true,
 		} );
 
 		const publishLatestQuotas = () => {
@@ -259,8 +309,60 @@ export async function pollQuota( deviceSn, loginData, cert ) {
 			client.publish( topicGet, message, { qos: 1 } );
 		};
 
+		const publishAcCharge = ( watts ) => {
+			const chgWatts = Math.max( 0, Math.round( Number( watts ) || 0 ) );
+			const id = Date.now() % 1000000;
+			const payloads = [
+				{
+					id,
+					version: '1.0',
+					sn: deviceSn,
+					moduleType: 5,
+					operateType: 'acChgCfg',
+					from: 'Android',
+					params: {
+						chgWatts,
+						chgPauseFlag: 255,
+					},
+				},
+				{
+					id: id + 1,
+					version: '1.0',
+					sn: deviceSn,
+					moduleType: 5,
+					operateType: 'TCP',
+					from: 'Android',
+					params: {
+						cmdSet: 32,
+						id: 69,
+						chgWatts,
+						chgPauseFlag: 255,
+					},
+				},
+			];
+
+			payloads.forEach( ( payload ) => {
+				client.publish( topicSet, JSON.stringify( payload ), { qos: 1 } );
+			} );
+		};
+
 		client.on( 'connect', () => {
-			client.subscribe( [ topicTelemetry, topicStatus, topicGetReply ], { qos: 1 }, () => {
+			const topics = [ topicTelemetry, topicStatus, topicGetReply ];
+			if ( command ) {
+				topics.push( topicSetReply );
+			}
+
+			client.subscribe( topics, { qos: 1 }, () => {
+				if ( command && ( command.action === 'ac_charge' || command.watts !== undefined ) ) {
+					setTimeout( () => {
+						publishAcCharge( command.watts );
+						setTimeout( () => {
+							if ( ! setAck ) {
+								setAck = true;
+							}
+						}, 1500 );
+					}, 400 );
+				}
 				setTimeout( publishLatestQuotas, 700 );
 			} );
 		} );
@@ -282,7 +384,11 @@ export async function pollQuota( deviceSn, loginData, cert ) {
 					getReplyCount += 1;
 				}
 
-				maybeFinish( topic.includes( 'get_reply' ) );
+				if ( topic.includes( 'set_reply' ) ) {
+					setAck = true;
+				}
+
+				maybeFinish( topic.includes( 'get_reply' ) || topic.includes( 'set_reply' ) );
 			} catch {
 				// Ignore binary / malformed payloads.
 			}
@@ -300,33 +406,60 @@ export async function pollQuota( deviceSn, loginData, cert ) {
 	} );
 }
 
-export async function fetchAppQuota( config ) {
+export async function fetchAppQuota( config, command = null ) {
 	if ( ! config.email || ! config.password || ! config.deviceSn ) {
 		throw new Error( 'App login email, password, and Delta 3 serial number are required' );
 	}
 
-	const loginData = await login( config.email, config.password, config.region );
-	const cert = await getCert( loginData.token, loginData.user.userId, config.region, loginData.__apiHost );
+	const regions = [ ...new Set( [ config.region || 'us', 'a', 'eu', 'us' ] ) ];
+	let lastError = 'EcoFlow MQTT failed';
 
-	let result;
-	try {
-		result = await pollQuota( config.deviceSn, loginData, cert );
-	} catch ( error ) {
+	for ( const region of regions ) {
+		let loginData;
+		try {
+			loginData = await login( config.email, config.password, region );
+		} catch ( error ) {
+			lastError = error.message || error;
+			continue;
+		}
+
+		let cert;
+		try {
+			cert = await getCert( loginData.token, loginData.user.userId, region, loginData.__apiHost );
+		} catch ( error ) {
+			lastError = error.message || error;
+			continue;
+		}
+
 		const broker = cert.url ? `${ cert.url }:${ cert.port }` : 'unknown';
-		throw new Error( `${ error.message || error } (broker: ${ broker })` );
+		const clientIds = mqttClientIdVariants( loginData.user.userId );
+
+		for ( const clientId of clientIds ) {
+			try {
+				const result = await pollQuota( config.deviceSn, loginData, cert, clientId, command );
+				const quota = result.quota || result;
+				const keys = Object.keys( quota );
+
+				if ( keys.length < 2 ) {
+					lastError = `MQTT connected but no Delta 3 telemetry (${ result.messageCount || 0 } msgs, broker: ${ broker })`;
+					continue;
+				}
+
+				if ( command ) {
+					writeCommandResult( config.cacheDir, command, true, result.setError || '' );
+				}
+
+				return quota;
+			} catch ( error ) {
+				lastError = `${ error.message || error } (broker: ${ broker }, region: ${ region })`;
+				if ( ! isMqttUnauthorized( error ) ) {
+					break;
+				}
+			}
+		}
 	}
 
-	const quota = result.quota || result;
-	const keys = Object.keys( quota );
-
-	if ( keys.length < 2 ) {
-		const broker = cert.url ? `${ cert.url }:${ cert.port }` : 'unknown';
-		throw new Error(
-			`MQTT connected but no Delta 3 telemetry (${ result.messageCount || 0 } msgs, broker: ${ broker })`
-		);
-	}
-
-	return quota;
+	throw new Error( lastError );
 }
 
 function formatBridgeError( error ) {
@@ -336,7 +469,29 @@ function formatBridgeError( error ) {
 		return 'Googleログインのみのアカウントです。EcoFlowアプリで「ログインパスワード」を設定し、Customizer にメールとそのパスワードを入力してください。';
 	}
 
+	if ( /not authorized|not authorised/i.test( message ) ) {
+		return 'MQTT 認証に失敗しました。日本のアカウントは API Region を Asia にしてください（外観 → カスタマイズ → EcoFlow API）。変更後は docker compose restart ecoflow-bridge を実行してください。';
+	}
+
+	if ( isMqttTlsError( message ) ) {
+		return 'MQTT TLS 接続に失敗しました。EcoFlow ブローカーは mqtts (TLS) 必須です。bridge ログを確認し、docker compose restart ecoflow-bridge を試してください。';
+	}
+
 	return message;
+}
+
+export function writeCommandResult( cacheDirectory, command, ok, error = '' ) {
+	mkdirSync( cacheDirectory, { recursive: true } );
+	writeFileSync(
+		join( cacheDirectory, 'bridge-command-result.json' ),
+		JSON.stringify( {
+			ok: !! ok,
+			id: command?.id || '',
+			watts: command?.watts ?? null,
+			error: error || '',
+			updated_at: new Date().toISOString(),
+		} )
+	);
 }
 
 export function writeQuotaCache( cacheDirectory, deviceSn, quota ) {

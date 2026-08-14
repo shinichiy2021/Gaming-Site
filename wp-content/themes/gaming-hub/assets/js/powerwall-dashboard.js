@@ -49,7 +49,7 @@
 
 		setField(
 			'cost_subtitle',
-			(cost.provider || '中部電力 LOOOP')
+			(cost.provider || 'LOOOP スマートタイムONE（電灯）')
 				+ ' · 契約 ' + contractKw + ' kW · '
 				+ (cost.date_label || '—') + '（24時間シミュレーション）'
 		);
@@ -111,7 +111,7 @@
 			const cloud = meta.cloud_cover !== null && meta.cloud_cover !== undefined
 				? '雲量 ' + Math.round(meta.cloud_cover) + '%'
 				: '雲量 —';
-			const panelLabel = meta.panel_label || '2 kW パネル';
+			const panelLabel = meta.panel_label || '1.5 kW パネル';
 			const note = 'ソーラー (' + panelLabel + '): ' + (meta.location || '岐阜県多治見市')
 				+ ' · 気象庁日照平年値 + 天気連動 · '
 				+ (meta.hour_slot || '—') + ' 時点 · '

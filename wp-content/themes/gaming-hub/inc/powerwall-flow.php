@@ -225,7 +225,7 @@ function gaming_hub_powerwall_flow_scripts() {
 		'gamingHubPowerwallFlow',
 		array(
 			'labels' => array(
-				'solar'     => __( 'ソーラー (2kW)', 'gaming-hub' ),
+				'solar'     => __( 'ソーラー (1.5kW)', 'gaming-hub' ),
 				'powerwall' => __( 'Powerwall 3', 'gaming-hub' ),
 				'home'      => __( 'ホーム', 'gaming-hub' ),
 				'model3'    => __( 'Model 3', 'gaming-hub' ),

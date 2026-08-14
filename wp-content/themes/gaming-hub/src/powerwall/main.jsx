@@ -6,7 +6,7 @@ const mountNode = document.getElementById( 'powerwall-energy-flow-root' );
 if ( mountNode ) {
 	const initial = mountNode.dataset.initial ? JSON.parse( mountNode.dataset.initial ) : {};
 	const labels = window.gamingHubPowerwallFlow?.labels || {
-		solar: 'ソーラー (2kW)',
+		solar: 'ソーラー (1.5kW)',
 		powerwall: 'Powerwall 3',
 		home: 'ホーム',
 		model3: 'Model 3',
