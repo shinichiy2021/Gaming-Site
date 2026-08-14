@@ -16,7 +16,7 @@ get_header();
 			<?php echo esc_html( get_theme_mod( 'hero_title', __( '家庭の電力と、ゲームの最新情報をひとつに', 'gaming-hub' ) ) ); ?>
 		</h1>
 		<p class="lp-hero-lead">
-			<?php echo esc_html( get_theme_mod( 'hero_subtitle', __( 'Powerwall・LOOOP・EcoFlow の見える化と、Pokémon GO / ゲームレビュー。毎日の電気代から遊びまで、このサイトでチェック。', 'gaming-hub' ) ) ); ?>
+			<?php echo esc_html( get_theme_mod( 'hero_subtitle', __( 'Powerwall・EcoFlow の見える化と、Pokémon GO / ゲームレビュー。毎日の電気代から遊びまで、このサイトでチェック。', 'gaming-hub' ) ) ); ?>
 		</p>
 		<div class="lp-hero-actions">
 			<a href="<?php echo esc_url( gaming_hub_powerwall_url() ); ?>" class="btn btn-primary">
@@ -29,10 +29,10 @@ get_header();
 		<dl class="lp-hero-stats">
 			<div>
 				<dt><?php esc_html_e( 'ソーラー想定', 'gaming-hub' ); ?></dt>
-				<dd>2 kW</dd>
+				<dd>1.5 kW</dd>
 			</div>
 			<div>
-				<dt><?php esc_html_e( 'LOOOP 契約', 'gaming-hub' ); ?></dt>
+				<dt><?php esc_html_e( 'スマートタイムONE', 'gaming-hub' ); ?></dt>
 				<dd>6 kW</dd>
 			</div>
 			<div>
@@ -57,19 +57,13 @@ get_header();
 			<a href="<?php echo esc_url( gaming_hub_powerwall_url() ); ?>" class="lp-feature-card lp-feature-powerwall">
 				<span class="lp-feature-icon" aria-hidden="true">🔋</span>
 				<h3><?php esc_html_e( 'Powerwall 3', 'gaming-hub' ); ?></h3>
-				<p><?php esc_html_e( '2kW ソーラー・蓄電池・Model 3 の電力フローと、LOOOP 料金での節約額をシミュレーション。', 'gaming-hub' ); ?></p>
+				<p><?php esc_html_e( '1.5kW ソーラー・蓄電池・Model 3 の電力フローと、電気代の節約額をシミュレーション。', 'gaming-hub' ); ?></p>
 				<span class="lp-feature-link"><?php esc_html_e( 'ダッシュボードへ', 'gaming-hub' ); ?></span>
-			</a>
-			<a href="<?php echo esc_url( gaming_hub_looop_url() ); ?>" class="lp-feature-card lp-feature-looop">
-				<span class="lp-feature-icon" aria-hidden="true">⚡</span>
-				<h3><?php esc_html_e( 'LOOOP でんき予報', 'gaming-hub' ); ?></h3>
-				<p><?php esc_html_e( '中部エリアの時間別単価。安い時間帯に家事や充電をシフト。', 'gaming-hub' ); ?></p>
-				<span class="lp-feature-link"><?php esc_html_e( '予報を見る', 'gaming-hub' ); ?></span>
 			</a>
 			<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>" class="lp-feature-card lp-feature-ecoflow">
 				<span class="lp-feature-icon" aria-hidden="true">☀️</span>
 				<h3><?php esc_html_e( 'EcoFlow', 'gaming-hub' ); ?></h3>
-				<p><?php esc_html_e( 'ポータブル電源の入出力・SOC をリアルタイムで可視化。', 'gaming-hub' ); ?></p>
+				<p><?php esc_html_e( 'ポータブル電源の入出力と、スマートタイムONE の時間別単価・充電計画。', 'gaming-hub' ); ?></p>
 				<span class="lp-feature-link"><?php esc_html_e( 'ステータスへ', 'gaming-hub' ); ?></span>
 			</a>
 			<a href="<?php echo esc_url( gaming_hub_pokemon_go_url() ); ?>" class="lp-feature-card lp-feature-pgo">
@@ -124,22 +118,6 @@ get_header();
 				</div>
 			<?php endif; ?>
 		</div>
-	</div>
-</section>
-
-<section id="looop" class="section looop-home-section">
-	<div class="container">
-		<div class="looop-home-header">
-			<div>
-				<span class="looop-section-badge">⚡ LOOOP</span>
-				<h2 class="section-title"><?php esc_html_e( '中部エリア でんき予報', 'gaming-hub' ); ?></h2>
-				<p class="section-desc"><?php esc_html_e( '時間別の電気代単価。安い時間帯に家事・充電をシフト', 'gaming-hub' ); ?></p>
-			</div>
-			<a href="<?php echo esc_url( gaming_hub_looop_url() ); ?>" class="btn btn-outline looop-home-view-all">
-				<?php esc_html_e( '詳細を見る', 'gaming-hub' ); ?> →
-			</a>
-		</div>
-		<?php gaming_hub_render_looop_home(); ?>
 	</div>
 </section>
 
@@ -214,8 +192,8 @@ get_header();
 			<a href="<?php echo esc_url( gaming_hub_powerwall_url() ); ?>" class="btn btn-primary">
 				<?php esc_html_e( 'Powerwall を開く', 'gaming-hub' ); ?>
 			</a>
-			<a href="<?php echo esc_url( gaming_hub_looop_url() ); ?>" class="btn btn-outline">
-				<?php esc_html_e( 'でんき予報', 'gaming-hub' ); ?>
+			<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>" class="btn btn-outline">
+				<?php esc_html_e( 'EcoFlow を見る', 'gaming-hub' ); ?>
 			</a>
 		</div>
 	</div>

@@ -97,7 +97,7 @@ $model3_meta = is_array( $status['model3_meta'] ?? null ) ? $status['model3_meta
 
 	<div class="pw-flow-stats-grid">
 		<div class="pw-flow-stat-card">
-			<span class="pw-flow-stat-label"><?php esc_html_e( 'ソーラー発電 (2kW)', 'gaming-hub' ); ?></span>
+			<span class="pw-flow-stat-label"><?php esc_html_e( 'ソーラー発電 (1.5kW)', 'gaming-hub' ); ?></span>
 			<strong data-pw-field="solar_w"><?php echo esc_html( number_format_i18n( (int) $status['solar_w'] ) . ' W' ); ?></strong>
 		</div>
 		<div class="pw-flow-stat-card">
@@ -137,7 +137,7 @@ $model3_meta = is_array( $status['model3_meta'] ?? null ) ? $status['model3_meta
 					printf(
 						/* translators: 1: provider, 2: contract kW, 3: date label */
 						esc_html__( '%1$s · 契約 %2$s kW · %3$s（24時間シミュレーション）', 'gaming-hub' ),
-						esc_html( $cost_meta['provider'] ?? __( '中部電力 LOOOP', 'gaming-hub' ) ),
+						esc_html( $cost_meta['provider'] ?? __( 'LOOOP スマートタイムONE（電灯）', 'gaming-hub' ) ),
 						esc_html( number_format_i18n( (float) ( $cost_meta['contract_kw'] ?? 6 ), 1 ) ),
 						esc_html( $cost_meta['date_label'] ?? wp_date( get_option( 'date_format' ) ) )
 					);
@@ -187,7 +187,7 @@ $model3_meta = is_array( $status['model3_meta'] ?? null ) ? $status['model3_meta
 					</small>
 				</div>
 				<div class="pw-flow-cost-card">
-					<span class="pw-flow-cost-label"><?php esc_html_e( 'ソーラー発電 (2kW)', 'gaming-hub' ); ?></span>
+					<span class="pw-flow-cost-label"><?php esc_html_e( 'ソーラー発電 (1.5kW)', 'gaming-hub' ); ?></span>
 					<strong data-pw-field="cost_solar_gen"><?php echo esc_html( number_format_i18n( (float) ( $cost_meta['solar_generation_kwh'] ?? 0 ), 1 ) . ' kWh' ); ?></strong>
 					<small data-pw-field="cost_battery_self">
 						<?php

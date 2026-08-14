@@ -33,6 +33,9 @@ services:
       ECOFLOW_APP_EMAIL: ${ECOFLOW_APP_EMAIL:-}
       ECOFLOW_APP_PASSWORD: ${ECOFLOW_APP_PASSWORD:-}
       ECOFLOW_API_REGION: ${ECOFLOW_API_REGION:-us}
+      SWITCHBOT_TOKEN: ${SWITCHBOT_TOKEN:-}
+      SWITCHBOT_SECRET: ${SWITCHBOT_SECRET:-}
+      SWITCHBOT_UPS_DEVICE_ID: ${SWITCHBOT_UPS_DEVICE_ID:-}
       TESLA_CLIENT_ID: ${TESLA_CLIENT_ID:-}
       TESLA_CLIENT_SECRET: ${TESLA_CLIENT_SECRET:-}
       TESLA_VEHICLE_VIN: ${TESLA_VEHICLE_VIN:-}
@@ -58,6 +61,7 @@ services:
       ECOFLOW_CACHE_DIR: /cache
       ECOFLOW_BRIDGE_CONFIG: /cache/bridge-config.json
       ECOFLOW_BRIDGE_INTERVAL_MS: 10000
+      ECOFLOW_API_REGION: ${ECOFLOW_API_REGION:-}
     volumes:
       - ./wp-content/themes/gaming-hub:/app
       - ./wp-content/ecoflow-cache:/cache

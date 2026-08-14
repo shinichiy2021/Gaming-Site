@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import {
 	FLOW_CONNECTIONS_DUAL,
 	FLOW_CONNECTIONS_SINGLE,
-	FLOW_THRESHOLD,
-	flowSpeed,
 	homeOutput,
-	linkWatts,
+	hvInput,
+	proGridCharge,
+	solarToDelta,
+	upsOutput,
 } from './constants';
 
 function wattsForFlow( flowId, status ) {
@@ -14,23 +15,28 @@ function wattsForFlow( flowId, status ) {
 	}
 
 	if ( flowId === 'solar' ) {
-		return Number( status.solar_in ) || 0;
+		return solarToDelta( status );
 	}
 
 	if ( flowId === 'grid' ) {
-		return Number( status.grid_in ?? status.ac_in ) || 0;
+		const grid = proGridCharge( status );
+		return grid.active ? grid.watts : 0;
+	}
+
+	if ( flowId === 'hv' ) {
+		return hvInput( status );
 	}
 
 	if ( flowId === 'proToDelta' || flowId === 'proToLink' || flowId === 'linkToDelta' ) {
-		if ( ! status.dual ) {
-			return 0;
-		}
-
-		return Number( status.link_watts ) || linkWatts( status.pro );
+		return 0;
 	}
 
-	if ( flowId === 'proToHome' || flowId === 'deltaToHome' || flowId === 'home' ) {
+	if ( flowId === 'proToHome' || flowId === 'home' ) {
 		return homeOutput( status );
+	}
+
+	if ( flowId === 'deltaToUps' || flowId === 'ups' ) {
+		return upsOutput( status );
 	}
 
 	return 0;
@@ -131,41 +137,19 @@ function resolvePaths( mapEl, status ) {
 		.filter( Boolean );
 }
 
-function drawArrow( ctx, from, to, color ) {
-	const angle = Math.atan2( to.y - from.y, to.x - from.x );
-	const size = 9;
-
-	ctx.beginPath();
-	ctx.moveTo( to.x, to.y );
-	ctx.lineTo(
-		to.x - size * Math.cos( angle - 0.45 ),
-		to.y - size * Math.sin( angle - 0.45 )
-	);
-	ctx.lineTo(
-		to.x - size * Math.cos( angle + 0.45 ),
-		to.y - size * Math.sin( angle + 0.45 )
-	);
-	ctx.closePath();
-	ctx.fillStyle = color;
-	ctx.shadowColor = color;
-	ctx.shadowBlur = 8;
-	ctx.fill();
-	ctx.shadowBlur = 0;
-}
-
 function drawWattsLabel( ctx, from, to, watts, color, axis ) {
 	const text = `${ Math.round( watts ).toLocaleString() } W`;
 	let mx = ( from.x + to.x ) / 2;
 	let my = ( from.y + to.y ) / 2;
 
 	if ( axis === 'vertical' ) {
-		mx += 28;
+		mx += 42;
 	}
 
-	ctx.font = '700 11px Inter, sans-serif';
+	ctx.font = '700 17px Inter, sans-serif';
 	const width = ctx.measureText( text ).width;
-	const padX = 7;
-	const height = 18;
+	const padX = 11;
+	const height = 27;
 	const boxW = width + padX * 2;
 	const boxH = height;
 	const x = mx - boxW / 2;
@@ -189,63 +173,15 @@ function drawWattsLabel( ctx, from, to, watts, color, axis ) {
 	ctx.fillText( text, mx, my + 0.5 );
 }
 
-function drawPath( ctx, path, active, dashOffset, watts ) {
-	const { from, to, color } = path;
-
-	ctx.beginPath();
-	ctx.moveTo( from.x, from.y );
-	ctx.lineTo( to.x, to.y );
-	ctx.lineCap = 'round';
-	ctx.lineWidth = active ? 3.5 : 2;
-	ctx.strokeStyle = active ? `${ color }73` : 'rgba(0, 245, 212, 0.14)';
-	ctx.stroke();
-
-	if ( ! active ) {
-		drawArrow( ctx, from, to, 'rgba(0, 245, 212, 0.28)' );
-		if ( path.alwaysLabel ) {
-			drawWattsLabel( ctx, from, to, watts, color, path.axis );
-		}
+function drawPath( ctx, path, watts ) {
+	if ( ! path.showLabel && ! path.alwaysLabel ) {
 		return;
 	}
 
-	ctx.beginPath();
-	ctx.moveTo( from.x, from.y );
-	ctx.lineTo( to.x, to.y );
-	ctx.setLineDash( [ 10, 14 ] );
-	ctx.lineDashOffset = -dashOffset;
-	ctx.lineWidth = 3;
-	ctx.strokeStyle = color;
-	ctx.globalAlpha = 0.75;
-	ctx.stroke();
-	ctx.setLineDash( [] );
-	ctx.globalAlpha = 1;
-
-	drawArrow( ctx, from, to, color );
-
-	const pathLength = Math.hypot( to.x - from.x, to.y - from.y );
-	if ( path.showLabel && ( path.alwaysLabel || ( watts >= FLOW_THRESHOLD && pathLength >= 48 ) ) ) {
-		drawWattsLabel( ctx, from, to, watts, color, path.axis );
-	}
-}
-
-function drawParticle( ctx, path, progress, color ) {
-	const x = path.from.x + ( path.to.x - path.from.x ) * progress;
-	const y = path.from.y + ( path.to.y - path.from.y ) * progress;
-
-	ctx.beginPath();
-	ctx.arc( x, y, 5, 0, Math.PI * 2 );
-	ctx.fillStyle = color;
-	ctx.shadowColor = color;
-	ctx.shadowBlur = 12;
-	ctx.fill();
-	ctx.shadowBlur = 0;
+	drawWattsLabel( ctx, path.from, path.to, watts, path.color, path.axis );
 }
 
 export function useFlowCanvas( canvasRef, mapRef, status ) {
-	const particlesRef = useRef( [] );
-	const dashOffsetRef = useRef( 0 );
-	const lastTimeRef = useRef( 0 );
-
 	useEffect( () => {
 		const canvas = canvasRef.current;
 		const mapEl = mapRef.current;
@@ -255,9 +191,8 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 		}
 
 		const ctx = canvas.getContext( '2d', { alpha: true } );
-		let rafId = 0;
 
-		const resize = () => {
+		const paint = () => {
 			const width = mapEl.clientWidth;
 			const height = mapEl.clientHeight;
 			const dpr = Math.min( window.devicePixelRatio || 1, 2 );
@@ -267,76 +202,24 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 			canvas.style.width = `${ width }px`;
 			canvas.style.height = `${ height }px`;
 			ctx.setTransform( dpr, 0, 0, dpr, 0, 0 );
+			ctx.clearRect( 0, 0, width, height );
+
+			resolvePaths( mapEl, status ).forEach( ( path ) => {
+				drawPath( ctx, path, wattsForFlow( path.id, status ) );
+			} );
 		};
 
 		const observer = typeof ResizeObserver !== 'undefined'
-			? new ResizeObserver( resize )
+			? new ResizeObserver( paint )
 			: null;
 
-		resize();
-		window.addEventListener( 'resize', resize );
+		paint();
+		window.addEventListener( 'resize', paint );
 		observer?.observe( mapEl );
 
-		const frame = ( time ) => {
-			rafId = window.requestAnimationFrame( frame );
-
-			if ( document.hidden ) {
-				return;
-			}
-
-			const delta = lastTimeRef.current ? Math.min( ( time - lastTimeRef.current ) / 1000, 0.05 ) : 0;
-			lastTimeRef.current = time;
-			dashOffsetRef.current += delta * 24;
-
-			const width = mapEl.clientWidth;
-			const height = mapEl.clientHeight;
-			const paths = resolvePaths( mapEl, status );
-
-			ctx.clearRect( 0, 0, width, height );
-
-			const nextParticles = [];
-
-			paths.forEach( ( path ) => {
-				const watts = wattsForFlow( path.id, status );
-				const active = watts >= FLOW_THRESHOLD;
-
-				drawPath( ctx, path, active, dashOffsetRef.current, watts );
-
-				if ( ! active ) {
-					return;
-				}
-
-				let particles = particlesRef.current.filter( ( particle ) => particle.id === path.id );
-				if ( particles.length < 2 ) {
-					particles = [
-						{ id: path.id, progress: 0 },
-						{ id: path.id, progress: 0.45 },
-					];
-				}
-
-				const speed = flowSpeed( watts );
-				particles.forEach( ( particle ) => {
-					let progress = particle.progress + speed * delta;
-					while ( progress > 1 ) {
-						progress -= 1;
-					}
-
-					drawParticle( ctx, path, progress, path.color );
-					nextParticles.push( { id: path.id, progress } );
-				} );
-			} );
-
-			particlesRef.current = nextParticles;
-		};
-
-		rafId = window.requestAnimationFrame( frame );
-
 		return () => {
-			window.cancelAnimationFrame( rafId );
-			window.removeEventListener( 'resize', resize );
+			window.removeEventListener( 'resize', paint );
 			observer?.disconnect();
-			lastTimeRef.current = 0;
-			particlesRef.current = [];
 		};
 	}, [ canvasRef, mapRef, status ] );
 }

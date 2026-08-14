@@ -9,11 +9,77 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.6.8' );
+define( 'GAMING_HUB_VERSION', '1.9.31' );
+
+/**
+ * Browser origin when opening local WordPress via LAN IP (iPad).
+ */
+function gaming_hub_local_request_origin() {
+	static $origin = null;
+
+	if ( null !== $origin ) {
+		return $origin;
+	}
+
+	$origin = '';
+	if ( empty( $_SERVER['HTTP_HOST'] ) ) {
+		return $origin;
+	}
+
+	$host = strtolower( (string) wp_unslash( $_SERVER['HTTP_HOST'] ) );
+	if ( ! preg_match( '/^[a-z0-9.-]+(:\d+)?$/', $host ) ) {
+		return $origin;
+	}
+
+	if ( 0 === strpos( $host, 'localhost' ) || 0 === strpos( $host, '127.0.0.1' ) ) {
+		return $origin;
+	}
+
+	$https = ( ! empty( $_SERVER['HTTPS'] ) && 'off' !== $_SERVER['HTTPS'] )
+		|| ( isset( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO'] );
+
+	$origin = ( $https ? 'https://' : 'http://' ) . $host;
+	return $origin;
+}
+
+/**
+ * Rewrite localhost URLs to the current request host.
+ *
+ * @param mixed $url URL.
+ * @return mixed
+ */
+function gaming_hub_rewrite_local_url( $url ) {
+	if ( ! is_string( $url ) || '' === $url ) {
+		return $url;
+	}
+
+	$origin = gaming_hub_local_request_origin();
+	if ( ! $origin ) {
+		return $url;
+	}
+
+	return preg_replace( '#https?://(?:localhost|127\.0\.0\.1)(?::\d+)?#i', $origin, $url );
+}
+
+add_filter( 'option_home', 'gaming_hub_rewrite_local_url' );
+add_filter( 'option_siteurl', 'gaming_hub_rewrite_local_url' );
+add_filter( 'home_url', 'gaming_hub_rewrite_local_url' );
+add_filter( 'site_url', 'gaming_hub_rewrite_local_url' );
+add_filter( 'content_url', 'gaming_hub_rewrite_local_url' );
+add_filter( 'plugins_url', 'gaming_hub_rewrite_local_url' );
+add_filter( 'includes_url', 'gaming_hub_rewrite_local_url' );
+add_filter( 'template_directory_uri', 'gaming_hub_rewrite_local_url' );
+add_filter( 'stylesheet_directory_uri', 'gaming_hub_rewrite_local_url' );
+add_filter( 'stylesheet_uri', 'gaming_hub_rewrite_local_url' );
+add_filter( 'theme_root_uri', 'gaming_hub_rewrite_local_url' );
+add_filter( 'script_loader_src', 'gaming_hub_rewrite_local_url' );
+add_filter( 'style_loader_src', 'gaming_hub_rewrite_local_url' );
+add_filter( 'wp_get_attachment_url', 'gaming_hub_rewrite_local_url' );
 
 require get_template_directory() . '/inc/pokemon-go.php';
 require get_template_directory() . '/inc/pokemon-go-youtube.php';
 require get_template_directory() . '/inc/ecoflow.php';
+require get_template_directory() . '/inc/switchbot.php';
 require get_template_directory() . '/inc/looop.php';
 require get_template_directory() . '/inc/powerwall.php';
 require get_template_directory() . '/inc/powerwall-solar.php';
@@ -156,7 +222,8 @@ function gaming_hub_scripts() {
 		array(
 			'reloadAfterMs'  => MINUTE_IN_SECONDS * 1000,
 			'reloadOnActive' => is_front_page()
-				|| is_tag( array( 'ecoflow', 'looop' ) )
+				|| is_tag( 'ecoflow' )
+				|| is_tag( 'energy' )
 				|| is_page( array( 'pokemon-go', 'powerwall' ) ),
 		)
 	);
@@ -263,7 +330,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_subtitle', array(
-		'default'           => __( 'Powerwall・LOOOP・EcoFlow の見える化と、Pokémon GO / ゲームレビュー。毎日の電気代から遊びまで、このサイトでチェック。', 'gaming-hub' ),
+		'default'           => __( 'Powerwall・EcoFlow の見える化と、Pokémon GO / ゲームレビュー。毎日の電気代から遊びまで、このサイトでチェック。', 'gaming-hub' ),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'hero_subtitle', array(
@@ -461,7 +528,7 @@ function gaming_hub_fallback_menu() {
 	echo '<li><a href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Home', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_pokemon_go_url() ) . '">' . esc_html__( 'Pokémon GO', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_ecoflow_url() ) . '">' . esc_html__( 'EcoFlow', 'gaming-hub' ) . '</a></li>';
-	echo '<li><a href="' . esc_url( gaming_hub_looop_url() ) . '">' . esc_html__( 'LOOOP', 'gaming-hub' ) . '</a></li>';
+	echo '<li><a href="' . esc_url( gaming_hub_energy_url() ) . '">' . esc_html__( 'Energy', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_powerwall_url() ) . '">' . esc_html__( 'Powerwall', 'gaming-hub' ) . '</a></li>';
 	echo '</ul>';
 }
@@ -499,6 +566,10 @@ function gaming_hub_hide_nav_categories( $items ) {
 
 				$title = strtolower( trim( (string) ( $item->title ?? '' ) ) );
 				$url   = strtolower( (string) ( $item->url ?? '' ) );
+
+				if ( 'looop' === $title || false !== strpos( $url, '/tag/looop' ) ) {
+					return false;
+				}
 
 				if ( in_array( $slug, $hidden, true ) || in_array( $title, $hidden, true ) ) {
 					return false;
