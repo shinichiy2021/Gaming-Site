@@ -325,7 +325,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				<strong data-ecoflow-field="ac_out"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['ac_out'] ) ); ?></strong>
 			</div>
 			<div class="ecoflow-stat-card">
-				<span class="ecoflow-stat-label" data-ecoflow-field="solar_delta_label"><?php esc_html_e( 'Low Volt 入力 (理論 HV×50%)', 'gaming-hub' ); ?></span>
+				<span class="ecoflow-stat-label" data-ecoflow-field="solar_delta_label"><?php echo esc_html( gaming_hub_ecoflow_solar_delta_label( (string) ( $status['secondary']['solar_in_source'] ?? $status['solar_in_source'] ?? '' ) ) ); ?></span>
 				<strong data-ecoflow-field="solar_delta"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['secondary']['solar_in'] ?? $status['solar_delta'] ?? 0 ) ); ?></strong>
 			</div>
 			<?php if ( ! empty( $status['secondary'] ) ) : ?>
@@ -347,7 +347,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 					</strong>
 				</div>
 				<div class="ecoflow-stat-card">
-					<span class="ecoflow-stat-label"><?php esc_html_e( '残容量 (1500 + Extra)', 'gaming-hub' ); ?></span>
+					<span class="ecoflow-stat-label" data-ecoflow-field="secondary_remain_label"><?php echo esc_html( gaming_hub_ecoflow_pack_capacity_label( $status['secondary'] ) ); ?></span>
 					<strong data-ecoflow-field="secondary_remain">
 						<?php
 						echo esc_html(

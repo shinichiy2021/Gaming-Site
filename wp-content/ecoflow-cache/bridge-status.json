@@ -1,1 +1,1 @@
-{"ok":false,"error":"Server is too busy","error_raw":"Server is too busy","updated_at":"2026-08-14T22:28:27.060Z"}
+{"ok":false,"error":"Googleログインのみのアカウントです。EcoFlowアプリで「ログインパスワード」を設定し、Customizer にメールとそのパスワードを入力してください。","error_raw":"Account doesn't exist or incorrect password","updated_at":"2026-08-14T23:45:08.803Z"}
