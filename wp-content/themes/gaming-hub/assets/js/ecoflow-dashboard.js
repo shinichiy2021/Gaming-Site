@@ -60,6 +60,7 @@
 			solar_in: Number(data.solar_in) || 0,
 			ac_in: Number(data.ac_in) || 0,
 			ac_out: Number(data.ac_out) || 0,
+			dc_out: Number(data.dc_out) || 0,
 			input_total: Number(data.input_total) || 0,
 			output_total: Number(data.output_total) || 0,
 			battery_percent: data.battery_percent === null || data.battery_percent === undefined
@@ -74,38 +75,43 @@
 		};
 	}
 
-	function linkWatts(pro, delta) {
-		const proAcOut = Number(pro.ac_out) || 0;
-		const deltaAcIn = Number(delta.ac_in) || 0;
-
-		if (proAcOut >= 8 && deltaAcIn >= 8) {
-			return Math.min(proAcOut, deltaAcIn);
-		}
-
-		if (deltaAcIn >= 8) {
-			return deltaAcIn;
-		}
-
-		if (proAcOut >= 8 && delta.is_charging) {
-			return proAcOut;
-		}
-
-		return 0;
+	function linkWatts(pro) {
+		return Number(pro.dc_out) || 0;
 	}
 
-	function homeOutput(data, delta) {
-		const total = Number(delta.output_total) || 0;
-		if (total >= 8) {
-			return total;
-		}
+	function syntheticDelta(pro) {
+		const dcOut = linkWatts(pro);
+		const charging = dcOut >= 8;
 
-		return Math.max(Number(delta.ac_out) || 0, 0);
+		return {
+			device_name: 'Delta 3 1500',
+			device_sn: '',
+			online: charging,
+			solar_in: 0,
+			ac_in: 0,
+			ac_out: 0,
+			dc_out: 0,
+			input_total: dcOut,
+			output_total: 0,
+			battery_percent: null,
+			is_charging: charging,
+			is_discharging: false,
+			charge_state: charging ? 'DC 12V 受電中' : '待機',
+			remain_time: 0,
+			remain_time_label: '',
+			remain_time_display: '—',
+		};
 	}
 
 	function buildFlowPayload(data) {
 		const pro = deviceFlowSlice(data);
-		const payload = {
-			dual: !!(data.secondary && typeof data.secondary === 'object'),
+		const delta = data.secondary && typeof data.secondary === 'object'
+			? deviceFlowSlice(data.secondary)
+			: syntheticDelta(pro);
+		const link = linkWatts(pro);
+
+		return {
+			dual: true,
 			solar_in: pro.solar_in,
 			grid_in: pro.ac_in,
 			ac_in: pro.ac_in,
@@ -118,18 +124,10 @@
 			remain_time: pro.remain_time,
 			remain_time_label: pro.remain_time_label,
 			remain_time_display: pro.remain_time_display,
+			delta: delta,
+			link_watts: link,
+			home_out: Number(pro.ac_out) || 0,
 		};
-
-		if (!payload.dual) {
-			return payload;
-		}
-
-		const delta = deviceFlowSlice(data.secondary);
-		payload.delta = delta;
-		payload.link_watts = linkWatts(pro, delta);
-		payload.home_out = homeOutput(data, delta);
-
-		return payload;
 	}
 
 	function dispatchFlowUpdate(data) {
@@ -144,19 +142,12 @@
 		setField('ac_in_stat', formatWatts(data.ac_in));
 		setField('ac_out', formatWatts(data.ac_out));
 		setField('dc_out', formatWatts(data.dc_out));
+		setField('dc12v_link', formatWatts(data.dc_out));
 		setField('battery_temp', formatTemp(data.battery_temp));
 		setField('remain_capacity', formatWh(data.remain_capacity));
 		setField('charge_state_stat', data.charge_state);
 
 		if (data.secondary) {
-			setField('secondary_ac_in', formatWatts(data.secondary.ac_in));
-			setField('secondary_ac_out', formatWatts(data.secondary.ac_out));
-			setField(
-				'secondary_battery',
-				data.secondary.battery_percent === null || data.secondary.battery_percent === undefined
-					? '—'
-					: (Number(data.secondary.battery_percent) || 0) + '%'
-			);
 			setField('secondary_charge_state', data.secondary.charge_state);
 		}
 

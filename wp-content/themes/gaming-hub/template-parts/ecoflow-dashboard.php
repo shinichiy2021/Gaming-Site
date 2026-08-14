@@ -47,25 +47,15 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				<div class="ecoflow-device-bar ecoflow-device-bar-secondary">
 					<div>
 						<strong><?php echo esc_html( $status['secondary']['device_name'] ); ?></strong>
-						<span class="ecoflow-sn"><?php echo esc_html( $status['secondary']['device_sn'] ); ?></span>
+						<span class="ecoflow-sn"><?php esc_html_e( 'Pro DC 12V 接続', 'gaming-hub' ); ?></span>
 					</div>
-					<span class="ecoflow-online-badge <?php echo $status['secondary']['online'] ? 'is-online' : 'is-offline'; ?>">
-						<?php echo $status['secondary']['online'] ? esc_html__( 'オンライン', 'gaming-hub' ) : esc_html__( 'オフライン', 'gaming-hub' ); ?>
+					<span class="ecoflow-online-badge <?php echo ! empty( $status['secondary']['is_charging'] ) ? 'is-online' : 'is-offline'; ?>">
+						<?php echo ! empty( $status['secondary']['is_charging'] ) ? esc_html__( '受電中', 'gaming-hub' ) : esc_html__( '待機', 'gaming-hub' ); ?>
 					</span>
 				</div>
-				<?php if ( ! empty( $status['secondary']['inferred'] ) ) : ?>
-					<p class="ecoflow-inferred-note"><?php echo esc_html( $status['secondary']['inferred_note'] ?? '' ); ?></p>
-				<?php elseif ( ! empty( $status['secondary']['source'] ) && 'mqtt' === $status['secondary']['source'] ) : ?>
-					<p class="ecoflow-inferred-note ecoflow-inferred-note-ok"><?php esc_html_e( 'Delta 3 データ: MQTT ブリッジ', 'gaming-hub' ); ?></p>
+				<?php if ( ! empty( $status['secondary']['inferred_note'] ) ) : ?>
+					<p class="ecoflow-inferred-note"><?php echo esc_html( $status['secondary']['inferred_note'] ); ?></p>
 				<?php endif; ?>
-				<?php
-				$bridge_status = gaming_hub_ecoflow_read_bridge_status();
-				if ( is_array( $bridge_status ) && empty( $bridge_status['ok'] ) && ! empty( $bridge_status['error'] ) ) :
-					?>
-					<p class="ecoflow-secondary-error"><?php echo esc_html( 'MQTT: ' . gaming_hub_ecoflow_format_bridge_error( $bridge_status['error'] ) ); ?></p>
-				<?php endif; ?>
-			<?php elseif ( ! empty( $status['secondary_error'] ) ) : ?>
-				<p class="ecoflow-secondary-error"><?php echo esc_html( $status['secondary_error'] ); ?></p>
 			<?php endif; ?>
 		</div>
 
@@ -81,22 +71,14 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				<strong data-ecoflow-field="ac_in_stat"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['ac_in'] ) ); ?></strong>
 			</div>
 			<div class="ecoflow-stat-card">
-				<span class="ecoflow-stat-label"><?php esc_html_e( 'AC 出力 (Pro)', 'gaming-hub' ); ?></span>
+				<span class="ecoflow-stat-label"><?php esc_html_e( 'AC 出力 → 部屋', 'gaming-hub' ); ?></span>
 				<strong data-ecoflow-field="ac_out"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['ac_out'] ) ); ?></strong>
 			</div>
+			<div class="ecoflow-stat-card">
+				<span class="ecoflow-stat-label"><?php esc_html_e( 'DC 12V → 1500', 'gaming-hub' ); ?></span>
+				<strong data-ecoflow-field="dc12v_link"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['dc_out'] ) ); ?></strong>
+			</div>
 			<?php if ( ! empty( $status['secondary'] ) ) : ?>
-				<div class="ecoflow-stat-card">
-					<span class="ecoflow-stat-label"><?php esc_html_e( 'AC 入力 (1500)', 'gaming-hub' ); ?></span>
-					<strong data-ecoflow-field="secondary_ac_in"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['secondary']['ac_in'] ) ); ?></strong>
-				</div>
-				<div class="ecoflow-stat-card">
-					<span class="ecoflow-stat-label"><?php esc_html_e( 'AC 出力 (1500)', 'gaming-hub' ); ?></span>
-					<strong data-ecoflow-field="secondary_ac_out"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['secondary']['ac_out'] ) ); ?></strong>
-				</div>
-				<div class="ecoflow-stat-card">
-					<span class="ecoflow-stat-label"><?php esc_html_e( '残量 (1500)', 'gaming-hub' ); ?></span>
-					<strong data-ecoflow-field="secondary_battery"><?php echo null !== $status['secondary']['battery_percent'] ? esc_html( $status['secondary']['battery_percent'] ) . '%' : '—'; ?></strong>
-				</div>
 				<div class="ecoflow-stat-card">
 					<span class="ecoflow-stat-label"><?php esc_html_e( '状態 (1500)', 'gaming-hub' ); ?></span>
 					<strong data-ecoflow-field="secondary_charge_state"><?php echo esc_html( $status['secondary']['charge_state'] ); ?></strong>

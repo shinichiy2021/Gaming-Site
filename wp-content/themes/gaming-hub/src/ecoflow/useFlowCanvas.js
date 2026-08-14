@@ -21,15 +21,15 @@ function wattsForFlow( flowId, status ) {
 		return Number( status.grid_in ?? status.ac_in ) || 0;
 	}
 
-	if ( flowId === 'proToDelta' ) {
+	if ( flowId === 'proToDelta' || flowId === 'proToLink' || flowId === 'linkToDelta' ) {
 		if ( ! status.dual ) {
 			return 0;
 		}
 
-		return Number( status.link_watts ) || linkWatts( status.pro, status.delta );
+		return Number( status.link_watts ) || linkWatts( status.pro );
 	}
 
-	if ( flowId === 'deltaToHome' || flowId === 'home' ) {
+	if ( flowId === 'proToHome' || flowId === 'deltaToHome' || flowId === 'home' ) {
 		return homeOutput( status );
 	}
 
@@ -90,16 +90,36 @@ function resolveConnection( mapEl, connection ) {
 		from = { x: from.x, y };
 		to = { x: to.x, y };
 	} else if ( connection.axis === 'vertical' ) {
-		const x = ( fromRect.cx + toRect.cx ) / 2;
+		const x = connection.align === 'from'
+			? fromRect.cx
+			: connection.align === 'to'
+				? toRect.cx
+				: ( fromRect.cx + toRect.cx ) / 2;
 		from = { x, y: from.y };
 		to = { x, y: to.y };
 	}
+
+	const inset = 6;
+	const dx = to.x - from.x;
+	const dy = to.y - from.y;
+	const length = Math.hypot( dx, dy ) || 1;
+	from = {
+		x: from.x + ( dx / length ) * inset,
+		y: from.y + ( dy / length ) * inset,
+	};
+	to = {
+		x: to.x - ( dx / length ) * inset,
+		y: to.y - ( dy / length ) * inset,
+	};
 
 	return {
 		id: connection.id,
 		from,
 		to,
 		color: connection.color,
+		axis: connection.axis,
+		showLabel: !! connection.showLabel,
+		alwaysLabel: !! connection.alwaysLabel,
 	};
 }
 
@@ -111,32 +131,101 @@ function resolvePaths( mapEl, status ) {
 		.filter( Boolean );
 }
 
-function drawPath( ctx, path, active, dashOffset ) {
+function drawArrow( ctx, from, to, color ) {
+	const angle = Math.atan2( to.y - from.y, to.x - from.x );
+	const size = 9;
+
+	ctx.beginPath();
+	ctx.moveTo( to.x, to.y );
+	ctx.lineTo(
+		to.x - size * Math.cos( angle - 0.45 ),
+		to.y - size * Math.sin( angle - 0.45 )
+	);
+	ctx.lineTo(
+		to.x - size * Math.cos( angle + 0.45 ),
+		to.y - size * Math.sin( angle + 0.45 )
+	);
+	ctx.closePath();
+	ctx.fillStyle = color;
+	ctx.shadowColor = color;
+	ctx.shadowBlur = 8;
+	ctx.fill();
+	ctx.shadowBlur = 0;
+}
+
+function drawWattsLabel( ctx, from, to, watts, color, axis ) {
+	const text = `${ Math.round( watts ).toLocaleString() } W`;
+	let mx = ( from.x + to.x ) / 2;
+	let my = ( from.y + to.y ) / 2;
+
+	if ( axis === 'vertical' ) {
+		mx += 28;
+	}
+
+	ctx.font = '700 11px Inter, sans-serif';
+	const width = ctx.measureText( text ).width;
+	const padX = 7;
+	const height = 18;
+	const boxW = width + padX * 2;
+	const boxH = height;
+	const x = mx - boxW / 2;
+	const y = my - boxH / 2;
+
+	ctx.beginPath();
+	if ( typeof ctx.roundRect === 'function' ) {
+		ctx.roundRect( x, y, boxW, boxH, 4 );
+	} else {
+		ctx.rect( x, y, boxW, boxH );
+	}
+	ctx.fillStyle = 'rgba(8, 7, 15, 0.92)';
+	ctx.fill();
+	ctx.lineWidth = 1;
+	ctx.strokeStyle = color;
+	ctx.stroke();
+
+	ctx.fillStyle = color;
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText( text, mx, my + 0.5 );
+}
+
+function drawPath( ctx, path, active, dashOffset, watts ) {
 	const { from, to, color } = path;
 
 	ctx.beginPath();
 	ctx.moveTo( from.x, from.y );
 	ctx.lineTo( to.x, to.y );
 	ctx.lineCap = 'round';
-	ctx.lineWidth = active ? 3 : 2;
-	ctx.strokeStyle = active ? 'rgba(0, 200, 83, 0.35)' : 'rgba(0, 200, 83, 0.12)';
+	ctx.lineWidth = active ? 3.5 : 2;
+	ctx.strokeStyle = active ? `${ color }73` : 'rgba(0, 245, 212, 0.14)';
 	ctx.stroke();
 
 	if ( ! active ) {
+		drawArrow( ctx, from, to, 'rgba(0, 245, 212, 0.28)' );
+		if ( path.alwaysLabel ) {
+			drawWattsLabel( ctx, from, to, watts, color, path.axis );
+		}
 		return;
 	}
 
 	ctx.beginPath();
 	ctx.moveTo( from.x, from.y );
 	ctx.lineTo( to.x, to.y );
-	ctx.setLineDash( [ 8, 12 ] );
+	ctx.setLineDash( [ 10, 14 ] );
 	ctx.lineDashOffset = -dashOffset;
-	ctx.lineWidth = 2.5;
+	ctx.lineWidth = 3;
 	ctx.strokeStyle = color;
-	ctx.globalAlpha = 0.65;
+	ctx.globalAlpha = 0.75;
 	ctx.stroke();
 	ctx.setLineDash( [] );
 	ctx.globalAlpha = 1;
+
+	drawArrow( ctx, from, to, color );
+
+	const pathLength = Math.hypot( to.x - from.x, to.y - from.y );
+	if ( path.showLabel && ( path.alwaysLabel || ( watts >= FLOW_THRESHOLD && pathLength >= 48 ) ) ) {
+		drawWattsLabel( ctx, from, to, watts, color, path.axis );
+	}
 }
 
 function drawParticle( ctx, path, progress, color ) {
@@ -144,10 +233,10 @@ function drawParticle( ctx, path, progress, color ) {
 	const y = path.from.y + ( path.to.y - path.from.y ) * progress;
 
 	ctx.beginPath();
-	ctx.arc( x, y, 4, 0, Math.PI * 2 );
+	ctx.arc( x, y, 5, 0, Math.PI * 2 );
 	ctx.fillStyle = color;
 	ctx.shadowColor = color;
-	ctx.shadowBlur = 6;
+	ctx.shadowBlur = 12;
 	ctx.fill();
 	ctx.shadowBlur = 0;
 }
@@ -211,7 +300,7 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 				const watts = wattsForFlow( path.id, status );
 				const active = watts >= FLOW_THRESHOLD;
 
-				drawPath( ctx, path, active, dashOffsetRef.current );
+				drawPath( ctx, path, active, dashOffsetRef.current, watts );
 
 				if ( ! active ) {
 					return;

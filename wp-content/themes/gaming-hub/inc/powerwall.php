@@ -218,11 +218,33 @@ function gaming_hub_get_powerwall_specs() {
 	);
 }
 
+function gaming_hub_powerwall_house_image_url() {
+	return get_template_directory_uri() . '/assets/images/powerwall-house.jpg';
+}
+
 /**
- * Get Powerwall 3 product image URL.
+ * Get Powerwall 3 product photograph URL.
  */
 function gaming_hub_powerwall_product_image_url() {
-	return get_template_directory_uri() . '/assets/images/powerwall-3.svg';
+	return get_template_directory_uri() . '/assets/images/powerwall-3.jpg';
+}
+
+/**
+ * Get Model 3 product photograph URL.
+ *
+ * @param bool $thumb Smaller image for flow diagram.
+ */
+function gaming_hub_model3_product_image_url( $thumb = false ) {
+	$file = $thumb ? 'model-3-thumb.jpg' : 'model-3.jpg';
+
+	return get_template_directory_uri() . '/assets/images/' . $file;
+}
+
+/**
+ * Get Powerwall 3 thumbnail URL for flow diagram.
+ */
+function gaming_hub_powerwall_product_thumb_url() {
+	return get_template_directory_uri() . '/assets/images/powerwall-3-thumb.jpg';
 }
 
 /**

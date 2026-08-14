@@ -2,27 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { formatWatts, isFlowActive } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
 
-function BatteryNode( { device, label, flowId, accent = 'pw' } ) {
-	if ( ! device ) {
-		return null;
-	}
-
-	const batteryPercent = Number( device.battery_percent );
-	const batteryLabel = Number.isFinite( batteryPercent ) ? `${ batteryPercent }%` : '—';
-	const isCharging = !! device.is_charging;
-
+function Callout( { flowId, label, watts, state, active, extra } ) {
 	return (
-		<div className={ `pw-flow-node pw-flow-node-battery pw-flow-node-${ accent }` } data-flow-id={ flowId }>
-			<div
-				className={ `pw-flow-battery-ring${ isCharging ? ' is-charging' : device.is_discharging ? ' is-discharging' : '' }` }
-				style={ { '--battery-level': Number.isFinite( batteryPercent ) ? batteryPercent : 0 } }
-			>
-				<div className="pw-flow-battery-inner">
-					<span className="pw-flow-battery-value">{ batteryLabel }</span>
-					<span className="pw-flow-battery-label">{ label }</span>
-				</div>
-			</div>
-			<p className="pw-flow-node-state">{ device.charge_state || '—' }</p>
+		<div
+			className={ `pw-flow-pin pw-flow-pin-${ flowId }${ active ? ' is-active' : '' }` }
+			data-flow-id={ flowId }
+		>
+			<span className="pw-flow-pin-label">{ label }</span>
+			<strong>{ formatWatts( watts ) }</strong>
+			{ state ? <p className="pw-flow-node-state">{ state }</p> : null }
+			{ extra }
 		</div>
 	);
 }
@@ -47,76 +36,87 @@ export default function PowerwallFlowDiagram( { initial, labels } ) {
 
 	const powerwall = status.powerwall || {};
 	const model3 = status.model3 || {};
+	const images = window.gamingHubPowerwallFlow?.images || {};
+	const houseSrc = images.house || '';
+	const soc = Number( powerwall.battery_percent );
+	const socLabel = Number.isFinite( soc ) ? `${ soc }%` : '—';
 
 	return (
-		<div
-			ref={ mapRef }
-			className="pw-flow-map"
-			data-charging={ powerwall.is_charging ? '1' : '0' }
-			aria-label={ labels.flow }
-		>
-			<canvas ref={ canvasRef } className="pw-flow-canvas" aria-hidden="true" />
+		<div className="pw-flow-scene">
+			<div
+				ref={ mapRef }
+				className="pw-flow-map is-house"
+				data-charging={ powerwall.is_charging ? '1' : '0' }
+				aria-label={ labels.flow }
+			>
+				{ houseSrc ? (
+					<img
+						src={ houseSrc }
+						alt=""
+						className="pw-flow-house"
+					/>
+				) : null }
 
-			<div className="pw-flow-content">
-				<div className="pw-flow-layout">
-					<div
-						className={ `pw-flow-node pw-flow-node-solar${ isFlowActive( 'solar', status ) ? ' is-active' : '' }` }
-						data-flow-id="solar"
-					>
-						<span className="pw-flow-node-icon" aria-hidden="true">☀️</span>
-						<span className="pw-flow-node-label">{ labels.solar }</span>
-						<strong>{ formatWatts( status.solar_w ) }</strong>
-					</div>
+				<canvas ref={ canvasRef } className="pw-flow-canvas" aria-hidden="true" />
 
-					<BatteryNode device={ powerwall } label={ labels.powerwall } flowId="powerwall" />
+				<div className="pw-flow-pins">
+					<Callout
+						flowId="solar"
+						label={ labels.solar }
+						watts={ status.solar_w }
+						active={ isFlowActive( 'solar', status ) }
+					/>
 
-					<div
-						className={ `pw-flow-node pw-flow-node-home${ isFlowActive( 'home', status ) ? ' is-active' : '' }` }
-						data-flow-id="home"
-					>
-						<span className="pw-flow-node-icon" aria-hidden="true">🏠</span>
-						<span className="pw-flow-node-label">{ labels.home }</span>
-						<strong>{ formatWatts( status.home_w ) }</strong>
-					</div>
+					<Callout
+						flowId="powerwall"
+						label={ labels.powerwall }
+						watts={ powerwall.watts }
+						state={ powerwall.charge_state || '—' }
+						active={ isFlowActive( 'solar', status ) || isFlowActive( 'home', status ) }
+						extra={ <span className="pw-flow-pin-soc">{ socLabel }</span> }
+					/>
 
-					<div
-						className={ `pw-flow-node pw-flow-node-car${ isFlowActive( 'car', status ) ? ' is-active' : '' }` }
-						data-flow-id="model3"
-					>
-						<span className="pw-flow-node-icon" aria-hidden="true">🚗</span>
-						<span className="pw-flow-node-label">{ labels.model3 }</span>
-						<strong>{ formatWatts( model3.watts ) }</strong>
-						<p className="pw-flow-node-state">{ model3.charge_state || '—' }</p>
-					</div>
+					<Callout
+						flowId="home"
+						label={ labels.home }
+						watts={ status.home_w }
+						active={ isFlowActive( 'home', status ) }
+					/>
 
-					<div
-						className={ `pw-flow-node pw-flow-node-grid pw-flow-node-import-only${ isFlowActive( 'gridImport', status ) ? ' is-active' : '' }` }
-						data-flow-id="grid"
-					>
-						<span className="pw-flow-node-icon" aria-hidden="true">↙️</span>
-						<span className="pw-flow-node-label">{ labels.grid }</span>
-						<strong>{ formatWatts( status.grid_import_w ) }</strong>
-						<small className="pw-flow-grid-note">{ labels.gridNote }</small>
-					</div>
+					<Callout
+						flowId="model3"
+						label={ labels.model3 }
+						watts={ model3.watts }
+						state={ model3.charge_state || '—' }
+						active={ isFlowActive( 'car', status ) }
+					/>
 
-					<div className="pw-flow-summary">
-						<div className="pw-flow-summary-item">
-							<span>{ labels.solar }</span>
-							<strong>{ formatWatts( status.solar_w ) }</strong>
-						</div>
-						<div className="pw-flow-summary-item">
-							<span>{ labels.powerwall }</span>
-							<strong>{ powerwall.charge_state || '—' }</strong>
-						</div>
-						<div className="pw-flow-summary-item">
-							<span>{ labels.model3 }</span>
-							<strong>{ model3.charge_state || '—' }</strong>
-						</div>
-						<div className="pw-flow-summary-item">
-							<span>{ labels.import }</span>
-							<strong>{ formatWatts( status.grid_import_w ) }</strong>
-						</div>
-					</div>
+					<Callout
+						flowId="grid"
+						label={ labels.grid }
+						watts={ status.grid_import_w }
+						active={ isFlowActive( 'gridImport', status ) }
+						extra={ <small className="pw-flow-grid-note">{ labels.gridNote }</small> }
+					/>
+				</div>
+			</div>
+
+			<div className="pw-flow-summary">
+				<div className="pw-flow-summary-item">
+					<span>{ labels.solar }</span>
+					<strong>{ formatWatts( status.solar_w ) }</strong>
+				</div>
+				<div className="pw-flow-summary-item">
+					<span>{ labels.powerwall }</span>
+					<strong>{ powerwall.charge_state || '—' }</strong>
+				</div>
+				<div className="pw-flow-summary-item">
+					<span>{ labels.model3 }</span>
+					<strong>{ model3.charge_state || '—' }</strong>
+				</div>
+				<div className="pw-flow-summary-item">
+					<span>{ labels.import }</span>
+					<strong>{ formatWatts( status.grid_import_w ) }</strong>
 				</div>
 			</div>
 		</div>
