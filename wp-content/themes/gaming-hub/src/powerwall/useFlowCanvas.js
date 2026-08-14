@@ -52,17 +52,11 @@ function resolveConnection( mapEl, connection ) {
 		return null;
 	}
 
-	let from = resolvePoint( fromRect, connection.from.side );
-	let to = resolvePoint( toRect, connection.to.side );
+	const from = resolvePoint( fromRect, connection.from.side );
+	const to = resolvePoint( toRect, connection.to.side );
 
-	if ( connection.axis === 'horizontal' ) {
-		const y = ( fromRect.cy + toRect.cy ) / 2;
-		from = { x: from.x, y };
-		to = { x: to.x, y };
-	} else if ( connection.axis === 'vertical' ) {
-		const x = ( fromRect.cx + toRect.cx ) / 2;
-		from = { x, y: from.y };
-		to = { x, y: to.y };
+	if ( ! from || ! to ) {
+		return null;
 	}
 
 	return {
@@ -70,35 +64,98 @@ function resolveConnection( mapEl, connection ) {
 		from,
 		to,
 		color: connection.color,
+		showLabel: !! connection.showLabel,
 	};
 }
 
-function drawPath( ctx, path, active, dashOffset ) {
-	const { from, to } = path;
+function drawArrow( ctx, from, to, color ) {
+	const angle = Math.atan2( to.y - from.y, to.x - from.x );
+	const size = 9;
+
+	ctx.beginPath();
+	ctx.moveTo( to.x, to.y );
+	ctx.lineTo(
+		to.x - size * Math.cos( angle - 0.45 ),
+		to.y - size * Math.sin( angle - 0.45 )
+	);
+	ctx.lineTo(
+		to.x - size * Math.cos( angle + 0.45 ),
+		to.y - size * Math.sin( angle + 0.45 )
+	);
+	ctx.closePath();
+	ctx.fillStyle = color;
+	ctx.shadowColor = color;
+	ctx.shadowBlur = 8;
+	ctx.fill();
+	ctx.shadowBlur = 0;
+}
+
+function drawWattsLabel( ctx, from, to, watts, color ) {
+	const text = `${ Math.round( watts ).toLocaleString() } W`;
+	const mx = ( from.x + to.x ) / 2;
+	const my = ( from.y + to.y ) / 2;
+
+	ctx.font = '700 11px Inter, sans-serif';
+	const width = ctx.measureText( text ).width;
+	const boxW = width + 14;
+	const boxH = 18;
+	const x = mx - boxW / 2;
+	const y = my - boxH / 2;
+
+	ctx.beginPath();
+	if ( typeof ctx.roundRect === 'function' ) {
+		ctx.roundRect( x, y, boxW, boxH, 4 );
+	} else {
+		ctx.rect( x, y, boxW, boxH );
+	}
+	ctx.fillStyle = 'rgba(8, 12, 22, 0.92)';
+	ctx.fill();
+	ctx.lineWidth = 1;
+	ctx.strokeStyle = color;
+	ctx.stroke();
+
+	ctx.fillStyle = color;
+	ctx.textAlign = 'center';
+	ctx.textBaseline = 'middle';
+	ctx.fillText( text, mx, my + 0.5 );
+}
+
+function drawPath( ctx, path, active, dashOffset, watts ) {
+	const { from, to, color } = path;
 
 	ctx.beginPath();
 	ctx.moveTo( from.x, from.y );
 	ctx.lineTo( to.x, to.y );
 	ctx.lineCap = 'round';
-	ctx.lineWidth = active ? 3 : 2;
-	ctx.strokeStyle = active ? 'rgba(232, 33, 39, 0.35)' : 'rgba(232, 33, 39, 0.12)';
+	ctx.lineWidth = active ? 3.5 : 2;
+	ctx.strokeStyle = active ? `${ color }99` : 'rgba(255, 255, 255, 0.22)';
 	ctx.stroke();
 
 	if ( ! active ) {
+		drawArrow( ctx, from, to, 'rgba(255, 255, 255, 0.35)' );
+		if ( path.showLabel ) {
+			drawWattsLabel( ctx, from, to, watts, color );
+		}
 		return;
 	}
 
 	ctx.beginPath();
 	ctx.moveTo( from.x, from.y );
 	ctx.lineTo( to.x, to.y );
-	ctx.setLineDash( [ 8, 12 ] );
+	ctx.setLineDash( [ 10, 14 ] );
 	ctx.lineDashOffset = -dashOffset;
-	ctx.lineWidth = 2.5;
-	ctx.strokeStyle = path.color;
-	ctx.globalAlpha = 0.75;
+	ctx.lineWidth = 3;
+	ctx.strokeStyle = color;
+	ctx.globalAlpha = 0.85;
 	ctx.stroke();
 	ctx.setLineDash( [] );
 	ctx.globalAlpha = 1;
+
+	drawArrow( ctx, from, to, color );
+
+	if ( path.showLabel ) {
+		drawWattsLabel( ctx, from, to, watts, color );
+	}
 }
 
 function drawParticle( ctx, path, progress, color ) {
@@ -106,10 +163,10 @@ function drawParticle( ctx, path, progress, color ) {
 	const y = path.from.y + ( path.to.y - path.from.y ) * progress;
 
 	ctx.beginPath();
-	ctx.arc( x, y, 4, 0, Math.PI * 2 );
+	ctx.arc( x, y, 5, 0, Math.PI * 2 );
 	ctx.fillStyle = color;
 	ctx.shadowColor = color;
-	ctx.shadowBlur = 6;
+	ctx.shadowBlur = 10;
 	ctx.fill();
 	ctx.shadowBlur = 0;
 }
@@ -175,7 +232,7 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 				const watts = wattsForFlow( path.id, status );
 				const active = watts >= FLOW_THRESHOLD;
 
-				drawPath( ctx, path, active, dashOffsetRef.current );
+				drawPath( ctx, path, active, dashOffsetRef.current, watts );
 
 				if ( ! active ) {
 					return;

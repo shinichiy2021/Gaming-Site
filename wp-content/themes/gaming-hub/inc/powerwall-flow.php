@@ -235,6 +235,11 @@ function gaming_hub_powerwall_flow_scripts() {
 				'import'    => __( '買電', 'gaming-hub' ),
 				'simulated' => __( '多治見市・天気連動シミュレーション', 'gaming-hub' ),
 			),
+			'images' => array(
+				'house'     => gaming_hub_powerwall_house_image_url(),
+				'powerwall' => gaming_hub_powerwall_product_thumb_url(),
+				'model3'    => gaming_hub_model3_product_image_url( true ),
+			),
 		)
 	);
 

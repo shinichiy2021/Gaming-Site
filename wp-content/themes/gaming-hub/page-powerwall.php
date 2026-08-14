@@ -15,11 +15,11 @@ get_header();
 		<div class="container pw-hero-inner">
 			<div class="pw-hero-visual">
 				<img
-					src="<?php echo esc_url( gaming_hub_powerwall_product_image_url() ); ?>"
-					alt="<?php esc_attr_e( 'Tesla Powerwall 3', 'gaming-hub' ); ?>"
-					class="pw-hero-product"
-					width="480"
-					height="560"
+					src="<?php echo esc_url( gaming_hub_powerwall_house_image_url() ); ?>"
+					alt="<?php esc_attr_e( 'Tesla Powerwall 3 とソーラー・EV の全体イメージ', 'gaming-hub' ); ?>"
+					class="pw-hero-house"
+					width="1024"
+					height="558"
 					loading="eager"
 				/>
 			</div>
