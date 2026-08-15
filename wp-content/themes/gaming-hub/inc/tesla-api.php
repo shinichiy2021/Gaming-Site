@@ -62,6 +62,92 @@ class Gaming_Hub_Tesla_Api {
 	}
 
 	/**
+	 * Partner authentication token (client_credentials) for register / public_key endpoints.
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function get_partner_access_token() {
+		$response = wp_remote_post(
+			$this->token_url,
+			array(
+				'timeout' => 20,
+				'headers' => array(
+					'Content-Type' => 'application/x-www-form-urlencoded',
+				),
+				'body'    => array(
+					'grant_type'    => 'client_credentials',
+					'client_id'     => $this->client_id,
+					'client_secret' => $this->client_secret,
+					'scope'         => 'openid vehicle_device_data vehicle_cmds vehicle_charging_cmds',
+					'audience'      => $this->token_audience(),
+				),
+			)
+		);
+
+		return $this->parse_token_response( $response );
+	}
+
+	/**
+	 * Register this app's domain + public key with Tesla Fleet API.
+	 *
+	 * @param string $domain Root domain (must match developer.tesla.com allowed origins).
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function register_partner_account( $domain ) {
+		$domain = strtolower( trim( (string) $domain ) );
+		$domain = preg_replace( '#^https?://#', '', $domain );
+		$domain = rtrim( $domain, '/' );
+
+		if ( '' === $domain ) {
+			return new WP_Error( 'tesla_invalid_domain', __( 'Tesla partner domain is empty.', 'gaming-hub' ) );
+		}
+
+		$tokens = $this->get_partner_access_token();
+		if ( is_wp_error( $tokens ) ) {
+			return $tokens;
+		}
+
+		$this->set_access_token( (string) $tokens['access_token'] );
+
+		return $this->fleet_request(
+			'POST',
+			'/api/1/partner_accounts',
+			array(),
+			true,
+			array(
+				'domain' => $domain,
+			)
+		);
+	}
+
+	/**
+	 * Verify hosted public key registration for a domain.
+	 *
+	 * @param string $domain Root domain.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function get_partner_public_key( $domain ) {
+		$domain = strtolower( trim( (string) $domain ) );
+		$domain = preg_replace( '#^https?://#', '', $domain );
+		$domain = rtrim( $domain, '/' );
+
+		$tokens = $this->get_partner_access_token();
+		if ( is_wp_error( $tokens ) ) {
+			return $tokens;
+		}
+
+		$this->set_access_token( (string) $tokens['access_token'] );
+
+		return $this->fleet_request(
+			'GET',
+			'/api/1/partner_accounts/public_key',
+			array(
+				'domain' => $domain,
+			)
+		);
+	}
+
+	/**
 	 * Exchange refresh token for a new access token.
 	 *
 	 * @param string $refresh_token Stored refresh token.
@@ -276,9 +362,11 @@ class Gaming_Hub_Tesla_Api {
 	 * @param string               $method HTTP method.
 	 * @param string               $path   API path.
 	 * @param array<string, mixed> $query  Query params for GET.
+	 * @param bool                 $allow_region_retry Retry once after region redirect.
+	 * @param array<string, mixed> $body   JSON body for POST.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	private function fleet_request( $method, $path, $query = array(), $allow_region_retry = true ) {
+	private function fleet_request( $method, $path, $query = array(), $allow_region_retry = true, $body = null ) {
 		if ( '' === $this->access_token ) {
 			return new WP_Error( 'tesla_missing_token', __( 'Tesla access token is not set.', 'gaming-hub' ) );
 		}
@@ -303,7 +391,7 @@ class Gaming_Hub_Tesla_Api {
 		);
 
 		if ( 'POST' === $method ) {
-			$args['body'] = wp_json_encode( (object) array() );
+			$args['body'] = wp_json_encode( null !== $body ? $body : (object) array() );
 		}
 
 		$response = wp_remote_request( $url, $args );
@@ -324,7 +412,7 @@ class Gaming_Hub_Tesla_Api {
 				$this->set_fleet_base_url( (string) $error_data['fleet_api_base_url'] );
 				gaming_hub_tesla_save_fleet_base_url( $this->get_fleet_base_url() );
 
-				return $this->fleet_request( $method, $path, $query, false );
+				return $this->fleet_request( $method, $path, $query, false, $body );
 			}
 		}
 

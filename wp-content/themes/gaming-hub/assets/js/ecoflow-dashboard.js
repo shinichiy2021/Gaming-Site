@@ -14,9 +14,11 @@
 		});
 	}
 
+	const unavailableLabel = (gamingHubEcoflow.labels && gamingHubEcoflow.labels.unavailable) || '未取得';
+
 	function formatWatts(value) {
 		if (value === null || value === undefined) {
-			return '—';
+			return unavailableLabel;
 		}
 		return Math.round(value).toLocaleString() + ' W';
 	}
@@ -30,7 +32,7 @@
 
 	function formatWh(value) {
 		if (value === null || value === undefined) {
-			return '—';
+			return unavailableLabel;
 		}
 		if (Number(value) > 1000) {
 			return (Number(value) / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' kWh';
@@ -39,10 +41,20 @@
 	}
 
 	function formatPack(remain, full) {
+		if (remain === null || remain === undefined) {
+			return unavailableLabel;
+		}
 		if (full === null || full === undefined || Number(full) <= 0) {
 			return formatWh(remain);
 		}
 		return formatWh(remain) + ' / ' + formatWh(full);
+	}
+
+	function formatPercent(value) {
+		if (value === null || value === undefined) {
+			return unavailableLabel;
+		}
+		return Number(value) + '%';
 	}
 
 	function formatMinutes(minutes) {
@@ -67,7 +79,10 @@
 			device_name: data.device_name || '',
 			device_sn: data.device_sn || '',
 			online: !!data.online,
-			solar_in: Number(data.solar_in) || 0,
+			solar_in: data.solar_in === null || data.solar_in === undefined
+				? null
+				: Number(data.solar_in) || 0,
+			solar_in_source: data.solar_in_source || '',
 			hv_in: Number(data.hv_in) || 0,
 			ac_in: Number(data.ac_in) || 0,
 			ac_out: Number(data.ac_out) || 0,
@@ -154,7 +169,9 @@
 		return {
 			dual: true,
 			independent: true,
-			solar_in: Number(delta.solar_in) || 0,
+			solar_in: delta.solar_in === null || delta.solar_in === undefined
+				? null
+				: Number(delta.solar_in) || 0,
 			hv_in: Number(pro.hv_in) || Number(data.hv_in) || 0,
 			grid_in: pro.ac_in,
 			ac_in: pro.ac_in,
@@ -177,13 +194,13 @@
 			delta: delta,
 			link_watts: 0,
 			home_out: Number(pro.ac_out) || 0,
-			ups_out: data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
+			ups_out: data.ups_plug && data.ups_plug.source === 'ecoflow' && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
 				? Number(data.ups_plug.watts)
-				: Number(delta.ac_out) || 0,
+				: null,
 			ups_source: data.ups_plug && data.ups_plug.source
 				? data.ups_plug.source
-				: (data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined ? 'switchbot' : 'ecoflow'),
-			solar_in_source: data.solar_in_source || (data.secondary && data.secondary.solar_in_source) || 'theoretical_lv',
+				: 'unavailable',
+			solar_in_source: (data.secondary && data.secondary.solar_in_source) || data.solar_in_source || 'unavailable',
 			extra: extraBatterySlice(delta.extra || (data.secondary && data.secondary.extra)),
 		};
 	}
@@ -829,21 +846,27 @@
 		setField('hv_in', formatWatts(data.hv_in));
 		setField('ac_out', formatWatts(data.ac_out));
 		setField('dc_out', formatWatts(data.dc_out));
-		const lvSource = (data.secondary && data.secondary.solar_in_source) || data.solar_in_source || 'theoretical_lv';
+		const lvSource = (data.secondary && data.secondary.solar_in_source) || data.solar_in_source || 'unavailable';
 		setField(
 			'solar_delta_label',
-			lvSource === 'theoretical_lv' || lvSource === ''
-				? 'Low Volt 入力 (理論 HV×50%)'
+			lvSource === 'unavailable' || lvSource === 'theoretical_lv' || lvSource === ''
+				? 'Low Volt 入力 (未取得)'
 				: 'Low Volt 入力 (実測)'
 		);
-		setField('solar_delta', formatWatts(data.secondary && data.secondary.solar_in));
-		if (data.secondary && data.secondary.battery_percent !== null && data.secondary.battery_percent !== undefined) {
-			setField('secondary_soc', Number(data.secondary.battery_percent) + '%');
+		setField(
+			'solar_delta',
+			lvSource === 'unavailable'
+				? unavailableLabel
+				: formatWatts(data.secondary && data.secondary.solar_in)
+		);
+		if (data.secondary) {
+			setField('secondary_soc', formatPercent(data.secondary.battery_percent));
+			const socSource = data.secondary.soc_source || '';
 			setField(
 				'secondary_soc_label',
-				data.secondary.soc_source && !String(data.secondary.soc_source).startsWith('baseline_minus_ups')
-					? '残量 (1500 · 実測)'
-					: '残量 (1500 · 6%起点)'
+				socSource === 'unavailable'
+					? '残量 (1500 · 未取得)'
+					: '残量 (1500 · 実測)'
 			);
 		}
 		setField('battery_temp', formatTemp(data.battery_temp));
@@ -851,44 +874,48 @@
 		setField('charge_state_stat', data.charge_state);
 
 		const pvNow = dashboard.querySelector('[data-ecoflow-pv-now]');
-		if (pvNow && data.solar_in !== null && data.solar_in !== undefined) {
-			pvNow.textContent = Math.round(Number(data.solar_in)).toLocaleString() + ' W';
+		if (pvNow) {
+			if (data.solar_in === null || data.solar_in === undefined || lvSource === 'unavailable') {
+				pvNow.textContent = unavailableLabel;
+			} else {
+				pvNow.textContent = Math.round(Number(data.solar_in)).toLocaleString() + ' W';
+			}
 		}
 
 		if (data.secondary) {
 			setField('secondary_charge_state', data.secondary.charge_state);
-			const plugWatts = data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
-				? data.ups_plug.watts
-				: data.secondary.ac_out;
-			setField('ups_out', formatWatts(plugWatts));
 			const upsSource = data.ups_plug && data.ups_plug.source
 				? data.ups_plug.source
-				: (data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined ? 'switchbot' : 'ecoflow');
+				: 'unavailable';
+			setField(
+				'ups_out',
+				upsSource === 'ecoflow' && data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
+					? formatWatts(data.ups_plug.watts)
+					: unavailableLabel
+			);
 			setField(
 				'ups_out_label',
-				upsSource === 'switchbot'
-					? 'AC 出力 → UPS (SwitchBot)'
-					: 'AC 出力 → UPS (1500)'
+				upsSource === 'ecoflow'
+					? 'AC 出力 → UPS (1500 · MQTT)'
+					: 'AC 出力 → UPS (未取得)'
 			);
 			const extraPack = data.secondary.extra && typeof data.secondary.extra === 'object'
 				? data.secondary.extra
 				: {};
-			const extraSoc = extraPack.battery_percent;
-			if (extraSoc !== null && extraSoc !== undefined) {
-				setField('extra_soc', Number(extraSoc) + '%');
-			} else {
-				setField('extra_soc', '—');
-			}
+			setField('extra_soc', formatPercent(extraPack.battery_percent));
 			setField(
 				'secondary_remain',
 				formatPack(data.secondary.remain_capacity, data.secondary.capacity_wh || 1500)
 			);
 			const capacitySource = data.secondary.capacity_source || 'default';
+			const socSource = data.secondary.soc_source || '';
 			setField(
 				'secondary_remain_label',
-				capacitySource !== 'default'
-					? '残容量 (1500 · 実測)'
-					: '残容量 (1500)'
+				socSource === 'unavailable'
+					? '残容量 (1500 · 未取得)'
+					: (capacitySource !== 'default'
+						? '残容量 (1500 · 実測)'
+						: '残容量 (1500)')
 			);
 			setField(
 				'extra_remain',
@@ -896,9 +923,11 @@
 			);
 			setField(
 				'extra_remain_label',
-				extraPack.capacity_source && extraPack.capacity_source !== 'default'
-					? '残容量 (Extra · 実測)'
-					: '残容量 (Extra Battery)'
+				extraPack.capacity_source === 'mqtt'
+					? '残容量 (Extra · MQTT)'
+					: (extraPack.capacity_source && extraPack.capacity_source !== 'default'
+						? '残容量 (Extra · 実測)'
+						: '残容量 (Extra · 未取得)')
 			);
 			if (data.secondary.grid_rescue) {
 				setField(

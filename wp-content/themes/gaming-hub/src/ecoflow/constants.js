@@ -79,10 +79,10 @@ export function flowSpeed( watts ) {
 
 export function formatWatts( value ) {
 	if ( value === null || value === undefined ) {
-		return '—';
+		return '未取得';
 	}
 
-	return `${ Math.round( value ).toLocaleString() } W`;
+	return `${ Math.round( Number( value ) ).toLocaleString() } W`;
 }
 
 export function formatWh( value ) {
@@ -107,10 +107,20 @@ export function formatPack( remain, full ) {
 
 export function solarToDelta( status ) {
 	if ( ! status ) {
-		return 0;
+		return null;
 	}
 
-	return Number( status.delta?.solar_in ) || Number( status.solar_in ) || 0;
+	const source = status.delta?.solar_in_source || status.solar_in_source || '';
+	if ( source === 'unavailable' ) {
+		return null;
+	}
+
+	const watts = status.delta?.solar_in ?? status.solar_in;
+	if ( watts === null || watts === undefined ) {
+		return null;
+	}
+
+	return Number( watts ) || 0;
 }
 
 export function proGridCharge( status ) {
@@ -139,14 +149,18 @@ export function hvInput( status ) {
 
 export function upsOutput( status ) {
 	if ( ! status ) {
-		return 0;
+		return null;
+	}
+
+	if ( status.ups_source && 'ecoflow' !== status.ups_source && 'switchbot' !== status.ups_source ) {
+		return null;
 	}
 
 	if ( Object.prototype.hasOwnProperty.call( status, 'ups_out' ) && status.ups_out !== null && status.ups_out !== undefined ) {
 		return Number( status.ups_out ) || 0;
 	}
 
-	return Number( status.delta?.ac_out ) || 0;
+	return null;
 }
 
 export function homeOutput( status ) {

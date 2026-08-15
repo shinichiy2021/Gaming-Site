@@ -122,7 +122,7 @@ function DualFlowDiagram( { status, labels, images } ) {
 		: `${ extraCap } Wh`;
 	const deltaSoc = Number.isFinite( Number( delta.battery_percent ) )
 		? `${ Number( delta.battery_percent ) }%`
-		: '—';
+		: '未取得';
 
 	return (
 		<div className="ecoflow-dual-layout is-independent">
@@ -202,7 +202,11 @@ function DualFlowDiagram( { status, labels, images } ) {
 						) }
 						<span className="ecoflow-node-label">{ labels.solar }</span>
 						<strong>{ formatWatts( solarWatts ) }</strong>
-					<small>{ labels.lvTheory || '理論 HV×50%' }</small>
+					<small>{
+						status.solar_in_source === 'unavailable' || solarWatts === null || solarWatts === undefined
+							? '未取得'
+							: ( labels.lvMeasured || '実測 · MQTT' )
+					}</small>
 				</div>
 
 				<div className="ecoflow-delta-cluster">
@@ -232,7 +236,7 @@ function DualFlowDiagram( { status, labels, images } ) {
 					<span className="ecoflow-node-icon" aria-hidden="true">🔋</span>
 					<span className="ecoflow-node-label">{ labels.ups || '常時稼働エリア (UPS)' }</span>
 					<strong>{ formatWatts( upsWatts ) }</strong>
-					<small>{ status.ups_source === 'switchbot' ? ( labels.upsPlug || 'SwitchBot Plug' ) : ( labels.acOut || 'AC 出力' ) }</small>
+					<small>{ status.ups_source === 'ecoflow' ? ( labels.acOut || 'AC 出力 · MQTT' ) : ( status.ups_source === 'switchbot' ? ( labels.upsPlug || 'SwitchBot Plug' ) : '未取得' ) }</small>
 				</div>
 
 				<div className="ecoflow-flow-summary ecoflow-flow-summary-system is-two-col">
@@ -243,7 +247,7 @@ function DualFlowDiagram( { status, labels, images } ) {
 					<div className="ecoflow-flow-summary-item">
 						<span>{ labels.ups || '常時稼働エリア (UPS)' }</span>
 						<strong>{ formatWatts( upsWatts ) }</strong>
-						<small>{ delta.charge_state || '—' } · { deltaSoc } · EB { Number.isFinite( extraSoc ) ? `${ extraSoc }%` : '—' }</small>
+						<small>{ delta.charge_state || '—' } · { deltaSoc } · EB { Number.isFinite( extraSoc ) ? `${ extraSoc }%` : '未取得' }</small>
 					</div>
 				</div>
 			</section>

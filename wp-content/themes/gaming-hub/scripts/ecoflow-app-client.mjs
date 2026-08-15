@@ -245,6 +245,23 @@ function mergePayload( quota, payload ) {
 	}
 }
 
+function quotaHasMainSoc( quota ) {
+	return Object.keys( quota ).some( ( key ) => {
+		if ( key.includes( 'bms_slave' ) || key.includes( 'Slave' ) ) {
+			return false;
+		}
+
+		return /\.soc$/.test( key )
+			|| key.includes( 'BattSoc' )
+			|| key.includes( 'lcdShowSoc' )
+			|| key.includes( 'f32ShowSoc' );
+	} );
+}
+
+function quotaHasAcOut( quota ) {
+	return Object.keys( quota ).some( ( key ) => /inv\.outputWatts|pd\.acOutWatts|powGetAcLvOut|powGetAcHvOut/.test( key ) );
+}
+
 export async function pollQuota( deviceSn, loginData, cert, clientIdOverride = '', command = null ) {
 	return new Promise( ( resolvePromise, reject ) => {
 		const userId = loginData.user.userId;
@@ -277,12 +294,34 @@ export async function pollQuota( deviceSn, loginData, cert, clientIdOverride = '
 
 		const maybeFinish = ( force = false ) => {
 			const keys = Object.keys( quota );
-			const hasSoc = keys.some( ( key ) => key.endsWith( '.soc' ) || key.includes( 'BattSoc' ) || key.includes( 'lcdShowSoc' ) );
-			const hasPower = keys.some( ( key ) => /watts|Watts|powGet/i.test( key ) );
+			const hasMainSoc = quotaHasMainSoc( quota );
+			const hasSlaveSoc = keys.some( ( key ) => key.includes( 'bms_slave' ) && ( key.endsWith( '.soc' ) || key.includes( 'ShowSoc' ) ) );
+			const hasPower = keys.some( ( key ) => /^(inv\.|pd\.|powGet)/.test( key ) && /watts|Watts|powGet/i.test( key ) );
 			const setReady = ! command || setAck;
 
-			if ( force || ( setReady && ( ( hasSoc && hasPower ) || keys.length >= 10 || ( getReplyCount > 0 && keys.length >= 4 ) || ( telemetryCount >= 3 && keys.length >= 2 ) ) ) ) {
+			if ( force ) {
 				finish();
+				return;
+			}
+
+			if ( setReady && hasMainSoc && ( hasPower || quotaHasAcOut( quota ) ) ) {
+				finish();
+				return;
+			}
+
+			if ( setReady && keys.length >= 24 ) {
+				finish();
+				return;
+			}
+
+			if ( setReady && getReplyCount > 0 && hasMainSoc ) {
+				finish();
+				return;
+			}
+
+			// Do not finish early on Extra-only (bms_slave) payloads — wait for main pack / AC out.
+			if ( setReady && hasSlaveSoc && ! hasMainSoc ) {
+				return;
 			}
 		};
 
@@ -496,13 +535,24 @@ export function writeCommandResult( cacheDirectory, command, ok, error = '' ) {
 
 export function writeQuotaCache( cacheDirectory, deviceSn, quota ) {
 	mkdirSync( cacheDirectory, { recursive: true } );
-	writeFileSync( join( cacheDirectory, `${ deviceSn }.json` ), JSON.stringify( quota ) );
+	const path = join( cacheDirectory, `${ deviceSn }.json` );
+	let merged = {};
+
+	try {
+		merged = JSON.parse( readFileSync( path, 'utf8' ) );
+	} catch {
+		merged = {};
+	}
+
+	Object.assign( merged, quota );
+
+	writeFileSync( path, JSON.stringify( merged ) );
 	writeFileSync(
 		join( cacheDirectory, 'bridge-status.json' ),
 		JSON.stringify( {
 			ok: true,
 			device_sn: deviceSn,
-			keys: Object.keys( quota ).length,
+			keys: Object.keys( merged ).length,
 			updated_at: new Date().toISOString(),
 		} )
 	);

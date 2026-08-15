@@ -326,23 +326,18 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 			</div>
 			<div class="ecoflow-stat-card">
 				<span class="ecoflow-stat-label" data-ecoflow-field="solar_delta_label"><?php echo esc_html( gaming_hub_ecoflow_solar_delta_label( (string) ( $status['secondary']['solar_in_source'] ?? $status['solar_in_source'] ?? '' ) ) ); ?></span>
-				<strong data-ecoflow-field="solar_delta"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['secondary']['solar_in'] ?? $status['solar_delta'] ?? 0 ) ); ?></strong>
+				<strong data-ecoflow-field="solar_delta"><?php echo esc_html( gaming_hub_format_ecoflow_delta_solar( $status ) ); ?></strong>
 			</div>
 			<?php if ( ! empty( $status['secondary'] ) ) : ?>
 				<div class="ecoflow-stat-card">
 					<span class="ecoflow-stat-label" data-ecoflow-field="secondary_soc_label">
-						<?php
-						$soc_source = (string) ( $status['secondary']['soc_source'] ?? '' );
-						echo str_starts_with( $soc_source, 'baseline_minus_ups' )
-							? esc_html__( '残量 (1500 · 6%起点)', 'gaming-hub' )
-							: esc_html__( '残量 (1500 · 実測)', 'gaming-hub' );
-						?>
+						<?php echo esc_html( gaming_hub_ecoflow_pack_soc_label( $status['secondary'] ) ); ?>
 					</span>
 					<strong data-ecoflow-field="secondary_soc">
 						<?php
-						echo isset( $status['secondary']['battery_percent'] ) && null !== $status['secondary']['battery_percent']
-							? esc_html( (int) $status['secondary']['battery_percent'] . '%' )
-							: '—';
+						echo esc_html(
+							gaming_hub_format_ecoflow_percent( $status['secondary']['battery_percent'] ?? null )
+						);
 						?>
 					</strong>
 				</div>
@@ -375,8 +370,9 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 					<span class="ecoflow-stat-label"><?php esc_html_e( '残量 (Extra Battery)', 'gaming-hub' ); ?></span>
 					<strong data-ecoflow-field="extra_soc">
 						<?php
-						$extra_soc = $status['secondary']['extra']['battery_percent'] ?? null;
-						echo null !== $extra_soc ? esc_html( (int) $extra_soc . '%' ) : '—';
+						echo esc_html(
+							gaming_hub_format_ecoflow_percent( $status['secondary']['extra']['battery_percent'] ?? null )
+						);
 						?>
 					</strong>
 				</div>
@@ -401,12 +397,12 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				<div class="ecoflow-stat-card">
 					<span class="ecoflow-stat-label" data-ecoflow-field="ups_out_label">
 						<?php
-						echo 'switchbot' === gaming_hub_ecoflow_ups_source( $status )
-							? esc_html__( 'AC 出力 → UPS (SwitchBot)', 'gaming-hub' )
-							: esc_html__( 'AC 出力 → UPS (1500)', 'gaming-hub' );
+						echo 'ecoflow' === gaming_hub_ecoflow_ups_source( $status )
+							? esc_html__( 'AC 出力 → UPS (1500 · MQTT)', 'gaming-hub' )
+							: esc_html__( 'AC 出力 → UPS (未取得)', 'gaming-hub' );
 						?>
 					</span>
-					<strong data-ecoflow-field="ups_out"><?php echo esc_html( gaming_hub_format_ecoflow_watts( gaming_hub_ecoflow_ups_watts( $status, (int) ( $status['secondary']['ac_out'] ?? 0 ) ) ) ); ?></strong>
+					<strong data-ecoflow-field="ups_out"><?php echo esc_html( gaming_hub_format_ecoflow_ups( $status ) ); ?></strong>
 				</div>
 				<div class="ecoflow-stat-card">
 					<span class="ecoflow-stat-label"><?php esc_html_e( '状態 (1500)', 'gaming-hub' ); ?></span>
