@@ -1529,6 +1529,157 @@ body.home .site-header.is-scrolled {
 	margin-bottom: 20px;
 }
 
+.pw-model3-battery-panel {
+	background: var(--color-bg-card);
+	border: 1px solid rgba(232, 33, 39, 0.18);
+	border-radius: var(--radius-lg);
+	padding: 20px 24px;
+	margin-bottom: 24px;
+}
+
+.pw-model3-battery-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 18px;
+}
+
+.pw-model3-battery-header h3 {
+	font-family: var(--font-display);
+	font-size: 1.05rem;
+	margin: 0;
+}
+
+.pw-model3-battery-body {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 24px;
+	align-items: center;
+}
+
+.pw-model3-battery-gauge {
+	--battery-level: 0;
+}
+
+.pw-model3-battery-ring {
+	width: 132px;
+	height: 132px;
+}
+
+.pw-model3-battery-ring .pw-flow-battery-inner {
+	width: 98px;
+	height: 98px;
+}
+
+.pw-model3-battery-ring .pw-flow-battery-value {
+	font-size: 1.45rem;
+}
+
+.pw-model3-battery-details {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.pw-model3-battery-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.pw-model3-battery-stat-label {
+	font-size: 0.78rem;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.pw-model3-battery-stat strong {
+	font-family: var(--font-display);
+	font-size: 1.25rem;
+}
+
+.pw-model3-battery-stat small {
+	font-size: 0.82rem;
+	color: var(--color-text-muted);
+}
+
+.pw-model3-charging-panel {
+	grid-column: 1 / -1;
+	display: none;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	padding: 14px 16px;
+	border-radius: var(--radius-md);
+	background: rgba(255, 179, 0, 0.08);
+	border: 1px solid rgba(255, 179, 0, 0.22);
+}
+
+.pw-model3-charging-panel.is-visible {
+	display: grid;
+}
+
+.pw-model3-charging-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.pw-model3-charging-stat span {
+	font-size: 0.75rem;
+	color: var(--color-text-muted);
+}
+
+.pw-model3-charging-stat strong {
+	font-family: var(--font-display);
+	font-size: 1.05rem;
+	color: #ffb300;
+}
+
+.pw-model3-pin-gauge {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.pw-model3-battery-ring.is-compact {
+	width: 72px;
+	height: 72px;
+}
+
+.pw-model3-battery-ring.is-compact .pw-flow-battery-inner {
+	width: 54px;
+	height: 54px;
+}
+
+.pw-model3-battery-ring.is-compact .pw-flow-battery-value {
+	font-size: 0.82rem;
+}
+
+.pw-model3-pin-charging {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	font-size: 0.72rem;
+	color: #ffb300;
+	line-height: 1.2;
+}
+
+.pw-model3-pin-charging small {
+	color: var(--color-text-muted);
+}
+
+.pw-flow-summary-item small {
+	display: block;
+	margin-top: 4px;
+	font-size: 0.72rem;
+	color: var(--color-text-muted);
+}
+
 .pw-flow-scene {
 	display: flex;
 	flex-direction: column;
@@ -4548,6 +4699,21 @@ body.home .site-header.is-scrolled {
 	}
 
 	.pw-flow-stats-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.pw-model3-battery-body {
+		grid-template-columns: 1fr;
+		justify-items: center;
+		text-align: center;
+	}
+
+	.pw-model3-battery-details {
+		width: 100%;
+		grid-template-columns: 1fr;
+	}
+
+	.pw-model3-charging-panel {
 		grid-template-columns: 1fr;
 	}
 
