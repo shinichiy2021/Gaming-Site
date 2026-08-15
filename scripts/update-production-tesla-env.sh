@@ -2,9 +2,10 @@
 # Update Tesla Fleet API keys in production .env and restart WordPress.
 #
 # GitHub Actions secrets (production environment):
-#   TESLA_CLIENT_ID, TESLA_CLIENT_SECRET
-#   TESLA_VEHICLE_VIN, TESLA_REFRESH_TOKEN
+#   TESLA_CLIENT_ID, TESLA_CLIENT_SECRET, TESLA_VEHICLE_VIN
+#   Optional: TESLA_REFRESH_TOKEN (OAuth on /powerwall/ is preferred)
 #   Optional: TESLA_FLEET_API_BASE_URL, TESLA_REDIRECT_URI, TESLA_PARTNER_DOMAIN
+#   Optional: REMOVE_TESLA_REFRESH_TOKEN=1 — drop stale .env refresh token
 #
 set -euo pipefail
 
@@ -15,7 +16,9 @@ DEPLOY_PATH="${DEPLOY_PATH:-/opt/gaming-hub}"
 : "${TESLA_CLIENT_ID:?Set TESLA_CLIENT_ID}"
 : "${TESLA_CLIENT_SECRET:?Set TESLA_CLIENT_SECRET}"
 : "${TESLA_VEHICLE_VIN:?Set TESLA_VEHICLE_VIN}"
-: "${TESLA_REFRESH_TOKEN:?Set TESLA_REFRESH_TOKEN}"
+
+TESLA_REFRESH_TOKEN="${TESLA_REFRESH_TOKEN:-}"
+REMOVE_TESLA_REFRESH_TOKEN="${REMOVE_TESLA_REFRESH_TOKEN:-0}"
 
 TESLA_FLEET_API_BASE_URL="${TESLA_FLEET_API_BASE_URL:-https://fleet-api.prd.na.vn.cloud.tesla.com}"
 TESLA_REDIRECT_URI="${TESLA_REDIRECT_URI:-https://shinichiy-gaming-hub.com/wp-json/gaming-hub/v1/tesla/oauth/callback}"
@@ -56,11 +59,36 @@ print('updated', key)
 \""
 }
 
+remove_env() {
+	local key="$1"
+	"${SSH[@]}" "python3 -c \"
+import pathlib, re
+path = pathlib.Path('${DEPLOY_PATH}/.env')
+if not path.exists():
+    print('skip', '${key}', '(no .env)')
+    raise SystemExit(0)
+key = '${key}'
+text = path.read_text(encoding='utf-8')
+pattern = re.compile(r'^' + re.escape(key) + r'=.*\\n?', re.M)
+if not pattern.search(text):
+    print('skip', key, '(not set)')
+    raise SystemExit(0)
+text = pattern.sub('', text)
+path.write_text(text, encoding='utf-8')
+print('removed', key)
+\""
+}
+
 echo "==> Updating Tesla env on ${REMOTE}:${DEPLOY_PATH}/.env ..."
 update_env TESLA_CLIENT_ID "$TESLA_CLIENT_ID"
 update_env TESLA_CLIENT_SECRET "$TESLA_CLIENT_SECRET"
 update_env TESLA_VEHICLE_VIN "$TESLA_VEHICLE_VIN"
-update_env TESLA_REFRESH_TOKEN "$TESLA_REFRESH_TOKEN"
+
+if [[ "$REMOVE_TESLA_REFRESH_TOKEN" == "1" ]]; then
+	remove_env TESLA_REFRESH_TOKEN
+elif [[ -n "$TESLA_REFRESH_TOKEN" ]]; then
+	update_env TESLA_REFRESH_TOKEN "$TESLA_REFRESH_TOKEN"
+fi
 update_env TESLA_FLEET_API_BASE_URL "$TESLA_FLEET_API_BASE_URL"
 update_env TESLA_REDIRECT_URI "$TESLA_REDIRECT_URI"
 update_env TESLA_PARTNER_DOMAIN "$TESLA_PARTNER_DOMAIN"
