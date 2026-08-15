@@ -39,7 +39,9 @@ function gaming_hub_ecoflow_attach_schedule_state( array $plan ) {
 	$plan['approved_plan_id']    = $saved_id;
 	$plan['is_approved_current'] = $is_match;
 	$plan['needs_reapprove']     = false;
-	$plan['last_applied_w']         = isset( $saved['last_applied_w'] ) ? (int) $saved['last_applied_w'] : null;
+	$plan['last_applied_w']         = isset( $saved['last_applied_w'] ) && null !== $saved['last_applied_w']
+		? gaming_hub_ecoflow_clamp_charge_watts( (int) $saved['last_applied_w'] )
+		: null;
 	$plan['last_applied_reserve']   = isset( $saved['last_applied_reserve'] ) ? (int) $saved['last_applied_reserve'] : null;
 	$plan['last_applied_at']        = $saved['last_applied_at'] ?? '';
 	$plan['last_apply_error']    = $saved['last_apply_error'] ?? '';
@@ -88,16 +90,45 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 }
 
 /**
+ * Whether the current hour is a charge-plan grid-charge slot.
+ *
+ * @param array<string, mixed> $plan Charge plan.
+ */
+function gaming_hub_ecoflow_plan_slot_is_charging( array $plan ) {
+	$hour = (int) wp_date( 'G' );
+	$date = wp_date( 'Y-m-d' );
+
+	foreach ( $plan['slots'] ?? array() as $slot ) {
+		if ( ! is_array( $slot ) ) {
+			continue;
+		}
+
+		if ( (int) ( $slot['hour'] ?? -1 ) !== $hour ) {
+			continue;
+		}
+
+		if ( (string) ( $slot['date'] ?? '' ) !== $date ) {
+			continue;
+		}
+
+		return 'charge' === ( $slot['mode'] ?? '' );
+	}
+
+	return false;
+}
+
+/**
  * Pro 3 grid charge display (matches Delta 1500 rescue card style).
  *
  * @param array<string, mixed> $plan Charge plan with schedule overlay.
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_pro_grid_charge_view( array $plan ) {
-	$charge_w = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000;
+	$charge_w = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000;
+	$idle_w   = defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0;
 	$applied  = isset( $plan['last_applied_w'] ) ? (int) $plan['last_applied_w'] : 0;
-	$active   = $applied >= $charge_w;
-	$watts    = $active ? $applied : 0;
+	$active   = $applied > $idle_w || gaming_hub_ecoflow_plan_slot_is_charging( $plan );
+	$watts    = $active ? $charge_w : 0;
 
 	if ( ! empty( $plan['last_apply_error'] ) ) {
 		$message = sprintf(
@@ -129,7 +160,39 @@ function gaming_hub_ecoflow_pro_grid_charge_view( array $plan ) {
  */
 function gaming_hub_ecoflow_get_saved_schedule() {
 	$saved = get_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, array() );
-	return is_array( $saved ) ? $saved : array();
+	if ( ! is_array( $saved ) ) {
+		return array();
+	}
+
+	$dirty = false;
+	if ( isset( $saved['slots'] ) && is_array( $saved['slots'] ) && function_exists( 'gaming_hub_ecoflow_normalize_plan_slots' ) ) {
+		$normalized = gaming_hub_ecoflow_normalize_plan_slots( $saved['slots'] );
+		if ( $normalized !== $saved['slots'] ) {
+			$saved['slots'] = $normalized;
+			$dirty          = true;
+		}
+	}
+
+	if ( isset( $saved['last_applied_w'] ) && null !== $saved['last_applied_w'] ) {
+		$clamped = gaming_hub_ecoflow_clamp_charge_watts( (int) $saved['last_applied_w'] );
+		if ( $clamped !== (int) $saved['last_applied_w'] ) {
+			$saved['last_applied_w'] = $clamped;
+			$dirty                   = true;
+		}
+	}
+
+	foreach ( array( 'charge_w' => GAMING_HUB_ECOFLOW_PLAN_CHARGE_W, 'idle_w' => GAMING_HUB_ECOFLOW_PLAN_IDLE_W ) as $key => $value ) {
+		if ( (int) ( $saved[ $key ] ?? -1 ) !== (int) $value ) {
+			$saved[ $key ] = (int) $value;
+			$dirty         = true;
+		}
+	}
+
+	if ( $dirty ) {
+		update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $saved, false );
+	}
+
+	return $saved;
 }
 
 /**
@@ -153,8 +216,10 @@ function gaming_hub_ecoflow_autosync_charge_plan( array $plan ) {
 		'status'               => 'approved',
 		'plan_id'              => $plan_id,
 		'charge_w'             => defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000,
-		'idle_w'               => defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 200,
-		'slots'                => $plan['slots'] ?? array(),
+		'idle_w'               => defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0,
+		'slots'                => function_exists( 'gaming_hub_ecoflow_normalize_plan_slots' )
+			? gaming_hub_ecoflow_normalize_plan_slots( is_array( $plan['slots'] ?? null ) ? $plan['slots'] : array() )
+			: ( $plan['slots'] ?? array() ),
 		'approved_at'          => wp_date( 'c' ),
 		'approved_by'          => 0,
 		'auto'                 => true,
@@ -383,7 +448,7 @@ function gaming_hub_ecoflow_current_approved_slot( array $saved ) {
 }
 
 /**
- * Clamp to the device minimum and the site charge cap.
+ * Clamp to the idle floor (0 W) and the site charge cap.
  *
  * @param int $watts Requested watts.
  */
@@ -399,7 +464,7 @@ function gaming_hub_ecoflow_clamp_charge_watts( $watts ) {
  * @param int $watts Charge watts.
  */
 function gaming_hub_ecoflow_backup_reserve_for_watts( $watts ) {
-	return (int) $watts >= GAMING_HUB_ECOFLOW_PLAN_CHARGE_W
+	return (int) $watts > GAMING_HUB_ECOFLOW_PLAN_IDLE_W
 		? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON
 		: GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
 }
@@ -415,7 +480,7 @@ function gaming_hub_ecoflow_apply_charge_and_backup( $watts, $reserve ) {
 	$watts   = gaming_hub_ecoflow_clamp_charge_watts( $watts );
 	$reserve = max( 5, min( 100, (int) $reserve ) );
 
-	if ( $watts >= GAMING_HUB_ECOFLOW_PLAN_CHARGE_W ) {
+	if ( $watts > GAMING_HUB_ECOFLOW_PLAN_IDLE_W ) {
 		$backup = gaming_hub_ecoflow_set_pro_backup_reserve( $reserve );
 		if ( is_wp_error( $backup ) ) {
 			return $backup;

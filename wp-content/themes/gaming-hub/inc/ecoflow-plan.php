@@ -17,7 +17,7 @@ define( 'GAMING_HUB_ECOFLOW_AC_W_PER_C', 70 );
 define( 'GAMING_HUB_ECOFLOW_AC_MAX_W', 550 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_MIN_SOC', 25 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W', 1000 );
-define( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W', 200 );
+define( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W', 0 );
 define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON', 100 );
 define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF', 5 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_DC_W', 100 );
@@ -200,7 +200,7 @@ function gaming_hub_ecoflow_soc_series( $from_hour, $soc, $full_wh, array $slots
 function gaming_hub_ecoflow_get_charge_plan( array $status ) {
 	$hour = (int) wp_date( 'G' );
 	$soc  = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
-	$key  = 'gaming_hub_ecoflow_plan_v19_' . wp_date( 'Y-m-d' ) . '_' . $hour . '_' . (int) floor( $soc / 5 );
+	$key  = 'gaming_hub_ecoflow_plan_v20_' . wp_date( 'Y-m-d' ) . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
 
 	$cached = get_transient( $key );
 	if ( is_array( $cached ) && ! empty( $cached['slots'] ) && isset( $cached['charge_w'], $cached['dc1500_remaining_kwh'], $cached['ac_today_kwh'], $cached['soc_series'], $cached['solar_hours'] ) ) {
@@ -225,6 +225,12 @@ function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status ) {
 		$plan = gaming_hub_ecoflow_autosync_charge_plan( $plan );
 	} elseif ( function_exists( 'gaming_hub_ecoflow_attach_schedule_state' ) ) {
 		$plan = gaming_hub_ecoflow_attach_schedule_state( $plan );
+	}
+
+	$plan['charge_w'] = GAMING_HUB_ECOFLOW_PLAN_CHARGE_W;
+	$plan['idle_w']   = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+	if ( isset( $plan['slots'] ) && is_array( $plan['slots'] ) ) {
+		$plan['slots'] = gaming_hub_ecoflow_normalize_plan_slots( $plan['slots'] );
 	}
 
 	$hour     = (int) wp_date( 'G' );
@@ -625,6 +631,30 @@ function gaming_hub_ecoflow_build_day_slots( $from_hour, $solar_hours, $picked )
 			isset( $tomorrow_map[ $h ] ) ? (float) $tomorrow_map[ $h ] : (float) $row['yen']
 		);
 	}
+
+	return $slots;
+}
+
+/**
+ * Rewrite slot watts to the current idle / charge constants.
+ *
+ * Cached and saved plans can still carry the old 200 W idle value.
+ *
+ * @param array<int, array<string, mixed>> $slots Plan slots.
+ * @return array<int, array<string, mixed>>
+ */
+function gaming_hub_ecoflow_normalize_plan_slots( array $slots ) {
+	foreach ( $slots as &$slot ) {
+		if ( ! is_array( $slot ) || ! empty( $slot['past'] ) || null === ( $slot['watts'] ?? null ) ) {
+			continue;
+		}
+
+		$mode = (string) ( $slot['mode'] ?? 'idle' );
+		$slot['watts'] = 'charge' === $mode
+			? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W
+			: (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+	}
+	unset( $slot );
 
 	return $slots;
 }
