@@ -65,17 +65,26 @@ function gaming_hub_tesla_default_fleet_base_url() {
  *
  * @return array<string, string>
  */
-function gaming_hub_get_tesla_config() {
-	$refresh = gaming_hub_tesla_env( 'TESLA_REFRESH_TOKEN' ) ?: get_option( GAMING_HUB_TESLA_REFRESH_TOKEN_OPTION, '' );
+function gaming_hub_tesla_get_refresh_token() {
+	$refresh = get_option( GAMING_HUB_TESLA_REFRESH_TOKEN_OPTION, '' );
 
-	if ( ! $refresh ) {
-		$refresh = get_theme_mod( 'tesla_refresh_token', '' );
+	if ( is_string( $refresh ) && '' !== $refresh ) {
+		return $refresh;
 	}
 
+	$refresh = get_theme_mod( 'tesla_refresh_token', '' );
+	if ( is_string( $refresh ) && '' !== $refresh ) {
+		return $refresh;
+	}
+
+	return gaming_hub_tesla_env( 'TESLA_REFRESH_TOKEN' );
+}
+
+function gaming_hub_get_tesla_config() {
 	return array(
 		'client_id'      => gaming_hub_tesla_env( 'TESLA_CLIENT_ID' ) ?: get_theme_mod( 'tesla_client_id', '' ),
 		'client_secret'  => gaming_hub_tesla_env( 'TESLA_CLIENT_SECRET' ) ?: get_theme_mod( 'tesla_client_secret', '' ),
-		'refresh_token'  => (string) $refresh,
+		'refresh_token'  => gaming_hub_tesla_get_refresh_token(),
 		'vehicle_vin'    => gaming_hub_tesla_env( 'TESLA_VEHICLE_VIN' ) ?: get_theme_mod( 'tesla_vehicle_vin', '' ),
 		'fleet_base_url' => gaming_hub_tesla_default_fleet_base_url(),
 		'redirect_uri'   => gaming_hub_tesla_env( 'TESLA_REDIRECT_URI' ) ?: rest_url( 'gaming-hub/v1/tesla/oauth/callback' ),
@@ -141,6 +150,13 @@ function gaming_hub_tesla_user_facing_error( WP_Error $error ) {
 	if ( 'tesla_partner_not_registered' === $code || false !== stripos( $message, 'must be registered in the current region' ) ) {
 		return __(
 			'Tesla Fleet API: アプリのリージョン登録（partner_accounts）が未完了です。Fleet API を使うには本番ドメインで公開鍵を設置し、developer.tesla.com の Allowed Origins と同じドメインを Tesla に登録する必要があります（localhost のみでは取得できません）。',
+			'gaming-hub'
+		);
+	}
+
+	if ( false !== stripos( $message, 'user session flushed' ) ) {
+		return __(
+			'Tesla の refresh token が無効です。Powerwall ページの「Tesla で認証」から本番ドメインで再連携してください。',
 			'gaming-hub'
 		);
 	}
@@ -304,6 +320,8 @@ function gaming_hub_tesla_oauth_authorize_url() {
  * @param array<string, mixed> $tokens Token payload.
  */
 function gaming_hub_tesla_store_tokens( array $tokens ) {
+	delete_transient( GAMING_HUB_TESLA_ACCESS_TOKEN_KEY );
+
 	if ( ! empty( $tokens['refresh_token'] ) ) {
 		update_option( GAMING_HUB_TESLA_REFRESH_TOKEN_OPTION, (string) $tokens['refresh_token'], false );
 	}
@@ -336,6 +354,8 @@ function gaming_hub_tesla_get_api() {
 		$tokens = $api->refresh_access_token( $config['refresh_token'] );
 
 		if ( is_wp_error( $tokens ) ) {
+			delete_transient( GAMING_HUB_TESLA_ACCESS_TOKEN_KEY );
+
 			return $tokens;
 		}
 

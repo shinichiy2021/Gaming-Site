@@ -29,4 +29,5 @@ jobs:
           TESLA_FLEET_API_BASE_URL: ${{ secrets.TESLA_FLEET_API_BASE_URL }}
           TESLA_REDIRECT_URI: ${{ secrets.TESLA_REDIRECT_URI }}
           TESLA_PARTNER_DOMAIN: ${{ secrets.TESLA_PARTNER_DOMAIN }}
+          REMOVE_TESLA_REFRESH_TOKEN: "1"
         run: bash ./scripts/update-production-tesla-env.sh
