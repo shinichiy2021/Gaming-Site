@@ -238,5 +238,7 @@ function gaming_hub_ecoflow_infer_secondary_from_primary( array $primary, $devic
 		'extra'           => gaming_hub_ecoflow_extra_battery_slice(),
 	);
 
-	return array_merge( $inferred, gaming_hub_ecoflow_delta1500_pack_energy( $inferred['battery_percent'] ) );
+	return gaming_hub_ecoflow_merge_bridge_quota(
+		array_merge( $inferred, gaming_hub_ecoflow_main_pack_defaults( $inferred['battery_percent'] ) )
+	);
 }
