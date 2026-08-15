@@ -2,41 +2,58 @@ import { useEffect, useRef, useState } from 'react';
 import { formatWatts, isFlowActive } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
 
-function Model3BatteryRing( { model3 } ) {
-	const soc = Number( model3.battery_percent );
-	const hasSoc = Number.isFinite( soc );
-	const isCharging = !!model3.is_charging;
-
-	if ( ! hasSoc ) {
+function parseSoc( value ) {
+	if ( value === null || value === undefined || value === '' ) {
 		return null;
 	}
 
-	return (
-		<div className="pw-model3-pin-gauge" style={ { '--battery-level': soc } }>
-			<div className={ `pw-flow-battery-ring pw-model3-battery-ring is-compact${ isCharging ? ' is-charging' : '' }` }>
-				<div className="pw-flow-battery-inner">
-					<span className="pw-flow-battery-value">{ `${ soc }%` }</span>
-				</div>
-			</div>
-			{ isCharging ? (
-				<div className="pw-model3-pin-charging">
-					<span>{ model3.charge_rate_label || '—' }</span>
-					{ model3.charge_eta_label ? <small>{ model3.charge_eta_label }</small> : null }
-				</div>
-			) : null }
-		</div>
-	);
+	const soc = Number( value );
+	return Number.isFinite( soc ) ? Math.max( 0, Math.min( 100, Math.round( soc ) ) ) : null;
 }
 
-function Callout( { flowId, label, watts, state, active, extra } ) {
+function HudNode( {
+	flowId,
+	label,
+	watts,
+	state,
+	active,
+	photo,
+	photoClass,
+	hero,
+	soc,
+	isCharging,
+	extra,
+} ) {
+	const level = parseSoc( soc );
+	const hasSoc = null !== level;
+	const classes = [
+		'pw-hud-node',
+		`pw-hud-node-${ flowId }`,
+		hero ? 'is-hero' : '',
+		active ? 'is-active' : '',
+		isCharging ? 'is-charging' : '',
+	].filter( Boolean ).join( ' ' );
+
 	return (
-		<div
-			className={ `pw-flow-pin pw-flow-pin-${ flowId }${ active ? ' is-active' : '' }` }
-			data-flow-id={ flowId }
-		>
-			<span className="pw-flow-pin-label">{ label }</span>
-			<strong>{ formatWatts( watts ) }</strong>
-			{ state ? <p className="pw-flow-node-state">{ state }</p> : null }
+		<div className={ classes } data-flow-id={ flowId }>
+			<div
+				className="pw-hud-art"
+				style={ hasSoc ? { '--battery-level': level } : undefined }
+			>
+				{ photo ? (
+					<img src={ photo } alt="" className={ `pw-hud-photo ${ photoClass || '' }` } />
+				) : null }
+				{ hasSoc ? (
+					<>
+						<span className="pw-hud-fill" aria-hidden="true" />
+						<span className="pw-hud-pct">{ `${ level }%` }</span>
+					</>
+				) : null }
+			</div>
+			<span className="pw-hud-label">{ label }</span>
+			{ hasSoc ? <strong className="pw-hud-soc">{ `${ level }%` }</strong> : null }
+			<strong className="pw-hud-watts">{ formatWatts( watts ) }</strong>
+			{ state ? <p className="pw-hud-state">{ state }</p> : null }
 			{ extra }
 		</div>
 	);
@@ -63,67 +80,78 @@ export default function PowerwallFlowDiagram( { initial, labels } ) {
 	const powerwall = status.powerwall || {};
 	const model3 = status.model3 || {};
 	const images = window.gamingHubPowerwallFlow?.images || {};
-	const houseSrc = images.house || '';
-	const soc = Number( powerwall.battery_percent );
-	const socLabel = Number.isFinite( soc ) ? `${ soc }%` : '—';
+	const pwSoc = parseSoc( powerwall.battery_percent );
+	const m3Soc = parseSoc( model3.battery_percent );
 
 	return (
 		<div className="pw-flow-scene">
 			<div
 				ref={ mapRef }
-				className="pw-flow-map is-house"
+				className="pw-flow-map is-gaming"
 				data-charging={ powerwall.is_charging ? '1' : '0' }
 				aria-label={ labels.flow }
 			>
-				{ houseSrc ? (
-					<img
-						src={ houseSrc }
-						alt=""
-						className="pw-flow-house"
-					/>
-				) : null }
-
 				<canvas ref={ canvasRef } className="pw-flow-canvas" aria-hidden="true" />
 
-				<div className="pw-flow-pins">
-					<Callout
+				<div className="pw-hud-layout">
+					<HudNode
 						flowId="solar"
 						label={ labels.solar }
 						watts={ status.solar_w }
 						active={ isFlowActive( 'solar', status ) }
+						photo={ images.solar }
+						photoClass="pw-hud-photo-solar"
 					/>
 
-					<Callout
+					<HudNode
+						flowId="grid"
+						label={ labels.grid }
+						watts={ status.grid_import_w }
+						state={ labels.gridNote }
+						active={ isFlowActive( 'gridImport', status ) }
+						photo={ images.grid }
+						photoClass="pw-hud-photo-grid"
+					/>
+
+					<HudNode
 						flowId="powerwall"
 						label={ labels.powerwall }
 						watts={ powerwall.watts }
 						state={ powerwall.charge_state || '—' }
-						active={ isFlowActive( 'solar', status ) || isFlowActive( 'home', status ) }
-						extra={ <span className="pw-flow-pin-soc">{ socLabel }</span> }
+						active={ isFlowActive( 'solar', status ) || isFlowActive( 'home', status ) || isFlowActive( 'car', status ) }
+						photo={ images.powerwall }
+						photoClass="pw-hud-photo-powerwall"
+						hero
+						soc={ pwSoc }
+						isCharging={ !! powerwall.is_charging }
 					/>
 
-					<Callout
+					<HudNode
 						flowId="home"
 						label={ labels.home }
 						watts={ status.home_w }
 						active={ isFlowActive( 'home', status ) }
+						photo={ images.home }
+						photoClass="pw-hud-photo-home"
 					/>
 
-					<Callout
+					<HudNode
 						flowId="model3"
 						label={ labels.model3 }
 						watts={ model3.watts }
 						state={ model3.charge_state || '—' }
 						active={ isFlowActive( 'car', status ) }
-						extra={ <Model3BatteryRing model3={ model3 } /> }
-					/>
-
-					<Callout
-						flowId="grid"
-						label={ labels.grid }
-						watts={ status.grid_import_w }
-						active={ isFlowActive( 'gridImport', status ) }
-						extra={ <small className="pw-flow-grid-note">{ labels.gridNote }</small> }
+						photo={ images.model3 }
+						photoClass="pw-hud-photo-car"
+						hero
+						soc={ m3Soc }
+						isCharging={ !! model3.is_charging }
+						extra={ model3.is_charging ? (
+							<p className="pw-hud-charge">
+								{ model3.charge_rate_label || '—' }
+								{ model3.charge_eta_label ? ` · ${ model3.charge_eta_label }` : '' }
+							</p>
+						) : null }
 					/>
 				</div>
 			</div>
@@ -135,11 +163,12 @@ export default function PowerwallFlowDiagram( { initial, labels } ) {
 				</div>
 				<div className="pw-flow-summary-item">
 					<span>{ labels.powerwall }</span>
-					<strong>{ powerwall.charge_state || '—' }</strong>
+					<strong>{ null !== pwSoc ? `${ pwSoc }%` : '—' }</strong>
+					<small>{ powerwall.charge_state || '—' }</small>
 				</div>
 				<div className="pw-flow-summary-item">
 					<span>{ labels.model3 }</span>
-					<strong>{ Number.isFinite( Number( model3.battery_percent ) ) ? `${ model3.battery_percent }%` : '—' }</strong>
+					<strong>{ null !== m3Soc ? `${ m3Soc }%` : '—' }</strong>
 					{ model3.is_charging ? (
 						<small>{ model3.charge_rate_label || '—' }{ model3.charge_eta_label ? ` · ${ model3.charge_eta_label }` : '' }</small>
 					) : (

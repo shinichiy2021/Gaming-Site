@@ -178,12 +178,12 @@ function gaming_hub_format_duration_minutes( $minutes ) {
 function gaming_hub_powerwall_model3_present( array $model3 ) {
 	$soc           = max( 0, min( 100, (int) ( $model3['battery_percent'] ?? 0 ) ) );
 	$is_charging   = ! empty( $model3['is_charging'] );
-	$watts         = max( 0, (int) ( $model3['watts'] ?? 0 ) );
+	$watts         = $is_charging ? max( 0, (int) ( $model3['watts'] ?? 0 ) ) : 0;
 	$charge_limit  = max( $soc, min( 100, (int) ( $model3['charge_limit_percent'] ?? 100 ) ) );
 	$battery_kwh   = (float) ( $model3['battery_kwh_nominal'] ?? GAMING_HUB_MODEL3_BATTERY_KWH );
-	$charge_rate_kw = $watts > 0
+	$charge_rate_kw = $is_charging && $watts > 0
 		? round( $watts / 1000, 1 )
-		: round( (float) ( $model3['charge_rate_kw'] ?? 0 ), 1 );
+		: 0;
 
 	$minutes_to_full = null;
 
@@ -213,6 +213,8 @@ function gaming_hub_powerwall_model3_present( array $model3 ) {
 		$model3,
 		array(
 			'battery_percent'       => $soc,
+			'is_charging'           => $is_charging,
+			'watts'                 => $watts,
 			'charge_limit_percent'  => $charge_limit,
 			'charge_rate_kw'        => $charge_rate_kw,
 			'charge_rate_label'     => $charge_rate_kw > 0

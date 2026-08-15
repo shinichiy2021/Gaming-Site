@@ -6,6 +6,10 @@
 		return;
 	}
 
+	function t(text) {
+		return window.gamingHubT ? window.gamingHubT(text) : text;
+	}
+
 	function setField(name, value) {
 		dashboard.querySelectorAll('[data-pw-field="' + name + '"]').forEach(function (el) {
 			if (value !== undefined && value !== null) {
@@ -49,31 +53,31 @@
 
 		setField(
 			'cost_subtitle',
-			(cost.provider || 'LOOOP スマートタイムONE（電灯）')
-				+ ' · 契約 ' + contractKw + ' kW · '
-				+ (cost.date_label || '—') + '（24時間シミュレーション）'
+			(cost.provider || t('LOOOP スマートタイムONE（電灯）'))
+				+ t(' · 契約 ') + contractKw + ' kW · '
+				+ (cost.date_label || '—') + t('（24時間シミュレーション）')
 		);
 		setField('cost_total_kwh', formatKwh(cost.total_kwh));
 		setField(
 			'cost_grid_kwh',
-			'買電 ' + Number(cost.grid_import_kwh || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' kWh'
-				+ ' · ソーラー自家消費 '
+			t('買電 ') + Number(cost.grid_import_kwh || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' kWh'
+				+ t(' · ソーラー自家消費 ')
 				+ Number(cost.solar_self_kwh || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' kWh'
 		);
 		setField('cost_with_solar', formatYen(cost.cost_with_solar_yen));
 		setField(
 			'cost_without_solar',
-			'ソーラーなし想定: ' + formatYen(cost.cost_without_solar_yen)
+			t('ソーラーなし想定: ') + formatYen(cost.cost_without_solar_yen)
 		);
 		setField('cost_saved', formatYen(cost.saved_yen));
 		setField(
 			'cost_saved_percent',
-			'約 ' + Number(cost.saved_percent || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '% 削減'
+			t('約 ') + Number(cost.saved_percent || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + t('% 削減')
 		);
 		setField('cost_solar_gen', formatKwh(cost.solar_generation_kwh));
 		setField(
 			'cost_battery_self',
-			'Powerwall 自家消費 '
+			t('Powerwall 自家消費 ')
 				+ Number(cost.battery_self_kwh || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' kWh'
 		);
 
@@ -107,12 +111,12 @@
 		setField('model3_state_detail', model3.charge_state || '—');
 		setField(
 			'model3_limit',
-			'充電上限 ' + Number(model3.charge_limit_percent || 100).toLocaleString() + '%'
+			t('充電上限 ') + Number(model3.charge_limit_percent || 100).toLocaleString() + '%'
 		);
 		setField(
 			'model3_range',
 			model3.range_km
-				? '航続距離 約 ' + Number(model3.range_km).toLocaleString() + ' km'
+				? t('航続距離 約 ') + Number(model3.range_km).toLocaleString() + ' km'
 				: (model3.vehicle_name || 'Model 3')
 		);
 		setField('model3_charge_rate', model3.charge_rate_label || '—');
@@ -152,23 +156,23 @@
 		if (data.solar_meta) {
 			const meta = data.solar_meta;
 			const cloud = meta.cloud_cover !== null && meta.cloud_cover !== undefined
-				? '雲量 ' + Math.round(meta.cloud_cover) + '%'
-				: '雲量 —';
-			const panelLabel = meta.panel_label || '1.5 kW パネル';
-			const note = 'ソーラー (' + panelLabel + '): ' + (meta.location || '岐阜県多治見市')
-				+ ' · 気象庁日照平年値 + 天気連動 · '
-				+ (meta.hour_slot || '—') + ' 時点 · '
+				? t('雲量 ') + Math.round(meta.cloud_cover) + '%'
+				: t('雲量 —');
+			const panelLabel = meta.panel_label || t('1.5 kW パネル');
+			const note = t('ソーラー (') + panelLabel + '): ' + (meta.location || t('岐阜県多治見市'))
+				+ t(' · 気象庁日照平年値 + 天気連動 · ')
+				+ (meta.hour_slot || '—') + t(' 時点 · ')
 				+ (meta.weather || '—') + ' · '
-				+ cloud + ' · 1時間ごとに更新';
+				+ cloud + t(' · 1時間ごとに更新');
 			setField('solar_note', note);
 		}
 
 		if (data.home_meta) {
 			const meta = data.home_meta;
-			const note = 'ホーム: ' + (meta.profile || '大人3人世帯（平均）')
-				+ ' · 1日約 ' + (meta.daily_kwh || '10.5') + ' kWh · '
+			const note = t('ホーム: ') + (meta.profile || t('大人3人世帯（平均）'))
+				+ t(' · 1日約 ') + (meta.daily_kwh || '10.5') + ' kWh · '
 				+ (meta.time_band || '—') + ' · '
-				+ (meta.hour_slot || '—') + ' 時点';
+				+ (meta.hour_slot || '—') + t(' 時点');
 			setField('home_note', note);
 		}
 
@@ -176,10 +180,10 @@
 			const meta = data.model3_meta;
 			setField(
 				'model3_note',
-				'Model 3: 1日平均 ' + (meta.daily_km || 30) + ' km'
-					+ ' · 充電約 ' + (meta.daily_kwh || '4.5') + ' kWh'
+				t('Model 3: 1日平均 ') + (meta.daily_km || 30) + ' km'
+					+ t(' · 充電約 ') + (meta.daily_kwh || '4.5') + ' kWh'
 					+ ' · ' + (meta.charge_window || '17:00–22:30')
-					+ ' · 約 ' + Math.round(meta.charge_watts || 0).toLocaleString() + ' W'
+					+ t(' · 約 ') + Math.round(meta.charge_watts || 0).toLocaleString() + ' W'
 			);
 		}
 
@@ -206,7 +210,7 @@
 
 					const updated = dashboard.querySelector('.pw-flow-updated');
 					if (updated && payload.data.updated_at) {
-						updated.textContent = '最終更新: ' + payload.data.updated_at;
+						updated.textContent = t('最終更新: ') + payload.data.updated_at;
 					}
 				}
 			})

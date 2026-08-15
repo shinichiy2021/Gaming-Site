@@ -380,12 +380,25 @@ function gaming_hub_tesla_get_api() {
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_model3_from_charge_state( array $charge_state ) {
-	$state    = (string) ( $charge_state['charging_state'] ?? '' );
+	$state   = (string) ( $charge_state['charging_state'] ?? '' );
 	$charging = in_array( $state, array( 'Charging', 'Starting' ), true );
-	$power_w  = (int) round( (float) ( $charge_state['charger_power'] ?? 0 ) * 1000 );
 
-	if ( ! $charging ) {
-		$power_w = 0;
+	if ( false === ( $charge_state['charge_enable_request'] ?? null ) ) {
+		$charging = false;
+	}
+
+	if ( false === ( $charge_state['user_charge_enable_request'] ?? null ) ) {
+		$charging = false;
+	}
+
+	$power_raw = (float) ( $charge_state['charger_power'] ?? 0 );
+	$power_w   = $power_raw > 50
+		? (int) round( $power_raw )
+		: (int) round( $power_raw * 1000 );
+
+	if ( ! $charging || $power_w < 50 ) {
+		$charging = false;
+		$power_w  = 0;
 	}
 
 	$labels = array(
@@ -395,13 +408,17 @@ function gaming_hub_tesla_model3_from_charge_state( array $charge_state ) {
 		'Stopped'  => __( '停止', 'gaming-hub' ),
 	);
 
+	$battery_level = $charge_state['battery_level'] ?? $charge_state['usable_battery_level'] ?? null;
+
 	return gaming_hub_powerwall_model3_present(
 		array(
-			'battery_percent' => max( 0, min( 100, (int) round( $charge_state['battery_level'] ?? 0 ) ) ),
+			'battery_percent' => null !== $battery_level && is_numeric( $battery_level )
+				? max( 0, min( 100, (int) round( (float) $battery_level ) ) )
+				: 0,
 			'is_charging'     => $charging,
-			'charge_state'    => $labels[ $state ] ?? __( '待機中', 'gaming-hub' ),
+			'charge_state'    => $charging ? ( $labels[ $state ] ?? __( '充電中', 'gaming-hub' ) ) : ( $labels[ $state ] ?? __( '待機中', 'gaming-hub' ) ),
 			'watts'           => $power_w,
-			'charge_rate_kw'  => $charging ? round( (float) ( $charge_state['charger_power'] ?? 0 ), 1 ) : 0,
+			'charge_rate_kw'  => $charging ? round( $power_w / 1000, 1 ) : 0,
 			'charge_limit_percent' => max(
 				0,
 				min( 100, (int) round( $charge_state['charge_limit_soc'] ?? 100 ) )

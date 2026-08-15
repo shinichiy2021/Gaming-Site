@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v9' );
+define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v10' );
 define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 30 );
 define( 'GAMING_HUB_POWERWALL_SOLAR_POLL_MS', HOUR_IN_SECONDS * 1000 );
 
@@ -220,7 +220,7 @@ function gaming_hub_powerwall_flow_scripts() {
 	wp_enqueue_script(
 		'gaming-hub-powerwall-flow',
 		get_template_directory_uri() . '/assets/js/powerwall-flow.js',
-		array(),
+		array( 'gaming-hub-i18n' ),
 		GAMING_HUB_VERSION,
 		true
 	);
@@ -241,9 +241,11 @@ function gaming_hub_powerwall_flow_scripts() {
 				'simulated' => __( '多治見市・天気連動シミュレーション', 'gaming-hub' ),
 			),
 			'images' => array(
-				'house'     => gaming_hub_powerwall_house_image_url(),
-				'powerwall' => gaming_hub_powerwall_product_thumb_url(),
-				'model3'    => gaming_hub_model3_product_image_url( true ),
+				'solar'     => get_template_directory_uri() . '/assets/images/tesla-solar-gaming.jpg',
+				'powerwall' => get_template_directory_uri() . '/assets/images/tesla-powerwall-gaming.jpg',
+				'model3'    => get_template_directory_uri() . '/assets/images/tesla-model3-gaming.jpg',
+				'grid'      => get_template_directory_uri() . '/assets/images/tesla-grid-gaming.jpg',
+				'home'      => get_template_directory_uri() . '/assets/images/ecoflow-room-gaming.jpg',
 			),
 		)
 	);
@@ -251,7 +253,7 @@ function gaming_hub_powerwall_flow_scripts() {
 	wp_enqueue_script(
 		'gaming-hub-powerwall-dashboard',
 		get_template_directory_uri() . '/assets/js/powerwall-dashboard.js',
-		array( 'gaming-hub-active-refresh', 'gaming-hub-powerwall-flow' ),
+		array( 'gaming-hub-active-refresh', 'gaming-hub-i18n', 'gaming-hub-powerwall-flow' ),
 		GAMING_HUB_VERSION,
 		true
 	);
