@@ -87,11 +87,14 @@ function gaming_hub_powerwall_simulated_flow( $force_solar_refresh = false ) {
 			'charge_state'    => $charge_state,
 			'watts'           => round( abs( $powerwall_watts ) ),
 		),
-		'model3'             => array(
-			'battery_percent' => $model3_soc,
-			'is_charging'     => $model3_charging,
-			'charge_state'    => $model3_charging ? __( '充電中', 'gaming-hub' ) : __( '待機中', 'gaming-hub' ),
-			'watts'           => round( $model3_watts ),
+		'model3'             => gaming_hub_powerwall_model3_present(
+			array(
+				'battery_percent' => $model3_soc,
+				'is_charging'     => $model3_charging,
+				'charge_state'    => $model3_charging ? __( '充電中', 'gaming-hub' ) : __( '待機中', 'gaming-hub' ),
+				'watts'           => round( $model3_watts ),
+				'charge_limit_percent' => 100,
+			)
 		),
 		'model3_meta'        => $model3_meta,
 		'solar_to_powerwall' => round( $solar_to_powerwall ),
@@ -164,7 +167,9 @@ function gaming_hub_powerwall_flow_payload( array $status ) {
 		'grid_import_w' => (int) ( $status['grid_import_w'] ?? 0 ),
 		'grid_buy_only' => true,
 		'powerwall'     => $status['powerwall'] ?? array(),
-		'model3'        => $status['model3'] ?? array(),
+		'model3'        => gaming_hub_powerwall_model3_present(
+			is_array( $status['model3'] ?? null ) ? $status['model3'] : array()
+		),
 		'model3_source' => $status['model3_source'] ?? 'simulated',
 		'simulated'     => ! empty( $status['simulated'] ),
 	);

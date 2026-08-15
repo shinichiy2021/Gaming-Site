@@ -13,6 +13,10 @@ $solar_meta = is_array( $status['solar_meta'] ?? null ) ? $status['solar_meta'] 
 $home_meta  = is_array( $status['home_meta'] ?? null ) ? $status['home_meta'] : array();
 $cost_meta  = is_array( $status['cost_meta'] ?? null ) ? $status['cost_meta'] : array();
 $model3_meta = is_array( $status['model3_meta'] ?? null ) ? $status['model3_meta'] : array();
+$model3      = gaming_hub_powerwall_model3_present(
+	is_array( $status['model3'] ?? null ) ? $status['model3'] : array()
+);
+$model3_charging = ! empty( $model3['is_charging'] );
 ?>
 
 <section class="pw-flow-dashboard" aria-label="<?php esc_attr_e( 'Powerwall Energy Flow', 'gaming-hub' ); ?>">
@@ -94,6 +98,79 @@ $model3_meta = is_array( $status['model3_meta'] ?? null ) ? $status['model3_meta
 		class="pw-flow-root"
 		data-initial="<?php echo esc_attr( wp_json_encode( $flow ) ); ?>"
 	></div>
+
+	<div class="pw-model3-battery-panel" aria-label="<?php esc_attr_e( 'Model 3 バッテリー', 'gaming-hub' ); ?>">
+		<div class="pw-model3-battery-header">
+			<h3><?php esc_html_e( 'Model 3 バッテリー', 'gaming-hub' ); ?></h3>
+			<?php if ( 'tesla' === ( $status['model3_source'] ?? '' ) ) : ?>
+				<span class="pw-flow-stat-badge"><?php esc_html_e( 'Tesla API', 'gaming-hub' ); ?></span>
+			<?php endif; ?>
+		</div>
+		<div class="pw-model3-battery-body">
+			<div
+				class="pw-model3-battery-gauge"
+				data-pw-field="model3_gauge"
+				style="<?php echo esc_attr( '--battery-level: ' . (int) ( $model3['battery_percent'] ?? 0 ) ); ?>"
+			>
+				<div class="pw-flow-battery-ring pw-model3-battery-ring<?php echo $model3_charging ? ' is-charging' : ''; ?>">
+					<div class="pw-flow-battery-inner">
+						<span class="pw-flow-battery-value" data-pw-field="model3_soc_gauge"><?php echo esc_html( (int) ( $model3['battery_percent'] ?? 0 ) . '%' ); ?></span>
+						<span class="pw-flow-battery-label"><?php esc_html_e( '残量', 'gaming-hub' ); ?></span>
+					</div>
+				</div>
+			</div>
+			<div class="pw-model3-battery-details">
+				<div class="pw-model3-battery-stat">
+					<span class="pw-model3-battery-stat-label"><?php esc_html_e( '推定残量', 'gaming-hub' ); ?></span>
+					<strong data-pw-field="model3_kwh"><?php echo esc_html( $model3['battery_kwh_label'] ?? '—' ); ?></strong>
+					<small data-pw-field="model3_limit">
+						<?php
+						printf(
+							/* translators: %s: charge limit percent */
+							esc_html__( '充電上限 %s%%', 'gaming-hub' ),
+							esc_html( number_format_i18n( (int) ( $model3['charge_limit_percent'] ?? 100 ) ) )
+						);
+						?>
+					</small>
+				</div>
+				<div class="pw-model3-battery-stat">
+					<span class="pw-model3-battery-stat-label"><?php esc_html_e( '状態', 'gaming-hub' ); ?></span>
+					<strong data-pw-field="model3_state_detail"><?php echo esc_html( $model3['charge_state'] ?? '—' ); ?></strong>
+					<small data-pw-field="model3_range">
+						<?php
+						if ( ! empty( $model3['range_km'] ) ) {
+							printf(
+								/* translators: %s: estimated range km */
+								esc_html__( '航続距離 約 %s km', 'gaming-hub' ),
+								esc_html( number_format_i18n( (int) $model3['range_km'] ) )
+							);
+						} else {
+							echo esc_html( $model3['vehicle_name'] ?? 'Model 3' );
+						}
+						?>
+					</small>
+				</div>
+				<div
+					class="pw-model3-charging-panel<?php echo $model3_charging ? ' is-visible' : ''; ?>"
+					data-pw-charging-panel
+					<?php echo $model3_charging ? '' : ' hidden'; ?>
+				>
+					<div class="pw-model3-charging-stat">
+						<span><?php esc_html_e( '充電速度', 'gaming-hub' ); ?></span>
+						<strong data-pw-field="model3_charge_rate"><?php echo esc_html( $model3['charge_rate_label'] ?? '—' ); ?></strong>
+					</div>
+					<div class="pw-model3-charging-stat">
+						<span><?php esc_html_e( '完了まで', 'gaming-hub' ); ?></span>
+						<strong data-pw-field="model3_charge_eta"><?php echo esc_html( $model3['charge_eta_label'] ?? '—' ); ?></strong>
+					</div>
+					<div class="pw-model3-charging-stat">
+						<span><?php esc_html_e( '完了予定', 'gaming-hub' ); ?></span>
+						<strong data-pw-field="model3_charge_complete"><?php echo esc_html( $model3['charge_complete_label'] ?? '—' ); ?></strong>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 
 	<div class="pw-flow-stats-grid">
 		<div class="pw-flow-stat-card">

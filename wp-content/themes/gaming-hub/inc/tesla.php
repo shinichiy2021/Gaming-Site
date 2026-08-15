@@ -395,12 +395,23 @@ function gaming_hub_tesla_model3_from_charge_state( array $charge_state ) {
 		'Stopped'  => __( '停止', 'gaming-hub' ),
 	);
 
-	return array(
-		'battery_percent' => max( 0, min( 100, (int) round( $charge_state['battery_level'] ?? 0 ) ) ),
-		'is_charging'     => $charging,
-		'charge_state'    => $labels[ $state ] ?? __( '待機中', 'gaming-hub' ),
-		'watts'           => $power_w,
-		'vehicle_name'    => (string) ( $charge_state['vehicle_name'] ?? 'Model 3' ),
+	return gaming_hub_powerwall_model3_present(
+		array(
+			'battery_percent' => max( 0, min( 100, (int) round( $charge_state['battery_level'] ?? 0 ) ) ),
+			'is_charging'     => $charging,
+			'charge_state'    => $labels[ $state ] ?? __( '待機中', 'gaming-hub' ),
+			'watts'           => $power_w,
+			'charge_rate_kw'  => $charging ? round( (float) ( $charge_state['charger_power'] ?? 0 ), 1 ) : 0,
+			'charge_limit_percent' => max(
+				0,
+				min( 100, (int) round( $charge_state['charge_limit_soc'] ?? 100 ) )
+			),
+			'time_to_full_charge_hours' => $charging ? (float) ( $charge_state['time_to_full_charge'] ?? 0 ) : 0,
+			'range_km'        => isset( $charge_state['est_battery_range'] )
+				? (int) round( (float) $charge_state['est_battery_range'] * 1.60934 )
+				: null,
+			'vehicle_name'    => (string) ( $charge_state['vehicle_name'] ?? 'Model 3' ),
+		)
 	);
 }
 

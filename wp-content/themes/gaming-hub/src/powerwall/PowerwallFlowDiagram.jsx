@@ -2,6 +2,32 @@ import { useEffect, useRef, useState } from 'react';
 import { formatWatts, isFlowActive } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
 
+function Model3BatteryRing( { model3 } ) {
+	const soc = Number( model3.battery_percent );
+	const hasSoc = Number.isFinite( soc );
+	const isCharging = !!model3.is_charging;
+
+	if ( ! hasSoc ) {
+		return null;
+	}
+
+	return (
+		<div className="pw-model3-pin-gauge" style={ { '--battery-level': soc } }>
+			<div className={ `pw-flow-battery-ring pw-model3-battery-ring is-compact${ isCharging ? ' is-charging' : '' }` }>
+				<div className="pw-flow-battery-inner">
+					<span className="pw-flow-battery-value">{ `${ soc }%` }</span>
+				</div>
+			</div>
+			{ isCharging ? (
+				<div className="pw-model3-pin-charging">
+					<span>{ model3.charge_rate_label || '—' }</span>
+					{ model3.charge_eta_label ? <small>{ model3.charge_eta_label }</small> : null }
+				</div>
+			) : null }
+		</div>
+	);
+}
+
 function Callout( { flowId, label, watts, state, active, extra } ) {
 	return (
 		<div
@@ -89,6 +115,7 @@ export default function PowerwallFlowDiagram( { initial, labels } ) {
 						watts={ model3.watts }
 						state={ model3.charge_state || '—' }
 						active={ isFlowActive( 'car', status ) }
+						extra={ <Model3BatteryRing model3={ model3 } /> }
 					/>
 
 					<Callout
@@ -112,7 +139,12 @@ export default function PowerwallFlowDiagram( { initial, labels } ) {
 				</div>
 				<div className="pw-flow-summary-item">
 					<span>{ labels.model3 }</span>
-					<strong>{ model3.charge_state || '—' }</strong>
+					<strong>{ Number.isFinite( Number( model3.battery_percent ) ) ? `${ model3.battery_percent }%` : '—' }</strong>
+					{ model3.is_charging ? (
+						<small>{ model3.charge_rate_label || '—' }{ model3.charge_eta_label ? ` · ${ model3.charge_eta_label }` : '' }</small>
+					) : (
+						<small>{ model3.charge_state || '—' }</small>
+					) }
 				</div>
 				<div className="pw-flow-summary-item">
 					<span>{ labels.import }</span>
