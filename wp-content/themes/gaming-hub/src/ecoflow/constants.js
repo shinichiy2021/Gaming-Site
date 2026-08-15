@@ -29,6 +29,14 @@ export const FLOW_CONNECTIONS_DUAL = [
 		alwaysLabel: true,
 	},
 	{
+		id: 'deltaGrid',
+		from: { id: 'deltaGrid', side: 'right' },
+		to: { id: 'delta', side: 'left' },
+		axis: 'horizontal',
+		color: '#7c4dff',
+		showLabel: true,
+	},
+	{
 		id: 'solar',
 		from: { id: 'solar', side: 'right' },
 		to: { id: 'delta', side: 'left' },
@@ -79,7 +87,9 @@ export function flowSpeed( watts ) {
 
 export function formatWatts( value ) {
 	if ( value === null || value === undefined ) {
-		return '未取得';
+		return ( typeof window !== 'undefined' && window.gamingHubT )
+			? window.gamingHubT( '未取得' )
+			: '未取得';
 	}
 
 	return `${ Math.round( Number( value ) ).toLocaleString() } W`;
@@ -137,6 +147,14 @@ export function proGridCharge( status ) {
 	}
 
 	return { active: false, watts: 0, message: '' };
+}
+
+export function deltaGridAc( status ) {
+	if ( ! status ) {
+		return 0;
+	}
+
+	return Number( status.delta?.ac_in ) || 0;
 }
 
 export function hvInput( status ) {

@@ -17,12 +17,6 @@
 			</a>
 		</div>
 
-		<button class="menu-toggle" aria-label="<?php esc_attr_e( 'Toggle menu', 'gaming-hub' ); ?>" aria-expanded="false">
-			<span></span>
-			<span></span>
-			<span></span>
-		</button>
-
 		<nav class="main-navigation" aria-label="<?php esc_attr_e( 'Primary Navigation', 'gaming-hub' ); ?>">
 			<?php
 			wp_nav_menu( array(
@@ -33,6 +27,15 @@
 			) );
 			?>
 		</nav>
+
+		<div class="header-tools">
+			<?php gaming_hub_language_switcher(); ?>
+			<button class="menu-toggle" aria-label="<?php esc_attr_e( 'Toggle menu', 'gaming-hub' ); ?>" aria-expanded="false">
+				<span></span>
+				<span></span>
+				<span></span>
+			</button>
+		</div>
 	</div>
 </header>
 
