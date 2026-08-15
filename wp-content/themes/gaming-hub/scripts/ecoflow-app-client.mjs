@@ -465,6 +465,10 @@ export async function fetchAppQuota( config, command = null ) {
 function formatBridgeError( error ) {
 	const message = String( error || '' );
 
+	if ( /server is too busy|too busy/i.test( message ) ) {
+		return 'EcoFlow ログイン API が混雑しています。数分後に自動で再試行します。';
+	}
+
 	if ( /account doesn't exist|incorrect password/i.test( message ) ) {
 		return 'Googleログインのみのアカウントです。EcoFlowアプリで「ログインパスワード」を設定し、Customizer にメールとそのパスワードを入力してください。';
 	}

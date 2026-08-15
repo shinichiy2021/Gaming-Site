@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL', 90 );
+define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_STALE_TTL', 3600 );
 
 /**
  * Serial prefixes that require App Login instead of Developer API quota.
@@ -62,6 +63,13 @@ function gaming_hub_ecoflow_format_bridge_error( $error ) {
 	) {
 		return __(
 			'Googleログインのみのアカウントです。EcoFlowアプリで「ログインパスワード」を設定し、そのメールアドレスとパスワードを Customizer に入力してください。（Googleログインそのものは MQTT では使えません）',
+			'gaming-hub'
+		);
+	}
+
+	if ( false !== stripos( $error, 'server is too busy' ) || false !== stripos( $error, 'too busy' ) ) {
+		return __(
+			'EcoFlow ログイン API が混雑しています。数分後に自動で再試行します。直前の MQTT 計測値があれば表示を継続します。',
 			'gaming-hub'
 		);
 	}
@@ -163,9 +171,11 @@ function gaming_hub_ecoflow_read_bridge_quota( $device_sn ) {
 	}
 
 	$age = time() - (int) filemtime( $path );
-	if ( $age > GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL ) {
+	if ( $age > GAMING_HUB_ECOFLOW_BRIDGE_CACHE_STALE_TTL ) {
 		return null;
 	}
+
+	$stale = $age > GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL;
 
 	$raw = json_decode( (string) file_get_contents( $path ), true );
 	if ( ! is_array( $raw ) || empty( $raw ) ) {
@@ -194,9 +204,15 @@ function gaming_hub_ecoflow_infer_secondary_from_primary( array $primary, $devic
 	$bridge_hint   = '';
 
 	if ( is_array( $bridge_status ) && empty( $bridge_status['ok'] ) && ! empty( $bridge_status['error'] ) ) {
-		$bridge_hint = ' MQTT: ' . gaming_hub_ecoflow_format_bridge_error( $bridge_status['error'] );
+		$bridge_hint = gaming_hub_ecoflow_format_bridge_error( $bridge_status['error'] );
 	} elseif ( ! gaming_hub_ecoflow_read_bridge_quota( $device_sn ) ) {
-		$bridge_hint = ' ' . __( 'MQTT ブリッジ待機中 — docker compose up -d ecoflow-bridge', 'gaming-hub' );
+		$bridge_hint = __( 'MQTT ブリッジ待機中 — docker compose up -d ecoflow-bridge', 'gaming-hub' );
+	}
+
+	$api_note = $reason ?: __( 'Developer API 非対応 — Delta 3 は App Login (MQTT) が必要です。', 'gaming-hub' );
+	$note     = $api_note;
+	if ( '' !== $bridge_hint ) {
+		$note .= ' / MQTT: ' . $bridge_hint;
 	}
 
 	$inferred = array(
@@ -217,7 +233,7 @@ function gaming_hub_ecoflow_infer_secondary_from_primary( array $primary, $devic
 		'is_discharging'  => false,
 		'charge_state'    => __( '独立運転', 'gaming-hub' ),
 		'inferred'        => true,
-		'inferred_note'   => ( $reason ?: __( 'Developer API 非対応 — Low Volt ソーラーは 1500 へ独立入力。Extra Battery 1kW 接続。合算 2.5 kWh', 'gaming-hub' ) ) . $bridge_hint,
+		'inferred_note'   => $note,
 		'updated_at'      => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
 		'extra'           => gaming_hub_ecoflow_extra_battery_slice(),
 	);
