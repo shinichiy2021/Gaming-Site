@@ -2,7 +2,7 @@
  * EcoFlow App Login + MQTT client for Delta 3 (D361) devices.
  */
 import mqtt from 'mqtt';
-import { createHash, randomBytes } from 'crypto';
+import { createHash } from 'crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -58,15 +58,17 @@ function apiHostsToTry( region ) {
 	return [ ...new Set( hosts ) ];
 }
 
-function mqttClientIdVariants( userId ) {
-	const stable = createHash( 'sha256' ).update( `gaming-hub-ecoflow-${ userId }` ).digest( 'hex' ).slice( 0, 16 ).toUpperCase();
-	const random = randomBytes( 8 ).toString( 'hex' ).toUpperCase();
+function isTooBusy( error ) {
+	return /server is too busy|too busy/i.test( String( error?.message || error || '' ) );
+}
 
-	return [
-		`ANDROID_${ random }_${ userId }`,
-		`ANDROID_${ stable }_${ userId }`,
-		buildClientId( userId, true ),
-	];
+function stableMqttClientId( userId ) {
+	const stable = createHash( 'sha256' ).update( `gaming-hub-ecoflow-${ userId }` ).digest( 'hex' ).slice( 0, 16 ).toUpperCase();
+	return `ANDROID_${ stable }_${ userId }`;
+}
+
+function mqttClientIdVariants( userId ) {
+	return [ stableMqttClientId( userId ) ];
 }
 
 function isMqttUnauthorized( error ) {
@@ -172,6 +174,9 @@ export async function login( email, password, region ) {
 		}
 
 		lastError = json.message || lastError;
+		if ( isTooBusy( lastError ) ) {
+			throw new Error( lastError );
+		}
 	}
 
 	throw new Error( lastError );
@@ -411,62 +416,53 @@ export async function fetchAppQuota( config, command = null ) {
 		throw new Error( 'App login email, password, and Delta 3 serial number are required' );
 	}
 
-	const regions = [ ...new Set( [ config.region || 'us', 'a', 'eu', 'us' ] ) ];
-	let lastError = 'EcoFlow MQTT failed';
+	const region = config.region || 'us';
+	let loginData;
 
-	for ( const region of regions ) {
-		let loginData;
-		try {
-			loginData = await login( config.email, config.password, region );
-		} catch ( error ) {
-			lastError = error.message || error;
-			continue;
-		}
-
-		let cert;
-		try {
-			cert = await getCert( loginData.token, loginData.user.userId, region, loginData.__apiHost );
-		} catch ( error ) {
-			lastError = error.message || error;
-			continue;
-		}
-
-		const broker = cert.url ? `${ cert.url }:${ cert.port }` : 'unknown';
-		const clientIds = mqttClientIdVariants( loginData.user.userId );
-
-		for ( const clientId of clientIds ) {
-			try {
-				const result = await pollQuota( config.deviceSn, loginData, cert, clientId, command );
-				const quota = result.quota || result;
-				const keys = Object.keys( quota );
-
-				if ( keys.length < 2 ) {
-					lastError = `MQTT connected but no Delta 3 telemetry (${ result.messageCount || 0 } msgs, broker: ${ broker })`;
-					continue;
-				}
-
-				if ( command ) {
-					writeCommandResult( config.cacheDir, command, true, result.setError || '' );
-				}
-
-				return quota;
-			} catch ( error ) {
-				lastError = `${ error.message || error } (broker: ${ broker }, region: ${ region })`;
-				if ( ! isMqttUnauthorized( error ) ) {
-					break;
-				}
-			}
-		}
+	try {
+		loginData = await login( config.email, config.password, region );
+	} catch ( error ) {
+		throw error;
 	}
 
-	throw new Error( lastError );
+	let cert;
+	try {
+		cert = await getCert( loginData.token, loginData.user.userId, region, loginData.__apiHost );
+	} catch ( error ) {
+		throw error;
+	}
+
+	const broker = cert.url ? `${ cert.url }:${ cert.port }` : 'unknown';
+	const clientId = stableMqttClientId( loginData.user.userId );
+
+	try {
+		const result = await pollQuota( config.deviceSn, loginData, cert, clientId, command );
+		const quota = result.quota || result;
+		const keys = Object.keys( quota );
+
+		if ( keys.length < 2 ) {
+			throw new Error( `MQTT connected but no Delta 3 telemetry (${ result.messageCount || 0 } msgs, broker: ${ broker })` );
+		}
+
+		if ( command ) {
+			writeCommandResult( config.cacheDir, command, true, result.setError || '' );
+		}
+
+		return quota;
+	} catch ( error ) {
+		if ( isMqttUnauthorized( error ) ) {
+			throw new Error( `${ error.message || error } (broker: ${ broker }, region: ${ region })` );
+		}
+
+		throw error;
+	}
 }
 
 function formatBridgeError( error ) {
 	const message = String( error || '' );
 
 	if ( /server is too busy|too busy/i.test( message ) ) {
-		return 'EcoFlow ログイン API が混雑しています。数分後に自動で再試行します。';
+		return 'EcoFlow ログイン API が混雑しています（1日10個までの MQTT client ID 制限の可能性）。5〜30分おきに自動再試行します。';
 	}
 
 	if ( /account doesn't exist|incorrect password/i.test( message ) ) {

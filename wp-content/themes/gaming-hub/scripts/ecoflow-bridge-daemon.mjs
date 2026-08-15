@@ -73,7 +73,11 @@ async function tick() {
 	} catch ( error ) {
 		writeBridgeError( cacheDir, error.message || error );
 		console.error( `[ecoflow-bridge] ${ error.message || error }` );
-		nextDelayMs = Math.min( 120000, nextDelayMs * 2 );
+		if ( /server is too busy|too busy/i.test( String( error.message || error ) ) ) {
+			nextDelayMs = Math.min( 1800000, Math.max( 300000, nextDelayMs * 2 ) );
+		} else {
+			nextDelayMs = Math.min( 120000, nextDelayMs * 2 );
+		}
 	}
 }
 
