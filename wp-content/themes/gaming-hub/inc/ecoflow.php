@@ -722,13 +722,11 @@ function gaming_hub_ecoflow_strip_internal_fields( array $status ) {
  */
 function gaming_hub_ecoflow_delta1500_main_soc_keys() {
 	return array(
+		'bms_bmsStatus.soc',
+		'pd.soc',
+		'bms_bmsStatus.f32ShowSoc',
 		'bms.soc',
 		'bms.f32ShowSoc',
-		'bms.actSoc',
-		'bms_bmsStatus.soc',
-		'bms_bmsStatus.actSoc',
-		'bms_bmsStatus.f32ShowSoc',
-		'pd.soc',
 	);
 }
 
@@ -833,17 +831,13 @@ function gaming_hub_ecoflow_delta1500_energy_from_parsed( array $parsed, $quota 
  * @param array<string, mixed> $delta Secondary device status.
  */
 function gaming_hub_ecoflow_delta1500_has_live_soc( array $delta ) {
-	if ( ! empty( $delta['inferred'] ) ) {
-		return false;
-	}
-
 	$quota = gaming_hub_ecoflow_delta1500_quota( $delta );
 
 	if ( empty( $quota ) ) {
 		return false;
 	}
 
-	$main_soc = gaming_hub_ecoflow_quota_value(
+	$main_soc = gaming_hub_ecoflow_quota_value_live(
 		$quota,
 		gaming_hub_ecoflow_delta1500_main_soc_keys()
 	);
@@ -886,6 +880,15 @@ function gaming_hub_ecoflow_merge_bridge_quota( array $delta ) {
 
 	$delta['_quota'] = $quota;
 	$delta['extra']  = gaming_hub_ecoflow_parse_extra_battery( $quota );
+
+	$main = gaming_hub_ecoflow_parse_main_pack( $quota, $delta );
+	if ( null !== $main['battery_percent'] ) {
+		$delta['battery_percent'] = $main['battery_percent'];
+		$delta['capacity_wh']     = $main['capacity_wh'];
+		$delta['remain_capacity'] = $main['remain_capacity'];
+		$delta['capacity_source'] = $main['capacity_source'];
+		$delta['soc_source']      = 'mqtt';
+	}
 
 	if ( gaming_hub_ecoflow_delta1500_quota_has_solar( $quota ) ) {
 		$solar = gaming_hub_ecoflow_delta1500_solar_from_quota( $quota );
@@ -1099,7 +1102,7 @@ function gaming_hub_ecoflow_parse_main_pack( $quota, $parsed = array() ) {
 	$parsed      = is_array( $parsed ) ? $parsed : array();
 	$default_cap = gaming_hub_ecoflow_main_pack_default_wh();
 
-	$soc = gaming_hub_ecoflow_quota_value(
+	$soc = gaming_hub_ecoflow_quota_value_live(
 		$quota,
 		gaming_hub_ecoflow_delta1500_main_soc_keys()
 	);
@@ -1172,18 +1175,17 @@ function gaming_hub_ecoflow_parse_main_pack( $quota, $parsed = array() ) {
 function gaming_hub_ecoflow_parse_extra_battery( $quota ) {
 	$quota = is_array( $quota ) ? $quota : array();
 
-	$soc = gaming_hub_ecoflow_quota_value(
+	$soc = gaming_hub_ecoflow_quota_value_live(
 		$quota,
 		array(
+			'bms_slave.soc',
+			'bms_slave.f32ShowSoc',
 			'bmsSlaveSoc',
 			'bp2Soc',
 			'bms_kitInfo.soc',
 			'bms_bmsKitStatus.soc',
 			'kitBattSoc',
 			'extraBattSoc',
-			'bms_slave.soc',
-			'bms_slave.f32ShowSoc',
-			'bms_slave.actSoc',
 		)
 	);
 
