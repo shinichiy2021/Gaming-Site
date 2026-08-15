@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL', 90 );
-define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_STALE_TTL', 3600 );
+define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_STALE_TTL', 86400 );
 
 /**
  * Serial prefixes that require App Login instead of Developer API quota.
@@ -69,7 +69,7 @@ function gaming_hub_ecoflow_format_bridge_error( $error ) {
 
 	if ( false !== stripos( $error, 'server is too busy' ) || false !== stripos( $error, 'too busy' ) ) {
 		return __(
-			'EcoFlow ログイン API が混雑しています。数分後に自動で再試行します。直前の MQTT 計測値があれば表示を継続します。',
+			'EcoFlow ログイン API が混雑しています（1日10個までの MQTT client ID 制限の可能性）。5〜30分おきに自動再試行します。直前の MQTT 計測値があれば表示を継続します。',
 			'gaming-hub'
 		);
 	}
