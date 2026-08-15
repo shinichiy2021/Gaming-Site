@@ -153,6 +153,50 @@ a:hover {
 	text-shadow: 0 0 12px rgba(255, 203, 5, 0.35);
 }
 
+.header-tools {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-left: 12px;
+	flex-shrink: 0;
+}
+
+.main-navigation {
+	margin-left: auto;
+}
+
+.lang-switch {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-family: var(--font-display);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+}
+
+.lang-switch a {
+	color: var(--color-text-muted);
+	padding: 4px 6px;
+	border-radius: 4px;
+	text-decoration: none;
+}
+
+.lang-switch a:hover,
+.lang-switch a.is-active {
+	color: var(--pika-yellow);
+	text-shadow: 0 0 12px rgba(255, 203, 5, 0.35);
+}
+
+.lang-switch a.is-active {
+	border: 1px solid rgba(255, 203, 5, 0.45);
+}
+
+.lang-switch-sep {
+	color: var(--color-text-muted);
+	opacity: 0.5;
+}
+
 .menu-toggle {
 	display: none;
 	flex-direction: column;
@@ -1707,6 +1751,218 @@ body.home .site-header.is-scrolled {
 	box-shadow: 0 0 28px rgba(232, 33, 39, 0.1);
 }
 
+.pw-flow-map.is-gaming {
+	min-height: 0;
+	padding: 28px 22px 20px;
+	overflow: visible;
+	background:
+		linear-gradient(rgba(0, 245, 212, 0.045) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(0, 245, 212, 0.045) 1px, transparent 1px),
+		radial-gradient(ellipse at 18% 0%, rgba(232, 33, 39, 0.22), transparent 48%),
+		radial-gradient(ellipse at 82% 100%, rgba(255, 179, 0, 0.12), transparent 46%),
+		#08070f;
+	background-size: 22px 22px, 22px 22px, auto, auto, auto;
+	border: 1px solid rgba(0, 245, 212, 0.32);
+	box-shadow:
+		0 0 32px rgba(232, 33, 39, 0.16),
+		inset 0 0 48px rgba(0, 0, 0, 0.35);
+}
+
+.pw-flow-map.is-gaming::before,
+.pw-flow-map.is-gaming::after {
+	content: "";
+	position: absolute;
+	width: 18px;
+	height: 18px;
+	z-index: 2;
+	pointer-events: none;
+	border: 2px solid #00f5d4;
+}
+
+.pw-flow-map.is-gaming::before {
+	top: 8px;
+	left: 8px;
+	border-right: 0;
+	border-bottom: 0;
+}
+
+.pw-flow-map.is-gaming::after {
+	right: 8px;
+	bottom: 8px;
+	border-left: 0;
+	border-top: 0;
+}
+
+.pw-hud-layout {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	grid-template-columns: minmax(120px, 0.9fr) minmax(180px, 1.35fr) minmax(120px, 0.9fr);
+	grid-template-areas:
+		"solar solar solar"
+		"grid powerwall home"
+		". model3 .";
+	gap: 22px 28px;
+	align-items: center;
+	justify-items: center;
+}
+
+.pw-hud-node-solar { grid-area: solar; }
+.pw-hud-node-grid { grid-area: grid; }
+.pw-hud-node-powerwall { grid-area: powerwall; }
+.pw-hud-node-home { grid-area: home; }
+.pw-hud-node-model3 { grid-area: model3; }
+
+.pw-hud-node {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	padding: 10px 8px;
+	text-align: center;
+	background: rgba(8, 7, 15, 0.72);
+	border: 1px solid rgba(0, 245, 212, 0.22);
+	border-radius: 16px;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pw-hud-node.is-active {
+	border-color: rgba(0, 245, 212, 0.7);
+	box-shadow: 0 0 22px rgba(0, 245, 212, 0.22);
+}
+
+.pw-hud-node-solar.is-active {
+	border-color: rgba(255, 179, 0, 0.75);
+	box-shadow: 0 0 22px rgba(255, 179, 0, 0.28);
+}
+
+.pw-hud-node-grid.is-active {
+	border-color: rgba(100, 181, 246, 0.75);
+	box-shadow: 0 0 22px rgba(100, 181, 246, 0.28);
+}
+
+.pw-hud-node-home.is-active {
+	border-color: rgba(105, 240, 174, 0.7);
+	box-shadow: 0 0 22px rgba(105, 240, 174, 0.22);
+}
+
+.pw-hud-node-model3.is-active,
+.pw-hud-node-powerwall.is-active {
+	border-color: rgba(232, 33, 39, 0.7);
+	box-shadow: 0 0 24px rgba(232, 33, 39, 0.28);
+}
+
+.pw-hud-art {
+	position: relative;
+	display: inline-flex;
+	overflow: hidden;
+	border-radius: 14px;
+}
+
+.pw-hud-photo {
+	width: 108px;
+	height: 108px;
+	object-fit: cover;
+	border-radius: 14px;
+	border: 1px solid rgba(0, 245, 212, 0.4);
+	box-shadow:
+		0 0 18px rgba(0, 245, 212, 0.18),
+		0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+.pw-hud-photo-powerwall {
+	width: 176px;
+	height: 176px;
+	border-radius: 18px;
+	border-width: 2px;
+	border-color: rgba(232, 33, 39, 0.55);
+}
+
+.pw-hud-photo-car {
+	width: 220px;
+	height: 124px;
+	border-radius: 16px;
+	border-color: rgba(232, 33, 39, 0.45);
+}
+
+.pw-hud-fill {
+	display: none;
+}
+
+.pw-hud-node.is-hero .pw-hud-fill {
+	display: block;
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: calc(var(--battery-level, 0) * 1%);
+	max-height: 100%;
+	background: linear-gradient(
+		to top,
+		rgba(0, 245, 212, 0.5),
+		rgba(0, 245, 212, 0.08) 70%,
+		transparent
+	);
+	pointer-events: none;
+	z-index: 1;
+}
+
+.pw-hud-node.is-hero.is-charging .pw-hud-fill {
+	background: linear-gradient(
+		to top,
+		rgba(255, 179, 0, 0.55),
+		rgba(232, 33, 39, 0.18) 70%,
+		transparent
+	);
+}
+
+.pw-hud-pct {
+	position: absolute;
+	right: 6px;
+	bottom: 6px;
+	z-index: 2;
+	font-family: var(--font-display);
+	font-size: 0.82rem;
+	line-height: 1;
+	padding: 4px 7px;
+	color: #00f5d4;
+	background: rgba(6, 5, 12, 0.82);
+	border: 1px solid rgba(0, 245, 212, 0.55);
+	border-radius: 4px;
+}
+
+.pw-hud-node.is-charging .pw-hud-pct {
+	color: #ffb300;
+	border-color: rgba(255, 179, 0, 0.65);
+}
+
+.pw-hud-label {
+	font-size: 0.72rem;
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.pw-hud-node strong {
+	font-family: var(--font-display);
+	font-size: 1.05rem;
+	color: #fff;
+	line-height: 1.2;
+}
+
+.pw-hud-state,
+.pw-hud-charge {
+	margin: 0;
+	font-size: 0.72rem;
+	color: var(--color-text-muted);
+	line-height: 1.3;
+}
+
+.pw-hud-charge {
+	color: #ffb300;
+}
+
 .pw-flow-house {
 	display: block;
 	width: 100%;
@@ -1716,7 +1972,7 @@ body.home .site-header.is-scrolled {
 .pw-flow-canvas {
 	position: absolute;
 	inset: 0;
-	z-index: 1;
+	z-index: 0;
 	width: 100%;
 	height: 100%;
 	pointer-events: none;
@@ -2793,14 +3049,7 @@ body.home .site-header.is-scrolled {
 	grid-template-columns: 1fr 1fr 1fr;
 }
 
-.ecoflow-system-delta .ecoflow-flow-summary-system.is-two-col {
-	grid-template-columns: 1fr 1fr;
-}
-
-.ecoflow-system-delta [data-flow-id="solar"] {
-	grid-column: 1;
-	grid-row: 2;
-	width: 100%;
+.ecoflow-system-delta .ecoflow-input-stack {
 	max-width: 160px;
 }
 
@@ -2844,6 +3093,19 @@ body.home .site-header.is-scrolled {
 	border-radius: 12px;
 	border: 1px solid rgba(255, 230, 0, 0.45);
 	background: rgba(8, 7, 15, 0.9);
+}
+
+.ecoflow-node-photo-extra {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: center 45%;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
 }
 
 .ecoflow-node-extra .ecoflow-hud-fill {
@@ -2895,6 +3157,9 @@ body.home .site-header.is-scrolled {
 }
 
 .ecoflow-node-ups {
+	align-items: stretch;
+	padding: 8px;
+	background: rgba(10, 8, 18, 0.88);
 	border-color: rgba(105, 240, 174, 0.35);
 }
 
@@ -3043,6 +3308,18 @@ body.home .site-header.is-scrolled {
 	width: 100%;
 	height: 120px;
 	object-fit: cover;
+	border-radius: 12px;
+	border-color: rgba(105, 240, 174, 0.45);
+	box-shadow:
+		0 0 22px rgba(105, 240, 174, 0.2),
+		0 8px 18px rgba(0, 0, 0, 0.45);
+}
+
+.ecoflow-node-photo-ups {
+	width: 100%;
+	height: 120px;
+	object-fit: cover;
+	object-position: center 40%;
 	border-radius: 12px;
 	border-color: rgba(105, 240, 174, 0.45);
 	box-shadow:
@@ -4498,6 +4775,7 @@ body.home .site-header.is-scrolled {
 		top: 70px;
 		left: 0;
 		right: 0;
+		margin-left: 0;
 		background: var(--color-bg);
 		border-bottom: 1px solid var(--color-border);
 		padding: 16px 24px;
@@ -4624,7 +4902,8 @@ body.home .site-header.is-scrolled {
 		height: 52px;
 	}
 
-	.ecoflow-node-photo-room {
+	.ecoflow-node-photo-room,
+	.ecoflow-node-photo-ups {
 		height: 88px;
 	}
 
@@ -4692,6 +4971,31 @@ body.home .site-header.is-scrolled {
 	.pw-flow-node-state,
 	.pw-flow-grid-note {
 		font-size: 0.6rem;
+	}
+
+	.pw-hud-layout {
+		grid-template-columns: 1fr 1fr;
+		grid-template-areas:
+			"solar solar"
+			"powerwall powerwall"
+			"grid home"
+			"model3 model3";
+		gap: 16px 12px;
+	}
+
+	.pw-hud-photo {
+		width: 88px;
+		height: 88px;
+	}
+
+	.pw-hud-photo-powerwall {
+		width: 140px;
+		height: 140px;
+	}
+
+	.pw-hud-photo-car {
+		width: min(100%, 260px);
+		height: 120px;
 	}
 
 	.pw-flow-summary {

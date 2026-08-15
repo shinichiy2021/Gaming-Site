@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.9.40' );
+define( 'GAMING_HUB_VERSION', '1.9.51' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -76,6 +76,7 @@ add_filter( 'script_loader_src', 'gaming_hub_rewrite_local_url' );
 add_filter( 'style_loader_src', 'gaming_hub_rewrite_local_url' );
 add_filter( 'wp_get_attachment_url', 'gaming_hub_rewrite_local_url' );
 
+require get_template_directory() . '/inc/i18n.php';
 require get_template_directory() . '/inc/pokemon-go.php';
 require get_template_directory() . '/inc/pokemon-go-youtube.php';
 require get_template_directory() . '/inc/ecoflow.php';
@@ -231,7 +232,7 @@ function gaming_hub_scripts() {
 	wp_enqueue_script(
 		'gaming-hub-main',
 		get_template_directory_uri() . '/assets/js/main.js',
-		array( 'gaming-hub-active-refresh' ),
+		array( 'gaming-hub-active-refresh', 'gaming-hub-i18n' ),
 		GAMING_HUB_VERSION,
 		true
 	);

@@ -4,6 +4,7 @@ import {
 	FLOW_CONNECTIONS_SINGLE,
 	homeOutput,
 	hvInput,
+	deltaGridAc,
 	proGridCharge,
 	solarToDelta,
 	upsOutput,
@@ -16,6 +17,10 @@ function wattsForFlow( flowId, status ) {
 
 	if ( flowId === 'solar' ) {
 		return solarToDelta( status );
+	}
+
+	if ( flowId === 'deltaGrid' ) {
+		return deltaGridAc( status );
 	}
 
 	if ( flowId === 'grid' ) {

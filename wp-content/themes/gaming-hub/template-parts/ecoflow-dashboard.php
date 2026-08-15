@@ -123,9 +123,9 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 					<?php
 					printf(
 						/* translators: 1: charge watts, 2: idle watts, 3: dc watts, 4: reserve on, 5: reserve off */
-						esc_html__( '充電時 %1$s W / それ以外 %2$s W（本体の下限） · DC 12V→1500 常時 %3$s W · 予備残量 グリッドOn %4$s%% / Off %5$s%%', 'gaming-hub' ),
-						esc_html( number_format_i18n( (int) ( $plan['charge_w'] ?? 1000 ) ) ),
-						esc_html( number_format_i18n( (int) ( $plan['idle_w'] ?? 200 ) ) ),
+						esc_html__( '充電時 %1$s W / それ以外 %2$s W · DC 12V→1500 常時 %3$s W · 予備残量 グリッドOn %4$s%% / Off %5$s%%', 'gaming-hub' ),
+						esc_html( number_format_i18n( (int) ( $plan['charge_w'] ?? 0 ) ) ),
+						esc_html( number_format_i18n( (int) ( $plan['idle_w'] ?? 0 ) ) ),
 						esc_html( number_format_i18n( (int) ( $plan['dc1500_w'] ?? 100 ) ) ),
 						esc_html( number_format_i18n( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON' ) ? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON : 100 ) ),
 						esc_html( number_format_i18n( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF' ) ? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF : 5 ) )
@@ -353,6 +353,10 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 						);
 						?>
 					</strong>
+				</div>
+				<div class="ecoflow-stat-card">
+					<span class="ecoflow-stat-label"><?php esc_html_e( 'AC 入力 (1500)', 'gaming-hub' ); ?></span>
+					<strong data-ecoflow-field="delta_ac_in"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['secondary']['ac_in'] ?? 0 ) ); ?></strong>
 				</div>
 				<div class="ecoflow-stat-card">
 					<span class="ecoflow-stat-label"><?php esc_html_e( '1500 グリッド補充電', 'gaming-hub' ); ?></span>

@@ -350,21 +350,8 @@ function gaming_hub_parse_ecoflow_quota( $quota, $device_sn, $device_name, $onli
 			'bms_slave.outputWatts',
 		)
 	);
-	$ac_in   = gaming_hub_ecoflow_abs_watts(
-		gaming_hub_ecoflow_quota_value( $quota, array( 'powGetAcIn', 'inv.inputWatts', 'pd.acInWatts' ) )
-	);
-	$ac_out  = gaming_hub_ecoflow_sum_quota(
-		$quota,
-		array(
-			'powGetAcLvOut',
-			'powGetAcHvOut',
-			'powGetAcLvTt30Out',
-			'inv.outputWatts',
-			'pd.acOutWatts',
-			'inv.outWatts',
-		),
-		true
-	);
+	$ac_in   = gaming_hub_ecoflow_ac_input_watts( $quota );
+	$ac_out  = gaming_hub_ecoflow_ac_output_watts( $quota );
 	$dc_out  = gaming_hub_ecoflow_sum_quota(
 		$quota,
 		array(
@@ -908,21 +895,14 @@ function gaming_hub_ecoflow_merge_bridge_quota( array $delta ) {
 		}
 	}
 
-	if ( ! isset( $delta['ac_out'] ) || (float) $delta['ac_out'] <= 0 ) {
-		$ac_out = gaming_hub_ecoflow_sum_quota(
-			$quota,
-			array(
-				'powGetAcLvOut',
-				'powGetAcHvOut',
-				'inv.outputWatts',
-				'pd.acOutWatts',
-				'inv.outWatts',
-			),
-			true
-		);
-		if ( null !== $ac_out && $ac_out > 0 ) {
-			$delta['ac_out'] = (int) round( $ac_out );
-		}
+	$ac_out = gaming_hub_ecoflow_ac_output_watts( $quota );
+	if ( null !== $ac_out && $ac_out >= 0 ) {
+		$delta['ac_out'] = (int) round( $ac_out );
+	}
+
+	$ac_in = gaming_hub_ecoflow_ac_input_watts( $quota );
+	if ( null !== $ac_in && $ac_in >= 0 ) {
+		$delta['ac_in'] = (int) round( $ac_in );
 	}
 
 	return $delta;
@@ -1619,6 +1599,110 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 }
 
 /**
+ * Grid AC input watts from live MQTT (not a stale quotaMap snapshot).
+ *
+ * Delta 3 1500: EcoFlow app AC input is pd.inputWatts. pd.chgPowerAC stays 0
+ * on this firmware; inv.inputWatts tracks inverter throughput, not the app.
+ *
+ * @param array<string, mixed> $quota Quota map.
+ * @return float|null
+ */
+function gaming_hub_ecoflow_ac_input_watts( $quota ) {
+	$named = gaming_hub_ecoflow_quota_value_live(
+		$quota,
+		array( 'powGetAcIn', 'pd.acInWatts', 'inv.acInWatts' )
+	);
+	if ( null !== $named ) {
+		return abs( (float) $named );
+	}
+
+	$pd_in = gaming_hub_ecoflow_quota_value_live( $quota, array( 'pd.inputWatts' ) );
+	if ( null !== $pd_in ) {
+		return abs( (float) $pd_in );
+	}
+
+	$chg_ac = gaming_hub_ecoflow_quota_value_live( $quota, array( 'pd.chgPowerAC' ) );
+	if ( null !== $chg_ac && (float) $chg_ac > 0 ) {
+		return abs( (float) $chg_ac );
+	}
+
+	$inv_in = gaming_hub_ecoflow_quota_value_live( $quota, array( 'inv.inputWatts' ) );
+	if ( null !== $inv_in ) {
+		return abs( (float) $inv_in );
+	}
+
+	return null;
+}
+
+/**
+ * First numeric quota value, preferring live params over quotaMap snapshots.
+ *
+ * @param array<string, mixed> $quota Quota map.
+ * @param array<int, string>   $keys  Canonical keys without quotaMap. prefix.
+ * @return float|null
+ */
+function gaming_hub_ecoflow_quota_value_live( $quota, $keys ) {
+	$live = array();
+	$stale = array();
+
+	foreach ( $keys as $key ) {
+		$key = (string) $key;
+		$live[]  = 'params.' . $key;
+		$live[]  = $key;
+		$stale[] = 'quotaMap.' . $key;
+		$stale[] = 'data.quotaMap.' . $key;
+	}
+
+	foreach ( array_merge( $live, $stale ) as $alias ) {
+		if ( isset( $quota[ $alias ] ) && is_numeric( $quota[ $alias ] ) ) {
+			return (float) $quota[ $alias ];
+		}
+	}
+
+	return null;
+}
+
+/**
+ * AC output watts. Prefer a single inverter reading so UPS matches the EcoFlow app.
+ *
+ * Delta 1500 MQTT cache mixes live params and quotaMap snapshots; summing
+ * inv.outputWatts + pd.outputWatts double-counts the same AC load.
+ *
+ * @param array<string, mixed> $quota Quota map.
+ * @return float|null
+ */
+function gaming_hub_ecoflow_ac_output_watts( $quota ) {
+	$outlets = gaming_hub_ecoflow_sum_quota(
+		$quota,
+		array(
+			'powGetAcLvOut',
+			'powGetAcHvOut',
+			'powGetAcLvTt30Out',
+		),
+		true
+	);
+
+	if ( null !== $outlets && $outlets > 0 ) {
+		return $outlets;
+	}
+
+	return gaming_hub_ecoflow_quota_value(
+		$quota,
+		array(
+			'quotaMap.inv.outputWatts',
+			'data.quotaMap.inv.outputWatts',
+			'quotaMap.pd.outputWatts',
+			'data.quotaMap.pd.outputWatts',
+			'pd.outputWatts',
+			'pd.wattsOutSum',
+			'inv.outputWatts',
+			'pd.acOutWatts',
+			'inv.outWatts',
+		)
+	);
+}
+
+/**
  * Sum numeric quota keys.
  *
  * @param array<string, mixed> $quota Quota map.
@@ -1703,12 +1787,31 @@ function gaming_hub_ecoflow_remain_time( $quota, $is_charging, $is_discharging )
  */
 function gaming_hub_ecoflow_quota_value( $quota, $keys ) {
 	foreach ( $keys as $key ) {
-		if ( isset( $quota[ $key ] ) && is_numeric( $quota[ $key ] ) ) {
-			return (float) $quota[ $key ];
+		foreach ( gaming_hub_ecoflow_quota_key_aliases( $key ) as $alias ) {
+			if ( isset( $quota[ $alias ] ) && is_numeric( $quota[ $alias ] ) ) {
+				return (float) $quota[ $alias ];
+			}
 		}
 	}
 
 	return null;
+}
+
+/**
+ * Lookup aliases for a flattened MQTT / latestQuotas key.
+ *
+ * @param string $key Canonical quota key.
+ * @return array<int, string>
+ */
+function gaming_hub_ecoflow_quota_key_aliases( $key ) {
+	$key = (string) $key;
+	$aliases = array( $key );
+
+	if ( 0 !== strpos( $key, 'quotaMap.' ) && 0 !== strpos( $key, 'data.quotaMap.' ) && 0 !== strpos( $key, 'params.' ) ) {
+		array_unshift( $aliases, 'quotaMap.' . $key, 'data.quotaMap.' . $key, 'params.' . $key );
+	}
+
+	return $aliases;
 }
 
 /**
@@ -2068,7 +2171,7 @@ function gaming_hub_ecoflow_scripts() {
 		wp_enqueue_script(
 			'gaming-hub-ecoflow-flow',
 			get_template_directory_uri() . '/assets/js/ecoflow-flow.js',
-			array(),
+			array( 'gaming-hub-i18n' ),
 			GAMING_HUB_VERSION,
 			true
 		);
@@ -2083,6 +2186,8 @@ function gaming_hub_ecoflow_scripts() {
 					'grid'        => __( 'グリッド', 'gaming-hub' ),
 					'gridCharge'  => __( 'グリッド補充電', 'gaming-hub' ),
 					'gridIdle'    => __( '待機', 'gaming-hub' ),
+					'deltaGrid'    => __( 'グリッド AC 入力', 'gaming-hub' ),
+					'acInMeasured' => __( '実測 · MQTT', 'gaming-hub' ),
 					'home'        => __( '慎一の部屋', 'gaming-hub' ),
 					'ups'         => __( '常時稼働エリア (UPS)', 'gaming-hub' ),
 					'battery'     => __( 'バッテリー', 'gaming-hub' ),
@@ -2103,13 +2208,15 @@ function gaming_hub_ecoflow_scripts() {
 					'pro'   => gaming_hub_ecoflow_image_url( 'ecoflow-pro-gaming.jpg' ),
 					'dc12v' => gaming_hub_ecoflow_image_url( 'ecoflow-dc12v-gaming.jpg' ),
 					'delta' => gaming_hub_ecoflow_image_url( 'ecoflow-delta1500-gaming.jpg' ),
+					'extra' => gaming_hub_ecoflow_image_url( 'ecoflow-extra-gaming.jpg' ),
 					'room'  => gaming_hub_ecoflow_image_url( 'ecoflow-room-gaming.jpg' ),
+					'ups'   => gaming_hub_ecoflow_image_url( 'ecoflow-ups-gaming.jpg' ),
 				),
 			)
 		);
 	}
 
-	$deps = array( 'gaming-hub-active-refresh' );
+	$deps = array( 'gaming-hub-active-refresh', 'gaming-hub-i18n' );
 	if ( $is_ecoflow ) {
 		$deps[] = 'gaming-hub-ecoflow-flow';
 	}

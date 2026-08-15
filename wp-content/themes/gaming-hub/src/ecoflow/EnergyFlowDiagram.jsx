@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FLOW_THRESHOLD, formatPack, formatWatts, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
+import { FLOW_THRESHOLD, formatPack, formatWatts, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
 
 function isFlowActive( flowId, status ) {
@@ -9,6 +9,10 @@ function isFlowActive( flowId, status ) {
 
 	if ( flowId === 'solar' ) {
 		return solarToDelta( status ) >= FLOW_THRESHOLD;
+	}
+
+	if ( flowId === 'deltaGrid' ) {
+		return deltaGridAc( status ) >= FLOW_THRESHOLD;
 	}
 
 	if ( flowId === 'grid' ) {
@@ -109,6 +113,7 @@ function DualFlowDiagram( { status, labels, images } ) {
 	const proGrid = proGridCharge( status );
 	const roomWatts = Number( status.home_out ) || Number( pro.ac_out ) || 0;
 	const upsWatts = upsOutput( status );
+	const deltaAcIn = deltaGridAc( status );
 	const extra = status.extra || delta.extra || { connected: true, battery_percent: null, capacity_wh: 1000 };
 	const extraSocRaw = extra.battery_percent;
 	const extraSoc = extraSocRaw === null || extraSocRaw === undefined || extraSocRaw === ''
@@ -191,10 +196,21 @@ function DualFlowDiagram( { status, labels, images } ) {
 			<section className="ecoflow-system ecoflow-system-delta" aria-label={ labels.delta }>
 				<p className="ecoflow-system-title">{ labels.delta }</p>
 
-				<div
-					className={ `ecoflow-node ecoflow-node-solar${ isFlowActive( 'solar', status ) ? ' is-active' : '' }` }
-					data-flow-id="solar"
-				>
+				<div className="ecoflow-input-stack">
+					<div
+						className={ `ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot${ isFlowActive( 'deltaGrid', status ) ? ' is-active' : '' }` }
+						data-flow-id="deltaGrid"
+					>
+						<span className="ecoflow-node-icon" aria-hidden="true">⚡</span>
+						<span className="ecoflow-node-label">{ labels.deltaGrid || 'グリッド AC 入力' }</span>
+						<strong>{ formatWatts( deltaAcIn ) }</strong>
+						<small>{ labels.acInMeasured || '実測 · MQTT' }</small>
+					</div>
+
+					<div
+						className={ `ecoflow-node ecoflow-node-solar${ isFlowActive( 'solar', status ) ? ' is-active' : '' }` }
+						data-flow-id="solar"
+					>
 						{ images.solar ? (
 							<img src={ images.solar } alt="" className="ecoflow-node-photo ecoflow-node-photo-solar" />
 						) : (
@@ -202,11 +218,12 @@ function DualFlowDiagram( { status, labels, images } ) {
 						) }
 						<span className="ecoflow-node-label">{ labels.solar }</span>
 						<strong>{ formatWatts( solarWatts ) }</strong>
-					<small>{
-						status.solar_in_source === 'unavailable' || solarWatts === null || solarWatts === undefined
-							? '未取得'
-							: ( labels.lvMeasured || '実測 · MQTT' )
-					}</small>
+						<small>{
+							status.solar_in_source === 'unavailable' || solarWatts === null || solarWatts === undefined
+								? '未取得'
+								: ( labels.lvMeasured || '実測 · MQTT' )
+						}</small>
+					</div>
 				</div>
 
 				<div className="ecoflow-delta-cluster">
@@ -218,8 +235,12 @@ function DualFlowDiagram( { status, labels, images } ) {
 						style={ Number.isFinite( extraSoc ) ? { '--battery-level': extraSoc } : undefined }
 					>
 						<div className="ecoflow-node-art ecoflow-extra-pack">
+							{ images.extra ? (
+								<img src={ images.extra } alt="" className="ecoflow-node-photo ecoflow-node-photo-extra" />
+							) : (
+								<span className="ecoflow-node-icon" aria-hidden="true">🔋</span>
+							) }
 							<span className="ecoflow-hud-fill" aria-hidden="true" />
-							<span className="ecoflow-node-icon" aria-hidden="true">🔋</span>
 							{ Number.isFinite( extraSoc ) ? (
 								<span className="ecoflow-hud-pct">{ `${ extraSoc }%` }</span>
 							) : null }
@@ -233,13 +254,21 @@ function DualFlowDiagram( { status, labels, images } ) {
 					className={ `ecoflow-node ecoflow-node-home ecoflow-node-ups${ isFlowActive( 'deltaToUps', status ) ? ' is-active' : '' }` }
 					data-flow-id="ups"
 				>
-					<span className="ecoflow-node-icon" aria-hidden="true">🔋</span>
+					{ images.ups ? (
+						<img src={ images.ups } alt="" className="ecoflow-node-photo ecoflow-node-photo-ups" />
+					) : (
+						<span className="ecoflow-node-icon" aria-hidden="true">🔋</span>
+					) }
 					<span className="ecoflow-node-label">{ labels.ups || '常時稼働エリア (UPS)' }</span>
 					<strong>{ formatWatts( upsWatts ) }</strong>
 					<small>{ status.ups_source === 'ecoflow' ? ( labels.acOut || 'AC 出力 · MQTT' ) : ( status.ups_source === 'switchbot' ? ( labels.upsPlug || 'SwitchBot Plug' ) : '未取得' ) }</small>
 				</div>
 
-				<div className="ecoflow-flow-summary ecoflow-flow-summary-system is-two-col">
+				<div className="ecoflow-flow-summary ecoflow-flow-summary-system">
+					<div className="ecoflow-flow-summary-item">
+						<span>{ labels.deltaGrid || 'グリッド AC 入力' }</span>
+						<strong>{ formatWatts( deltaAcIn ) }</strong>
+					</div>
 					<div className="ecoflow-flow-summary-item">
 						<span>{ labels.solar }</span>
 						<strong>{ formatWatts( solarWatts ) }</strong>
