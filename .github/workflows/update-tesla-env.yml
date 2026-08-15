@@ -1,0 +1,32 @@
+name: Update production Tesla env
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: update-tesla-env-production
+  cancel-in-progress: false
+
+jobs:
+  update-env:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update Tesla keys on EC2
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          TESLA_CLIENT_ID: ${{ secrets.TESLA_CLIENT_ID }}
+          TESLA_CLIENT_SECRET: ${{ secrets.TESLA_CLIENT_SECRET }}
+          TESLA_VEHICLE_VIN: ${{ secrets.TESLA_VEHICLE_VIN }}
+          TESLA_REFRESH_TOKEN: ${{ secrets.TESLA_REFRESH_TOKEN }}
+          TESLA_FLEET_API_BASE_URL: ${{ secrets.TESLA_FLEET_API_BASE_URL }}
+          TESLA_REDIRECT_URI: ${{ secrets.TESLA_REDIRECT_URI }}
+          TESLA_PARTNER_DOMAIN: ${{ secrets.TESLA_PARTNER_DOMAIN }}
+        run: bash ./scripts/update-production-tesla-env.sh
