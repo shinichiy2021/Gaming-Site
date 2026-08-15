@@ -1951,6 +1951,26 @@ body.home .site-header.is-scrolled {
 	line-height: 1.2;
 }
 
+.pw-hud-soc {
+	font-size: 1.45rem;
+	color: #00f5d4;
+}
+
+.pw-hud-node.is-charging .pw-hud-soc {
+	color: #ffb300;
+}
+
+.pw-hud-watts {
+	font-size: 0.95rem;
+	color: #fff;
+}
+
+.pw-hud-node-model3 .pw-hud-pct,
+.pw-hud-node-powerwall .pw-hud-pct {
+	font-size: 1rem;
+	padding: 6px 9px;
+}
+
 .pw-hud-state,
 .pw-hud-charge {
 	margin: 0;
