@@ -149,6 +149,120 @@ function gaming_hub_tesla_user_facing_error( WP_Error $error ) {
 }
 
 /**
+ * Root domain used for Tesla partner registration.
+ */
+function gaming_hub_tesla_partner_domain() {
+	$domain = gaming_hub_tesla_env( 'TESLA_PARTNER_DOMAIN' );
+	if ( $domain ) {
+		return strtolower( preg_replace( '#^https?://#', '', rtrim( $domain, '/' ) ) );
+	}
+
+	$host = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+
+	return is_string( $host ) ? strtolower( $host ) : '';
+}
+
+/**
+ * URL where Tesla expects the partner EC public key.
+ */
+function gaming_hub_tesla_public_key_url( $domain = '' ) {
+	$domain = $domain ?: gaming_hub_tesla_partner_domain();
+
+	if ( '' === $domain ) {
+		return '';
+	}
+
+	return 'https://' . $domain . '/.well-known/appspecific/com.tesla.3p.public-key.pem';
+}
+
+/**
+ * Check whether the public key is reachable over HTTPS.
+ *
+ * @return true|WP_Error
+ */
+function gaming_hub_tesla_verify_public_key_hosted() {
+	$url = gaming_hub_tesla_public_key_url();
+
+	if ( '' === $url ) {
+		return new WP_Error( 'tesla_invalid_domain', __( 'Tesla partner domain is not configured.', 'gaming-hub' ) );
+	}
+
+	$response = wp_remote_get(
+		$url,
+		array(
+			'timeout' => 20,
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return $response;
+	}
+
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	$body = (string) wp_remote_retrieve_body( $response );
+
+	if ( 200 !== $code || false === strpos( $body, 'BEGIN PUBLIC KEY' ) ) {
+		return new WP_Error(
+			'tesla_public_key_missing',
+			sprintf(
+				/* translators: %s: public key URL */
+				__( 'Tesla public key is not reachable at %s (HTTP %d).', 'gaming-hub' ),
+				$url,
+				$code
+			)
+		);
+	}
+
+	return true;
+}
+
+/**
+ * Register partner domain + public key with Tesla Fleet API.
+ *
+ * @param string $domain Optional override domain.
+ * @return array<string, mixed>|WP_Error
+ */
+function gaming_hub_tesla_register_partner_account( $domain = '' ) {
+	$config = gaming_hub_get_tesla_config();
+
+	if ( empty( $config['client_id'] ) || empty( $config['client_secret'] ) ) {
+		return new WP_Error( 'tesla_not_configured', __( 'Tesla Client ID / Secret are not configured.', 'gaming-hub' ) );
+	}
+
+	$domain = $domain ?: gaming_hub_tesla_partner_domain();
+	$hosted = gaming_hub_tesla_verify_public_key_hosted();
+
+	if ( is_wp_error( $hosted ) ) {
+		return $hosted;
+	}
+
+	$api = new Gaming_Hub_Tesla_Api(
+		$config['client_id'],
+		$config['client_secret'],
+		$config['fleet_base_url']
+	);
+
+	$result = $api->register_partner_account( $domain );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+
+	update_option( 'gaming_hub_tesla_partner_registered', $domain, false );
+	update_option( 'gaming_hub_tesla_partner_registered_at', wp_date( 'c' ), false );
+
+	return $result;
+}
+
+/**
+ * Whether Tesla partner registration has been recorded locally.
+ */
+function gaming_hub_tesla_partner_is_registered() {
+	$domain = get_option( 'gaming_hub_tesla_partner_registered', '' );
+
+	return is_string( $domain ) && '' !== $domain && $domain === gaming_hub_tesla_partner_domain();
+}
+
+/**
  * Whether Tesla Model 3 polling is configured.
  */
 function gaming_hub_tesla_model3_is_configured() {

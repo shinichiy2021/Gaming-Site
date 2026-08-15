@@ -39,12 +39,28 @@ function gaming_hub_switchbot_is_configured() {
 }
 
 /**
+ * Whether SwitchBot UPS readings are active (temporary off — prefer EcoFlow MQTT).
+ */
+function gaming_hub_switchbot_is_enabled() {
+	$flag = getenv( 'SWITCHBOT_ENABLED' );
+	if ( false !== $flag && '' !== $flag ) {
+		return filter_var( $flag, FILTER_VALIDATE_BOOLEAN );
+	}
+
+	return false;
+}
+
+/**
  * Attach SwitchBot UPS plug reading onto EcoFlow status.
  *
  * @param array<string, mixed> $status EcoFlow status.
  * @return array<string, mixed>
  */
 function gaming_hub_switchbot_attach_ups( array $status ) {
+	if ( ! gaming_hub_switchbot_is_enabled() ) {
+		return $status;
+	}
+
 	$plug = gaming_hub_switchbot_ups_status();
 	if ( is_array( $plug ) ) {
 		$status['ups_plug'] = $plug;

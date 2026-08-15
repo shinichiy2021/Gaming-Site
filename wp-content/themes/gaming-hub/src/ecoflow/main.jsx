@@ -19,7 +19,7 @@ if ( mountNode ) {
 		acLink: 'DC 12V',
 		acOut: 'AC 出力',
 		upsPlug: 'SwitchBot Plug',
-		lvTheory: '理論 HV×50%',
+		lvMeasured: '実測 · MQTT',
 		flow: '電力フロー',
 		inputTotal: '入力合計',
 		outputTotal: '出力合計',

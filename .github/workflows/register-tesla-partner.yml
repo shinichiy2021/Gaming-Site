@@ -1,0 +1,62 @@
+name: Register Tesla partner
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: tesla-partner-production
+  cancel-in-progress: false
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy Tesla public key + nginx
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SKIP_BUILD: "1"
+        run: ./scripts/deploy.sh
+
+      - name: Verify public key URL
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          code="$(curl -s -o /tmp/tesla-public-key.pem -w '%{http_code}' "https://${DEPLOY_HOST}/.well-known/appspecific/com.tesla.3p.public-key.pem")"
+          echo "HTTP ${code}"
+          head -2 /tmp/tesla-public-key.pem || true
+          test "${code}" = "200"
+          grep -q 'BEGIN PUBLIC KEY' /tmp/tesla-public-key.pem
+
+      - name: Register partner account on production
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          KEY_FILE="$(mktemp)"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          ssh -i "$KEY_FILE" -o StrictHostKeyChecking=accept-new "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd ${DEPLOY_PATH} && docker compose -f docker-compose.prod.yml exec -T wordpress php /var/www/html/scripts/tesla-register-partner.php"
+
+      - name: Smoke test Model 3 API
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          KEY_FILE="$(mktemp)"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          ssh -i "$KEY_FILE" -o StrictHostKeyChecking=accept-new "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "cd ${DEPLOY_PATH} && docker compose -f docker-compose.prod.yml exec -T wordpress php -r \"require '/var/www/html/wp-load.php'; \\\$m3 = gaming_hub_fetch_tesla_model3_status(); if (is_wp_error(\\\$m3)) { echo 'FAIL: '.\\\$m3->get_error_message(); exit(1);} echo 'OK soc='.(\\\$m3['battery_percent']??'?').' state='.(\\\$m3['charge_state']??'?').PHP_EOL;\""

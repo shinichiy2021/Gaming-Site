@@ -61,9 +61,20 @@ echo "==> Syncing to ${REMOTE}:${DEPLOY_PATH} ..."
   --exclude 'wp-content/themes/gaming-hub/node_modules/' \
   --exclude 'wp-content/ecoflow-cache/bridge-config.json' \
   --exclude 'wp-content/ecoflow-cache/*.json' \
-  --exclude '*.pem' \
+  --exclude 'private-key.pem' \
   --exclude '.DS_Store' \
   "$ROOT/" "${REMOTE}:${DEPLOY_PATH}/"
+
+if [[ -f "$ROOT/public-key.pem" ]]; then
+  echo "==> Installing Tesla public key..."
+  "${SSH[@]}" "mkdir -p ${DEPLOY_PATH}/tesla"
+  "${RSYNC[@]}" "$ROOT/public-key.pem" "${REMOTE}:${DEPLOY_PATH}/tesla/public-key.pem"
+else
+  echo "Warning: ${ROOT}/public-key.pem not found — Tesla Fleet API partner registration will fail."
+fi
+
+echo "==> Updating nginx site config..."
+"${SSH[@]}" "sudo cp ${DEPLOY_PATH}/config/nginx/${DEPLOY_HOST}.conf /etc/nginx/sites-available/${DEPLOY_HOST}.conf && sudo ln -sf /etc/nginx/sites-available/${DEPLOY_HOST}.conf /etc/nginx/sites-enabled/${DEPLOY_HOST}.conf && sudo nginx -t && sudo systemctl reload nginx"
 
 echo "==> Making scripts executable on server..."
 "${SSH[@]}" "chmod +x ${DEPLOY_PATH}/scripts/*.sh 2>/dev/null || true"

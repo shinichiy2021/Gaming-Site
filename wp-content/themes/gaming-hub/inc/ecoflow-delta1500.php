@@ -33,8 +33,12 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 		? (float) $delta['battery_percent']
 		: null;
 
+	if ( null === $soc && isset( $delta['_model_soc'] ) && is_numeric( $delta['_model_soc'] ) ) {
+		$soc = (float) $delta['_model_soc'];
+	}
+
 	$load_w = 0.0;
-	if ( isset( $status['ups_plug']['watts'] ) && is_numeric( $status['ups_plug']['watts'] ) ) {
+	if ( 'ecoflow' === gaming_hub_ecoflow_ups_source( $status ) && isset( $status['ups_plug']['watts'] ) && is_numeric( $status['ups_plug']['watts'] ) ) {
 		$load_w = max( 0, (float) $status['ups_plug']['watts'] );
 	} elseif ( isset( $delta['ac_out'] ) && is_numeric( $delta['ac_out'] ) ) {
 		$load_w = max( 0, (float) $delta['ac_out'] );
