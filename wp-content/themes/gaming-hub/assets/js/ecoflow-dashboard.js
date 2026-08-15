@@ -181,11 +181,25 @@
 			ac_in: pro.ac_in,
 			pro_grid_charge: data.pro_grid_charge && typeof data.pro_grid_charge === 'object'
 				? data.pro_grid_charge
-				: (data.charge_plan ? {
-					active: Number(data.charge_plan.last_applied_w) >= 1000,
-					watts: Number(data.charge_plan.last_applied_w) || 0,
-					message: data.charge_plan.approval_note || '',
-				} : {}),
+				: (function () {
+					const plan = data.charge_plan || {};
+					const chargeW = Number(plan.charge_w) || 1000;
+					const applied = Number(plan.last_applied_w) || 0;
+					const now = new Date();
+					const hour = now.getHours();
+					const date = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+					const slot = Array.isArray(plan.slots)
+						? plan.slots.find(function (row) {
+							return row && Number(row.hour) === hour && String(row.date || '') === date;
+						})
+						: null;
+					const active = applied > 0 || (slot && slot.mode === 'charge');
+					return {
+						active: active,
+						watts: active ? chargeW : 0,
+						message: plan.approval_note || '',
+					};
+				}()),
 			pro: pro,
 			battery_percent: pro.battery_percent,
 			is_charging: pro.is_charging,
