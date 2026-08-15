@@ -18,7 +18,7 @@ require get_template_directory() . '/inc/ecoflow-delta1500.php';
 
 define( 'GAMING_HUB_ECOFLOW_TAG_SLUG', 'ecoflow' );
 define( 'GAMING_HUB_ENERGY_TAG_SLUG', 'energy' );
-define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY', 'gaming_hub_ecoflow_status_v12' );
+define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY', 'gaming_hub_ecoflow_status_v13' );
 define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_TTL', 5 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH', 2500 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH', 1000 );
@@ -441,6 +441,16 @@ function gaming_hub_parse_ecoflow_quota( $quota, $device_sn, $device_name, $onli
 		$parsed['remain_capacity'] = $main['remain_capacity'];
 		$parsed['capacity_source'] = $main['capacity_source'];
 		$parsed['extra']           = gaming_hub_ecoflow_parse_extra_battery( $quota );
+
+		$lv_in = gaming_hub_ecoflow_extract_lv_watts( $quota );
+		if ( null !== $lv_in && $lv_in > 0 ) {
+			$parsed['solar_in']        = $lv_in;
+			$parsed['solar_in_source'] = 'device';
+			$parsed['input_total']     = max( (float) ( $parsed['input_total'] ?? 0 ), $lv_in );
+		} else {
+			$parsed['solar_in']        = 0;
+			$parsed['solar_in_source'] = '';
+		}
 	} elseif ( null !== $capacity && $capacity >= 500 ) {
 		$parsed['capacity_wh']     = (int) round( $capacity );
 		$parsed['capacity_source'] = 'device';
@@ -499,13 +509,9 @@ function gaming_hub_ecoflow_has_live_lv( array $status ) {
 		? $status['secondary']
 		: array();
 
-	foreach ( array( $secondary['solar_in_source'] ?? '', $status['solar_in_source'] ?? '' ) as $source ) {
-		if ( '' !== $source && 'theoretical_lv' !== $source ) {
-			return true;
-		}
-	}
+	$source = (string) ( $secondary['solar_in_source'] ?? '' );
 
-	return false;
+	return '' !== $source && 'theoretical_lv' !== $source;
 }
 
 /**
@@ -742,19 +748,15 @@ function gaming_hub_ecoflow_delta1500_has_live_soc( array $delta ) {
 		return false;
 	}
 
-	if ( ! empty( $delta['source'] ) && 'mqtt' === $delta['source'] ) {
-		return true;
-	}
-
 	if ( isset( $delta['battery_percent'] ) && is_numeric( $delta['battery_percent'] ) ) {
 		return true;
 	}
 
-	if (
-		isset( $delta['extra']['battery_percent'] )
-		&& is_numeric( $delta['extra']['battery_percent'] )
-	) {
-		return true;
+	if ( ! empty( $delta['source'] ) && 'mqtt' === $delta['source'] ) {
+		$quota = isset( $delta['_quota'] ) && is_array( $delta['_quota'] ) ? $delta['_quota'] : array();
+		$main  = gaming_hub_ecoflow_parse_main_pack( $quota, $delta );
+
+		return null !== $main['battery_percent'];
 	}
 
 	return false;
@@ -961,9 +963,7 @@ function gaming_hub_ecoflow_apply_delta1500_soc_model( array $status ) {
 	$delta['ups_wh_used']     = round( (float) ( $state['ups_wh'] ?? 0 ), 1 );
 	$delta['ac_in_wh']        = round( (float) ( $state['ac_in_wh'] ?? 0 ), 1 );
 	$delta['lv_in_wh']        = round( (float) ( $state['lv_in_wh'] ?? 0 ), 1 );
-	if ( ! isset( $delta['extra'] ) || ! is_array( $delta['extra'] ) ) {
-		$delta = gaming_hub_ecoflow_merge_bridge_quota( $delta );
-	}
+	$delta                    = gaming_hub_ecoflow_merge_bridge_quota( $delta );
 
 	$status['secondary'] = $delta;
 
