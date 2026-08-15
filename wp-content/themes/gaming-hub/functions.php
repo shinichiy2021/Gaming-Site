@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.9.32' );
+define( 'GAMING_HUB_VERSION', '1.9.33' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).

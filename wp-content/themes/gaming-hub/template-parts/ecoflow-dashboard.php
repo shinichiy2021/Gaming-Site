@@ -353,7 +353,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 						echo esc_html(
 							gaming_hub_format_ecoflow_pack(
 								$status['secondary']['remain_capacity'] ?? null,
-								$status['secondary']['capacity_wh'] ?? GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH
+								$status['secondary']['capacity_wh'] ?? gaming_hub_ecoflow_main_pack_default_wh()
 							)
 						);
 						?>
@@ -375,8 +375,26 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 					<span class="ecoflow-stat-label"><?php esc_html_e( '残量 (Extra Battery)', 'gaming-hub' ); ?></span>
 					<strong data-ecoflow-field="extra_soc">
 						<?php
-						$extra_soc = $status['secondary']['extra']['battery_percent'] ?? $status['secondary']['battery_percent'] ?? null;
+						$extra_soc = $status['secondary']['extra']['battery_percent'] ?? null;
 						echo null !== $extra_soc ? esc_html( (int) $extra_soc . '%' ) : '—';
+						?>
+					</strong>
+				</div>
+				<div class="ecoflow-stat-card">
+					<span class="ecoflow-stat-label" data-ecoflow-field="extra_remain_label">
+						<?php
+						$extra_pack = is_array( $status['secondary']['extra'] ?? null ) ? $status['secondary']['extra'] : array();
+						echo esc_html( gaming_hub_ecoflow_extra_capacity_label( $extra_pack ) );
+						?>
+					</span>
+					<strong data-ecoflow-field="extra_remain">
+						<?php
+						echo esc_html(
+							gaming_hub_format_ecoflow_pack(
+								$extra_pack['remain_capacity'] ?? null,
+								$extra_pack['capacity_wh'] ?? GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH
+							)
+						);
 						?>
 					</strong>
 				</div>

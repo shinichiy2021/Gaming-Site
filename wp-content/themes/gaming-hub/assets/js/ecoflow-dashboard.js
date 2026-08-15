@@ -99,15 +99,24 @@
 				connected: true,
 				battery_percent: null,
 				capacity_wh: 1000,
+				remain_capacity: null,
+				capacity_source: 'default',
 			};
 		}
 
+		const percent = extra.battery_percent === null || extra.battery_percent === undefined
+			? null
+			: Number(extra.battery_percent);
+		const capacity = Number(extra.capacity_wh) || 1000;
+
 		return {
 			connected: extra.connected !== false,
-			battery_percent: extra.battery_percent === null || extra.battery_percent === undefined
-				? null
-				: Number(extra.battery_percent),
-			capacity_wh: Number(extra.capacity_wh) || 1000,
+			battery_percent: percent,
+			capacity_wh: capacity,
+			remain_capacity: extra.remain_capacity === null || extra.remain_capacity === undefined
+				? (percent === null ? null : Math.round(capacity * percent / 100))
+				: Number(extra.remain_capacity),
+			capacity_source: extra.capacity_source || 'default',
 		};
 	}
 
@@ -130,7 +139,7 @@
 			remain_time: 0,
 			remain_time_label: '',
 			remain_time_display: '—',
-			capacity_wh: 2500,
+			capacity_wh: 1500,
 			remain_capacity: null,
 			extra: extraBatterySlice(),
 		};
@@ -171,9 +180,9 @@
 			ups_out: data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
 				? Number(data.ups_plug.watts)
 				: Number(delta.ac_out) || 0,
-			ups_source: data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
-				? 'switchbot'
-				: 'ecoflow',
+			ups_source: data.ups_plug && data.ups_plug.source
+				? data.ups_plug.source
+				: (data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined ? 'switchbot' : 'ecoflow'),
 			solar_in_source: data.solar_in_source || (data.secondary && data.secondary.solar_in_source) || 'theoretical_lv',
 			extra: extraBatterySlice(delta.extra || (data.secondary && data.secondary.extra)),
 		};
@@ -852,28 +861,44 @@
 				? data.ups_plug.watts
 				: data.secondary.ac_out;
 			setField('ups_out', formatWatts(plugWatts));
+			const upsSource = data.ups_plug && data.ups_plug.source
+				? data.ups_plug.source
+				: (data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined ? 'switchbot' : 'ecoflow');
 			setField(
 				'ups_out_label',
-				data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
+				upsSource === 'switchbot'
 					? 'AC 出力 → UPS (SwitchBot)'
 					: 'AC 出力 → UPS (1500)'
 			);
-			const extraSoc = data.secondary.extra && data.secondary.extra.battery_percent !== null && data.secondary.extra.battery_percent !== undefined
-				? data.secondary.extra.battery_percent
-				: data.secondary.battery_percent;
+			const extraPack = data.secondary.extra && typeof data.secondary.extra === 'object'
+				? data.secondary.extra
+				: {};
+			const extraSoc = extraPack.battery_percent;
 			if (extraSoc !== null && extraSoc !== undefined) {
 				setField('extra_soc', Number(extraSoc) + '%');
+			} else {
+				setField('extra_soc', '—');
 			}
 			setField(
 				'secondary_remain',
-				formatPack(data.secondary.remain_capacity, data.secondary.capacity_wh || 2500)
+				formatPack(data.secondary.remain_capacity, data.secondary.capacity_wh || 1500)
 			);
 			const capacitySource = data.secondary.capacity_source || 'default';
 			setField(
 				'secondary_remain_label',
 				capacitySource !== 'default'
-					? '残容量 (1500 + Extra · 実測)'
-					: '残容量 (1500 + Extra)'
+					? '残容量 (1500 · 実測)'
+					: '残容量 (1500)'
+			);
+			setField(
+				'extra_remain',
+				formatPack(extraPack.remain_capacity, extraPack.capacity_wh || 1000)
+			);
+			setField(
+				'extra_remain_label',
+				extraPack.capacity_source && extraPack.capacity_source !== 'default'
+					? '残容量 (Extra · 実測)'
+					: '残容量 (Extra Battery)'
 			);
 			if (data.secondary.grid_rescue) {
 				setField(
