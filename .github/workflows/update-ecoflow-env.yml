@@ -1,0 +1,30 @@
+name: Update production EcoFlow env
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: update-ecoflow-env-production
+  cancel-in-progress: false
+
+jobs:
+  update-env:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update EcoFlow keys on EC2
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          ECOFLOW_ACCESS_KEY: ${{ secrets.ECOFLOW_ACCESS_KEY }}
+          ECOFLOW_SECRET_KEY: ${{ secrets.ECOFLOW_SECRET_KEY }}
+          ECOFLOW_API_REGION: ${{ secrets.ECOFLOW_API_REGION }}
+          ECOFLOW_DEVICE_SN: ${{ secrets.ECOFLOW_DEVICE_SN }}
+          ECOFLOW_DEVICE_SN_2: ${{ secrets.ECOFLOW_DEVICE_SN_2 }}
+        run: bash ./scripts/update-production-ecoflow-env.sh
