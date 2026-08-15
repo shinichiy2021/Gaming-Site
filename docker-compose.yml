@@ -61,7 +61,10 @@ services:
       ECOFLOW_CACHE_DIR: /cache
       ECOFLOW_BRIDGE_CONFIG: /cache/bridge-config.json
       ECOFLOW_BRIDGE_INTERVAL_MS: 10000
-      ECOFLOW_API_REGION: ${ECOFLOW_API_REGION:-}
+      ECOFLOW_APP_EMAIL: ${ECOFLOW_APP_EMAIL:-}
+      ECOFLOW_APP_PASSWORD: ${ECOFLOW_APP_PASSWORD:-}
+      ECOFLOW_DEVICE_SN_2: ${ECOFLOW_DEVICE_SN_2:-}
+      ECOFLOW_API_REGION: ${ECOFLOW_API_REGION:-us}
     volumes:
       - ./wp-content/themes/gaming-hub:/app
       - ./wp-content/ecoflow-cache:/cache
