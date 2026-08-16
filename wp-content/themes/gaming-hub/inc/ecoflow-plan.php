@@ -9,9 +9,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+define( 'GAMING_HUB_ECOFLOW_SOLAR_PRO_W', 800 );
+define( 'GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W', 500 );
+define( 'GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W', GAMING_HUB_ECOFLOW_SOLAR_PRO_W + GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W );
 define( 'GAMING_HUB_ECOFLOW_ROOM_DAILY_KWH', 5.5 );
 define( 'GAMING_HUB_ECOFLOW_ROOM_BASE_DAILY_KWH', 0 );
 define( 'GAMING_HUB_ECOFLOW_AC_START_C', 24.0 );
+define( 'GAMING_HUB_ECOFLOW_AC_WEEKDAY_START_C', 28.0 );
 define( 'GAMING_HUB_ECOFLOW_AC_SETPOINT_C', 26.0 );
 define( 'GAMING_HUB_ECOFLOW_AC_W_PER_C', 70 );
 define( 'GAMING_HUB_ECOFLOW_AC_MAX_W', 550 );
@@ -23,6 +27,49 @@ define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF', 5 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_DC_W', 100 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH', 4096 );
+
+/**
+ * Combined EcoFlow array: Pro high-volt 800 W + Delta 1500 low-volt 500 W.
+ */
+function gaming_hub_ecoflow_solar_capacity_w() {
+	return (int) GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W;
+}
+
+/**
+ * Dashboard label for the EcoFlow solar arrays.
+ */
+function gaming_hub_ecoflow_solar_panel_label() {
+	return sprintf(
+		/* translators: 1: Pro watts, 2: 1500 watts */
+		__( 'Pro %1$s W + 1500 %2$s W', 'gaming-hub' ),
+		number_format_i18n( (int) GAMING_HUB_ECOFLOW_SOLAR_PRO_W ),
+		number_format_i18n( (int) GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W )
+	);
+}
+
+/**
+ * Scale a 24h watt series from the Tajimi profile capacity to the EcoFlow array.
+ *
+ * @param array<int, mixed> $hours Hourly watts.
+ * @return array<int, int>
+ */
+function gaming_hub_ecoflow_scale_solar_hours( array $hours ) {
+	$from = function_exists( 'gaming_hub_powerwall_solar_capacity_w' )
+		? (int) gaming_hub_powerwall_solar_capacity_w()
+		: 1500;
+	$to   = gaming_hub_ecoflow_solar_capacity_w();
+	$out  = array();
+
+	foreach ( $hours as $hour => $watts ) {
+		$scaled = (float) $watts;
+		if ( $from > 0 && $from !== $to ) {
+			$scaled = $scaled * ( $to / $from );
+		}
+		$out[ (int) $hour ] = (int) max( 0, min( $to, round( $scaled ) ) );
+	}
+
+	return $out;
+}
 
 /**
  * Gaming-room hourly weights (24h, sums to 24.0).
@@ -61,21 +108,39 @@ function gaming_hub_ecoflow_room_hourly_weights() {
 /**
  * Electrical watts for a room AC from outdoor temperature.
  *
- * Typical 6–8 tatami inverter at half load: off below 24°C, ~70 W per °C above that, cap 0.55 kW.
+ * Typical 6–8 tatami inverter at half load: off at or below the start temp,
+ * ~70 W per °C above that, cap 0.55 kW.
  *
  * @param float|null $celsius Outdoor °C.
+ * @param float|null $start_c Turn-on threshold °C.
  */
-function gaming_hub_ecoflow_ac_watts_for_temp( $celsius ) {
+function gaming_hub_ecoflow_ac_watts_for_temp( $celsius, $start_c = null ) {
 	if ( null === $celsius || ! is_numeric( $celsius ) ) {
 		return 0;
 	}
 
-	$delta = (float) $celsius - GAMING_HUB_ECOFLOW_AC_START_C;
+	$start = null !== $start_c && is_numeric( $start_c )
+		? (float) $start_c
+		: (float) GAMING_HUB_ECOFLOW_AC_START_C;
+	$delta = (float) $celsius - $start;
 	if ( $delta <= 0 ) {
 		return 0;
 	}
 
 	return (int) min( GAMING_HUB_ECOFLOW_AC_MAX_W, max( 0, round( $delta * GAMING_HUB_ECOFLOW_AC_W_PER_C ) ) );
+}
+
+/**
+ * Whether Shinichi's room uses the weekend AC schedule (Sat–Sun).
+ *
+ * Weekdays stay off unless outdoor temp exceeds 28°C.
+ *
+ * @param int|null $timestamp Unix timestamp in site timezone context.
+ */
+function gaming_hub_ecoflow_room_ac_is_weekend( $timestamp = null ) {
+	$weekday = (int) ( null === $timestamp ? wp_date( 'N' ) : wp_date( 'N', $timestamp ) );
+
+	return $weekday >= 6;
 }
 
 /**
@@ -90,6 +155,10 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 	$weight_sum = array_sum( $weights ) ?: 24.0;
 	$base_daily = (float) GAMING_HUB_ECOFLOW_ROOM_BASE_DAILY_KWH;
 	$has_temps  = false;
+	$is_weekend = gaming_hub_ecoflow_room_ac_is_weekend();
+	$ac_start_c = $is_weekend
+		? (float) GAMING_HUB_ECOFLOW_AC_START_C
+		: (float) GAMING_HUB_ECOFLOW_AC_WEEKDAY_START_C;
 
 	foreach ( $temps as $t ) {
 		if ( is_numeric( $t ) ) {
@@ -108,7 +177,10 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 			continue;
 		}
 
-		$ac_watts[ $h ] = gaming_hub_ecoflow_ac_watts_for_temp( isset( $temps[ $h ] ) ? $temps[ $h ] : null );
+		$ac_watts[ $h ] = gaming_hub_ecoflow_ac_watts_for_temp(
+			isset( $temps[ $h ] ) ? $temps[ $h ] : null,
+			$ac_start_c
+		);
 		$ac_hours[ $h ] = $ac_watts[ $h ] / 1000.0;
 	}
 
@@ -134,6 +206,7 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 	$now_temp = isset( $temps[ $from_hour ] ) && is_numeric( $temps[ $from_hour ] )
 		? (float) $temps[ $from_hour ]
 		: null;
+	$ac_now_w = (int) ( $ac_watts[ $from_hour ] ?? 0 );
 
 	return array(
 		'room_today_kwh'     => round( $room_today_kwh, 2 ),
@@ -142,8 +215,11 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 		'ac_remaining_kwh'   => round( $ac_remaining_kwh, 2 ),
 		'base_today_kwh'     => round( $base_today_kwh, 2 ),
 		'base_remaining_kwh' => round( $base_remaining_kwh, 2 ),
-		'ac_now_w'           => (int) ( $ac_watts[ $from_hour ] ?? 0 ),
+		'ac_now_w'           => $ac_now_w,
 		'ac_watts'           => $ac_watts,
+		'ac_on'              => $ac_now_w > 0 || $ac_today_kwh > 0,
+		'ac_weekend'         => $is_weekend,
+		'ac_start_c'         => $ac_start_c,
 		'temp_now'           => $now_temp,
 		'setpoint_c'         => GAMING_HUB_ECOFLOW_AC_SETPOINT_C,
 	);
@@ -200,7 +276,7 @@ function gaming_hub_ecoflow_soc_series( $from_hour, $soc, $full_wh, array $slots
 function gaming_hub_ecoflow_get_charge_plan( array $status ) {
 	$hour = (int) wp_date( 'G' );
 	$soc  = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
-	$key  = 'gaming_hub_ecoflow_plan_v20_' . wp_date( 'Y-m-d' ) . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+	$key  = 'gaming_hub_ecoflow_plan_v23_' . wp_date( 'Y-m-d' ) . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W;
 
 	$cached = get_transient( $key );
 	if ( is_array( $cached ) && ! empty( $cached['slots'] ) && isset( $cached['charge_w'], $cached['dc1500_remaining_kwh'], $cached['ac_today_kwh'], $cached['soc_series'], $cached['solar_hours'] ) ) {
@@ -317,7 +393,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status ) {
 
 	if ( function_exists( 'gaming_hub_powerwall_solar_hourly_profile' ) ) {
 		$profile          = gaming_hub_powerwall_solar_hourly_profile();
-		$solar_hours      = $profile['hours'] ?? array();
+		$solar_hours      = gaming_hub_ecoflow_scale_solar_hours( $profile['hours'] ?? array() );
 		$weather          = (string) ( $profile['weather'] ?? '' );
 		$weather_location = (string) ( $profile['location'] ?? '' );
 		$temps            = is_array( $profile['temps'] ?? null ) ? $profile['temps'] : array();
@@ -416,6 +492,9 @@ function gaming_hub_ecoflow_build_charge_plan( array $status ) {
 		'ac_today_kwh'         => $room['ac_today_kwh'],
 		'ac_remaining_kwh'     => $room['ac_remaining_kwh'],
 		'ac_now_w'             => $room['ac_now_w'],
+		'ac_on'                => ! empty( $room['ac_on'] ),
+		'ac_weekend'           => ! empty( $room['ac_weekend'] ),
+		'ac_start_c'           => $room['ac_start_c'] ?? ( ! empty( $room['ac_weekend'] ) ? GAMING_HUB_ECOFLOW_AC_START_C : GAMING_HUB_ECOFLOW_AC_WEEKDAY_START_C ),
 		'base_today_kwh'       => $room['base_today_kwh'],
 		'ac_setpoint_c'        => $room['setpoint_c'],
 		'reserve_soc'          => GAMING_HUB_ECOFLOW_PLAN_MIN_SOC,
@@ -428,7 +507,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status ) {
 		'soc_min'              => $soc_future ? round( min( $soc_future ), 1 ) : $soc,
 		'soc_end'              => $soc_future ? round( (float) end( $soc_future ), 1 ) : $soc,
 		'solar_hours'          => $solar_series,
-		'solar_capacity_w'     => defined( 'GAMING_HUB_POWERWALL_SOLAR_CAPACITY_W' ) ? (int) GAMING_HUB_POWERWALL_SOLAR_CAPACITY_W : 1500,
+		'solar_capacity_w'     => gaming_hub_ecoflow_solar_capacity_w(),
 		'solar_now_w'          => (int) ( $solar_series[ $hour ] ?? 0 ),
 		'plan_id'              => $plan_id,
 		'price_provider'       => $price['provider'],
