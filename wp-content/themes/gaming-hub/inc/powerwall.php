@@ -285,8 +285,7 @@ function gaming_hub_render_powerwall_image( $item, $class = 'pw-card-image' ) {
  * Get Powerwall page URL.
  */
 function gaming_hub_powerwall_url() {
-	$page = get_page_by_path( 'powerwall' );
-	return $page ? get_permalink( $page ) : home_url( '/powerwall/' );
+	return gaming_hub_hub_section_url( 'powerwall' );
 }
 
 /**

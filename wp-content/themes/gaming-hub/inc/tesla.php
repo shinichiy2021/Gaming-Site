@@ -601,7 +601,7 @@ function gaming_hub_rest_tesla_oauth_callback( WP_REST_Request $request ) {
 		);
 	}
 
-	wp_safe_redirect( add_query_arg( 'tesla_connected', '1', gaming_hub_powerwall_url() ) );
+	wp_safe_redirect( gaming_hub_hub_section_url( 'powerwall', array( 'tesla_connected' => '1' ) ) );
 	exit;
 }
 
@@ -625,7 +625,7 @@ add_action( 'rest_api_init', 'gaming_hub_register_tesla_rest_routes' );
  * Show admin notice after successful Tesla OAuth.
  */
 function gaming_hub_tesla_oauth_admin_notice() {
-	if ( ! is_page( 'powerwall' ) || empty( $_GET['tesla_connected'] ) ) {
+	if ( ( ! is_front_page() && ! is_page( 'powerwall' ) ) || empty( $_GET['tesla_connected'] ) ) {
 		return;
 	}
 

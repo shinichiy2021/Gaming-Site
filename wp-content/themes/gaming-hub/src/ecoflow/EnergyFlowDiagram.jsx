@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FLOW_THRESHOLD, formatPack, formatWatts, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
+import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
 
 function isFlowActive( flowId, status ) {
@@ -83,7 +83,7 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 				{ hasBattery ? (
 					<>
 						{ overlay ? <span className="ecoflow-hud-fill" aria-hidden="true" /> : null }
-						<span className="ecoflow-hud-pct">{ `${ batteryPercent }%` }</span>
+						<span className="ecoflow-hud-pct">{ formatSoc( batteryPercent ) }</span>
 					</>
 				) : null }
 			</div>
@@ -96,7 +96,7 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 					style={ { '--battery-level': batteryPercent } }
 				>
 					<div className="ecoflow-battery-inner">
-						<span className="ecoflow-battery-value">{ `${ batteryPercent }%` }</span>
+						<span className="ecoflow-battery-value">{ formatSoc( batteryPercent ) }</span>
 						<span className="ecoflow-battery-label">{ label }</span>
 					</div>
 				</div>
@@ -115,19 +115,12 @@ function DualFlowDiagram( { status, labels, images } ) {
 	const upsWatts = upsOutput( status );
 	const deltaAcIn = deltaGridAc( status );
 	const extra = status.extra || delta.extra || { connected: true, battery_percent: null, capacity_wh: 1000 };
-	const extraSocRaw = extra.battery_percent;
-	const extraSoc = extraSocRaw === null || extraSocRaw === undefined || extraSocRaw === ''
-		? ( delta.battery_percent === null || delta.battery_percent === undefined || delta.battery_percent === ''
-			? null
-			: Number( delta.battery_percent ) )
-		: Number( extraSocRaw );
+	const extraSoc = parseSoc( extra.battery_percent );
 	const extraCap = Number( extra.capacity_wh ) || 1000;
 	const extraCapLabel = extraCap >= 1000
 		? `${ ( extraCap / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kWh`
 		: `${ extraCap } Wh`;
-	const deltaSoc = Number.isFinite( Number( delta.battery_percent ) )
-		? `${ Number( delta.battery_percent ) }%`
-		: '未取得';
+	const deltaSoc = formatSoc( delta.battery_percent );
 
 	return (
 		<div className="ecoflow-dual-layout is-independent">
@@ -242,7 +235,7 @@ function DualFlowDiagram( { status, labels, images } ) {
 							) }
 							<span className="ecoflow-hud-fill" aria-hidden="true" />
 							{ Number.isFinite( extraSoc ) ? (
-								<span className="ecoflow-hud-pct">{ `${ extraSoc }%` }</span>
+								<span className="ecoflow-hud-pct">{ formatSoc( extraSoc ) }</span>
 							) : null }
 						</div>
 						<span className="ecoflow-node-label">{ labels.extra || 'Extra Battery 1kW' }</span>
@@ -276,7 +269,7 @@ function DualFlowDiagram( { status, labels, images } ) {
 					<div className="ecoflow-flow-summary-item">
 						<span>{ labels.ups || '常時稼働エリア (UPS)' }</span>
 						<strong>{ formatWatts( upsWatts ) }</strong>
-						<small>{ delta.charge_state || '—' } · { deltaSoc } · EB { Number.isFinite( extraSoc ) ? `${ extraSoc }%` : '未取得' }</small>
+						<small>{ delta.charge_state || '—' } · { deltaSoc } · EB { formatSoc( extraSoc ) }</small>
 					</div>
 				</div>
 			</section>

@@ -2781,6 +2781,28 @@ body.home .site-header.is-scrolled {
 	margin-bottom: 40px;
 }
 
+.hub-section {
+	scroll-margin-top: 80px;
+}
+
+#youtube {
+	scroll-margin-top: 80px;
+}
+
+.hub-section-intro {
+	padding: 20px 0 8px;
+	text-align: center;
+}
+
+.hub-ecoflow {
+	padding-top: 12px;
+}
+
+.hub-energy .ecoflow-dashboard-wrap,
+.hub-ecoflow .ecoflow-dashboard-wrap {
+	margin-bottom: 24px;
+}
+
 .ecoflow-dashboard {
 	background:
 		radial-gradient(ellipse at 0% 0%, rgba(124, 77, 255, 0.12), transparent 42%),
@@ -4872,18 +4894,90 @@ body.home .site-header.is-scrolled {
 		width: 100%;
 	}
 
+	.ecoflow-dashboard {
+		padding: 16px 12px;
+	}
+
 	.ecoflow-dual-layout {
-		gap: 28px;
+		gap: 16px;
+	}
+
+	.ecoflow-energy-map.is-dual {
+		padding: 14px 8px 10px;
 	}
 
 	.ecoflow-system {
-		gap: 14px 12px;
-		padding: 12px 10px;
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+		padding: 12px 8px 10px;
+	}
+
+	.ecoflow-system-title {
+		font-size: 0.92rem;
+		letter-spacing: 0.05em;
+		text-align: center;
+	}
+
+	.ecoflow-system-pro .ecoflow-input-stack,
+	.ecoflow-system-delta .ecoflow-input-stack {
+		grid-column: auto;
+		grid-row: auto;
+		flex-direction: row;
+		align-items: stretch;
+		justify-content: stretch;
+		gap: 8px;
+		width: 100%;
+		max-width: none;
+	}
+
+	.ecoflow-system-pro .ecoflow-input-stack .ecoflow-node,
+	.ecoflow-system-delta .ecoflow-input-stack .ecoflow-node,
+	.ecoflow-node-grid-slot {
+		flex: 1 1 0;
+		width: 100%;
+		max-width: none;
+		min-width: 0;
+		padding: 8px 6px;
+	}
+
+	.ecoflow-system-pro [data-flow-id="pro"],
+	.ecoflow-system-delta [data-flow-id="delta"],
+	.ecoflow-delta-cluster,
+	.ecoflow-system-pro [data-flow-id="home"],
+	.ecoflow-system-delta [data-flow-id="ups"],
+	.ecoflow-system-pro .ecoflow-flow-summary-system,
+	.ecoflow-system-delta .ecoflow-flow-summary-system {
+		grid-column: auto;
+		grid-row: auto;
+		width: 100%;
+		max-width: 100%;
+		justify-self: stretch;
+	}
+
+	.ecoflow-delta-cluster {
+		display: flex;
+		flex-wrap: nowrap;
+		align-items: flex-start;
+		justify-content: center;
+		gap: 8px;
+	}
+
+	.ecoflow-system-delta [data-flow-id="delta"] {
+		width: auto;
+		flex: 0 1 auto;
+	}
+
+	.ecoflow-node-extra {
+		min-width: 0;
+		flex: 0 1 92px;
+		padding: 8px 4px;
 	}
 
 	.ecoflow-node-photo-pro {
-		width: 128px;
-		height: 128px;
+		width: 132px;
+		height: 132px;
 	}
 
 	.ecoflow-node-photo-delta {
@@ -4891,78 +4985,89 @@ body.home .site-header.is-scrolled {
 		height: 108px;
 	}
 
-	.ecoflow-delta-cluster {
-		gap: 8px;
-	}
-
 	.ecoflow-extra-pack {
-		width: 72px;
-		height: 72px;
-	}
-
-	.ecoflow-energy-map.is-dual {
-		padding: 22px 12px 16px;
+		width: 64px;
+		height: 64px;
 	}
 
 	.ecoflow-node-photo {
-		width: 64px;
-		height: 64px;
+		width: 56px;
+		height: 56px;
 	}
 
 	.ecoflow-node-device.is-hero .ecoflow-hud-pct,
 	.ecoflow-node-device.is-prominent .ecoflow-hud-pct {
-		font-size: 1.725rem;
-		padding: 6px 10px;
-		bottom: 8px;
+		font-size: 1.35rem;
+		padding: 5px 8px;
+		bottom: 6px;
+	}
+
+	.ecoflow-node-extra .ecoflow-hud-pct {
+		font-size: 0.78rem;
+		padding: 2px 5px;
 	}
 
 	.ecoflow-node-photo-solar,
 	.ecoflow-node-photo-link {
-		width: 52px;
-		height: 52px;
+		width: 44px;
+		height: 44px;
 	}
 
 	.ecoflow-node-photo-room,
 	.ecoflow-node-photo-ups {
-		height: 88px;
+		height: 80px;
 	}
 
 	.ecoflow-dual-layout .ecoflow-battery-ring-map {
-		width: 64px;
-		height: 64px;
+		width: 56px;
+		height: 56px;
 	}
 
 	.ecoflow-dual-layout .ecoflow-battery-value {
-		font-size: 0.95rem;
+		font-size: 0.85rem;
 	}
 
 	.ecoflow-dual-layout .ecoflow-battery-label,
 	.ecoflow-dual-layout .ecoflow-node-label {
-		font-size: 0.975rem;
+		font-size: 0.78rem;
+		letter-spacing: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.ecoflow-dual-layout .ecoflow-node-pack,
+	.ecoflow-dual-layout .ecoflow-node-state,
+	.ecoflow-dual-layout .ecoflow-node-room small,
+	.ecoflow-dual-layout .ecoflow-node-solar small,
+	.ecoflow-dual-layout .ecoflow-node-ups small,
+	.ecoflow-node-extra small {
+		font-size: 0.72rem;
+		overflow-wrap: anywhere;
 	}
 
 	.ecoflow-dual-layout .ecoflow-node strong {
-		font-size: 1.17rem;
+		font-size: 1rem;
 	}
 
 	.ecoflow-dual-layout .ecoflow-node-icon {
-		font-size: 1.725rem;
+		font-size: 1.35rem;
 	}
 
-	.ecoflow-dual-layout .ecoflow-node-state {
-		font-size: 1.08rem;
+	.ecoflow-system-pro .ecoflow-flow-summary-system,
+	.ecoflow-system-delta .ecoflow-flow-summary-system {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 6px;
 	}
 
 	.ecoflow-dual-layout .ecoflow-flow-summary-item {
-		font-size: 1.2rem;
+		font-size: 0.72rem;
 	}
 
 	.ecoflow-dual-layout .ecoflow-flow-summary-item strong {
-		font-size: 1.575rem;
+		font-size: 1.05rem;
 	}
 
-	.ecoflow-node-grid-slot {
-		width: min(100%, 96px);
+	.ecoflow-flow-summary-system .ecoflow-flow-summary-item small {
+		font-size: 0.65rem;
 	}
 
 	.ecoflow-battery-ring-map {

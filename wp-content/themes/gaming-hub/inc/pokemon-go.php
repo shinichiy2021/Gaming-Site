@@ -170,8 +170,7 @@ function gaming_hub_render_pokemon_go_image( $item, $class = 'pgo-card-image' ) 
  * Get Pokémon GO page URL.
  */
 function gaming_hub_pokemon_go_url() {
-	$page = get_page_by_path( 'pokemon-go' );
-	return $page ? get_permalink( $page ) : home_url( '/pokemon-go/' );
+	return gaming_hub_hub_section_url( 'pokemon-go' );
 }
 
 /**
