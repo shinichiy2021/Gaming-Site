@@ -11,17 +11,44 @@
 		});
 	}
 
-	document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
-		anchor.addEventListener('click', function (e) {
-			const target = document.querySelector(this.getAttribute('href'));
-			if (target) {
-				e.preventDefault();
-				target.scrollIntoView({ behavior: 'smooth' });
-				if (navigation && navigation.classList.contains('is-open')) {
-					navigation.classList.remove('is-open');
-					menuToggle.setAttribute('aria-expanded', 'false');
-				}
+	function hubHashFromHref(href) {
+		try {
+			const url = new URL(href, window.location.href);
+			if (url.origin !== window.location.origin) {
+				return '';
 			}
+			if (url.pathname !== '/' && url.pathname !== window.location.pathname) {
+				return '';
+			}
+			return url.hash || '';
+		} catch (err) {
+			return '';
+		}
+	}
+
+	function closeMobileNav() {
+		if (navigation && navigation.classList.contains('is-open')) {
+			navigation.classList.remove('is-open');
+			if (menuToggle) {
+				menuToggle.setAttribute('aria-expanded', 'false');
+			}
+		}
+	}
+
+	document.querySelectorAll('a[href]').forEach(function (anchor) {
+		anchor.addEventListener('click', function (e) {
+			const hash = hubHashFromHref(this.getAttribute('href'));
+			if (!hash) {
+				return;
+			}
+			const target = document.querySelector(hash);
+			if (!target) {
+				return;
+			}
+			e.preventDefault();
+			history.replaceState(null, '', hash);
+			target.scrollIntoView({ behavior: 'smooth' });
+			closeMobileNav();
 		});
 	});
 

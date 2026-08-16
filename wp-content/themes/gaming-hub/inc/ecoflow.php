@@ -91,16 +91,14 @@ function gaming_hub_ecoflow_is_configured() {
  * Get EcoFlow tag archive URL.
  */
 function gaming_hub_ecoflow_url() {
-	$link = get_tag_link( get_term_by( 'slug', GAMING_HUB_ECOFLOW_TAG_SLUG, 'post_tag' ) );
-	return $link && ! is_wp_error( $link ) ? $link : home_url( '/tag/ecoflow/' );
+	return gaming_hub_hub_section_url( 'ecoflow' );
 }
 
 /**
  * Get Energy tag archive URL.
  */
 function gaming_hub_energy_url() {
-	$link = get_tag_link( get_term_by( 'slug', GAMING_HUB_ENERGY_TAG_SLUG, 'post_tag' ) );
-	return $link && ! is_wp_error( $link ) ? $link : home_url( '/tag/energy/' );
+	return gaming_hub_hub_section_url( 'energy' );
 }
 
 /**
@@ -635,12 +633,14 @@ function gaming_hub_ecoflow_normalize_cap_to_wh( $value ) {
 
 	$value = (float) $value;
 
-	if ( $value >= 500 && $value <= 20000 ) {
+	// Device energy fields (Wh): Extra ~1024, Delta 1500, Pro 4096.
+	if ( $value >= 400 && $value <= 8000 ) {
 		return $value;
 	}
 
-	if ( $value >= 10000 && $value <= 500000 ) {
-		return $value * 3.7 / 1000.0;
+	// Pack mAh on Delta 3 (16S LiFePO4 ≈ 51.2 V). Extra ~20 Ah, 1500 ~30 Ah.
+	if ( $value >= 8000 && $value <= 80000 ) {
+		return $value * 51.2 / 1000.0;
 	}
 
 	return null;
@@ -722,12 +722,26 @@ function gaming_hub_ecoflow_strip_internal_fields( array $status ) {
  */
 function gaming_hub_ecoflow_delta1500_main_soc_keys() {
 	return array(
+		'bms_bmsStatus.f32ShowSoc',
 		'bms_bmsStatus.soc',
 		'pd.soc',
-		'bms_bmsStatus.f32ShowSoc',
-		'bms.soc',
 		'bms.f32ShowSoc',
+		'bms.soc',
 	);
+}
+
+/**
+ * Clamp a live MQTT SOC to one decimal for display.
+ *
+ * @param mixed $soc Raw percent.
+ * @return float|null
+ */
+function gaming_hub_ecoflow_round_soc( $soc ) {
+	if ( null === $soc || ! is_numeric( $soc ) ) {
+		return null;
+	}
+
+	return round( max( 0, min( 100, (float) $soc ) ), 1 );
 }
 
 /**
@@ -1112,14 +1126,13 @@ function gaming_hub_ecoflow_parse_main_pack( $quota, $parsed = array() ) {
 	}
 
 	$cap_wh = gaming_hub_ecoflow_normalize_cap_to_wh(
-		gaming_hub_ecoflow_quota_value(
+		gaming_hub_ecoflow_quota_value_live(
 			$quota,
 			array(
-				'bms.fullCap',
-				'bms.designCap',
-				'bms_bmsStatus.chgCap',
-				'bms_bmsStatus.designCap',
 				'bms_bmsStatus.fullCap',
+				'bms.fullCap',
+				'bms_bmsStatus.designCap',
+				'bms.designCap',
 				'pd.fullCap',
 				'bmsFullCap',
 				'bmsDesignCap',
@@ -1158,7 +1171,7 @@ function gaming_hub_ecoflow_parse_main_pack( $quota, $parsed = array() ) {
 	}
 
 	return array(
-		'battery_percent' => null !== $soc ? max( 0, min( 100, (int) round( $soc ) ) ) : null,
+		'battery_percent' => gaming_hub_ecoflow_round_soc( $soc ),
 		'capacity_wh'     => (int) round( $cap_wh ),
 		'remain_capacity' => null !== $remain_wh ? (int) round( $remain_wh ) : null,
 		'capacity_source' => $source,
@@ -1178,8 +1191,8 @@ function gaming_hub_ecoflow_parse_extra_battery( $quota ) {
 	$soc = gaming_hub_ecoflow_quota_value_live(
 		$quota,
 		array(
-			'bms_slave.soc',
 			'bms_slave.f32ShowSoc',
+			'bms_slave.soc',
 			'bmsSlaveSoc',
 			'bp2Soc',
 			'bms_kitInfo.soc',
@@ -1190,9 +1203,9 @@ function gaming_hub_ecoflow_parse_extra_battery( $quota ) {
 	);
 
 	$extra_cap = gaming_hub_ecoflow_normalize_cap_to_wh(
-		gaming_hub_ecoflow_quota_value(
+		gaming_hub_ecoflow_quota_value_live(
 			$quota,
-			array( 'bms_slave.fullCap', 'bms_slave.designCap', 'bms_slave.chgCap' )
+			array( 'bms_slave.fullCap', 'bms_slave.designCap' )
 		)
 	);
 
@@ -1218,7 +1231,7 @@ function gaming_hub_ecoflow_parse_extra_battery( $quota ) {
 
 	return array(
 		'connected'       => true,
-		'battery_percent' => null !== $soc ? max( 0, min( 100, (int) round( $soc ) ) ) : null,
+		'battery_percent' => gaming_hub_ecoflow_round_soc( $soc ),
 		'capacity_wh'     => $capacity_wh,
 		'remain_capacity' => null !== $remain_wh ? (int) round( $remain_wh ) : null,
 		'capacity_source' => $source,
@@ -1232,9 +1245,7 @@ function gaming_hub_ecoflow_parse_extra_battery( $quota ) {
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_extra_battery_slice( $soc = null, $capacity_wh = null ) {
-	$percent = null !== $soc && is_numeric( $soc )
-		? max( 0, min( 100, (int) round( $soc ) ) )
-		: null;
+	$percent = gaming_hub_ecoflow_round_soc( $soc );
 
 	$capacity_wh = null !== $capacity_wh && is_numeric( $capacity_wh ) && $capacity_wh > 0
 		? (int) round( $capacity_wh )
@@ -1274,9 +1285,7 @@ function gaming_hub_ecoflow_device_flow_slice( array $device ) {
 		'dc_out'              => (int) ( $device['dc_out'] ?? 0 ),
 		'input_total'         => (int) ( $device['input_total'] ?? 0 ),
 		'output_total'        => (int) ( $device['output_total'] ?? 0 ),
-		'battery_percent'     => isset( $device['battery_percent'] ) && null !== $device['battery_percent']
-			? (int) $device['battery_percent']
-			: null,
+		'battery_percent'     => gaming_hub_ecoflow_round_soc( $device['battery_percent'] ?? null ),
 		'is_charging'         => ! empty( $device['is_charging'] ),
 		'is_discharging'      => ! empty( $device['is_discharging'] ),
 		'charge_state'        => $device['charge_state'] ?? '',
@@ -1472,7 +1481,16 @@ function gaming_hub_format_ecoflow_percent( $value ) {
 		return gaming_hub_ecoflow_unavailable_label();
 	}
 
-	return (int) $value . '%';
+	$soc = gaming_hub_ecoflow_round_soc( $value );
+	if ( null === $soc ) {
+		return gaming_hub_ecoflow_unavailable_label();
+	}
+
+	if ( abs( $soc - round( $soc ) ) < 0.05 ) {
+		return (int) round( $soc ) . '%';
+	}
+
+	return number_format_i18n( $soc, 1 ) . '%';
 }
 
 /**
@@ -1530,10 +1548,7 @@ function gaming_hub_ecoflow_pack_soc_label( array $device ) {
  * @param array<string, mixed> $extra Extra battery slice.
  */
 function gaming_hub_ecoflow_extra_has_mqtt_soc( array $extra ) {
-	return isset( $extra['battery_percent'] )
-		&& is_numeric( $extra['battery_percent'] )
-		&& ! empty( $extra['capacity_source'] )
-		&& 'default' !== $extra['capacity_source'];
+	return isset( $extra['battery_percent'] ) && is_numeric( $extra['battery_percent'] );
 }
 
 /**
@@ -1562,8 +1577,10 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 		$delta['soc_source']      = 'mqtt';
 	}
 
-	$extra = isset( $delta['extra'] ) && is_array( $delta['extra'] ) ? $delta['extra'] : array();
-	if ( ! gaming_hub_ecoflow_extra_has_mqtt_soc( $extra ) ) {
+	$quota = gaming_hub_ecoflow_delta1500_quota( $delta );
+	if ( ! empty( $quota ) ) {
+		$delta['extra'] = gaming_hub_ecoflow_parse_extra_battery( $quota );
+	} elseif ( ! gaming_hub_ecoflow_extra_has_mqtt_soc( isset( $delta['extra'] ) && is_array( $delta['extra'] ) ? $delta['extra'] : array() ) ) {
 		$delta['extra'] = array(
 			'connected'       => true,
 			'battery_percent' => null,
@@ -2162,8 +2179,8 @@ function gaming_hub_rest_ecoflow_status() {
  * Enqueue EcoFlow dashboard script on EcoFlow pages.
  */
 function gaming_hub_ecoflow_scripts() {
-	$is_ecoflow = is_tag( 'ecoflow' );
-	$is_energy  = is_tag( 'energy' );
+	$is_ecoflow = is_front_page() || is_tag( 'ecoflow' );
+	$is_energy  = is_front_page() || is_tag( 'energy' );
 
 	if ( ! $is_ecoflow && ! $is_energy ) {
 		return;

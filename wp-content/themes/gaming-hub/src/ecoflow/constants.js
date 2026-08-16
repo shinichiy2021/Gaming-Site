@@ -85,6 +85,34 @@ export function flowSpeed( watts ) {
 	return Math.max( 0.12, Math.min( 0.85, 900 / Math.max( watts, 1 ) ) );
 }
 
+export function parseSoc( value ) {
+	if ( value === null || value === undefined || value === '' ) {
+		return null;
+	}
+
+	const soc = Number( value );
+	if ( ! Number.isFinite( soc ) ) {
+		return null;
+	}
+
+	return Math.round( Math.max( 0, Math.min( 100, soc ) ) * 10 ) / 10;
+}
+
+export function formatSoc( value ) {
+	const soc = parseSoc( value );
+	if ( soc === null ) {
+		return ( typeof window !== 'undefined' && window.gamingHubT )
+			? window.gamingHubT( '未取得' )
+			: '未取得';
+	}
+
+	if ( Math.abs( soc - Math.round( soc ) ) < 0.05 ) {
+		return `${ Math.round( soc ) }%`;
+	}
+
+	return `${ soc.toFixed( 1 ) }%`;
+}
+
 export function formatWatts( value ) {
 	if ( value === null || value === undefined ) {
 		return ( typeof window !== 'undefined' && window.gamingHubT )

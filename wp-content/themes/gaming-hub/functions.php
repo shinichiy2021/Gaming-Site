@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.9.53' );
+define( 'GAMING_HUB_VERSION', '1.9.57' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -89,6 +89,73 @@ require get_template_directory() . '/inc/powerwall-home.php';
 require get_template_directory() . '/inc/powerwall-model3.php';
 require get_template_directory() . '/inc/powerwall-cost.php';
 require get_template_directory() . '/inc/tesla.php';
+
+/**
+ * Front-page section hash for a hub block.
+ *
+ * @param string               $section Section id without #.
+ * @param array<string, mixed> $query   Optional query args.
+ */
+function gaming_hub_hub_section_url( $section, $query = array() ) {
+	$section = sanitize_title( $section );
+	$url     = home_url( '/' );
+	if ( ! empty( $query ) ) {
+		$url = add_query_arg( $query, $url );
+	}
+
+	return $url . '#' . $section;
+}
+
+/**
+ * Map a legacy page/tag URL to a hub section id.
+ *
+ * @param string $url Absolute or relative URL.
+ */
+function gaming_hub_url_hub_section( $url ) {
+	$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
+	$path = untrailingslashit( $path );
+	$map  = array(
+		'/tag/ecoflow' => 'ecoflow',
+		'/tag/energy'  => 'energy',
+		'/powerwall'   => 'powerwall',
+		'/pokemon-go'  => 'pokemon-go',
+	);
+
+	return isset( $map[ $path ] ) ? $map[ $path ] : '';
+}
+
+/**
+ * Send old section pages to the one-page hub with the same jump target.
+ */
+function gaming_hub_redirect_legacy_section_pages() {
+	if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || is_front_page() ) {
+		return;
+	}
+
+	$section = '';
+	if ( is_tag( 'ecoflow' ) ) {
+		$section = 'ecoflow';
+	} elseif ( is_tag( 'energy' ) ) {
+		$section = 'energy';
+	} elseif ( is_page( 'powerwall' ) ) {
+		$section = 'powerwall';
+	} elseif ( is_page( 'pokemon-go' ) ) {
+		$section = 'pokemon-go';
+	}
+
+	if ( '' === $section ) {
+		return;
+	}
+
+	$query = array();
+	if ( ! empty( $_GET['tesla_connected'] ) ) {
+		$query['tesla_connected'] = '1';
+	}
+
+	wp_safe_redirect( gaming_hub_hub_section_url( $section, $query ), 301 );
+	exit;
+}
+add_action( 'template_redirect', 'gaming_hub_redirect_legacy_section_pages' );
 
 function gaming_hub_setup() {
 	load_theme_textdomain( 'gaming-hub', get_template_directory() . '/languages' );
@@ -526,11 +593,10 @@ add_action( 'customize_register', 'gaming_hub_customize_register_tesla' );
 
 function gaming_hub_fallback_menu() {
 	echo '<ul class="nav-menu">';
-	echo '<li><a href="' . esc_url( home_url( '/' ) ) . '">' . esc_html__( 'Home', 'gaming-hub' ) . '</a></li>';
-	echo '<li><a href="' . esc_url( gaming_hub_pokemon_go_url() ) . '">' . esc_html__( 'Pokémon GO', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_ecoflow_url() ) . '">' . esc_html__( 'EcoFlow', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_energy_url() ) . '">' . esc_html__( 'Energy', 'gaming-hub' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( gaming_hub_powerwall_url() ) . '">' . esc_html__( 'Powerwall', 'gaming-hub' ) . '</a></li>';
+	echo '<li><a href="' . esc_url( gaming_hub_pokemon_go_url() ) . '">' . esc_html__( 'Pokémon GO', 'gaming-hub' ) . '</a></li>';
 	echo '</ul>';
 }
 
@@ -588,3 +654,21 @@ function gaming_hub_hide_nav_categories( $items ) {
 	);
 }
 add_filter( 'wp_nav_menu_objects', 'gaming_hub_hide_nav_categories' );
+
+/**
+ * Keep menu items as in-page jump links to the combined hub.
+ *
+ * @param array<int, WP_Post> $items Menu items.
+ * @return array<int, WP_Post>
+ */
+function gaming_hub_nav_hub_section_urls( $items ) {
+	foreach ( $items as $item ) {
+		$section = gaming_hub_url_hub_section( $item->url ?? '' );
+		if ( '' !== $section ) {
+			$item->url = gaming_hub_hub_section_url( $section );
+		}
+	}
+
+	return $items;
+}
+add_filter( 'wp_nav_menu_objects', 'gaming_hub_nav_hub_section_urls' );

@@ -143,6 +143,10 @@ function gaming_hub_ecoflow_delta1500_apply_rescue_floor( array $delta, $load_w,
 		return $delta;
 	}
 
+	if ( function_exists( 'gaming_hub_ecoflow_delta1500_has_live_soc' ) && gaming_hub_ecoflow_delta1500_has_live_soc( $delta ) ) {
+		return $delta;
+	}
+
 	$remain = isset( $delta['remain_capacity'] ) && is_numeric( $delta['remain_capacity'] )
 		? (int) round( (float) $delta['remain_capacity'] )
 		: null;

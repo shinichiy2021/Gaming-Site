@@ -55,10 +55,18 @@
 	}
 
 	function formatPercent(value) {
-		if (value === null || value === undefined) {
+		if (value === null || value === undefined || value === '') {
 			return unavailableLabel;
 		}
-		return Number(value) + '%';
+		const soc = Number(value);
+		if (!Number.isFinite(soc)) {
+			return unavailableLabel;
+		}
+		const rounded = Math.round(Math.max(0, Math.min(100, soc)) * 10) / 10;
+		if (Math.abs(rounded - Math.round(rounded)) < 0.05) {
+			return Math.round(rounded) + '%';
+		}
+		return rounded.toFixed(1) + '%';
 	}
 
 	function formatMinutes(minutes) {
