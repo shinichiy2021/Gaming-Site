@@ -21,10 +21,17 @@
 	const unavailableLabel = (gamingHubEcoflow.labels && gamingHubEcoflow.labels.unavailable) || t('未取得');
 
 	function formatWatts(value) {
-		if (value === null || value === undefined) {
+		if (value === null || value === undefined || value === '') {
 			return unavailableLabel;
 		}
-		return Math.round(value).toLocaleString() + ' W';
+		const watts = Math.round(Number(value));
+		if (!Number.isFinite(watts)) {
+			return unavailableLabel;
+		}
+		if (watts === 0) {
+			return t('待機');
+		}
+		return watts.toLocaleString() + ' W';
 	}
 
 	function formatTemp(value) {
@@ -220,12 +227,18 @@
 			delta: delta,
 			link_watts: 0,
 			home_out: Number(pro.ac_out) || 0,
-			ups_out: data.ups_plug && data.ups_plug.source === 'ecoflow' && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
-				? Number(data.ups_plug.watts)
-				: null,
+			ups_out: (function () {
+				if (data.ups_plug && data.ups_plug.source === 'ecoflow' && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined) {
+					return Number(data.ups_plug.watts);
+				}
+				if (data.secondary && data.secondary.ac_out !== null && data.secondary.ac_out !== undefined) {
+					return Number(data.secondary.ac_out);
+				}
+				return null;
+			}()),
 			ups_source: data.ups_plug && data.ups_plug.source
 				? data.ups_plug.source
-				: 'unavailable',
+				: (data.secondary && data.secondary.ac_out !== null && data.secondary.ac_out !== undefined ? 'ecoflow' : 'unavailable'),
 			solar_in_source: (data.secondary && data.secondary.solar_in_source) || data.solar_in_source || 'unavailable',
 			extra: extraBatterySlice(delta.extra || (data.secondary && data.secondary.extra)),
 		};
@@ -558,7 +571,7 @@
 		if (!hours || !hours.length) {
 			return;
 		}
-		const cap = Math.max(1, Number(plan && plan.solar_capacity_w) || 1500);
+		const cap = Math.max(1, Number(plan && plan.solar_capacity_w) || 1300);
 		const points = [];
 		for (let hour = 0; hour < 24; hour += 1) {
 			const watts = Math.max(0, Number(hours[hour]) || 0);
@@ -599,51 +612,152 @@
 		return y + '-' + m + '-' + d;
 	}
 
-	function renderSlots(slots) {
-		const list = dashboard.querySelector('[data-ecoflow-slots]');
-		if (!list || !Array.isArray(slots)) {
+	function renderPlanChart(plan) {
+		const track = dashboard.querySelector('[data-ecoflow-plan-track]');
+		if (!track) {
 			return;
 		}
 
+		const slots = Array.isArray(plan && plan.slots) ? plan.slots : [];
 		const today = todayStamp();
 		const hour = new Date().getHours();
-		list.innerHTML = '';
+		const chargeW = Math.max(1, Number(plan && plan.charge_w) || 1000);
+		const byHour = {};
+		const nextLabels = [];
+		const yenByHour = [];
+		let lastYen = 30;
 
 		slots.forEach(function (slot) {
-			const li = document.createElement('li');
+			if (!slot) {
+				return;
+			}
+			if (slot.date === today && slot.hour !== null && slot.hour !== undefined) {
+				byHour[Number(slot.hour)] = slot;
+			} else if (slot.date && slot.date !== today && slot.mode === 'charge' && slot.label) {
+				nextLabels.push(slot.label);
+			}
+		});
+
+		const socSeries = plan && Array.isArray(plan.soc_series) ? plan.soc_series : [];
+
+		for (let h = 0; h < 24; h += 1) {
+			const slot = byHour[h] || {};
 			const mode = slot.mode || 'idle';
-			const isNow = slot.date === today && Number(slot.hour) === hour;
-			const isNext = slot.date && slot.date !== today;
-			li.className = 'ecoflow-plan-slot is-' + mode
-				+ (isNow ? ' is-now' : '')
-				+ (isNext ? ' is-tomorrow' : '');
-
-			const hourEl = document.createElement('span');
-			hourEl.className = 'ecoflow-plan-slot-hour';
-			hourEl.textContent = (isNext ? t('翌 ') : '') + (slot.label || '');
-			li.appendChild(hourEl);
-
-			const modeEl = document.createElement('span');
-			modeEl.className = 'ecoflow-plan-slot-mode';
-			modeEl.textContent = slotModeLabel(mode);
-			li.appendChild(modeEl);
-
-			const wattsEl = document.createElement('span');
-			wattsEl.className = 'ecoflow-plan-slot-watts';
-			wattsEl.textContent = slot.watts === null || slot.watts === undefined
-				? '—'
-				: Number(slot.watts).toLocaleString() + ' W';
-			li.appendChild(wattsEl);
-
-			if (slot.yen !== null && slot.yen !== undefined) {
-				const yenEl = document.createElement('span');
-				yenEl.className = 'ecoflow-plan-slot-yen';
-				yenEl.textContent = formatYen(slot.yen);
-				li.appendChild(yenEl);
+			const isNow = h === hour;
+			const isCharge = mode === 'charge';
+			const soc = socSeries[h];
+			const hasSoc = soc !== null && soc !== undefined && !Number.isNaN(Number(soc));
+			const height = hasSoc ? Math.max(0, Math.min(100, Number(soc))) : 0;
+			const watts = isCharge ? Number(slot.watts != null ? slot.watts : chargeW) : 0;
+			const chargeH = isCharge ? Math.max(8, Math.min(100, (watts / chargeW) * 100)) : 0;
+			const col = track.querySelector('[data-ecoflow-plan-col][data-hour="' + h + '"]');
+			if (col) {
+				col.className = 'ecoflow-rate-col ecoflow-plan-col is-' + mode
+					+ (isNow ? ' is-now' : '')
+					+ (hasSoc ? '' : ' is-empty');
+				let pip = col.querySelector('.ecoflow-rate-now-pip');
+				if (isNow && !pip) {
+					pip = document.createElement('span');
+					pip.className = 'ecoflow-rate-now-pip';
+					pip.textContent = t('NOW');
+					col.insertBefore(pip, col.firstChild);
+				} else if (!isNow && pip) {
+					pip.remove();
+				}
+				const chargeBar = col.querySelector('[data-ecoflow-plan-charge-bar]');
+				if (chargeBar) {
+					chargeBar.style.height = chargeH.toFixed(1) + '%';
+					chargeBar.hidden = !isCharge;
+				}
+				const bar = col.querySelector('[data-ecoflow-plan-bar]');
+				if (bar) {
+					bar.style.height = height.toFixed(1) + '%';
+					const tips = [h + ':00', slotModeLabel(mode)];
+					if (hasSoc) {
+						tips.push(Math.round(height) + '%');
+					}
+					if (isCharge) {
+						tips.push(formatWatts(watts));
+					}
+					if (slot.yen !== null && slot.yen !== undefined) {
+						tips.push(formatYen(slot.yen));
+					}
+					bar.setAttribute('title', tips.join(' · '));
+				}
 			}
 
-			list.appendChild(li);
+			if (slot.yen !== null && slot.yen !== undefined) {
+				lastYen = Number(slot.yen);
+			}
+			yenByHour[h] = lastYen;
+		}
+
+		dashboard.querySelectorAll('[data-ecoflow-plan-hour]').forEach(function (el) {
+			const h = Number(el.getAttribute('data-hour'));
+			const isNow = h === hour;
+			el.classList.toggle('is-now', isNow);
+			el.textContent = (h % 3 === 0 || isNow) ? String(h) : '';
 		});
+
+		const nowSlot = byHour[hour] || {};
+		const nowMode = nowSlot.mode || 'idle';
+		setField('plan_now_mode', slotModeLabel(nowMode));
+		setField(
+			'plan_now_watts',
+			nowSlot.watts === null || nowSlot.watts === undefined
+				? '—'
+				: formatWatts(nowSlot.watts)
+		);
+		const nowStat = dashboard.querySelector('.ecoflow-plan-stat-now');
+		if (nowStat) {
+			nowStat.className = 'ecoflow-rates-stat ecoflow-plan-stat-now is-' + nowMode;
+		}
+
+		const nextEl = dashboard.querySelector('[data-ecoflow-plan-next]');
+		if (nextEl) {
+			if (nextLabels.length) {
+				nextEl.hidden = false;
+				nextEl.textContent = t('翌 ') + nextLabels.join('、') + t(' も充電');
+			} else {
+				nextEl.hidden = true;
+				nextEl.textContent = '';
+			}
+		}
+
+		const solarHours = plan && (plan.solar_chart || plan.solar_hours);
+		const solarLine = dashboard.querySelector('[data-ecoflow-plan-solar-line]');
+		const solarArea = dashboard.querySelector('[data-ecoflow-plan-solar-area]');
+		if (solarHours && (solarLine || solarArea)) {
+			const cap = Math.max(1, Number(plan && plan.solar_capacity_w) || 1300);
+			const solarPoints = [];
+			for (let h = 0; h < 24; h += 1) {
+				const watts = Math.max(0, Number(solarHours[h]) || 0);
+				const y = Math.max(0, Math.min(100, 100 - (watts / cap) * 100));
+				solarPoints.push(((h + 0.5) * 10).toFixed(1) + ',' + y.toFixed(1));
+			}
+			const joined = solarPoints.join(' ');
+			if (solarLine) {
+				solarLine.setAttribute('points', joined);
+			}
+			if (solarArea) {
+				solarArea.setAttribute('points', joined ? ('0,100 ' + joined + ' 240,100') : '');
+			}
+		}
+
+		const priceLine = dashboard.querySelector('[data-ecoflow-plan-price-line]');
+		if (priceLine && yenByHour.length) {
+			const min = 0;
+			const max = Math.max(Math.max.apply(null, yenByHour), min + 1);
+			const span = Math.max(1, max - min);
+			const points = yenByHour.map(function (yen, h) {
+				const y = Math.max(0, Math.min(100, 100 - ((Number(yen) - min) / span) * 100));
+				return ((h + 0.5) * 10).toFixed(1) + ',' + y.toFixed(1);
+			});
+			priceLine.setAttribute('points', points.join(' '));
+			dashboard.querySelectorAll('[data-ecoflow-plan-yen-tick]').forEach(function (el, i) {
+				el.textContent = (max - (span * i / 4)).toFixed(1);
+			});
+		}
 	}
 
 	function applyChargePlan(plan) {
@@ -687,10 +801,19 @@
 			);
 		}
 		setField('plan_ac', formatKwh(plan.ac_today_kwh));
-		setField(
-			'plan_ac_meta',
-			t('いま ') + Number(plan.ac_now_w || 0).toLocaleString() + t(' W · 設定 ') + Number(plan.ac_setpoint_c || 26).toFixed(0) + '℃'
-		);
+		if (plan.ac_weekend) {
+			setField(
+				'plan_ac_meta',
+				t('いま ') + Number(plan.ac_now_w || 0).toLocaleString() + t(' W · 設定 ') + Number(plan.ac_setpoint_c || 26).toFixed(0) + '℃'
+			);
+		} else if (plan.ac_on) {
+			setField(
+				'plan_ac_meta',
+				t('いま ') + Number(plan.ac_now_w || 0).toLocaleString() + t(' W · 平日は 28℃超でオン')
+			);
+		} else {
+			setField('plan_ac_meta', t('平日は 28℃超でオン'));
+		}
 		setField('plan_solar_today', formatKwh(plan.solar_today_kwh));
 		setField('plan_solar', formatKwh(plan.solar_remaining_kwh));
 		setField('plan_load', formatKwh(plan.room_remaining_kwh != null ? plan.room_remaining_kwh : plan.load_remaining_kwh));
@@ -714,7 +837,7 @@
 		setField('plan_battery', formatKwh(plan.usable_battery_kwh));
 		updateSocLine(plan);
 		updateSolarLine(plan);
-		renderSlots(plan.slots || []);
+		renderPlanChart(plan);
 		showSendNotice(plan.send_notice);
 	}
 
@@ -904,7 +1027,7 @@
 			if (data.solar_in === null || data.solar_in === undefined || lvSource === 'unavailable') {
 				pvNow.textContent = unavailableLabel;
 			} else {
-				pvNow.textContent = Math.round(Number(data.solar_in)).toLocaleString() + ' W';
+				pvNow.textContent = formatWatts(data.solar_in);
 			}
 		}
 
@@ -912,17 +1035,20 @@
 			setField('secondary_charge_state', data.secondary.charge_state);
 			const upsSource = data.ups_plug && data.ups_plug.source
 				? data.ups_plug.source
-				: 'unavailable';
+				: (data.secondary.ac_out !== null && data.secondary.ac_out !== undefined ? 'ecoflow' : 'unavailable');
+			const upsWatts = data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
+				? data.ups_plug.watts
+				: data.secondary.ac_out;
 			setField(
 				'ups_out',
-				upsSource === 'ecoflow' && data.ups_plug && data.ups_plug.watts !== null && data.ups_plug.watts !== undefined
-					? formatWatts(data.ups_plug.watts)
+				upsSource === 'ecoflow' && upsWatts !== null && upsWatts !== undefined
+					? formatWatts(upsWatts)
 					: unavailableLabel
 			);
 			setField(
 				'ups_out_label',
 				upsSource === 'ecoflow'
-					? t('AC 出力 → UPS (1500 · MQTT)')
+					? t('AC 出力 → UPS (1500 · 実測 · MQTT)')
 					: t('AC 出力 → UPS (未取得)')
 			);
 			const extraPack = data.secondary.extra && typeof data.secondary.extra === 'object'

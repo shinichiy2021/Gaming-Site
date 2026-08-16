@@ -29,7 +29,7 @@ $now_hour = (int) wp_date( 'G' );
 
 $soc_series = is_array( $plan['soc_series'] ?? null ) ? $plan['soc_series'] : array();
 $solar_hours = is_array( $plan['solar_chart'] ?? null ) ? $plan['solar_chart'] : ( is_array( $plan['solar_hours'] ?? null ) ? $plan['solar_hours'] : array() );
-$solar_cap   = max( 1, (int) ( $plan['solar_capacity_w'] ?? 1500 ) );
+$solar_cap   = max( 1, (int) ( $plan['solar_capacity_w'] ?? ( defined( 'GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W' ) ? GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W : 1300 ) ) );
 $solar_now   = isset( $args['solar_now'] ) && null !== $args['solar_now']
 	? (int) $args['solar_now']
 	: (int) ( $plan['solar_now_w'] ?? ( $solar_hours[ $now_hour ] ?? 0 ) );
@@ -103,7 +103,7 @@ $solar_area     = $solar_points ? ( '0,100 ' . $solar_polyline . ' 240,100' ) : 
 			</div>
 			<div class="ecoflow-rates-stat ecoflow-rates-stat-pv">
 				<span><?php esc_html_e( 'PV', 'gaming-hub' ); ?></span>
-				<strong data-ecoflow-pv-now><?php echo esc_html( number_format_i18n( $solar_now ) . ' W' ); ?></strong>
+				<strong data-ecoflow-pv-now><?php echo esc_html( gaming_hub_format_ecoflow_watts( $solar_now ) ); ?></strong>
 				<small data-ecoflow-pv-today>
 					<?php
 					if ( isset( $plan['solar_today_kwh'] ) ) {
@@ -195,7 +195,7 @@ $solar_area     = $solar_points ? ( '0,100 ' . $solar_polyline . ' 240,100' ) : 
 					<?php endforeach; ?>
 				</div>
 			</div>
-			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量%（過去は実測 · 先は予測）· 橙: 発電（過去は実測 · 先は見込み、最大 1.5 kW）· 青緑線: LOOOP 請求単価', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量%（過去は実測 · 先は予測）· 橙: 発電（過去は実測 · 先は見込み、最大 1.3 kW · Pro 800 + 1500 500）· 青緑線: LOOOP 請求単価', 'gaming-hub' ); ?></p>
 		<?php endif; ?>
 	<?php endif; ?>
 </section>

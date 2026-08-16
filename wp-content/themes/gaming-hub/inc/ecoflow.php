@@ -18,14 +18,15 @@ require get_template_directory() . '/inc/ecoflow-delta1500.php';
 
 define( 'GAMING_HUB_ECOFLOW_TAG_SLUG', 'ecoflow' );
 define( 'GAMING_HUB_ENERGY_TAG_SLUG', 'energy' );
-define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY', 'gaming_hub_ecoflow_status_v13' );
+define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY', 'gaming_hub_ecoflow_status_v14' );
 define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_TTL', 5 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH', 2500 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH', 1000 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_BASELINE_SOC', 6 );
-define( 'GAMING_HUB_ECOFLOW_DELTA1500_LV_RATIO', 0.5 );
+define( 'GAMING_HUB_ECOFLOW_DELTA1500_LV_RATIO', GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W / GAMING_HUB_ECOFLOW_SOLAR_PRO_W );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_SOC_OPTION', 'gaming_hub_delta1500_soc_v2' );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_SOC_LOCK', 'gaming_hub_delta1500_soc_lock' );
+define( 'GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W', 8 );
 
 /**
  * Register EcoFlow post tag on theme setup.
@@ -922,7 +923,7 @@ function gaming_hub_ecoflow_merge_bridge_quota( array $delta ) {
 		$delta['ac_in'] = (int) round( $ac_in );
 	}
 
-	return $delta;
+	return gaming_hub_ecoflow_sync_device_activity( $delta );
 }
 
 /**
@@ -1347,7 +1348,11 @@ function gaming_hub_ecoflow_independent_delta1500( $device_sn = '' ) {
  * @param string $file Filename in assets/images.
  */
 function gaming_hub_ecoflow_image_url( $file ) {
-	return get_template_directory_uri() . '/assets/images/' . ltrim( $file, '/' );
+	return add_query_arg(
+		'v',
+		GAMING_HUB_VERSION,
+		get_template_directory_uri() . '/assets/images/' . ltrim( $file, '/' )
+	);
 }
 
 /**
@@ -1401,32 +1406,32 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 }
 
 /**
- * Use Delta 1500 AC output for UPS when SwitchBot is unavailable.
+ * Use Delta 1500 live MQTT AC output for UPS when SwitchBot is unavailable.
  *
  * @param array<string, mixed> $status EcoFlow status.
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_attach_ups_ac_out( array $status ) {
-	if (
-		isset( $status['ups_plug']['source'] ) && 'ecoflow' === (string) $status['ups_plug']['source']
-		&& isset( $status['ups_plug']['watts'] ) && is_numeric( $status['ups_plug']['watts'] )
-	) {
+	$delta = isset( $status['secondary'] ) && is_array( $status['secondary'] )
+		? $status['secondary']
+		: array();
+
+	$ac_out = gaming_hub_ecoflow_ac_output_watts( gaming_hub_ecoflow_delta1500_quota( $delta ) );
+	if ( null === $ac_out && isset( $delta['ac_out'] ) && is_numeric( $delta['ac_out'] ) ) {
+		$ac_out = (float) $delta['ac_out'];
+	}
+
+	if ( null === $ac_out ) {
 		return $status;
 	}
 
-	$ac_out = 0;
-	if ( isset( $status['secondary']['ac_out'] ) && is_numeric( $status['secondary']['ac_out'] ) ) {
-		$ac_out = max( 0, (float) $status['secondary']['ac_out'] );
-	}
-
-	if ( $ac_out <= 0 ) {
-		return $status;
-	}
-
-	$status['ups_plug'] = array(
-		'watts'      => (int) round( $ac_out ),
+	$watts = (int) round( max( 0, (float) $ac_out ) );
+	$status['secondary']['ac_out'] = $watts;
+	$status['secondary']           = gaming_hub_ecoflow_sync_device_activity( $status['secondary'] );
+	$status['ups_plug']            = array(
+		'watts'      => $watts,
 		'source'     => 'ecoflow',
-		'online'     => ! empty( $status['secondary']['online'] ),
+		'online'     => ! empty( $delta['online'] ),
 		'updated_at' => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
 	);
 
@@ -1610,11 +1615,55 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 		}
 	}
 
-	if ( 'ecoflow' !== gaming_hub_ecoflow_ups_source( $status ) ) {
+	$ac_out = gaming_hub_ecoflow_ac_output_watts( gaming_hub_ecoflow_delta1500_quota( $status['secondary'] ) );
+	if ( null !== $ac_out ) {
+		$watts                                 = (int) round( max( 0, (float) $ac_out ) );
+		$status['secondary']['ac_out']        = $watts;
+		$status['secondary']                  = gaming_hub_ecoflow_sync_device_activity( $status['secondary'] );
+		$status['ups_plug']                    = array(
+			'watts'      => $watts,
+			'source'     => 'ecoflow',
+			'online'     => ! empty( $status['secondary']['online'] ),
+			'updated_at' => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		);
+	} elseif ( 'ecoflow' !== gaming_hub_ecoflow_ups_source( $status ) ) {
 		unset( $status['ups_plug'] );
 	}
 
 	return $status;
+}
+
+/**
+ * Keep charge/discharge flags in sync with live watts.
+ *
+ * Delta 1500 often reports pd.chgDsgState = 0 (idle) while AC out is active.
+ *
+ * @param array<string, mixed> $device Device status slice.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_sync_device_activity( array $device ) {
+	if ( ! empty( $device['is_charging'] ) ) {
+		return $device;
+	}
+
+	$out = 0.0;
+	foreach ( array( 'ac_out', 'output_total', 'dc_out' ) as $key ) {
+		if ( isset( $device[ $key ] ) && is_numeric( $device[ $key ] ) ) {
+			$out = max( $out, (float) $device[ $key ] );
+		}
+	}
+
+	if ( $out < GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W ) {
+		return $device;
+	}
+
+	$device['is_discharging'] = true;
+	$state                    = (string) ( $device['charge_state'] ?? '' );
+	if ( '' === $state || false !== strpos( $state, '待機' ) || 0 === strcasecmp( $state, 'Idle' ) || 0 === strcasecmp( $state, 'Standby' ) ) {
+		$device['charge_state'] = __( '放電中', 'gaming-hub' );
+	}
+
+	return $device;
 }
 
 /**
@@ -1682,43 +1731,48 @@ function gaming_hub_ecoflow_quota_value_live( $quota, $keys ) {
 }
 
 /**
- * AC output watts. Prefer a single inverter reading so UPS matches the EcoFlow app.
+ * AC output watts from live MQTT (not a stale quotaMap snapshot).
  *
- * Delta 1500 MQTT cache mixes live params and quotaMap snapshots; summing
- * inv.outputWatts + pd.outputWatts double-counts the same AC load.
+ * Delta 3 1500: EcoFlow app AC output is pd.outputWatts. Do not sum
+ * inv.outputWatts + pd.outputWatts — they are the same AC load.
  *
  * @param array<string, mixed> $quota Quota map.
  * @return float|null
  */
 function gaming_hub_ecoflow_ac_output_watts( $quota ) {
-	$outlets = gaming_hub_ecoflow_sum_quota(
-		$quota,
-		array(
-			'powGetAcLvOut',
-			'powGetAcHvOut',
-			'powGetAcLvTt30Out',
-		),
-		true
-	);
+	$sum   = 0.0;
+	$found = false;
 
-	if ( null !== $outlets && $outlets > 0 ) {
-		return $outlets;
+	foreach ( array( 'powGetAcLvOut', 'powGetAcHvOut', 'powGetAcLvTt30Out' ) as $key ) {
+		$value = gaming_hub_ecoflow_quota_value_live( $quota, array( $key ) );
+		if ( null === $value ) {
+			continue;
+		}
+
+		$sum  += abs( (float) $value );
+		$found = true;
 	}
 
-	return gaming_hub_ecoflow_quota_value(
-		$quota,
-		array(
-			'quotaMap.inv.outputWatts',
-			'data.quotaMap.inv.outputWatts',
-			'quotaMap.pd.outputWatts',
-			'data.quotaMap.pd.outputWatts',
-			'pd.outputWatts',
-			'pd.wattsOutSum',
-			'inv.outputWatts',
-			'pd.acOutWatts',
-			'inv.outWatts',
-		)
-	);
+	if ( $found && $sum > 0 ) {
+		return $sum;
+	}
+
+	$pd_out = gaming_hub_ecoflow_quota_value_live( $quota, array( 'pd.outputWatts', 'pd.acOutWatts' ) );
+	if ( null !== $pd_out ) {
+		return abs( (float) $pd_out );
+	}
+
+	$inv_out = gaming_hub_ecoflow_quota_value_live( $quota, array( 'inv.outputWatts', 'inv.outWatts' ) );
+	if ( null !== $inv_out ) {
+		return abs( (float) $inv_out );
+	}
+
+	$out_sum = gaming_hub_ecoflow_quota_value_live( $quota, array( 'pd.wattsOutSum' ) );
+	if ( null !== $out_sum ) {
+		return abs( (float) $out_sum );
+	}
+
+	return $found ? $sum : null;
 }
 
 /**
@@ -1846,22 +1900,24 @@ function gaming_hub_ecoflow_is_charging( $quota, $input, $output, $chg_dsg_state
 		$chg_dsg_state = gaming_hub_ecoflow_chg_dsg_state( $quota );
 	}
 
-	if ( null !== $chg_dsg_state ) {
-		return 2 === (int) $chg_dsg_state;
+	if ( 2 === (int) $chg_dsg_state ) {
+		return true;
 	}
 
-	$flags = array( 'pd.chgState', 'bms_bmsStatus.chgState', 'cms.chgState' );
-	foreach ( $flags as $flag ) {
-		if ( isset( $quota[ $flag ] ) ) {
-			return (int) $quota[ $flag ] === 1;
+	if ( null === $chg_dsg_state ) {
+		$flags = array( 'pd.chgState', 'bms_bmsStatus.chgState', 'cms.chgState' );
+		foreach ( $flags as $flag ) {
+			if ( isset( $quota[ $flag ] ) ) {
+				return (int) $quota[ $flag ] === 1;
+			}
 		}
 	}
 
 	if ( null !== $input && null !== $output ) {
-		return $input > $output && $input > 0;
+		return $input > $output && $input >= GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W;
 	}
 
-	return null !== $input && $input > 0 && ( null === $output || $output <= 0 );
+	return null !== $input && $input >= GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W && ( null === $output || $output <= 0 );
 }
 
 /**
@@ -1877,11 +1933,21 @@ function gaming_hub_ecoflow_is_discharging( $quota, $input, $output, $chg_dsg_st
 		$chg_dsg_state = gaming_hub_ecoflow_chg_dsg_state( $quota );
 	}
 
-	if ( null !== $chg_dsg_state ) {
-		return 1 === (int) $chg_dsg_state;
+	if ( 1 === (int) $chg_dsg_state ) {
+		return true;
 	}
 
-	return null !== $output && $output > 0 && ( null === $input || $input <= $output );
+	$out = 0.0;
+	if ( null !== $output && is_numeric( $output ) ) {
+		$out = max( $out, (float) $output );
+	}
+
+	$ac_out = gaming_hub_ecoflow_ac_output_watts( $quota );
+	if ( null !== $ac_out ) {
+		$out = max( $out, (float) $ac_out );
+	}
+
+	return $out >= GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W;
 }
 
 /**
@@ -1918,16 +1984,8 @@ function gaming_hub_ecoflow_charge_state_label( $quota, $is_charging, $is_discha
 		return __( '充電中', 'gaming-hub' );
 	}
 
-	if ( null !== $chg_dsg_state ) {
-		switch ( (int) $chg_dsg_state ) {
-			case 1:
-				return __( '放電中', 'gaming-hub' );
-			case 0:
-				return __( '待機中', 'gaming-hub' );
-		}
-	}
-
-	if ( $is_discharging || ( null !== $output && $output > 0 ) ) {
+	$out_w = ( null !== $output && is_numeric( $output ) ) ? (float) $output : 0.0;
+	if ( 1 === (int) $chg_dsg_state || $is_discharging || $out_w >= GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W ) {
 		return __( '放電中', 'gaming-hub' );
 	}
 
@@ -1944,11 +2002,16 @@ function gaming_hub_ecoflow_charge_state_label( $quota, $is_charging, $is_discha
  * @param float|null $value Watts.
  */
 function gaming_hub_format_ecoflow_watts( $value ) {
-	if ( null === $value ) {
-		return '—';
+	if ( null === $value || '' === $value || ! is_numeric( $value ) ) {
+		return gaming_hub_ecoflow_unavailable_label();
 	}
 
-	return number_format_i18n( $value, 0 ) . ' W';
+	$watts = (int) round( (float) $value );
+	if ( 0 === $watts ) {
+		return __( '待機', 'gaming-hub' );
+	}
+
+	return number_format_i18n( $watts, 0 ) . ' W';
 }
 
 /**
@@ -2216,6 +2279,7 @@ function gaming_hub_ecoflow_scripts() {
 					'dcLink'      => __( 'DC 12V', 'gaming-hub' ),
 					'acLink'      => __( 'DC 12V', 'gaming-hub' ),
 					'acOut'       => __( 'AC 出力', 'gaming-hub' ),
+					'acOutMeasured' => __( '実測 · MQTT', 'gaming-hub' ),
 					'upsPlug'     => __( 'SwitchBot Plug', 'gaming-hub' ),
 					'lvMeasured'  => __( '実測 · MQTT', 'gaming-hub' ),
 					'flow'        => __( '電力フロー', 'gaming-hub' ),
@@ -2230,6 +2294,7 @@ function gaming_hub_ecoflow_scripts() {
 					'extra' => gaming_hub_ecoflow_image_url( 'ecoflow-extra-gaming.jpg' ),
 					'room'  => gaming_hub_ecoflow_image_url( 'ecoflow-room-gaming.jpg' ),
 					'ups'   => gaming_hub_ecoflow_image_url( 'ecoflow-ups-gaming.jpg' ),
+					'grid'  => gaming_hub_ecoflow_image_url( 'tesla-grid-gaming.jpg' ),
 				),
 			)
 		);
