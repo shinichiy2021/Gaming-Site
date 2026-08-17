@@ -149,9 +149,12 @@ export default function PowerwallFlowDiagram( { initial, labels } ) {
 						extra={ model3.is_charging ? (
 							<p className="pw-hud-charge">
 								{ model3.charge_rate_label || '—' }
+								{ model3.drop_label && model3.drop_label !== '—' ? ` · ${ model3.drop_label }` : '' }
 								{ model3.charge_eta_label ? ` · ${ model3.charge_eta_label }` : '' }
 							</p>
-						) : null }
+						) : (
+							model3.range_label ? <p className="pw-hud-charge">{ model3.range_label }</p> : null
+						) }
 					/>
 				</div>
 			</div>
@@ -170,9 +173,9 @@ export default function PowerwallFlowDiagram( { initial, labels } ) {
 					<span>{ labels.model3 }</span>
 					<strong>{ null !== m3Soc ? `${ m3Soc }%` : '—' }</strong>
 					{ model3.is_charging ? (
-						<small>{ model3.charge_rate_label || '—' }{ model3.charge_eta_label ? ` · ${ model3.charge_eta_label }` : '' }</small>
+						<small>{ model3.charge_rate_label || '—' }{ model3.drop_label && model3.drop_label !== '—' ? ` · ${ model3.drop_label }` : '' }{ model3.charge_eta_label ? ` · ${ model3.charge_eta_label }` : '' }</small>
 					) : (
-						<small>{ model3.charge_state || '—' }</small>
+						<small>{ model3.range_label || model3.charge_state || '—' }</small>
 					) }
 				</div>
 				<div className="pw-flow-summary-item">

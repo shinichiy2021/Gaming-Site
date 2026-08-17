@@ -24,6 +24,9 @@ define( 'GAMING_HUB_MODEL3_CHARGE_START', 17.0 );
 /** Evening home-charging window end (fractional hour). */
 define( 'GAMING_HUB_MODEL3_CHARGE_END', 22.5 );
 
+/** Stored odometer snapshots for the daily driving quest. */
+define( 'GAMING_HUB_MODEL3_ODO_OPTION', 'gaming_hub_model3_odometer_v1' );
+
 /**
  * Daily energy to replenish after 30 km driving.
  */
@@ -131,6 +134,79 @@ function gaming_hub_powerwall_model3_demo_meta() {
 }
 
 /**
+ * Simulated daily quest km (ramps through the day toward the 30 km target).
+ *
+ * @param float $time Hour + minute/60.
+ */
+function gaming_hub_powerwall_model3_demo_today_km( $time ) {
+	$target = (float) GAMING_HUB_MODEL3_DAILY_KM;
+
+	if ( $time < 7 ) {
+		return 0.0;
+	}
+
+	if ( $time >= 22 ) {
+		return $target;
+	}
+
+	return round( $target * ( ( $time - 7 ) / ( 22 - 7 ) ), 1 );
+}
+
+/**
+ * Demo Model 3 payload with the same HUD fields as live Tesla data.
+ *
+ * @param int   $soc     Battery percent.
+ * @param bool  $charging Whether charging.
+ * @param float $watts   Charge watts.
+ * @return array<string, mixed>
+ */
+function gaming_hub_powerwall_model3_demo_status( $soc, $charging, $watts ) {
+	$soc        = max( 0, min( 100, (int) $soc ) );
+	$range_full = 450;
+	$range_km   = (int) round( $range_full * ( $soc / 100 ) );
+	$time       = (int) wp_date( 'G' ) + ( (int) wp_date( 'i' ) / 60 );
+	$today_km   = gaming_hub_powerwall_model3_demo_today_km( $time );
+	$drop_kwh   = 0.0;
+	$raid_ts    = 0;
+
+	if ( $charging ) {
+		$duration = gaming_hub_powerwall_model3_charge_duration_hours();
+		$progress = $duration > 0
+			? max( 0, min( 1, ( $time - GAMING_HUB_MODEL3_CHARGE_START ) / $duration ) )
+			: 0;
+		$drop_kwh = round( gaming_hub_powerwall_model3_daily_kwh() * $progress, 1 );
+	} else {
+		$raid_at = date_create( wp_date( 'Y-m-d' ) . ' 17:00:00', wp_timezone() );
+		if ( $raid_at && $raid_at->getTimestamp() > time() ) {
+			$raid_ts = $raid_at->getTimestamp();
+		}
+	}
+
+	return array(
+		'battery_percent'      => $soc,
+		'is_charging'          => $charging,
+		'charge_state'         => $charging ? __( 'チャージレイド', 'gaming-hub' ) : __( '待機', 'gaming-hub' ),
+		'watts'                => round( $watts ),
+		'charge_limit_percent' => 80,
+		'range_km'             => $range_km,
+		'range_full_km'        => $range_full,
+		'vehicle_name'         => 'Model 3',
+		'charge_energy_added'  => $drop_kwh,
+		'supply_kind'          => $charging ? 'home' : 'none',
+		'supply_label'         => $charging ? __( '拠点補給', 'gaming-hub' ) : __( '未接続', 'gaming-hub' ),
+		'plugged'              => $charging,
+		'scheduled_charging_ts' => $raid_ts,
+		'odometer_km'          => null,
+		'today_km'             => $today_km,
+		'today_target_km'      => GAMING_HUB_MODEL3_DAILY_KM,
+		'car_version'          => '',
+		'sentry_mode'          => false,
+		'locked'               => true,
+		'live'                 => false,
+	);
+}
+
+/**
  * Format minutes as a short Japanese duration label.
  *
  * @param int $minutes Duration in minutes.
@@ -208,6 +284,65 @@ function gaming_hub_powerwall_model3_present( array $model3 ) {
 	}
 
 	$usable_kwh = round( $battery_kwh * $soc / 100, 1 );
+	$range_km   = isset( $model3['range_km'] ) && is_numeric( $model3['range_km'] )
+		? max( 0, (int) round( (float) $model3['range_km'] ) )
+		: null;
+	$range_full = isset( $model3['range_full_km'] ) && is_numeric( $model3['range_full_km'] )
+		? max( 1, (int) round( (float) $model3['range_full_km'] ) )
+		: 450;
+	$mp_percent = null !== $range_km
+		? max( 0, min( 100, (int) round( 100 * $range_km / $range_full ) ) )
+		: $soc;
+
+	$energy_added = isset( $model3['charge_energy_added'] ) && is_numeric( $model3['charge_energy_added'] )
+		? max( 0, (float) $model3['charge_energy_added'] )
+		: 0;
+	$supply_kind  = (string) ( $model3['supply_kind'] ?? ( $is_charging ? 'home' : 'none' ) );
+	$supply_label = (string) ( $model3['supply_label'] ?? (
+		'home' === $supply_kind
+			? __( '拠点補給', 'gaming-hub' )
+			: ( 'supercharger' === $supply_kind ? __( 'フィールド補給', 'gaming-hub' ) : __( '未接続', 'gaming-hub' ) )
+	) );
+
+	$today_km     = isset( $model3['today_km'] ) && is_numeric( $model3['today_km'] )
+		? max( 0, (float) $model3['today_km'] )
+		: null;
+	$today_target = isset( $model3['today_target_km'] ) && is_numeric( $model3['today_target_km'] )
+		? max( 1, (float) $model3['today_target_km'] )
+		: (float) GAMING_HUB_MODEL3_DAILY_KM;
+	$quest_percent = null !== $today_km
+		? max( 0, min( 100, (int) round( 100 * $today_km / $today_target ) ) )
+		: 0;
+
+	$scheduled_ts = isset( $model3['scheduled_charging_ts'] ) ? (int) $model3['scheduled_charging_ts'] : 0;
+	$next_raid    = '';
+	if ( ! $is_charging && $scheduled_ts > time() ) {
+		$next_raid = sprintf(
+			/* translators: %s: scheduled charge time */
+			__( '次レイド %s', 'gaming-hub' ),
+			wp_date( 'H:i', $scheduled_ts )
+		);
+	}
+
+	$odometer_km = isset( $model3['odometer_km'] ) && is_numeric( $model3['odometer_km'] )
+		? max( 0, (float) $model3['odometer_km'] )
+		: null;
+	$patch       = trim( (string) ( $model3['car_version'] ?? '' ) );
+	$vehicle     = (string) ( $model3['vehicle_name'] ?? 'Model 3' );
+	if ( '' === $vehicle ) {
+		$vehicle = 'Model 3';
+	}
+
+	$status_key = $is_charging ? 'raid' : 'idle';
+	if ( 'レイドクリア' === (string) ( $model3['charge_state'] ?? '' ) ) {
+		$status_key = 'clear';
+	}
+
+	$badge_status = $is_charging
+		? __( 'チャージレイド', 'gaming-hub' )
+		: (string) ( $model3['charge_state'] ?? __( '待機', 'gaming-hub' ) );
+
+	$combo_label = (string) ( $model3['combo_label'] ?? '' );
 
 	return array_merge(
 		$model3,
@@ -226,6 +361,96 @@ function gaming_hub_powerwall_model3_present( array $model3 ) {
 			'battery_kwh_nominal'   => $battery_kwh,
 			'battery_kwh_estimate'  => $usable_kwh,
 			'battery_kwh_label'     => number_format_i18n( $usable_kwh, 1 ) . ' kWh',
+			'range_km'              => $range_km,
+			'range_full_km'         => $range_full,
+			'range_label'           => null !== $range_km
+				? sprintf(
+					/* translators: %s: estimated range km */
+					__( '残MP %s km', 'gaming-hub' ),
+					number_format_i18n( $range_km )
+				)
+				: '—',
+			'mp_percent'            => $mp_percent,
+			'hp_label'              => sprintf(
+				/* translators: %s: SOC percent */
+				__( 'HP %s%%', 'gaming-hub' ),
+				number_format_i18n( $soc )
+			),
+			'cap_label'             => sprintf(
+				/* translators: %s: charge limit percent */
+				__( 'チャージキャップ %s%%', 'gaming-hub' ),
+				number_format_i18n( $charge_limit )
+			),
+			'drop_kwh'              => $energy_added,
+			'drop_label'            => $energy_added > 0
+				? number_format_i18n( $energy_added, 1 ) . ' kWh'
+				: '—',
+			'supply_kind'           => $supply_kind,
+			'supply_label'          => $supply_label,
+			'plugged'               => ! empty( $model3['plugged'] ) || $is_charging,
+			'today_km'              => $today_km,
+			'today_target_km'       => $today_target,
+			'quest_percent'         => $quest_percent,
+			'quest_label'           => null !== $today_km
+				? sprintf(
+					/* translators: 1: km driven today, 2: daily target km */
+					__( '%1$s / %2$s km', 'gaming-hub' ),
+					number_format_i18n( $today_km, 1 ),
+					number_format_i18n( $today_target )
+				)
+				: '—',
+			'odometer_label'        => null !== $odometer_km
+				? sprintf(
+					/* translators: %s: lifetime odometer km */
+					__( '累計EXP %s km', 'gaming-hub' ),
+					number_format_i18n( (int) round( $odometer_km ) )
+				)
+				: __( '累計EXP —', 'gaming-hub' ),
+			'patch_label'           => '' !== $patch
+				? sprintf(
+					/* translators: %s: vehicle software version */
+					__( 'パッチ %s', 'gaming-hub' ),
+					$patch
+				)
+				: __( 'パッチ —', 'gaming-hub' ),
+			'next_raid_label'       => $next_raid,
+			'vehicle_name'          => $vehicle,
+			'status_key'            => $status_key,
+			'badge_status'          => $badge_status,
+			'sentry_label'          => ! empty( $model3['sentry_mode'] ) ? __( 'Sentry', 'gaming-hub' ) : '',
+			'lock_label'            => array_key_exists( 'locked', $model3 )
+				? ( ! empty( $model3['locked'] ) ? __( 'ロック', 'gaming-hub' ) : __( 'アンロック', 'gaming-hub' ) )
+				: '',
+			'combo_label'           => (string) ( $model3['combo_label'] ?? '' ),
 		)
 	);
+}
+
+/**
+ * Party combo label from solar / Powerwall while Model 3 is charging.
+ *
+ * @param array<string, mixed> $model3 Model 3 slice.
+ * @param array<string, mixed> $status Full flow status.
+ * @return array<string, mixed>
+ */
+function gaming_hub_powerwall_model3_with_combo( array $model3, array $status ) {
+	if ( empty( $model3['is_charging'] ) ) {
+		$model3['combo_label'] = '';
+		return $model3;
+	}
+
+	$solar     = (float) ( $status['solar_w'] ?? 0 );
+	$powerwall = is_array( $status['powerwall'] ?? null ) ? $status['powerwall'] : array();
+
+	if ( $solar >= 80 ) {
+		$model3['combo_label'] = __( 'ソーラーコンボ', 'gaming-hub' );
+	} elseif ( ! empty( $powerwall['is_discharging'] ) ) {
+		$model3['combo_label'] = __( 'Powerwallコンボ', 'gaming-hub' );
+	} elseif ( 'supercharger' === ( $model3['supply_kind'] ?? '' ) ) {
+		$model3['combo_label'] = __( 'フィールド補給', 'gaming-hub' );
+	} else {
+		$model3['combo_label'] = __( 'グリッド補給', 'gaming-hub' );
+	}
+
+	return $model3;
 }

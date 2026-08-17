@@ -374,13 +374,143 @@ function gaming_hub_tesla_get_api() {
 }
 
 /**
- * Map Tesla charge_state to dashboard model3 payload.
+ * Convert Tesla miles to kilometres.
  *
- * @param array<string, mixed> $charge_state Tesla charge_state object.
+ * @param mixed $miles Distance in miles.
+ * @return float|null
+ */
+function gaming_hub_tesla_miles_to_km( $miles ) {
+	if ( null === $miles || '' === $miles || ! is_numeric( $miles ) ) {
+		return null;
+	}
+
+	return (float) $miles * 1.60934;
+}
+
+/**
+ * Map Tesla charging_state to a short gaming HUD label.
+ *
+ * @param string $state   Tesla charging_state.
+ * @param bool   $charging Whether charge power is live.
+ */
+function gaming_hub_tesla_model3_hud_state( $state, $charging ) {
+	if ( $charging ) {
+		return 'Starting' === $state
+			? __( 'レイド開始', 'gaming-hub' )
+			: __( 'チャージレイド', 'gaming-hub' );
+	}
+
+	$labels = array(
+		'Complete'     => __( 'レイドクリア', 'gaming-hub' ),
+		'Stopped'      => __( '停止', 'gaming-hub' ),
+		'Disconnected' => __( '待機', 'gaming-hub' ),
+		'NoPower'      => __( '待機', 'gaming-hub' ),
+		'Starting'     => __( 'レイド開始', 'gaming-hub' ),
+		'Charging'     => __( 'チャージレイド', 'gaming-hub' ),
+	);
+
+	return $labels[ $state ] ?? __( '待機', 'gaming-hub' );
+}
+
+/**
+ * Classify charge supply for the HUD (home vs Supercharger). Never uses GPS.
+ *
+ * @param array<string, mixed> $charge_state Tesla charge_state.
+ * @param bool                 $charging     Live charging.
+ * @return array{kind: string, label: string, plugged: bool}
+ */
+function gaming_hub_tesla_model3_supply( array $charge_state, $charging ) {
+	$cable = strtoupper( (string) ( $charge_state['conn_charge_cable'] ?? '' ) );
+	$fast  = ! empty( $charge_state['fast_charger_present'] );
+	$plugged = $fast || ( '' !== $cable && 'NONE' !== $cable && '<INVALID>' !== $cable );
+
+	if ( $fast || false !== stripos( (string) ( $charge_state['fast_charger_type'] ?? '' ), 'Supercharger' ) ) {
+		return array(
+			'kind'    => 'supercharger',
+			'label'   => __( 'フィールド補給', 'gaming-hub' ),
+			'plugged' => true,
+		);
+	}
+
+	if ( $plugged || $charging ) {
+		return array(
+			'kind'    => 'home',
+			'label'   => __( '拠点補給', 'gaming-hub' ),
+			'plugged' => true,
+		);
+	}
+
+	return array(
+		'kind'    => 'none',
+		'label'   => __( '未接続', 'gaming-hub' ),
+		'plugged' => false,
+	);
+}
+
+/**
+ * Record odometer and compute today's driving km (no location).
+ *
+ * @param float $odometer_km Latest odometer in km.
+ * @return array{today_km: float, today_start_km: float, odometer_km: float}
+ */
+function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
+	$odometer_km = max( 0, (float) $odometer_km );
+	$today       = wp_date( 'Y-m-d' );
+	$saved       = get_option( GAMING_HUB_MODEL3_ODO_OPTION, array() );
+	$saved       = is_array( $saved ) ? $saved : array();
+	$saved_date  = (string) ( $saved['date'] ?? '' );
+	$last_km     = isset( $saved['odometer_km'] ) && is_numeric( $saved['odometer_km'] )
+		? (float) $saved['odometer_km']
+		: null;
+
+	if ( $today !== $saved_date ) {
+		$start_km = null !== $last_km ? $last_km : $odometer_km;
+	} else {
+		$start_km = isset( $saved['today_start_km'] ) && is_numeric( $saved['today_start_km'] )
+			? (float) $saved['today_start_km']
+			: ( null !== $last_km ? $last_km : $odometer_km );
+	}
+
+	if ( $odometer_km + 1 < $start_km ) {
+		$start_km = $odometer_km;
+	}
+
+	$today_km = max( 0, round( $odometer_km - $start_km, 1 ) );
+
+	update_option(
+		GAMING_HUB_MODEL3_ODO_OPTION,
+		array(
+			'date'           => $today,
+			'odometer_km'    => $odometer_km,
+			'today_start_km' => $start_km,
+			'today_km'       => $today_km,
+			'updated_at'     => time(),
+		),
+		false
+	);
+
+	return array(
+		'today_km'       => $today_km,
+		'today_start_km' => $start_km,
+		'odometer_km'    => $odometer_km,
+	);
+}
+
+/**
+ * Map Tesla vehicle_data to dashboard model3 payload.
+ *
+ * @param array<string, mixed> $data Tesla vehicle_data response.
  * @return array<string, mixed>
  */
-function gaming_hub_tesla_model3_from_charge_state( array $charge_state ) {
-	$state   = (string) ( $charge_state['charging_state'] ?? '' );
+function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
+	$charge_state = isset( $data['charge_state'] ) && is_array( $data['charge_state'] )
+		? $data['charge_state']
+		: array();
+	$vehicle_state = isset( $data['vehicle_state'] ) && is_array( $data['vehicle_state'] )
+		? $data['vehicle_state']
+		: array();
+
+	$state    = (string) ( $charge_state['charging_state'] ?? '' );
 	$charging = in_array( $state, array( 'Charging', 'Starting' ), true );
 
 	if ( false === ( $charge_state['charge_enable_request'] ?? null ) ) {
@@ -401,33 +531,71 @@ function gaming_hub_tesla_model3_from_charge_state( array $charge_state ) {
 		$power_w  = 0;
 	}
 
-	$labels = array(
-		'Charging' => __( '充電中', 'gaming-hub' ),
-		'Starting' => __( '充電中', 'gaming-hub' ),
-		'Complete' => __( '充電完了', 'gaming-hub' ),
-		'Stopped'  => __( '停止', 'gaming-hub' ),
-	);
-
 	$battery_level = $charge_state['battery_level'] ?? $charge_state['usable_battery_level'] ?? null;
+	$range_km      = gaming_hub_tesla_miles_to_km( $charge_state['est_battery_range'] ?? null );
+	$ideal_km      = gaming_hub_tesla_miles_to_km( $charge_state['ideal_battery_range'] ?? null );
+	$soc           = null !== $battery_level && is_numeric( $battery_level )
+		? max( 0, min( 100, (int) round( (float) $battery_level ) ) )
+		: 0;
+	$range_full_km = ( $soc > 0 && null !== $range_km )
+		? (int) round( $range_km / ( $soc / 100 ) )
+		: ( null !== $ideal_km ? (int) round( $ideal_km ) : 450 );
+
+	$odometer_km = gaming_hub_tesla_miles_to_km( $vehicle_state['odometer'] ?? null );
+	$odo_stats   = null !== $odometer_km
+		? gaming_hub_tesla_model3_record_odometer( $odometer_km )
+		: array(
+			'today_km'    => null,
+			'odometer_km' => null,
+		);
+
+	$scheduled_ts = 0;
+	if ( ! empty( $charge_state['scheduled_charging_pending'] ) && ! empty( $charge_state['scheduled_charging_start_time'] ) ) {
+		$scheduled_ts = (int) $charge_state['scheduled_charging_start_time'];
+	}
+
+	$supply = gaming_hub_tesla_model3_supply( $charge_state, $charging );
+	$energy_added = isset( $charge_state['charge_energy_added'] ) && is_numeric( $charge_state['charge_energy_added'] )
+		? max( 0, (float) $charge_state['charge_energy_added'] )
+		: 0;
+
+	$car_version = (string) ( $vehicle_state['car_version'] ?? '' );
+	if ( preg_match( '/^(\d{4}\.\d+(?:\.\d+)?)/', $car_version, $match ) ) {
+		$car_version = $match[1];
+	}
+
+	$vehicle_name = (string) ( $vehicle_state['vehicle_name'] ?? $charge_state['vehicle_name'] ?? 'Model 3' );
+	if ( '' === $vehicle_name ) {
+		$vehicle_name = 'Model 3';
+	}
 
 	return gaming_hub_powerwall_model3_present(
 		array(
-			'battery_percent' => null !== $battery_level && is_numeric( $battery_level )
-				? max( 0, min( 100, (int) round( (float) $battery_level ) ) )
-				: 0,
-			'is_charging'     => $charging,
-			'charge_state'    => $charging ? ( $labels[ $state ] ?? __( '充電中', 'gaming-hub' ) ) : ( $labels[ $state ] ?? __( '待機中', 'gaming-hub' ) ),
-			'watts'           => $power_w,
-			'charge_rate_kw'  => $charging ? round( $power_w / 1000, 1 ) : 0,
-			'charge_limit_percent' => max(
+			'battery_percent'           => $soc,
+			'is_charging'               => $charging,
+			'charge_state'              => gaming_hub_tesla_model3_hud_state( $state, $charging ),
+			'watts'                     => $power_w,
+			'charge_rate_kw'            => $charging ? round( $power_w / 1000, 1 ) : 0,
+			'charge_limit_percent'      => max(
 				0,
 				min( 100, (int) round( $charge_state['charge_limit_soc'] ?? 100 ) )
 			),
 			'time_to_full_charge_hours' => $charging ? (float) ( $charge_state['time_to_full_charge'] ?? 0 ) : 0,
-			'range_km'        => isset( $charge_state['est_battery_range'] )
-				? (int) round( (float) $charge_state['est_battery_range'] * 1.60934 )
-				: null,
-			'vehicle_name'    => (string) ( $charge_state['vehicle_name'] ?? 'Model 3' ),
+			'range_km'                  => null !== $range_km ? (int) round( $range_km ) : null,
+			'range_full_km'             => max( 1, $range_full_km ),
+			'vehicle_name'              => $vehicle_name,
+			'charge_energy_added'       => $energy_added,
+			'supply_kind'               => $supply['kind'],
+			'supply_label'              => $supply['label'],
+			'plugged'                   => $supply['plugged'],
+			'scheduled_charging_ts'     => $scheduled_ts,
+			'odometer_km'               => $odo_stats['odometer_km'],
+			'today_km'                  => $odo_stats['today_km'],
+			'today_target_km'           => GAMING_HUB_MODEL3_DAILY_KM,
+			'car_version'               => $car_version,
+			'sentry_mode'               => ! empty( $vehicle_state['sentry_mode'] ),
+			'locked'                    => ! empty( $vehicle_state['locked'] ),
+			'live'                      => true,
 		)
 	);
 }
@@ -445,13 +613,13 @@ function gaming_hub_fetch_tesla_model3_status() {
 		return $api;
 	}
 
-	$charge_state = $api->get_vehicle_charge_state( $config['vehicle_vin'] );
+	$data = $api->get_vehicle_data( $config['vehicle_vin'], 'charge_state,vehicle_state' );
 
-	if ( is_wp_error( $charge_state ) ) {
-		return $charge_state;
+	if ( is_wp_error( $data ) ) {
+		return $data;
 	}
 
-	return gaming_hub_tesla_model3_from_charge_state( $charge_state );
+	return gaming_hub_tesla_model3_from_vehicle_data( $data );
 }
 
 /**

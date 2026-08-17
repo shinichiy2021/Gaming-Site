@@ -148,6 +148,12 @@ export function formatWh( value ) {
 }
 
 export function formatPack( remain, full ) {
+	if ( remain === null || remain === undefined || ! Number.isFinite( Number( remain ) ) ) {
+		return ( typeof window !== 'undefined' && window.gamingHubT )
+			? window.gamingHubT( '未取得' )
+			: '未取得';
+	}
+
 	if ( ! Number.isFinite( Number( full ) ) || Number( full ) <= 0 ) {
 		return formatWh( remain );
 	}
@@ -161,11 +167,13 @@ export function solarToDelta( status ) {
 	}
 
 	const source = status.delta?.solar_in_source || status.solar_in_source || '';
-	if ( source === 'unavailable' ) {
+	if ( source === 'unavailable' || source === 'theoretical_lv' || source === '' ) {
 		return null;
 	}
 
-	const watts = status.delta?.solar_in ?? status.solar_in;
+	const watts = status.delta && Object.prototype.hasOwnProperty.call( status.delta, 'solar_in' )
+		? status.delta.solar_in
+		: status.solar_in;
 	if ( watts === null || watts === undefined ) {
 		return null;
 	}
@@ -178,23 +186,42 @@ export function proGridCharge( status ) {
 		return { active: false, watts: 0, message: '' };
 	}
 
-	if ( status.pro_grid_charge && typeof status.pro_grid_charge === 'object' ) {
-		return {
-			active: !! status.pro_grid_charge.active,
-			watts: Number( status.pro_grid_charge.watts ) || 0,
-			message: status.pro_grid_charge.message || '',
-		};
+	const live = liveProGridWatts( status );
+	const plan = status.pro_grid_charge && typeof status.pro_grid_charge === 'object'
+		? status.pro_grid_charge
+		: null;
+	const active = live >= FLOW_THRESHOLD;
+	const watts = active ? live : 0;
+
+	return {
+		active,
+		watts,
+		message: plan && plan.message ? plan.message : '',
+	};
+}
+
+function liveProGridWatts( status ) {
+	const ac = status.pro?.ac_in ?? status.grid_in ?? status.ac_in;
+	if ( ac !== null && ac !== undefined && ac !== '' && Number( ac ) >= FLOW_THRESHOLD ) {
+		return Number( ac ) || 0;
 	}
 
-	return { active: false, watts: 0, message: '' };
+	const input = Number( status.pro?.input_total ?? status.input_total ) || 0;
+	const hv = Number( status.pro?.hv_in ?? status.hv_in ) || 0;
+	return Math.max( 0, input - hv );
 }
 
 export function deltaGridAc( status ) {
-	if ( ! status ) {
-		return 0;
+	if ( ! status || ! status.delta ) {
+		return null;
 	}
 
-	return Number( status.delta?.ac_in ) || 0;
+	const ac = status.delta.ac_in;
+	if ( ac === null || ac === undefined || ac === '' ) {
+		return null;
+	}
+
+	return Number( ac ) || 0;
 }
 
 export function hvInput( status ) {
