@@ -132,19 +132,26 @@ function gaming_hub_ecoflow_plan_slot_is_charging( array $plan ) {
 }
 
 /**
- * Pro 3 grid charge display (matches Delta 1500 rescue card style).
+ * Pro 3 grid charge display: live AC in for the flow, plan text as a note.
  *
- * @param array<string, mixed> $plan Charge plan with schedule overlay.
+ * @param array<string, mixed> $plan   Charge plan with schedule overlay.
+ * @param array<string, mixed> $status EcoFlow status (Pro 3 live watts).
  * @return array<string, mixed>
  */
-function gaming_hub_ecoflow_pro_grid_charge_view( array $plan ) {
+function gaming_hub_ecoflow_pro_grid_charge_view( array $plan, array $status = array() ) {
 	$charge_w = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000;
 	$idle_w   = defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0;
 	$applied  = isset( $plan['last_applied_w'] ) ? (int) $plan['last_applied_w'] : 0;
-	$active   = $applied > $idle_w || gaming_hub_ecoflow_plan_slot_is_charging( $plan );
-	$watts    = $active ? $charge_w : 0;
-
-	$live = ! empty( $plan['is_approved_current'] ) || ! empty( $plan['needs_reapprove'] );
+	$planned  = $applied > $idle_w || gaming_hub_ecoflow_plan_slot_is_charging( $plan );
+	$approved = ! empty( $plan['is_approved_current'] ) || ! empty( $plan['needs_reapprove'] );
+	$live_w   = function_exists( 'gaming_hub_ecoflow_pro_grid_live_watts' )
+		? gaming_hub_ecoflow_pro_grid_live_watts( $status )
+		: 0;
+	$threshold = defined( 'GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W' )
+		? (int) GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W
+		: 8;
+	$active    = $live_w >= $threshold;
+	$watts     = $active ? $live_w : 0;
 
 	if ( ! empty( $plan['last_apply_error'] ) ) {
 		$message = sprintf(
@@ -152,15 +159,25 @@ function gaming_hub_ecoflow_pro_grid_charge_view( array $plan ) {
 			__( '送信エラー: %s', 'gaming-hub' ),
 			$plan['last_apply_error']
 		);
-	} elseif ( ! $live ) {
-		$active  = false;
-		$watts   = 0;
-		$message = __( '未承認のため、グリッド充電は送りません。', 'gaming-hub' );
 	} elseif ( $active ) {
+		$message = $approved && $planned
+			? sprintf(
+				/* translators: %s: live watts */
+				__( '充電計画どおりグリッド充電中。実測 %s W', 'gaming-hub' ),
+				number_format_i18n( $live_w )
+			)
+			: sprintf(
+				/* translators: %s: live watts */
+				__( '実測グリッド入力 %s W', 'gaming-hub' ),
+				number_format_i18n( $live_w )
+			);
+	} elseif ( ! $approved ) {
+		$message = __( '未承認のため、グリッド充電は送りません。', 'gaming-hub' );
+	} elseif ( $planned ) {
 		$message = sprintf(
 			/* translators: %s: charge watts */
 			__( '充電計画どおりグリッド充電中。充電上限 %s W', 'gaming-hub' ),
-			number_format_i18n( $watts )
+			number_format_i18n( $charge_w )
 		);
 	} else {
 		$message = __( '承認済みの計画どおり。グリッド充電時間外は待機です。', 'gaming-hub' );

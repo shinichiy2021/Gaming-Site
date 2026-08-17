@@ -102,12 +102,14 @@
 				? null
 				: Number(data.solar_in) || 0,
 			solar_in_source: data.solar_in_source || '',
-			hv_in: Number(data.hv_in) || 0,
-			ac_in: Number(data.ac_in) || 0,
-			ac_out: Number(data.ac_out) || 0,
-			dc_out: Number(data.dc_out) || 0,
-			input_total: Number(data.input_total) || 0,
-			output_total: Number(data.output_total) || 0,
+			soc_source: data.soc_source || '',
+			mqtt_live: data.mqtt_live === true,
+			hv_in: data.hv_in === null || data.hv_in === undefined ? null : Number(data.hv_in) || 0,
+			ac_in: data.ac_in === null || data.ac_in === undefined ? null : Number(data.ac_in) || 0,
+			ac_out: data.ac_out === null || data.ac_out === undefined ? null : Number(data.ac_out) || 0,
+			dc_out: data.dc_out === null || data.dc_out === undefined ? null : Number(data.dc_out) || 0,
+			input_total: data.input_total === null || data.input_total === undefined ? null : Number(data.input_total) || 0,
+			output_total: data.output_total === null || data.output_total === undefined ? null : Number(data.output_total) || 0,
 			battery_percent: data.battery_percent === null || data.battery_percent === undefined
 				? null
 				: Number(data.battery_percent) || 0,
@@ -159,17 +161,20 @@
 			device_name: 'Delta 3 1500',
 			device_sn: '',
 			online: false,
-			solar_in: 0,
+			solar_in: null,
 			hv_in: 0,
-			ac_in: 0,
-			ac_out: 0,
-			dc_out: 0,
-			input_total: 0,
-			output_total: 0,
+			ac_in: null,
+			ac_out: null,
+			dc_out: null,
+			input_total: null,
+			output_total: null,
 			battery_percent: null,
+			mqtt_live: false,
+			soc_source: 'unavailable',
+			solar_in_source: 'unavailable',
 			is_charging: false,
 			is_discharging: false,
-			charge_state: t('独立運転'),
+			charge_state: t('未取得'),
 			remain_time: 0,
 			remain_time_label: '',
 			remain_time_display: '—',
@@ -196,25 +201,7 @@
 			ac_in: pro.ac_in,
 			pro_grid_charge: data.pro_grid_charge && typeof data.pro_grid_charge === 'object'
 				? data.pro_grid_charge
-				: (function () {
-					const plan = data.charge_plan || {};
-					const chargeW = Number(plan.charge_w) || 1000;
-					const applied = Number(plan.last_applied_w) || 0;
-					const now = new Date();
-					const hour = now.getHours();
-					const date = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-					const slot = Array.isArray(plan.slots)
-						? plan.slots.find(function (row) {
-							return row && Number(row.hour) === hour && String(row.date || '') === date;
-						})
-						: null;
-					const active = applied > 0 || (slot && slot.mode === 'charge');
-					return {
-						active: active,
-						watts: active ? chargeW : 0,
-						message: plan.approval_note || '',
-					};
-				}()),
+				: { active: false, watts: 0, message: '' },
 			pro: pro,
 			battery_percent: pro.battery_percent,
 			is_charging: pro.is_charging,
@@ -1200,7 +1187,19 @@
 		const proGrid = data.pro_grid_charge && typeof data.pro_grid_charge === 'object'
 			? data.pro_grid_charge
 			: null;
-		if (proGrid) {
+		const liveGrid = (function () {
+			const ac = data.ac_in;
+			if (ac !== null && ac !== undefined && Number(ac) >= 8) {
+				return Number(ac);
+			}
+			const input = Number(data.input_total) || 0;
+			const hv = Number(data.hv_in) || 0;
+			return Math.max(0, input - hv);
+		}());
+		if (liveGrid >= 8) {
+			setField('pro_grid_charge', formatWatts(liveGrid));
+			setField('pro_grid_charge_note', (proGrid && proGrid.message) || '');
+		} else if (proGrid) {
 			setField(
 				'pro_grid_charge',
 				proGrid.active ? formatWatts(proGrid.watts) : t('待機')
@@ -1298,7 +1297,11 @@
 						: t('残容量 (Extra · 未取得)'))
 			);
 			setField( 'delta_ac_in', formatWatts( data.secondary.ac_in ) );
-			if (data.secondary.grid_rescue) {
+			const mqttLive = data.secondary.mqtt_live === true;
+			if (!mqttLive) {
+				setField('delta_rescue', unavailableLabel);
+				setField('delta_rescue_note', '');
+			} else if (data.secondary.grid_rescue) {
 				setField(
 					'delta_rescue',
 					data.secondary.grid_rescue.active

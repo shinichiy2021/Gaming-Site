@@ -523,16 +523,21 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				</div>
 				<div class="ecoflow-stat-card">
 					<span class="ecoflow-stat-label"><?php esc_html_e( 'AC 入力 (1500)', 'gaming-hub' ); ?></span>
-					<strong data-ecoflow-field="delta_ac_in"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['secondary']['ac_in'] ?? 0 ) ); ?></strong>
+					<strong data-ecoflow-field="delta_ac_in"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['secondary']['ac_in'] ?? null ) ); ?></strong>
 				</div>
 				<div class="ecoflow-stat-card">
 					<span class="ecoflow-stat-label"><?php esc_html_e( '1500 グリッド補充電', 'gaming-hub' ); ?></span>
 					<strong data-ecoflow-field="delta_rescue">
 						<?php
+						$mqtt_live = ! empty( $status['secondary']['mqtt_live'] );
 						$rescue = is_array( $status['secondary']['grid_rescue'] ?? null ) ? $status['secondary']['grid_rescue'] : array();
-						echo ! empty( $rescue['active'] )
-							? esc_html( gaming_hub_format_ecoflow_watts( $rescue['watts'] ?? 0 ) )
-							: esc_html__( '待機 (5%以下で開始)', 'gaming-hub' );
+						if ( ! $mqtt_live ) {
+							echo esc_html( gaming_hub_ecoflow_unavailable_label() );
+						} else {
+							echo ! empty( $rescue['active'] )
+								? esc_html( gaming_hub_format_ecoflow_watts( $rescue['watts'] ?? 0 ) )
+								: esc_html__( '待機 (5%以下で開始)', 'gaming-hub' );
+						}
 						?>
 					</strong>
 					<small data-ecoflow-field="delta_rescue_note"><?php echo esc_html( (string) ( $rescue['message'] ?? '' ) ); ?></small>

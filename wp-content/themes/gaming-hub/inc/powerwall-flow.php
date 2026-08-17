@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v10' );
+define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v11' );
 define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 30 );
 define( 'GAMING_HUB_POWERWALL_SOLAR_POLL_MS', HOUR_IN_SECONDS * 1000 );
 
@@ -88,13 +88,7 @@ function gaming_hub_powerwall_simulated_flow( $force_solar_refresh = false ) {
 			'watts'           => round( abs( $powerwall_watts ) ),
 		),
 		'model3'             => gaming_hub_powerwall_model3_present(
-			array(
-				'battery_percent' => $model3_soc,
-				'is_charging'     => $model3_charging,
-				'charge_state'    => $model3_charging ? __( '充電中', 'gaming-hub' ) : __( '待機中', 'gaming-hub' ),
-				'watts'           => round( $model3_watts ),
-				'charge_limit_percent' => 100,
-			)
+			gaming_hub_powerwall_model3_demo_status( $model3_soc, $model3_charging, $model3_watts )
 		),
 		'model3_meta'        => $model3_meta,
 		'solar_to_powerwall' => round( $solar_to_powerwall ),
@@ -134,6 +128,10 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 	} else {
 		$status['model3_source'] = 'simulated';
 		$status['model3_meta']   = gaming_hub_powerwall_model3_demo_meta();
+	}
+
+	if ( isset( $status['model3'] ) && is_array( $status['model3'] ) ) {
+		$status['model3'] = gaming_hub_powerwall_model3_with_combo( $status['model3'], $status );
 	}
 
 	$status['updated_at'] = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) );

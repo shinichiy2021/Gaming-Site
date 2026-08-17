@@ -93,6 +93,30 @@
 		}
 	}
 
+	function setBadge(name, text, className) {
+		const el = dashboard.querySelector('[data-pw-badge="' + name + '"]');
+		if (!el) {
+			return;
+		}
+		if (!text) {
+			el.hidden = true;
+			el.textContent = '';
+			return;
+		}
+		el.hidden = false;
+		el.textContent = text;
+		if (className) {
+			el.className = 'pw-model3-badge ' + className;
+		}
+	}
+
+	function setBar(name, percent) {
+		const el = dashboard.querySelector('[data-pw-bar="' + name + '"]');
+		if (el) {
+			el.style.width = Math.max(0, Math.min(100, Number(percent) || 0)) + '%';
+		}
+	}
+
 	function applyModel3Battery(model3) {
 		if (!model3) {
 			return;
@@ -100,28 +124,47 @@
 
 		const soc = model3.battery_percent ?? '—';
 		const isCharging = !!model3.is_charging;
+		const unit = dashboard.querySelector('[data-pw-model3-unit]');
 		const gauge = dashboard.querySelector('[data-pw-field="model3_gauge"]');
 		const chargingPanel = dashboard.querySelector('[data-pw-charging-panel]');
 		const ring = gauge ? gauge.querySelector('.pw-model3-battery-ring') : null;
+		const photo = dashboard.querySelector('[data-pw-model3-photo]');
+		const nextRaid = dashboard.querySelector('[data-pw-next-raid]');
+		const statusKey = model3.status_key || (isCharging ? 'raid' : 'idle');
 
+		setField('model3_name', model3.vehicle_name || 'Model 3');
 		setField('model3_soc', soc + '%');
 		setField('model3_soc_gauge', soc + '%');
+		setField('model3_hp', model3.hp_label || (t('HP ') + soc + '%'));
 		setField('model3_kwh', model3.battery_kwh_label || '—');
 		setField('model3_state', model3.charge_state || '—');
 		setField('model3_state_detail', model3.charge_state || '—');
-		setField(
-			'model3_limit',
-			t('充電上限 ') + Number(model3.charge_limit_percent || 100).toLocaleString() + '%'
-		);
-		setField(
-			'model3_range',
-			model3.range_km
-				? t('航続距離 約 ') + Number(model3.range_km).toLocaleString() + ' km'
-				: (model3.vehicle_name || 'Model 3')
-		);
+		setField('model3_limit', model3.cap_label || (t('チャージキャップ ') + Number(model3.charge_limit_percent || 100).toLocaleString() + '%'));
+		setField('model3_range', model3.range_label || (model3.range_km ? t('残MP ') + Number(model3.range_km).toLocaleString() + ' km' : '—'));
+		setField('model3_quest', model3.quest_label || '—');
 		setField('model3_charge_rate', model3.charge_rate_label || '—');
 		setField('model3_charge_eta', model3.charge_eta_label || '—');
 		setField('model3_charge_complete', model3.charge_complete_label || '—');
+		setField('model3_drop', model3.drop_label || '—');
+		setField('model3_odometer', model3.odometer_label || t('累計EXP —'));
+		setField('model3_patch', model3.patch_label || t('パッチ —'));
+		setField('model3_next_raid', model3.next_raid_label || '');
+		setField(
+			'model3_combo',
+			[model3.combo_label, model3.supply_label].filter(Boolean).join(' · ')
+		);
+
+		setBadge('status', model3.badge_status || model3.charge_state || t('待機'), 'is-' + statusKey);
+		setBadge('supply', model3.plugged ? (model3.supply_label || '') : '', 'is-supply');
+		setBadge('sentry', model3.sentry_label || '', 'is-sentry');
+		setBadge('lock', model3.lock_label || '', 'is-lock');
+		setBar('hp', model3.battery_percent);
+		setBar('mp', model3.mp_percent);
+		setBar('quest', model3.quest_percent);
+
+		if (unit) {
+			unit.setAttribute('data-status', statusKey);
+		}
 
 		if (gauge && soc !== '—') {
 			gauge.style.setProperty('--battery-level', String(soc));
@@ -131,9 +174,17 @@
 			ring.classList.toggle('is-charging', isCharging);
 		}
 
+		if (photo) {
+			photo.classList.toggle('is-charging', isCharging);
+		}
+
 		if (chargingPanel) {
 			chargingPanel.hidden = !isCharging;
 			chargingPanel.classList.toggle('is-visible', isCharging);
+		}
+
+		if (nextRaid) {
+			nextRaid.hidden = !model3.next_raid_label;
 		}
 	}
 

@@ -276,28 +276,27 @@ class Gaming_Hub_Tesla_Api {
 	}
 
 	/**
-	 * Fetch charge state for a vehicle.
+	 * Fetch live vehicle_data slices (does not poll location).
 	 *
-	 * @param string $vin Vehicle VIN.
+	 * @param string $vin       Vehicle VIN.
+	 * @param string $endpoints Comma-separated endpoints, e.g. charge_state,vehicle_state.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public function get_vehicle_charge_state( $vin ) {
-		$vin = sanitize_text_field( $vin );
+	public function get_vehicle_data( $vin, $endpoints = 'charge_state,vehicle_state' ) {
+		$vin       = sanitize_text_field( $vin );
+		$endpoints = sanitize_text_field( $endpoints );
+		$query     = array(
+			'endpoints' => $endpoints,
+		);
 
 		$data = $this->fleet_request(
 			'GET',
 			'/api/1/vehicles/' . rawurlencode( $vin ) . '/vehicle_data',
-			array(
-				'endpoints' => 'charge_state',
-			)
+			$query
 		);
 
 		if ( is_wp_error( $data ) ) {
-			$asleep = false;
-
-			if ( 'tesla_vehicle_asleep' === $data->get_error_code() ) {
-				$asleep = true;
-			}
+			$asleep = 'tesla_vehicle_asleep' === $data->get_error_code();
 
 			if ( ! $asleep ) {
 				$vehicle = $this->fleet_request( 'GET', '/api/1/vehicles/' . rawurlencode( $vin ) );
@@ -317,9 +316,7 @@ class Gaming_Hub_Tesla_Api {
 				$data = $this->fleet_request(
 					'GET',
 					'/api/1/vehicles/' . rawurlencode( $vin ) . '/vehicle_data',
-					array(
-						'endpoints' => 'charge_state',
-					)
+					$query
 				);
 			}
 		}
@@ -332,7 +329,7 @@ class Gaming_Hub_Tesla_Api {
 			return new WP_Error( 'tesla_missing_charge_state', __( 'Tesla API did not return charge_state.', 'gaming-hub' ) );
 		}
 
-		return $data['charge_state'];
+		return $data;
 	}
 
 	/**

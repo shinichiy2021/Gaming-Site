@@ -69,7 +69,7 @@ function gaming_hub_ecoflow_format_bridge_error( $error ) {
 
 	if ( false !== stripos( $error, 'server is too busy' ) || false !== stripos( $error, 'too busy' ) ) {
 		return __(
-			'EcoFlow ログイン API が混雑しています（1日10個までの MQTT client ID 制限の可能性）。5〜30分おきに自動再試行します。直前の MQTT 計測値があれば表示を継続します。',
+			'EcoFlow ログイン API が混雑しています（1日10個までの MQTT client ID 制限の可能性）。5〜30分おきに自動再試行します。ライブ MQTT が取れないあいだは未取得と表示します。',
 			'gaming-hub'
 		);
 	}
@@ -156,6 +156,39 @@ function gaming_hub_ecoflow_read_bridge_status() {
 }
 
 /**
+ * Whether the App Login MQTT bridge cache is fresh enough to display.
+ *
+ * @param string $device_sn Device serial.
+ */
+function gaming_hub_ecoflow_bridge_is_live( $device_sn = '' ) {
+	$status = gaming_hub_ecoflow_read_bridge_status();
+	if ( is_array( $status ) ) {
+		if ( empty( $status['ok'] ) ) {
+			return false;
+		}
+
+		if ( ! empty( $status['updated_at'] ) ) {
+			$ts = strtotime( (string) $status['updated_at'] );
+			if ( $ts && ( time() - $ts ) > GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL ) {
+				return false;
+			}
+		}
+	}
+
+	$device_sn = (string) $device_sn;
+	if ( '' === $device_sn ) {
+		return is_array( $status ) && ! empty( $status['ok'] );
+	}
+
+	$path = gaming_hub_ecoflow_bridge_cache_path( $device_sn );
+	if ( ! file_exists( $path ) ) {
+		return false;
+	}
+
+	return ( time() - (int) filemtime( $path ) ) <= GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL;
+}
+
+/**
  * Read fresh quota map from the App Login bridge cache file.
  *
  * @param string $device_sn Device serial.
@@ -164,18 +197,15 @@ function gaming_hub_ecoflow_read_bridge_status() {
 function gaming_hub_ecoflow_read_bridge_quota( $device_sn ) {
 	gaming_hub_ecoflow_sync_bridge_config();
 
+	if ( ! gaming_hub_ecoflow_bridge_is_live( $device_sn ) ) {
+		return null;
+	}
+
 	$path = gaming_hub_ecoflow_bridge_cache_path( $device_sn );
 
 	if ( ! file_exists( $path ) ) {
 		return null;
 	}
-
-	$age = time() - (int) filemtime( $path );
-	if ( $age > GAMING_HUB_ECOFLOW_BRIDGE_CACHE_STALE_TTL ) {
-		return null;
-	}
-
-	$stale = $age > GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL;
 
 	$raw = json_decode( (string) file_get_contents( $path ), true );
 	if ( ! is_array( $raw ) || empty( $raw ) ) {
@@ -220,18 +250,21 @@ function gaming_hub_ecoflow_infer_secondary_from_primary( array $primary, $devic
 		'device_name'     => $device_name,
 		'online'          => $online,
 		'battery_percent' => null,
-		'solar_in'        => 0,
+		'solar_in'        => null,
 		'hv_in'           => 0,
-		'input_total'     => 0,
-		'output_total'    => 0,
-		'ac_in'           => 0,
-		'ac_out'          => 0,
-		'dc_out'          => 0,
+		'input_total'     => null,
+		'output_total'    => null,
+		'ac_in'           => null,
+		'ac_out'          => null,
+		'dc_out'          => null,
 		'battery_temp'    => null,
 		'remain_time'     => null,
 		'is_charging'     => false,
 		'is_discharging'  => false,
-		'charge_state'    => __( '独立運転', 'gaming-hub' ),
+		'mqtt_live'       => false,
+		'soc_source'      => 'unavailable',
+		'solar_in_source' => 'unavailable',
+		'charge_state'    => __( '未取得', 'gaming-hub' ),
 		'inferred'        => true,
 		'inferred_note'   => $note,
 		'updated_at'      => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),

@@ -8,7 +8,8 @@ function isFlowActive( flowId, status ) {
 	}
 
 	if ( flowId === 'solar' ) {
-		return solarToDelta( status ) >= FLOW_THRESHOLD;
+		const watts = solarToDelta( status );
+		return watts !== null && watts !== undefined && watts >= FLOW_THRESHOLD;
 	}
 
 	if ( flowId === 'deltaGrid' ) {
@@ -89,6 +90,19 @@ function PhoneBattery( { percent, charging } ) {
 	);
 }
 
+function isDeltaMqttMissing( status ) {
+	const delta = status && status.delta;
+	if ( ! delta ) {
+		return true;
+	}
+
+	if ( delta.mqtt_live !== true ) {
+		return true;
+	}
+
+	return delta.soc_source === 'unavailable';
+}
+
 function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } ) {
 	if ( ! device ) {
 		return null;
@@ -102,15 +116,20 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 	const remainWh = Number.isFinite( Number( device.remain_capacity ) )
 		? Number( device.remain_capacity )
 		: ( hasBattery && Number.isFinite( fullWh ) ? fullWh * batteryPercent / 100 : null );
-	const packLabel = Number.isFinite( fullWh ) && fullWh > 0
-		? formatPack( remainWh, fullWh )
-		: '';
-	const isCharging = !! device.is_charging;
+	const mqttMissing = flowId === 'delta' && (
+		device.mqtt_live !== true || device.soc_source === 'unavailable'
+	);
+	const packLabel = mqttMissing
+		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
+		: ( Number.isFinite( fullWh ) && fullWh > 0 ? formatPack( remainWh, fullWh ) : '' );
+	const isCharging = ! mqttMissing && !! device.is_charging;
 	const acOut = Number( device.ac_out ) || 0;
 	const outputTotal = Number( device.output_total ) || 0;
-	const isDischarging = !! device.is_discharging
-		|| ( ! isCharging && Math.max( acOut, outputTotal ) >= FLOW_THRESHOLD );
-	const isStandby = ! isCharging && ! isDischarging;
+	const isDischarging = ! mqttMissing && (
+		!! device.is_discharging
+		|| ( ! isCharging && Math.max( acOut, outputTotal ) >= FLOW_THRESHOLD )
+	);
+	const isStandby = ! mqttMissing && ! isCharging && ! isDischarging;
 	const tone = batteryTone( batteryPercent );
 	const classes = [
 		'ecoflow-node',
@@ -118,7 +137,9 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 		'ecoflow-node-device',
 		isCharging ? 'is-charging' : '',
 		isDischarging ? 'is-discharging' : '',
-		isStandby ? 'is-standby' : 'is-active',
+		isStandby ? 'is-standby' : '',
+		! mqttMissing && ! isStandby ? 'is-active' : '',
+		mqttMissing ? 'is-unavailable' : '',
 		tone.className,
 		hero ? 'is-hero' : '',
 		prominent ? 'is-prominent' : '',
@@ -142,7 +163,7 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 			</div>
 			<span className="ecoflow-node-label">{ label }</span>
 			{ packLabel ? <small className="ecoflow-node-pack">{ packLabel }</small> : null }
-			<p className="ecoflow-node-state">{ device.charge_state || '—' }</p>
+			<p className="ecoflow-node-state">{ mqttMissing ? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' ) : ( device.charge_state || '—' ) }</p>
 			{ ! compact && hasBattery && ! photo ? (
 				<div
 					className={ `ecoflow-battery-ring ecoflow-battery-ring-map${ isCharging ? ' is-charging' : ' is-discharging' }` }
@@ -170,12 +191,15 @@ function DualFlowDiagram( { status, labels, images } ) {
 	const extra = status.extra || delta.extra || { connected: true, battery_percent: null, capacity_wh: 1000 };
 	const extraSoc = parseSoc( extra.battery_percent );
 	const extraCap = Number( extra.capacity_wh ) || 1000;
-	const extraCapLabel = extraCap >= 1000
-		? `${ ( extraCap / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kWh`
-		: `${ extraCap } Wh`;
+	const extraCapLabel = extraSoc === null
+		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
+		: ( extraCap >= 1000
+			? `${ ( extraCap / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kWh`
+			: `${ extraCap } Wh` );
 	const deltaSoc = formatSoc( delta.battery_percent );
 	const extraTone = batteryTone( extraSoc );
-	const extraStandby = ! delta.is_charging
+	const deltaMissing = isDeltaMqttMissing( status );
+	const extraStandby = ! deltaMissing && ! delta.is_charging
 		&& ! delta.is_discharging
 		&& ( Number( delta.ac_out ) || 0 ) < FLOW_THRESHOLD
 		&& ( Number( delta.output_total ) || 0 ) < FLOW_THRESHOLD;
@@ -257,7 +281,7 @@ function DualFlowDiagram( { status, labels, images } ) {
 
 				<div className="ecoflow-input-stack">
 					<div
-						className={ flowNodeClass( 'ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot ecoflow-node-banner', isFlowActive( 'deltaGrid', status ) ? 'is-active' : 'is-standby' ) }
+						className={ flowNodeClass( 'ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot ecoflow-node-banner', deltaMissing ? 'is-unavailable' : ( isFlowActive( 'deltaGrid', status ) ? 'is-active' : 'is-standby' ) ) }
 						data-flow-id="deltaGrid"
 					>
 						{ images.grid ? (
@@ -269,11 +293,11 @@ function DualFlowDiagram( { status, labels, images } ) {
 						) }
 						<span className="ecoflow-node-label">{ labels.deltaGrid || 'グリッド AC 入力' }</span>
 						<strong>{ formatWatts( deltaAcIn ) }</strong>
-						<small>{ labels.acInMeasured || '実測 · MQTT' }</small>
+						<small>{ deltaMissing ? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' ) : ( labels.acInMeasured || '実測 · MQTT' ) }</small>
 					</div>
 
 					<div
-						className={ flowNodeClass( 'ecoflow-node ecoflow-node-solar ecoflow-node-banner', isFlowActive( 'solar', status ) ? 'is-active' : 'is-standby' ) }
+						className={ flowNodeClass( 'ecoflow-node ecoflow-node-solar ecoflow-node-banner', deltaMissing || status.solar_in_source === 'unavailable' ? 'is-unavailable' : ( isFlowActive( 'solar', status ) ? 'is-active' : 'is-standby' ) ) }
 						data-flow-id="solar"
 					>
 						{ images.solar ? (
@@ -301,8 +325,8 @@ function DualFlowDiagram( { status, labels, images } ) {
 					className={ flowNodeClass(
 						'ecoflow-node ecoflow-node-extra ecoflow-node-banner',
 						Number.isFinite( extraSoc ) ? 'has-soc' : '',
-						delta.is_charging ? 'is-charging' : '',
-						extraStandby ? 'is-standby' : 'is-active',
+						! deltaMissing && delta.is_charging ? 'is-charging' : '',
+						deltaMissing ? 'is-unavailable' : ( extraStandby ? 'is-standby' : 'is-active' ),
 						extraTone.className
 					) }
 					data-flow-id="extra"
@@ -316,14 +340,14 @@ function DualFlowDiagram( { status, labels, images } ) {
 								<span className="ecoflow-node-icon">🔋</span>
 							</span>
 						) }
-						<PhoneBattery percent={ extraSoc } charging={ !! delta.is_charging } />
+						<PhoneBattery percent={ extraSoc } charging={ ! deltaMissing && !! delta.is_charging } />
 					</div>
 					<span className="ecoflow-node-label">{ labels.extra || 'Extra Battery 1kW' }</span>
 					<small>{ extraCapLabel }</small>
 				</div>
 
 				<div
-					className={ flowNodeClass( 'ecoflow-node ecoflow-node-home ecoflow-node-ups ecoflow-node-banner', isFlowActive( 'deltaToUps', status ) ? 'is-active' : 'is-standby' ) }
+					className={ flowNodeClass( 'ecoflow-node ecoflow-node-home ecoflow-node-ups ecoflow-node-banner', ( deltaMissing && status.ups_source !== 'switchbot' ) ? 'is-unavailable' : ( isFlowActive( 'deltaToUps', status ) ? 'is-active' : 'is-standby' ) ) }
 					data-flow-id="ups"
 				>
 					{ images.ups ? (
