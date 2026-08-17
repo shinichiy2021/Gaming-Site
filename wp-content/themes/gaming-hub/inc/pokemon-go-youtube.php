@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_POKEMON_GO_YT_CACHE_KEY', 'gaming_hub_pokemon_go_youtube_v3' );
+define( 'GAMING_HUB_POKEMON_GO_YT_CACHE_KEY', 'gaming_hub_pokemon_go_youtube_v4' );
 define( 'GAMING_HUB_POKEMON_GO_YT_CACHE_TTL', 30 * MINUTE_IN_SECONDS );
 
 /**
@@ -27,6 +27,11 @@ function gaming_hub_get_pokemon_go_youtube_channels() {
 		array(
 			'id'   => 'UCu1Im6gi8b1Hg6vLnVRAJsQ',
 			'name' => 'JASH',
+			'lang' => 'ja',
+		),
+		array(
+			'id'   => 'UCENoC6MLc4pL-vehJyzSWmg',
+			'name' => 'もこうの実況',
 			'lang' => 'ja',
 		),
 		array(

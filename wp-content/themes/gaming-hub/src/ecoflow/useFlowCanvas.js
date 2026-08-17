@@ -1,7 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
 	FLOW_CONNECTIONS_DUAL,
 	FLOW_CONNECTIONS_SINGLE,
+	FLOW_THRESHOLD,
+	flowSpeed,
 	homeOutput,
 	hvInput,
 	deltaGridAc,
@@ -45,6 +47,10 @@ function wattsForFlow( flowId, status ) {
 	}
 
 	return 0;
+}
+
+function isActiveFlow( watts ) {
+	return Number( watts ) >= FLOW_THRESHOLD;
 }
 
 function anchorRect( mapEl, anchorId ) {
@@ -129,8 +135,6 @@ function resolveConnection( mapEl, connection ) {
 		to,
 		color: connection.color,
 		axis: connection.axis,
-		showLabel: !! connection.showLabel,
-		alwaysLabel: !! connection.alwaysLabel,
 	};
 }
 
@@ -142,51 +146,77 @@ function resolvePaths( mapEl, status ) {
 		.filter( Boolean );
 }
 
-function drawWattsLabel( ctx, from, to, watts, color, axis ) {
-	const text = `${ Math.round( watts ).toLocaleString() } W`;
-	let mx = ( from.x + to.x ) / 2;
-	let my = ( from.y + to.y ) / 2;
-
-	if ( axis === 'vertical' ) {
-		mx += 42;
-	}
-
-	ctx.font = '700 17px Inter, sans-serif';
-	const width = ctx.measureText( text ).width;
-	const padX = 11;
-	const height = 27;
-	const boxW = width + padX * 2;
-	const boxH = height;
-	const x = mx - boxW / 2;
-	const y = my - boxH / 2;
+function drawArrow( ctx, from, to, color ) {
+	const angle = Math.atan2( to.y - from.y, to.x - from.x );
+	const size = 9;
 
 	ctx.beginPath();
-	if ( typeof ctx.roundRect === 'function' ) {
-		ctx.roundRect( x, y, boxW, boxH, 4 );
-	} else {
-		ctx.rect( x, y, boxW, boxH );
-	}
-	ctx.fillStyle = 'rgba(8, 7, 15, 0.92)';
-	ctx.fill();
-	ctx.lineWidth = 1;
-	ctx.strokeStyle = color;
-	ctx.stroke();
-
+	ctx.moveTo( to.x, to.y );
+	ctx.lineTo(
+		to.x - size * Math.cos( angle - 0.45 ),
+		to.y - size * Math.sin( angle - 0.45 )
+	);
+	ctx.lineTo(
+		to.x - size * Math.cos( angle + 0.45 ),
+		to.y - size * Math.sin( angle + 0.45 )
+	);
+	ctx.closePath();
 	ctx.fillStyle = color;
-	ctx.textAlign = 'center';
-	ctx.textBaseline = 'middle';
-	ctx.fillText( text, mx, my + 0.5 );
+	ctx.shadowColor = color;
+	ctx.shadowBlur = 8;
+	ctx.fill();
+	ctx.shadowBlur = 0;
 }
 
-function drawPath( ctx, path, watts ) {
-	if ( ! path.showLabel && ! path.alwaysLabel ) {
+function drawPath( ctx, path, active, dashOffset ) {
+	const { from, to, color } = path;
+
+	ctx.beginPath();
+	ctx.moveTo( from.x, from.y );
+	ctx.lineTo( to.x, to.y );
+	ctx.lineCap = 'round';
+	ctx.lineWidth = active ? 3.5 : 2;
+	ctx.strokeStyle = active ? `${ color }73` : 'rgba(0, 245, 212, 0.14)';
+	ctx.stroke();
+
+	if ( ! active ) {
+		drawArrow( ctx, from, to, 'rgba(0, 245, 212, 0.28)' );
 		return;
 	}
 
-	drawWattsLabel( ctx, path.from, path.to, watts, path.color, path.axis );
+	ctx.beginPath();
+	ctx.moveTo( from.x, from.y );
+	ctx.lineTo( to.x, to.y );
+	ctx.setLineDash( [ 10, 14 ] );
+	ctx.lineDashOffset = -dashOffset;
+	ctx.lineWidth = 3;
+	ctx.strokeStyle = color;
+	ctx.globalAlpha = 0.75;
+	ctx.stroke();
+	ctx.setLineDash( [] );
+	ctx.globalAlpha = 1;
+
+	drawArrow( ctx, from, to, color );
+}
+
+function drawParticle( ctx, path, progress, color ) {
+	const x = path.from.x + ( path.to.x - path.from.x ) * progress;
+	const y = path.from.y + ( path.to.y - path.from.y ) * progress;
+
+	ctx.beginPath();
+	ctx.arc( x, y, 5, 0, Math.PI * 2 );
+	ctx.fillStyle = color;
+	ctx.shadowColor = color;
+	ctx.shadowBlur = 12;
+	ctx.fill();
+	ctx.shadowBlur = 0;
 }
 
 export function useFlowCanvas( canvasRef, mapRef, status ) {
+	const particlesRef = useRef( [] );
+	const dashOffsetRef = useRef( 0 );
+	const lastTimeRef = useRef( 0 );
+
 	useEffect( () => {
 		const canvas = canvasRef.current;
 		const mapEl = mapRef.current;
@@ -196,8 +226,9 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 		}
 
 		const ctx = canvas.getContext( '2d', { alpha: true } );
+		let rafId = 0;
 
-		const paint = () => {
+		const resize = () => {
 			const width = mapEl.clientWidth;
 			const height = mapEl.clientHeight;
 			const dpr = Math.min( window.devicePixelRatio || 1, 2 );
@@ -207,24 +238,76 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 			canvas.style.width = `${ width }px`;
 			canvas.style.height = `${ height }px`;
 			ctx.setTransform( dpr, 0, 0, dpr, 0, 0 );
-			ctx.clearRect( 0, 0, width, height );
-
-			resolvePaths( mapEl, status ).forEach( ( path ) => {
-				drawPath( ctx, path, wattsForFlow( path.id, status ) );
-			} );
 		};
 
 		const observer = typeof ResizeObserver !== 'undefined'
-			? new ResizeObserver( paint )
+			? new ResizeObserver( resize )
 			: null;
 
-		paint();
-		window.addEventListener( 'resize', paint );
+		resize();
+		window.addEventListener( 'resize', resize );
 		observer?.observe( mapEl );
 
+		const frame = ( time ) => {
+			rafId = window.requestAnimationFrame( frame );
+
+			if ( document.hidden ) {
+				return;
+			}
+
+			const delta = lastTimeRef.current ? Math.min( ( time - lastTimeRef.current ) / 1000, 0.05 ) : 0;
+			lastTimeRef.current = time;
+			dashOffsetRef.current += delta * 24;
+
+			const width = mapEl.clientWidth;
+			const height = mapEl.clientHeight;
+			const paths = resolvePaths( mapEl, status );
+
+			ctx.clearRect( 0, 0, width, height );
+
+			const nextParticles = [];
+
+			paths.forEach( ( path ) => {
+				const watts = wattsForFlow( path.id, status );
+				const active = isActiveFlow( watts );
+
+				drawPath( ctx, path, active, dashOffsetRef.current );
+
+				if ( ! active ) {
+					return;
+				}
+
+				let particles = particlesRef.current.filter( ( particle ) => particle.id === path.id );
+				if ( particles.length < 2 ) {
+					particles = [
+						{ id: path.id, progress: 0 },
+						{ id: path.id, progress: 0.45 },
+					];
+				}
+
+				const speed = flowSpeed( Number( watts ) || 0 );
+				particles.forEach( ( particle ) => {
+					let progress = particle.progress + speed * delta;
+					while ( progress > 1 ) {
+						progress -= 1;
+					}
+
+					drawParticle( ctx, path, progress, path.color );
+					nextParticles.push( { id: path.id, progress } );
+				} );
+			} );
+
+			particlesRef.current = nextParticles;
+		};
+
+		rafId = window.requestAnimationFrame( frame );
+
 		return () => {
-			window.removeEventListener( 'resize', paint );
+			window.cancelAnimationFrame( rafId );
+			window.removeEventListener( 'resize', resize );
 			observer?.disconnect();
+			lastTimeRef.current = 0;
+			particlesRef.current = [];
 		};
 	}, [ canvasRef, mapRef, status ] );
 }
