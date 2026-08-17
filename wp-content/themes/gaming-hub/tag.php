@@ -85,7 +85,7 @@ $is_energy  = is_tag( 'energy' );
 		</div>
 	<?php elseif ( $is_energy ) : ?>
 		<div class="ecoflow-empty">
-			<p><?php esc_html_e( 'Energy タグの記事はまだありません。上のカレンダーが発電ログです。', 'gaming-hub' ); ?></p>
+			<p><?php esc_html_e( 'Energy タグの記事はまだありません。上のグラフが発電ログです。', 'gaming-hub' ); ?></p>
 		</div>
 	<?php else : ?>
 		<div class="no-results">

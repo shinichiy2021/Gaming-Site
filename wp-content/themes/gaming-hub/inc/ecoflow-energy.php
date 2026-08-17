@@ -322,6 +322,74 @@ function gaming_hub_ecoflow_energy_month_days( $ym ) {
 }
 
 /**
+ * Round a chart max up to 1 / 2 / 5 × 10^n.
+ *
+ * @param float $value Raw max.
+ */
+function gaming_hub_ecoflow_energy_nice_max( $value ) {
+	$value = max( 0, (float) $value );
+	if ( $value <= 0 ) {
+		return 1.0;
+	}
+
+	$exp = pow( 10, (int) floor( log10( $value ) ) );
+	$n   = $value / $exp;
+	if ( $n <= 1 ) {
+		$nice = 1;
+	} elseif ( $n <= 2 ) {
+		$nice = 2;
+	} elseif ( $n <= 5 ) {
+		$nice = 5;
+	} else {
+		$nice = 10;
+	}
+
+	return (float) ( $nice * $exp );
+}
+
+/**
+ * Tick labels from a max, high to low.
+ *
+ * @param float $max   Raw max.
+ * @param int   $steps Divisions.
+ * @return array{0: float, 1: array<int, float>}
+ */
+function gaming_hub_ecoflow_energy_axis_ticks( $max, $steps = 4 ) {
+	$top   = gaming_hub_ecoflow_energy_nice_max( $max );
+	$ticks = array();
+	for ( $i = 0; $i <= $steps; $i++ ) {
+		$ticks[] = $top - ( $top * $i / $steps );
+	}
+
+	return array( $top, $ticks );
+}
+
+/**
+ * 24h chart rows from a day's hour buckets.
+ *
+ * @param array<int, mixed> $hours Hour map.
+ * @return array<int, array<string, mixed>>
+ */
+function gaming_hub_ecoflow_energy_hour_chart_rows( $hours ) {
+	$hours = is_array( $hours ) ? $hours : array();
+	$rows  = array();
+
+	for ( $h = 0; $h < 24; $h++ ) {
+		$row   = isset( $hours[ $h ] ) && is_array( $hours[ $h ] ) ? $hours[ $h ] : array();
+		$solar = isset( $row['solar_wh'] ) ? round( (float) $row['solar_wh'] / 1000, 3 ) : null;
+		$out   = isset( $row['output_wh'] ) ? round( (float) $row['output_wh'] / 1000, 3 ) : null;
+		$rows[] = array(
+			'hour'       => $h,
+			'solar_kwh'  => $solar,
+			'output_kwh' => $out,
+			'has_data'   => null !== $solar || null !== $out,
+		);
+	}
+
+	return $rows;
+}
+
+/**
  * Dashboard / REST payload for one month.
  *
  * @param string                    $ym     Y-m.
@@ -373,6 +441,35 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 		}
 	}
 
+	$max_kwh = 0.0;
+	$max_yen = 0.0;
+	foreach ( $cells as $cell ) {
+		$max_kwh = max(
+			$max_kwh,
+			(float) ( $cell['solar_kwh'] ?? 0 ),
+			(float) ( $cell['output_kwh'] ?? 0 )
+		);
+		$max_yen = max( $max_yen, (float) ( $cell['saved_yen'] ?? 0 ) );
+	}
+	list( $kwh_max, $kwh_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $max_kwh );
+	list( $yen_max, $yen_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $max_yen );
+
+	$today_hours      = array();
+	$today_kwh_max    = 1.0;
+	$today_kwh_ticks  = array( 1, 0.75, 0.5, 0.25, 0 );
+	if ( $ym === substr( $today, 0, 7 ) ) {
+		$today_hours = gaming_hub_ecoflow_energy_hour_chart_rows( $log[ $today ]['hours'] ?? array() );
+		$today_max   = 0.0;
+		foreach ( $today_hours as $hour_row ) {
+			$today_max = max(
+				$today_max,
+				(float) ( $hour_row['solar_kwh'] ?? 0 ),
+				(float) ( $hour_row['output_kwh'] ?? 0 )
+			);
+		}
+		list( $today_kwh_max, $today_kwh_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $today_max );
+	}
+
 	$now = array(
 		'input'  => null,
 		'output' => null,
@@ -411,6 +508,13 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 		'prev'       => $prev,
 		'next'       => $next,
 		'weekdays'   => array( '日', '月', '火', '水', '木', '金', '土' ),
+		'kwh_max'    => $kwh_max,
+		'kwh_ticks'  => $kwh_ticks,
+		'yen_max'    => $yen_max,
+		'yen_ticks'  => $yen_ticks,
+		'today_hours'     => $today_hours,
+		'today_kwh_max'   => $today_kwh_max,
+		'today_kwh_ticks' => $today_kwh_ticks,
 	);
 }
 

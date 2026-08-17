@@ -3846,6 +3846,18 @@ body.home .site-header.is-scrolled {
 	margin-bottom: 14px;
 }
 
+.ecoflow-plan-head {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+.ecoflow-cal .ecoflow-plan-kicker {
+	color: #ff9f1c;
+}
+
 .ecoflow-plan-kicker {
 	margin: 0 0 4px;
 	font-family: var(--font-display);
@@ -4449,6 +4461,7 @@ body.home .site-header.is-scrolled {
 	align-items: center;
 	justify-content: space-between;
 	gap: 10px;
+	margin: 0;
 }
 
 .ecoflow-cal-nav {
@@ -4458,6 +4471,85 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-cal-nav .ecoflow-plan-cancel {
 	padding: 6px 12px;
+}
+
+.ecoflow-cal-hud .ecoflow-cal-stat-save strong {
+	color: #ffe600;
+}
+
+.ecoflow-cal-chart-label {
+	margin: 12px 0 0;
+	font-family: var(--font-display);
+	font-size: 0.68rem;
+	letter-spacing: 0.14em;
+	color: var(--color-text-muted);
+}
+
+.ecoflow-cal-today[hidden] {
+	display: none;
+}
+
+.ecoflow-cal-chart-today {
+	grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.ecoflow-rate-y-kwh {
+	align-items: flex-end;
+	color: #ff9f1c;
+	text-shadow: 0 0 6px rgba(255, 159, 28, 0.35);
+}
+
+.ecoflow-rate-y-kwh .ecoflow-rate-y-unit {
+	right: 0;
+}
+
+.ecoflow-cal-pv-bar {
+	background:
+		repeating-linear-gradient(
+			to top,
+			transparent 0 2px,
+			rgba(0, 0, 0, 0.22) 2px 3px
+		),
+		linear-gradient(180deg, #ffc14d, #ff7a18);
+	box-shadow: 0 0 8px rgba(255, 159, 28, 0.32);
+}
+
+.ecoflow-cal-col.is-now .ecoflow-cal-pv-bar {
+	box-shadow: 0 0 14px #ff9f1c;
+	outline: 1px solid #fff;
+}
+
+.ecoflow-cal-out-line {
+	position: absolute;
+	inset: 0 4px;
+	width: calc(100% - 8px);
+	height: 100%;
+	pointer-events: none;
+	z-index: 6;
+	overflow: visible;
+}
+
+.ecoflow-cal-out-line polyline {
+	fill: none;
+	stroke: #7ad7ff;
+	stroke-width: 2.25px;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+	filter: drop-shadow(0 0 2px rgba(122, 215, 255, 0.55));
+}
+
+.ecoflow-cal-chart .ecoflow-price-line {
+	z-index: 7;
+}
+
+.ecoflow-cal-chart .ecoflow-rate-col {
+	z-index: 5;
+}
+
+.ecoflow-cal-chart .ecoflow-rate-track,
+.ecoflow-cal-chart .ecoflow-rate-hours {
+	gap: 1px;
 }
 
 .ecoflow-cal-weekdays {
@@ -4488,9 +4580,8 @@ body.home .site-header.is-scrolled {
 	font-weight: 600;
 }
 
-.ecoflow-cal .ecoflow-plan-card:nth-child(3) strong,
 .ecoflow-cal .ecoflow-plan-slot-watts {
-	color: #00f5d4;
+	color: #ff9f1c;
 }
 
 .ecoflow-cal .ecoflow-plan-card:nth-child(4) strong {

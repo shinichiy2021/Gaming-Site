@@ -2323,7 +2323,7 @@ function gaming_hub_ecoflow_scripts() {
 			'approveUrl' => rest_url( 'gaming-hub/v1/ecoflow/plan/approve' ),
 			'cancelUrl'  => rest_url( 'gaming-hub/v1/ecoflow/plan/cancel' ),
 			'restNonce'  => wp_create_nonce( 'wp_rest' ),
-			'canApprove' => false,
+			'canApprove' => $is_ecoflow && gaming_hub_ecoflow_can_control(),
 			'interval'   => GAMING_HUB_ECOFLOW_STATUS_CACHE_TTL * 1000,
 			'labels'     => array(
 				'unavailable' => gaming_hub_ecoflow_unavailable_label(),

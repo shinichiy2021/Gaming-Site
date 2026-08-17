@@ -1,6 +1,6 @@
 <?php
 /**
- * EcoFlow Pro 3 charge schedule: auto-send the current plan, notify on the site.
+ * EcoFlow Pro 3 charge schedule: propose on site, send after approval.
  *
  * @package Gaming_Hub
  */
@@ -31,14 +31,16 @@ function gaming_hub_ecoflow_attach_schedule_state( array $plan ) {
 	$status    = $saved['status'] ?? '';
 	$saved_id  = $saved['plan_id'] ?? '';
 	$plan_id   = $plan['plan_id'] ?? '';
-	$is_match  = ( 'approved' === $status && $saved_id && $saved_id === $plan_id );
+	$is_auto   = ! empty( $saved['auto'] );
+	$is_match  = ( ! $is_auto && 'approved' === $status && $saved_id && $saved_id === $plan_id );
+	$stale     = ( ! $is_auto && 'approved' === $status && $saved_id && $saved_id !== $plan_id );
 
-	$plan['can_approve']         = false;
-	$plan['auto_send']           = true;
+	$plan['can_approve']         = gaming_hub_ecoflow_can_control();
+	$plan['auto_send']           = false;
 	$plan['approval_status']     = $status ? $status : 'proposed';
 	$plan['approved_plan_id']    = $saved_id;
 	$plan['is_approved_current'] = $is_match;
-	$plan['needs_reapprove']     = false;
+	$plan['needs_reapprove']     = $stale;
 	$plan['last_applied_w']         = isset( $saved['last_applied_w'] ) && null !== $saved['last_applied_w']
 		? gaming_hub_ecoflow_clamp_charge_watts( (int) $saved['last_applied_w'] )
 		: null;
@@ -62,31 +64,43 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 	if ( ! empty( $plan['last_apply_error'] ) ) {
 		return sprintf(
 			/* translators: %s: error message */
-			__( '自動送信エラー: %s', 'gaming-hub' ),
+			__( '送信エラー: %s', 'gaming-hub' ),
 			$plan['last_apply_error']
 		);
 	}
 
-	$watts = $plan['last_applied_w'];
-	if ( $watts ) {
-		$reserve = isset( $plan['last_applied_reserve'] ) ? (int) $plan['last_applied_reserve'] : null;
-		if ( $reserve ) {
+	if ( ! empty( $plan['is_approved_current'] ) ) {
+		$watts = $plan['last_applied_w'];
+		if ( $watts ) {
+			$reserve = isset( $plan['last_applied_reserve'] ) ? (int) $plan['last_applied_reserve'] : null;
+			if ( $reserve ) {
+				return sprintf(
+					/* translators: 1: watts, 2: backup reserve percent */
+					__( '承認済み。直近の送信は充電上限 %1$s W · 予備残量 %2$s%% です。', 'gaming-hub' ),
+					number_format_i18n( (int) $watts ),
+					number_format_i18n( $reserve )
+				);
+			}
+
 			return sprintf(
-				/* translators: 1: watts, 2: backup reserve percent */
-				__( '承認なしで自動送信中。直近は充電上限 %1$s W · 予備残量 %2$s%% です。', 'gaming-hub' ),
-				number_format_i18n( (int) $watts ),
-				number_format_i18n( $reserve )
+				/* translators: %s: watts */
+				__( '承認済み。直近の送信は充電上限 %s W です。', 'gaming-hub' ),
+				number_format_i18n( (int) $watts )
 			);
 		}
 
-		return sprintf(
-			/* translators: %s: watts */
-			__( '承認なしで自動送信中。直近は充電上限 %s W です。', 'gaming-hub' ),
-			number_format_i18n( (int) $watts )
-		);
+		return __( '承認済み。時間どおりに Pro 3 へ充電上限を送ります。', 'gaming-hub' );
 	}
 
-	return __( '承認なしで自動送信します。時間どおりに Pro 3 へ充電上限を送ります。', 'gaming-hub' );
+	if ( ! empty( $plan['needs_reapprove'] ) ) {
+		return __( '提案が更新されました。再承認するまで前回のスケジュールを送ります。', 'gaming-hub' );
+	}
+
+	if ( 'cancelled' === ( $plan['approval_status'] ?? '' ) ) {
+		return __( '承認を取り消しました。API は送りません。', 'gaming-hub' );
+	}
+
+	return __( '未承認です。承認するまで Pro 3 には送りません。', 'gaming-hub' );
 }
 
 /**
@@ -130,12 +144,18 @@ function gaming_hub_ecoflow_pro_grid_charge_view( array $plan ) {
 	$active   = $applied > $idle_w || gaming_hub_ecoflow_plan_slot_is_charging( $plan );
 	$watts    = $active ? $charge_w : 0;
 
+	$live = ! empty( $plan['is_approved_current'] ) || ! empty( $plan['needs_reapprove'] );
+
 	if ( ! empty( $plan['last_apply_error'] ) ) {
 		$message = sprintf(
 			/* translators: %s: error message */
-			__( '自動送信エラー: %s', 'gaming-hub' ),
+			__( '送信エラー: %s', 'gaming-hub' ),
 			$plan['last_apply_error']
 		);
+	} elseif ( ! $live ) {
+		$active  = false;
+		$watts   = 0;
+		$message = __( '未承認のため、グリッド充電は送りません。', 'gaming-hub' );
 	} elseif ( $active ) {
 		$message = sprintf(
 			/* translators: %s: charge watts */
@@ -143,7 +163,7 @@ function gaming_hub_ecoflow_pro_grid_charge_view( array $plan ) {
 			number_format_i18n( $watts )
 		);
 	} else {
-		$message = __( '充電計画どおり自動送信。グリッド充電時間外は待機です。', 'gaming-hub' );
+		$message = __( '承認済みの計画どおり。グリッド充電時間外は待機です。', 'gaming-hub' );
 	}
 
 	return array(
@@ -196,47 +216,12 @@ function gaming_hub_ecoflow_get_saved_schedule() {
 }
 
 /**
- * Adopt the current proposed plan and send it without waiting for approval.
+ * Overlay schedule state only. Plans are not sent until an admin approves.
  *
  * @param array<string, mixed> $plan Proposed plan.
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_autosync_charge_plan( array $plan ) {
-	$plan_id = $plan['plan_id'] ?? '';
-	if ( '' === $plan_id ) {
-		return gaming_hub_ecoflow_attach_schedule_state( $plan );
-	}
-
-	$saved = gaming_hub_ecoflow_get_saved_schedule();
-	if ( ( $saved['plan_id'] ?? '' ) === $plan_id && ( $saved['status'] ?? '' ) === 'approved' ) {
-		return gaming_hub_ecoflow_attach_schedule_state( $plan );
-	}
-
-	$record = array(
-		'status'               => 'approved',
-		'plan_id'              => $plan_id,
-		'charge_w'             => defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000,
-		'idle_w'               => defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0,
-		'slots'                => function_exists( 'gaming_hub_ecoflow_normalize_plan_slots' )
-			? gaming_hub_ecoflow_normalize_plan_slots( is_array( $plan['slots'] ?? null ) ? $plan['slots'] : array() )
-			: ( $plan['slots'] ?? array() ),
-		'approved_at'          => wp_date( 'c' ),
-		'approved_by'          => 0,
-		'auto'                 => true,
-		'last_applied_w'       => $saved['last_applied_w'] ?? null,
-		'last_applied_reserve' => $saved['last_applied_reserve'] ?? null,
-		'last_applied_hour'    => $saved['last_applied_hour'] ?? '',
-		'last_applied_at'      => $saved['last_applied_at'] ?? '',
-		'last_apply_error'     => '',
-		'send_notice'          => $saved['send_notice'] ?? null,
-	);
-
-	update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $record, false );
-
-	if ( function_exists( 'gaming_hub_ecoflow_apply_approved_schedule' ) ) {
-		gaming_hub_ecoflow_apply_approved_schedule( true );
-	}
-
 	return gaming_hub_ecoflow_attach_schedule_state( $plan );
 }
 
@@ -302,6 +287,7 @@ function gaming_hub_ecoflow_approve_schedule( $plan_id ) {
 		'slots'            => $plan['slots'] ?? array(),
 		'approved_at'      => wp_date( 'c' ),
 		'approved_by'      => get_current_user_id(),
+		'auto'             => false,
 		'last_applied_w'   => null,
 		'last_applied_hour'=> '',
 		'last_applied_at'  => '',
@@ -355,7 +341,7 @@ function gaming_hub_ecoflow_cancel_schedule() {
  */
 function gaming_hub_ecoflow_apply_approved_schedule( $force = false ) {
 	$saved = gaming_hub_ecoflow_get_saved_schedule();
-	if ( ( $saved['status'] ?? '' ) !== 'approved' ) {
+	if ( ( $saved['status'] ?? '' ) !== 'approved' || ! empty( $saved['auto'] ) ) {
 		return true;
 	}
 

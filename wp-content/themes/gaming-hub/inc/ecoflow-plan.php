@@ -297,9 +297,7 @@ function gaming_hub_ecoflow_get_charge_plan( array $status ) {
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status ) {
-	if ( function_exists( 'gaming_hub_ecoflow_autosync_charge_plan' ) ) {
-		$plan = gaming_hub_ecoflow_autosync_charge_plan( $plan );
-	} elseif ( function_exists( 'gaming_hub_ecoflow_attach_schedule_state' ) ) {
+	if ( function_exists( 'gaming_hub_ecoflow_attach_schedule_state' ) ) {
 		$plan = gaming_hub_ecoflow_attach_schedule_state( $plan );
 	}
 
