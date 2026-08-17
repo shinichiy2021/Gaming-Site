@@ -39,6 +39,56 @@ function isFlowActive( flowId, status ) {
 	return false;
 }
 
+function batteryTone( percent ) {
+	if ( ! Number.isFinite( percent ) ) {
+		return { color: '#8b93a7', className: '' };
+	}
+
+	if ( percent <= 10 ) {
+		return { color: '#ff453a', className: 'is-critical' };
+	}
+
+	if ( percent <= 20 ) {
+		return { color: '#ffd60a', className: 'is-low' };
+	}
+
+	return { color: '#34c759', className: 'is-ok' };
+}
+
+function flowNodeClass( ...parts ) {
+	return parts.filter( Boolean ).join( ' ' );
+}
+
+function PhoneBattery( { percent, charging } ) {
+	if ( ! Number.isFinite( percent ) ) {
+		return null;
+	}
+
+	const level = Math.max( 0, Math.min( 100, percent ) );
+	const tone = batteryTone( level );
+	const classes = [
+		'ecoflow-phone-batt',
+		charging ? 'is-charging' : '',
+		tone.className,
+	].filter( Boolean ).join( ' ' );
+
+	return (
+		<span
+			className={ classes }
+			style={ { '--battery-level': level, '--batt-tone': tone.color } }
+			title={ formatSoc( percent ) }
+		>
+			<span className="ecoflow-phone-batt-icon" aria-hidden="true">
+				<span className="ecoflow-phone-batt-shell">
+					<span className="ecoflow-phone-batt-fill" />
+				</span>
+				<span className="ecoflow-phone-batt-nub" />
+			</span>
+			<span className="ecoflow-phone-batt-pct">{ formatSoc( percent ) }</span>
+		</span>
+	);
+}
+
 function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } ) {
 	if ( ! device ) {
 		return null;
@@ -56,12 +106,20 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 		? formatPack( remainWh, fullWh )
 		: '';
 	const isCharging = !! device.is_charging;
-	const overlay = hero || prominent;
+	const acOut = Number( device.ac_out ) || 0;
+	const outputTotal = Number( device.output_total ) || 0;
+	const isDischarging = !! device.is_discharging
+		|| ( ! isCharging && Math.max( acOut, outputTotal ) >= FLOW_THRESHOLD );
+	const isStandby = ! isCharging && ! isDischarging;
+	const tone = batteryTone( batteryPercent );
 	const classes = [
 		'ecoflow-node',
 		'ecoflow-node-battery',
 		'ecoflow-node-device',
 		isCharging ? 'is-charging' : '',
+		isDischarging ? 'is-discharging' : '',
+		isStandby ? 'is-standby' : 'is-active',
+		tone.className,
 		hero ? 'is-hero' : '',
 		prominent ? 'is-prominent' : '',
 	].filter( Boolean ).join( ' ' );
@@ -70,22 +128,17 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 		hero ? 'ecoflow-node-photo-pro' : '',
 		prominent ? 'ecoflow-node-photo-delta' : '',
 	].filter( Boolean ).join( ' ' );
+	const battStyle = hasBattery
+		? { '--battery-level': batteryPercent, '--batt-tone': tone.color }
+		: undefined;
 
 	return (
-		<div className={ classes } data-flow-id={ flowId }>
-			<div
-				className="ecoflow-node-art"
-				style={ hasBattery ? { '--battery-level': batteryPercent } : undefined }
-			>
+		<div className={ classes } data-flow-id={ flowId } style={ battStyle }>
+			<div className="ecoflow-node-art" style={ battStyle }>
 				{ photo ? (
 					<img src={ photo } alt="" className={ photoClass } />
 				) : null }
-				{ hasBattery ? (
-					<>
-						{ overlay ? <span className="ecoflow-hud-fill" aria-hidden="true" /> : null }
-						<span className="ecoflow-hud-pct">{ formatSoc( batteryPercent ) }</span>
-					</>
-				) : null }
+				<PhoneBattery percent={ batteryPercent } charging={ isCharging } />
 			</div>
 			<span className="ecoflow-node-label">{ label }</span>
 			{ packLabel ? <small className="ecoflow-node-pack">{ packLabel }</small> : null }
@@ -121,6 +174,11 @@ function DualFlowDiagram( { status, labels, images } ) {
 		? `${ ( extraCap / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kWh`
 		: `${ extraCap } Wh`;
 	const deltaSoc = formatSoc( delta.battery_percent );
+	const extraTone = batteryTone( extraSoc );
+	const extraStandby = ! delta.is_charging
+		&& ! delta.is_discharging
+		&& ( Number( delta.ac_out ) || 0 ) < FLOW_THRESHOLD
+		&& ( Number( delta.output_total ) || 0 ) < FLOW_THRESHOLD;
 
 	return (
 		<div className="ecoflow-dual-layout is-independent">
@@ -129,23 +187,31 @@ function DualFlowDiagram( { status, labels, images } ) {
 
 				<div className="ecoflow-input-stack">
 					<div
-						className={ `ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot${ isFlowActive( 'grid', status ) ? ' is-active' : '' }` }
+						className={ flowNodeClass( 'ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot ecoflow-node-banner', isFlowActive( 'grid', status ) ? 'is-active' : 'is-standby' ) }
 						data-flow-id="grid"
 					>
-						<span className="ecoflow-node-icon" aria-hidden="true">⚡</span>
+						{ images.grid ? (
+							<img src={ images.grid } alt="" className="ecoflow-node-photo ecoflow-node-photo-grid" />
+						) : (
+							<span className="ecoflow-node-banner-art" aria-hidden="true">
+								<span className="ecoflow-node-icon">⚡</span>
+							</span>
+						) }
 						<span className="ecoflow-node-label">{ labels.gridCharge || labels.grid }</span>
 						<strong>{ proGrid.active ? formatWatts( proGrid.watts ) : ( labels.gridIdle || '待機' ) }</strong>
 						{ proGrid.message ? <small>{ proGrid.message }</small> : null }
 					</div>
 
 					<div
-						className={ `ecoflow-node ecoflow-node-hv${ isFlowActive( 'hv', status ) ? ' is-active' : '' }` }
+						className={ flowNodeClass( 'ecoflow-node ecoflow-node-hv ecoflow-node-banner', isFlowActive( 'hv', status ) ? 'is-active' : 'is-standby' ) }
 						data-flow-id="hv"
 					>
 						{ images.solar ? (
 							<img src={ images.solar } alt="" className="ecoflow-node-photo ecoflow-node-photo-solar" />
 						) : (
-							<span className="ecoflow-node-icon" aria-hidden="true">☀️</span>
+							<span className="ecoflow-node-banner-art" aria-hidden="true">
+								<span className="ecoflow-node-icon">☀️</span>
+							</span>
 						) }
 						<span className="ecoflow-node-label">{ labels.hv || 'ハイボルト' }</span>
 						<strong>{ formatWatts( hvWatts ) }</strong>
@@ -155,7 +221,7 @@ function DualFlowDiagram( { status, labels, images } ) {
 				<DeviceNode device={ pro } label={ labels.pro } flowId="pro" photo={ images.pro } hero />
 
 				<div
-					className={ `ecoflow-node ecoflow-node-home ecoflow-node-room${ isFlowActive( 'proToHome', status ) ? ' is-active' : '' }` }
+					className={ flowNodeClass( 'ecoflow-node ecoflow-node-home ecoflow-node-room ecoflow-node-banner', isFlowActive( 'proToHome', status ) ? 'is-active' : 'is-standby' ) }
 					data-flow-id="home"
 				>
 					{ images.room ? (
@@ -191,23 +257,31 @@ function DualFlowDiagram( { status, labels, images } ) {
 
 				<div className="ecoflow-input-stack">
 					<div
-						className={ `ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot${ isFlowActive( 'deltaGrid', status ) ? ' is-active' : '' }` }
+						className={ flowNodeClass( 'ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot ecoflow-node-banner', isFlowActive( 'deltaGrid', status ) ? 'is-active' : 'is-standby' ) }
 						data-flow-id="deltaGrid"
 					>
-						<span className="ecoflow-node-icon" aria-hidden="true">⚡</span>
+						{ images.grid ? (
+							<img src={ images.grid } alt="" className="ecoflow-node-photo ecoflow-node-photo-grid" />
+						) : (
+							<span className="ecoflow-node-banner-art" aria-hidden="true">
+								<span className="ecoflow-node-icon">⚡</span>
+							</span>
+						) }
 						<span className="ecoflow-node-label">{ labels.deltaGrid || 'グリッド AC 入力' }</span>
 						<strong>{ formatWatts( deltaAcIn ) }</strong>
 						<small>{ labels.acInMeasured || '実測 · MQTT' }</small>
 					</div>
 
 					<div
-						className={ `ecoflow-node ecoflow-node-solar${ isFlowActive( 'solar', status ) ? ' is-active' : '' }` }
+						className={ flowNodeClass( 'ecoflow-node ecoflow-node-solar ecoflow-node-banner', isFlowActive( 'solar', status ) ? 'is-active' : 'is-standby' ) }
 						data-flow-id="solar"
 					>
 						{ images.solar ? (
 							<img src={ images.solar } alt="" className="ecoflow-node-photo ecoflow-node-photo-solar" />
 						) : (
-							<span className="ecoflow-node-icon" aria-hidden="true">☀️</span>
+							<span className="ecoflow-node-banner-art" aria-hidden="true">
+								<span className="ecoflow-node-icon">☀️</span>
+							</span>
 						) }
 						<span className="ecoflow-node-label">{ labels.solar }</span>
 						<strong>{ formatWatts( solarWatts ) }</strong>
@@ -221,30 +295,35 @@ function DualFlowDiagram( { status, labels, images } ) {
 
 				<div className="ecoflow-delta-cluster">
 					<DeviceNode device={ delta } label={ labels.delta } flowId="delta" photo={ images.delta } prominent />
-
-					<div
-						className={ `ecoflow-node ecoflow-node-extra${ Number.isFinite( extraSoc ) ? ' has-soc' : '' }${ delta.is_charging ? ' is-charging' : '' }` }
-						data-flow-id="extra"
-						style={ Number.isFinite( extraSoc ) ? { '--battery-level': extraSoc } : undefined }
-					>
-						<div className="ecoflow-node-art ecoflow-extra-pack">
-							{ images.extra ? (
-								<img src={ images.extra } alt="" className="ecoflow-node-photo ecoflow-node-photo-extra" />
-							) : (
-								<span className="ecoflow-node-icon" aria-hidden="true">🔋</span>
-							) }
-							<span className="ecoflow-hud-fill" aria-hidden="true" />
-							{ Number.isFinite( extraSoc ) ? (
-								<span className="ecoflow-hud-pct">{ formatSoc( extraSoc ) }</span>
-							) : null }
-						</div>
-						<span className="ecoflow-node-label">{ labels.extra || 'Extra Battery 1kW' }</span>
-						<small>{ extraCapLabel }</small>
-					</div>
 				</div>
 
 				<div
-					className={ `ecoflow-node ecoflow-node-home ecoflow-node-ups${ isFlowActive( 'deltaToUps', status ) ? ' is-active' : '' }` }
+					className={ flowNodeClass(
+						'ecoflow-node ecoflow-node-extra ecoflow-node-banner',
+						Number.isFinite( extraSoc ) ? 'has-soc' : '',
+						delta.is_charging ? 'is-charging' : '',
+						extraStandby ? 'is-standby' : 'is-active',
+						extraTone.className
+					) }
+					data-flow-id="extra"
+					style={ Number.isFinite( extraSoc ) ? { '--battery-level': extraSoc, '--batt-tone': extraTone.color } : undefined }
+				>
+					<div className="ecoflow-node-art ecoflow-extra-pack">
+						{ images.extra ? (
+							<img src={ images.extra } alt="" className="ecoflow-node-photo ecoflow-node-photo-extra" />
+						) : (
+							<span className="ecoflow-node-banner-art" aria-hidden="true">
+								<span className="ecoflow-node-icon">🔋</span>
+							</span>
+						) }
+						<PhoneBattery percent={ extraSoc } charging={ !! delta.is_charging } />
+					</div>
+					<span className="ecoflow-node-label">{ labels.extra || 'Extra Battery 1kW' }</span>
+					<small>{ extraCapLabel }</small>
+				</div>
+
+				<div
+					className={ flowNodeClass( 'ecoflow-node ecoflow-node-home ecoflow-node-ups ecoflow-node-banner', isFlowActive( 'deltaToUps', status ) ? 'is-active' : 'is-standby' ) }
 					data-flow-id="ups"
 				>
 					{ images.ups ? (
@@ -254,7 +333,11 @@ function DualFlowDiagram( { status, labels, images } ) {
 					) }
 					<span className="ecoflow-node-label">{ labels.ups || '常時稼働エリア (UPS)' }</span>
 					<strong>{ formatWatts( upsWatts ) }</strong>
-					<small>{ status.ups_source === 'ecoflow' ? ( labels.acOut || 'AC 出力 · MQTT' ) : ( status.ups_source === 'switchbot' ? ( labels.upsPlug || 'SwitchBot Plug' ) : '未取得' ) }</small>
+					<small>{
+						status.ups_source === 'ecoflow'
+							? ( labels.acOutMeasured || '実測 · MQTT' )
+							: ( status.ups_source === 'switchbot' ? ( labels.upsPlug || 'SwitchBot Plug' ) : '未取得' )
+					}</small>
 				</div>
 
 				<div className="ecoflow-flow-summary ecoflow-flow-summary-system">
@@ -285,7 +368,7 @@ function SingleFlowDiagram( { status, labels } ) {
 		<>
 			<div className="ecoflow-energy-nodes">
 				<div
-					className={ `ecoflow-node ecoflow-node-solar${ isFlowActive( 'solar', status ) ? ' is-active' : '' }` }
+					className={ flowNodeClass( 'ecoflow-node ecoflow-node-solar', isFlowActive( 'solar', status ) ? 'is-active' : 'is-standby' ) }
 					data-flow-id="solar"
 				>
 					<span className="ecoflow-node-icon" aria-hidden="true">☀️</span>
@@ -294,7 +377,7 @@ function SingleFlowDiagram( { status, labels } ) {
 				</div>
 
 				<div
-					className={ `ecoflow-node ecoflow-node-grid${ isFlowActive( 'grid', status ) ? ' is-active' : '' }` }
+					className={ flowNodeClass( 'ecoflow-node ecoflow-node-grid', isFlowActive( 'grid', status ) ? 'is-active' : 'is-standby' ) }
 					data-flow-id="grid"
 				>
 					<span className="ecoflow-node-icon" aria-hidden="true">🔌</span>
@@ -322,7 +405,7 @@ function SingleFlowDiagram( { status, labels } ) {
 				</div>
 
 				<div
-					className={ `ecoflow-node ecoflow-node-home${ isFlowActive( 'home', status ) ? ' is-active' : '' }` }
+					className={ flowNodeClass( 'ecoflow-node ecoflow-node-home', isFlowActive( 'home', status ) ? 'is-active' : 'is-standby' ) }
 					data-flow-id="home"
 				>
 					<span className="ecoflow-node-icon" aria-hidden="true">🏠</span>

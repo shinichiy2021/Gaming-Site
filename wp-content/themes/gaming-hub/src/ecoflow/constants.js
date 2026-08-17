@@ -20,10 +20,9 @@ export const FLOW_CONNECTIONS_DUAL = [
 	},
 	{
 		id: 'proToHome',
-		from: { id: 'pro', side: 'bottom' },
-		to: { id: 'home', side: 'top' },
-		axis: 'vertical',
-		align: 'from',
+		from: { id: 'pro', side: 'right' },
+		to: { id: 'home', side: 'left' },
+		axis: 'horizontal',
 		color: '#69f0ae',
 		showLabel: true,
 		alwaysLabel: true,
@@ -46,10 +45,9 @@ export const FLOW_CONNECTIONS_DUAL = [
 	},
 	{
 		id: 'deltaToUps',
-		from: { id: 'delta', side: 'bottom' },
-		to: { id: 'ups', side: 'top' },
-		axis: 'vertical',
-		align: 'from',
+		from: { id: 'delta', side: 'right' },
+		to: { id: 'ups', side: 'left' },
+		axis: 'horizontal',
 		color: '#69f0ae',
 		showLabel: true,
 		alwaysLabel: true,
@@ -114,13 +112,27 @@ export function formatSoc( value ) {
 }
 
 export function formatWatts( value ) {
-	if ( value === null || value === undefined ) {
-		return ( typeof window !== 'undefined' && window.gamingHubT )
-			? window.gamingHubT( '未取得' )
-			: '未取得';
+	const standby = ( typeof window !== 'undefined' && window.gamingHubT )
+		? window.gamingHubT( '待機' )
+		: '待機';
+	const missing = ( typeof window !== 'undefined' && window.gamingHubT )
+		? window.gamingHubT( '未取得' )
+		: '未取得';
+
+	if ( value === null || value === undefined || value === '' ) {
+		return missing;
 	}
 
-	return `${ Math.round( Number( value ) ).toLocaleString() } W`;
+	const watts = Math.round( Number( value ) );
+	if ( ! Number.isFinite( watts ) ) {
+		return missing;
+	}
+
+	if ( watts === 0 ) {
+		return standby;
+	}
+
+	return `${ watts.toLocaleString() } W`;
 }
 
 export function formatWh( value ) {
@@ -204,6 +216,10 @@ export function upsOutput( status ) {
 
 	if ( Object.prototype.hasOwnProperty.call( status, 'ups_out' ) && status.ups_out !== null && status.ups_out !== undefined ) {
 		return Number( status.ups_out ) || 0;
+	}
+
+	if ( status.delta && status.delta.ac_out !== null && status.delta.ac_out !== undefined ) {
+		return Number( status.delta.ac_out ) || 0;
 	}
 
 	return null;

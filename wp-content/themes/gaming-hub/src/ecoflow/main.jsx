@@ -21,6 +21,7 @@ if ( mountNode ) {
 		dcLink: 'DC 12V',
 		acLink: 'DC 12V',
 		acOut: 'AC 出力',
+		acOutMeasured: '実測 · MQTT',
 		upsPlug: 'SwitchBot Plug',
 		lvMeasured: '実測 · MQTT',
 		flow: '電力フロー',
