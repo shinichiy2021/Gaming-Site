@@ -20,6 +20,9 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 		<?php
 		$plan = is_array( $status['charge_plan'] ?? null ) ? $status['charge_plan'] : array();
 		$needs_grid = ! empty( $plan['needs_grid'] );
+		$can_approve = ! empty( $plan['can_approve'] );
+		$approved = ! empty( $plan['is_approved_current'] );
+		$stale = ! empty( $plan['needs_reapprove'] );
 		$slots = is_array( $plan['slots'] ?? null ) ? $plan['slots'] : array();
 		$today = wp_date( 'Y-m-d' );
 		$now_hour = (int) wp_date( 'G' );
@@ -115,7 +118,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 			<?php echo $notice_fresh ? '' : 'hidden'; ?>
 		><?php echo $notice_fresh ? esc_html( (string) ( $send_notice['message'] ?? '' ) ) : ''; ?></div>
 		<div
-			class="ecoflow-plan<?php echo $needs_grid ? ' is-deficit' : ' is-ok'; ?>"
+			class="ecoflow-plan<?php echo $needs_grid ? ' is-deficit' : ' is-ok'; ?><?php echo $approved ? ' is-approved' : ''; ?><?php echo $stale ? ' is-stale' : ''; ?>"
 			data-plan-id="<?php echo esc_attr( $plan['plan_id'] ?? '' ); ?>"
 		>
 			<div class="ecoflow-plan-header ecoflow-plan-head">
@@ -396,6 +399,14 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 
 			<div class="ecoflow-plan-actions">
 				<p class="ecoflow-plan-approval" data-ecoflow-field="plan_approval"><?php echo esc_html( $plan['approval_note'] ?? '' ); ?></p>
+				<?php if ( $can_approve ) : ?>
+					<button type="button" class="ecoflow-plan-approve" data-ecoflow-approve<?php echo $approved && ! $stale ? ' hidden' : ''; ?>>
+						<?php esc_html_e( 'このスケジュールを承認して Pro 3 に送る', 'gaming-hub' ); ?>
+					</button>
+					<button type="button" class="ecoflow-plan-cancel" data-ecoflow-cancel<?php echo ( $approved || $stale ) ? '' : ' hidden'; ?>>
+						<?php esc_html_e( '承認を取り消す', 'gaming-hub' ); ?>
+					</button>
+				<?php endif; ?>
 			</div>
 		</div>
 

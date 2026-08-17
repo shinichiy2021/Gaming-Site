@@ -293,8 +293,62 @@
 		return Math.round(Number(value)).toLocaleString() + ' W';
 	}
 
+	function calRoot() {
+		return document.querySelector('[data-ecoflow-cal]');
+	}
+
+	function energyNiceMax(value) {
+		const v = Math.max(0, Number(value) || 0);
+		if (v <= 0) {
+			return 1;
+		}
+		const exp = Math.pow(10, Math.floor(Math.log10(v)));
+		const n = v / exp;
+		const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+		return nice * exp;
+	}
+
+	function energyTicks(max, steps) {
+		const top = energyNiceMax(max);
+		const ticks = [];
+		const count = steps || 4;
+		for (let i = 0; i <= count; i += 1) {
+			ticks.push(top - (top * i / count));
+		}
+		return { max: top, ticks: ticks };
+	}
+
+	function formatEnergyTick(value, yen) {
+		const n = Number(value) || 0;
+		if (yen) {
+			return n >= 10 ? String(Math.round(n)) : n.toFixed(1);
+		}
+		if (n >= 10) {
+			return String(Math.round(n));
+		}
+		return n.toFixed(n >= 1 ? 1 : 2);
+	}
+
+	function polylineFromValues(values, max) {
+		const n = Math.max(1, values.length);
+		const top = Math.max(1, Number(max) || 1);
+		return values.map(function (value, i) {
+			const x = ((i + 0.5) / n) * 100;
+			const y = Math.max(0, Math.min(100, 100 - (Math.max(0, Number(value) || 0) / top) * 100));
+			return x.toFixed(2) + ',' + y.toFixed(1);
+		}).join(' ');
+	}
+
+	function setTickTexts(nodes, ticks, yen) {
+		nodes.forEach(function (el, i) {
+			if (ticks[i] !== undefined) {
+				el.textContent = formatEnergyTick(ticks[i], yen);
+			}
+		});
+	}
+
 	function applyEnergyNow(energy) {
-		const root = dashboard.querySelector('[data-ecoflow-cal]');
+		const root = calRoot();
 		if (!root || !energy || !energy.now) {
 			return;
 		}
@@ -309,6 +363,190 @@
 		}
 		if (nowPv) {
 			nowPv.textContent = formatCalWatts(energy.now.solar);
+		}
+	}
+
+	function applyEnergyTotals(root, energy) {
+		if (!energy.totals) {
+			return;
+		}
+		const monthSave = root.querySelector('[data-ecoflow-cal-month-save]');
+		const monthIn = root.querySelector('[data-ecoflow-cal-month-in]');
+		const monthOut = root.querySelector('[data-ecoflow-cal-month-out]');
+		const monthPv = root.querySelector('[data-ecoflow-cal-month-pv]');
+		if (monthSave) {
+			monthSave.textContent = formatCalYen(energy.totals.saved_yen);
+		}
+		if (monthOut) {
+			monthOut.textContent = formatCalKwh(energy.totals.output_kwh) + ' kWh';
+		}
+		if (monthIn) {
+			monthIn.textContent = t('入力 ') + formatCalKwh(energy.totals.input_kwh) + ' kWh';
+		}
+		if (monthPv) {
+			monthPv.textContent = formatCalKwh(energy.totals.solar_kwh) + ' kWh';
+		}
+	}
+
+	function renderEnergyTodayChart(root, energy) {
+		const wrap = root.querySelector('[data-ecoflow-cal-today]');
+		const hours = energy.today_hours;
+		if (!wrap) {
+			return;
+		}
+		if (!Array.isArray(hours) || !hours.length) {
+			wrap.hidden = true;
+			return;
+		}
+		wrap.hidden = false;
+
+		let maxK = 0;
+		hours.forEach(function (row) {
+			maxK = Math.max(maxK, Number(row.solar_kwh) || 0, Number(row.output_kwh) || 0);
+		});
+		const axis = energyTicks(energy.today_kwh_max || maxK);
+		setTickTexts(root.querySelectorAll('[data-ecoflow-cal-today-kwh-tick]'), axis.ticks, false);
+
+		const outLine = root.querySelector('[data-ecoflow-cal-today-out-line]');
+		if (outLine) {
+			outLine.setAttribute('points', polylineFromValues(hours.map(function (row) {
+				return row.output_kwh;
+			}), axis.max));
+		}
+
+		const track = root.querySelector('[data-ecoflow-cal-today-track]');
+		if (!track) {
+			return;
+		}
+		const nowHour = new Date().getHours();
+		track.querySelectorAll('[data-ecoflow-cal-today-col]').forEach(function (col) {
+			col.remove();
+		});
+		hours.forEach(function (row) {
+			const hour = Number(row.hour);
+			const isNow = hour === nowHour;
+			const hasData = !!row.has_data;
+			const solar = row.solar_kwh;
+			const height = solar === null || solar === undefined
+				? 0
+				: Math.max(0, Math.min(100, (Number(solar) / axis.max) * 100));
+			const col = document.createElement('div');
+			col.className = 'ecoflow-rate-col ecoflow-cal-col'
+				+ (isNow ? ' is-now' : '')
+				+ (!hasData ? ' is-empty' : '');
+			col.setAttribute('data-ecoflow-cal-today-col', '');
+			col.setAttribute('data-hour', String(hour));
+			if (isNow) {
+				const pip = document.createElement('span');
+				pip.className = 'ecoflow-rate-now-pip';
+				pip.textContent = t('NOW');
+				col.appendChild(pip);
+			}
+			const bar = document.createElement('span');
+			bar.className = 'ecoflow-rate-bar ecoflow-cal-pv-bar';
+			bar.style.height = height.toFixed(1) + '%';
+			const tip = [hour + ':00'];
+			if (solar !== null && solar !== undefined) {
+				tip.push(formatCalKwh(solar) + ' kWh');
+			}
+			if (row.output_kwh !== null && row.output_kwh !== undefined) {
+				tip.push('OUT ' + formatCalKwh(row.output_kwh));
+			}
+			bar.setAttribute('title', tip.join(' · '));
+			col.appendChild(bar);
+			track.appendChild(col);
+		});
+	}
+
+	function renderEnergyMonthChart(root, energy) {
+		const days = energy.days || [];
+		if (!days.length) {
+			return;
+		}
+
+		let maxK = 0;
+		let maxY = 0;
+		days.forEach(function (day) {
+			maxK = Math.max(maxK, Number(day.solar_kwh) || 0, Number(day.output_kwh) || 0);
+			maxY = Math.max(maxY, Number(day.saved_yen) || 0);
+		});
+		const kwhAxis = energyTicks(energy.kwh_max || maxK);
+		const yenAxis = energyTicks(energy.yen_max || maxY);
+		setTickTexts(root.querySelectorAll('[data-ecoflow-cal-kwh-tick]'), kwhAxis.ticks, false);
+		setTickTexts(root.querySelectorAll('[data-ecoflow-cal-yen-tick]'), yenAxis.ticks, true);
+
+		const outLine = root.querySelector('[data-ecoflow-cal-out-line]');
+		const yenLine = root.querySelector('[data-ecoflow-cal-yen-line]');
+		if (outLine) {
+			outLine.setAttribute('points', polylineFromValues(days.map(function (day) {
+				return day.output_kwh;
+			}), kwhAxis.max));
+		}
+		if (yenLine) {
+			yenLine.setAttribute('points', polylineFromValues(days.map(function (day) {
+				return day.saved_yen;
+			}), yenAxis.max));
+		}
+
+		const track = root.querySelector('[data-ecoflow-cal-track]');
+		const hoursRow = root.querySelector('[data-ecoflow-cal-hours]');
+		if (!track) {
+			return;
+		}
+		track.querySelectorAll('[data-ecoflow-cal-col]').forEach(function (col) {
+			col.remove();
+		});
+		const yenSvg = track.querySelector('.ecoflow-price-line');
+		const today = energy.today || '';
+		days.forEach(function (day) {
+			const isToday = !!day.is_today;
+			const hasData = !!day.has_data;
+			const isFuture = today && day.date > today;
+			const solar = day.solar_kwh;
+			const height = solar === null || solar === undefined
+				? 0
+				: Math.max(0, Math.min(100, (Number(solar) / kwhAxis.max) * 100));
+			const col = document.createElement('div');
+			col.className = 'ecoflow-rate-col ecoflow-cal-col'
+				+ (isToday ? ' is-now' : '')
+				+ (!hasData || isFuture ? ' is-empty' : '');
+			col.setAttribute('data-ecoflow-cal-col', '');
+			col.setAttribute('data-date', day.date || '');
+			if (isToday) {
+				const pip = document.createElement('span');
+				pip.className = 'ecoflow-rate-now-pip';
+				pip.textContent = t('NOW');
+				col.appendChild(pip);
+			}
+			const bar = document.createElement('span');
+			bar.className = 'ecoflow-rate-bar ecoflow-cal-pv-bar';
+			bar.style.height = height.toFixed(1) + '%';
+			const tip = [day.date || ''];
+			if (hasData) {
+				tip.push('PV ' + formatCalKwh(day.solar_kwh));
+				tip.push('OUT ' + formatCalKwh(day.output_kwh));
+				tip.push(formatCalYen(day.saved_yen));
+			}
+			bar.setAttribute('title', tip.join(' · '));
+			col.appendChild(bar);
+			if (yenSvg) {
+				track.insertBefore(col, yenSvg);
+			} else {
+				track.appendChild(col);
+			}
+		});
+
+		if (hoursRow) {
+			hoursRow.innerHTML = '';
+			days.forEach(function (day) {
+				const d = Number(day.day) || 0;
+				const isToday = !!day.is_today;
+				const show = d === 1 || d % 5 === 0 || isToday;
+				const el = document.createElement('span');
+				el.className = 'ecoflow-rate-hour' + (isToday ? ' is-now' : '');
+				el.textContent = show ? String(d) : '';
+				hoursRow.appendChild(el);
+			});
 		}
 	}
 
@@ -335,7 +573,7 @@
 	}
 
 	function renderEnergyCalendar(energy) {
-		const root = dashboard.querySelector('[data-ecoflow-cal]');
+		const root = calRoot();
 		if (!root || !energy) {
 			return;
 		}
@@ -355,25 +593,9 @@
 		}
 
 		applyEnergyNow(energy);
-
-		const monthSave = root.querySelector('[data-ecoflow-cal-month-save]');
-		const monthIn = root.querySelector('[data-ecoflow-cal-month-in]');
-		const monthOut = root.querySelector('[data-ecoflow-cal-month-out]');
-		const monthPv = root.querySelector('[data-ecoflow-cal-month-pv]');
-		if (energy.totals) {
-			if (monthSave) {
-				monthSave.textContent = formatCalYen(energy.totals.saved_yen);
-			}
-			if (monthIn) {
-				monthIn.textContent = formatCalKwh(energy.totals.input_kwh) + ' kWh';
-			}
-			if (monthOut) {
-				monthOut.textContent = formatCalKwh(energy.totals.output_kwh) + ' kWh';
-			}
-			if (monthPv) {
-				monthPv.textContent = formatCalKwh(energy.totals.solar_kwh) + ' kWh';
-			}
-		}
+		applyEnergyTotals(root, energy);
+		renderEnergyTodayChart(root, energy);
+		renderEnergyMonthChart(root, energy);
 
 		const grid = root.querySelector('[data-ecoflow-cal-grid]');
 		if (!grid || !Array.isArray(energy.days)) {
@@ -425,7 +647,7 @@
 	}
 
 	function applyEnergy(energy) {
-		const root = dashboard.querySelector('[data-ecoflow-cal]');
+		const root = calRoot();
 		if (!root || !energy) {
 			return;
 		}
@@ -437,24 +659,9 @@
 			return;
 		}
 
-		if (energy.totals) {
-			const monthSave = root.querySelector('[data-ecoflow-cal-month-save]');
-			const monthIn = root.querySelector('[data-ecoflow-cal-month-in]');
-			const monthOut = root.querySelector('[data-ecoflow-cal-month-out]');
-			const monthPv = root.querySelector('[data-ecoflow-cal-month-pv]');
-			if (monthSave) {
-				monthSave.textContent = formatCalYen(energy.totals.saved_yen);
-			}
-			if (monthIn) {
-				monthIn.textContent = formatCalKwh(energy.totals.input_kwh) + ' kWh';
-			}
-			if (monthOut) {
-				monthOut.textContent = formatCalKwh(energy.totals.output_kwh) + ' kWh';
-			}
-			if (monthPv) {
-				monthPv.textContent = formatCalKwh(energy.totals.solar_kwh) + ' kWh';
-			}
-		}
+		applyEnergyTotals(root, energy);
+		renderEnergyTodayChart(root, energy);
+		renderEnergyMonthChart(root, energy);
 
 		const today = (energy.days || []).find(function (day) {
 			return day.is_today;
@@ -465,7 +672,7 @@
 	}
 
 	function bindCalendarNav() {
-		const root = dashboard.querySelector('[data-ecoflow-cal]');
+		const root = calRoot();
 		if (!root || !gamingHubEcoflow.energyUrl) {
 			return;
 		}
@@ -839,6 +1046,15 @@
 		updateSolarLine(plan);
 		renderPlanChart(plan);
 		showSendNotice(plan.send_notice);
+
+		const approveBtn = dashboard.querySelector('[data-ecoflow-approve]');
+		const cancelBtn = dashboard.querySelector('[data-ecoflow-cancel]');
+		if (approveBtn) {
+			approveBtn.hidden = !!plan.is_approved_current && !plan.needs_reapprove;
+		}
+		if (cancelBtn) {
+			cancelBtn.hidden = !(plan.is_approved_current || plan.needs_reapprove);
+		}
 	}
 
 	const sendNoticeStorageKey = 'gamingHubEcoflowSendNoticeId';
