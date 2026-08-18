@@ -3530,7 +3530,8 @@ body.home .site-header.is-scrolled {
 }
 
 .ecoflow-node-grid small,
-.ecoflow-node-solar small {
+.ecoflow-node-solar small,
+.ecoflow-node-hv small {
 	display: block;
 	margin-top: 4px;
 	font-size: 0.78rem;
@@ -3572,6 +3573,34 @@ body.home .site-header.is-scrolled {
 	font-size: 1.05rem;
 }
 
+.ecoflow-node-eta {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0;
+	margin: 4px 0 0;
+	font-size: 0.78rem;
+	line-height: 1.2;
+	color: var(--color-text-muted);
+}
+
+.ecoflow-node-eta strong {
+	font-family: var(--font-display);
+	font-size: 1.05rem;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	color: var(--ecoflow-green);
+}
+
+.ecoflow-node-device.is-discharging .ecoflow-node-eta strong,
+.ecoflow-node-extra.is-discharging .ecoflow-node-eta strong {
+	color: #ffd60a;
+}
+
+.ecoflow-node-extra .ecoflow-node-eta {
+	margin-top: 6px;
+}
+
 .ecoflow-dual-layout .ecoflow-node strong {
 	font-size: 1.5rem;
 }
@@ -3582,6 +3611,7 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-dual-layout .ecoflow-node-room small,
 .ecoflow-dual-layout .ecoflow-node-solar small,
+.ecoflow-dual-layout .ecoflow-node-hv small,
 .ecoflow-dual-layout .ecoflow-node-ups small {
 	display: block;
 	font-size: 1.05rem;
@@ -4571,6 +4601,14 @@ body.home .site-header.is-scrolled {
 	fill: rgba(255, 159, 28, 0.32);
 }
 
+.ecoflow-solar-line polygon.ecoflow-solar-delta {
+	fill: rgba(255, 107, 53, 0.4);
+}
+
+.ecoflow-solar-line polygon.ecoflow-solar-pro {
+	fill: rgba(255, 159, 28, 0.28);
+}
+
 .ecoflow-solar-line polyline {
 	fill: none;
 	stroke: #ff9f1c;
@@ -4618,6 +4656,52 @@ body.home .site-header.is-scrolled {
 	position: relative;
 }
 
+.ecoflow-soc-stack {
+	display: flex;
+	flex-direction: column-reverse;
+	justify-content: flex-start;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+	z-index: 2;
+}
+
+.ecoflow-soc-stack .ecoflow-rate-bar {
+	width: 10px;
+	max-width: 10px;
+	min-height: 0;
+	flex: 0 0 auto;
+}
+
+.ecoflow-rate-col.is-empty .ecoflow-soc-stack .ecoflow-rate-bar {
+	min-height: 0;
+	height: 0 !important;
+	opacity: 0;
+	box-shadow: none;
+}
+
+.ecoflow-soc-bar-pro {
+	background:
+		repeating-linear-gradient(
+			to top,
+			transparent 0 2px,
+			rgba(0, 0, 0, 0.28) 2px 3px
+		),
+		linear-gradient(180deg, #ffe600, #ffc107);
+	box-shadow: 0 0 8px rgba(255, 230, 0, 0.28);
+}
+
+.ecoflow-soc-bar-delta {
+	background:
+		repeating-linear-gradient(
+			to top,
+			transparent 0 2px,
+			rgba(0, 0, 0, 0.22) 2px 3px
+		),
+		linear-gradient(180deg, #7ec8ff, #3b82f6);
+	box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
 .ecoflow-rate-bar {
 	width: 100%;
 	max-width: 10px;
@@ -4644,9 +4728,17 @@ body.home .site-header.is-scrolled {
 	box-shadow: none;
 }
 
+.ecoflow-rate-col.is-now .ecoflow-soc-stack {
+	filter: drop-shadow(0 0 10px #ffe600);
+}
+
 .ecoflow-rate-col.is-now .ecoflow-rate-bar {
 	box-shadow: 0 0 14px #ffe600;
 	outline: 1px solid #fff;
+}
+
+.ecoflow-rate-col.is-now .ecoflow-soc-bar-delta {
+	box-shadow: 0 0 12px #3b82f6;
 }
 
 .ecoflow-rate-now-pip {
@@ -4692,6 +4784,10 @@ body.home .site-header.is-scrolled {
 		grid-template-columns: repeat(2, 1fr);
 	}
 
+	.ecoflow-cal-hud-yen {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
 	.ecoflow-rate-track,
 	.ecoflow-rate-y {
 		height: 120px;
@@ -4718,6 +4814,38 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-cal-hud .ecoflow-cal-stat-save strong {
 	color: #ffe600;
+}
+
+.ecoflow-cal-hud-yen {
+	grid-template-columns: repeat(4, 1fr);
+	margin-top: -6px;
+}
+
+.ecoflow-cal-hud-yen .ecoflow-rates-stat strong {
+	font-variant-numeric: tabular-nums;
+}
+
+.ecoflow-cal-stat-room strong,
+.ecoflow-cal-stat-ups strong {
+	color: #00f5d4;
+}
+
+.ecoflow-cal-stat-buy strong {
+	color: #ff9f1c;
+}
+
+.ecoflow-cal-stat-net strong {
+	color: #ffe600;
+}
+
+.ecoflow-node-yen {
+	font-variant-numeric: tabular-nums;
+	color: #00f5d4;
+}
+
+.ecoflow-node-yen.is-buy,
+.ecoflow-node-gen {
+	color: #ff9f1c;
 }
 
 .ecoflow-cal-chart-label {
@@ -5559,6 +5687,11 @@ body.home .site-header.is-scrolled {
 		margin-top: 0;
 	}
 
+	.ecoflow-node-banner .ecoflow-node-eta {
+		padding: 0 12px 12px;
+		align-items: flex-start;
+	}
+
 	.ecoflow-system-delta [data-flow-id="delta"] {
 		width: 100%;
 		flex: none;
@@ -5623,6 +5756,7 @@ body.home .site-header.is-scrolled {
 	.ecoflow-dual-layout .ecoflow-node-state,
 	.ecoflow-dual-layout .ecoflow-node-room small,
 	.ecoflow-dual-layout .ecoflow-node-solar small,
+	.ecoflow-dual-layout .ecoflow-node-hv small,
 	.ecoflow-dual-layout .ecoflow-node-ups small,
 	.ecoflow-node-extra small {
 		font-size: 0.82rem;

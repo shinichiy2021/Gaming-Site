@@ -72,6 +72,164 @@ function gaming_hub_ecoflow_scale_solar_hours( array $hours ) {
 }
 
 /**
+ * Split a combined solar series into Pro HV 800 W and 1500 LV 500 W shares.
+ *
+ * @param array<int, mixed> $hours Combined hourly watts.
+ * @return array{pro: array<int, int>, delta: array<int, int>}
+ */
+function gaming_hub_ecoflow_split_solar_hours( array $hours ) {
+	$pro_cap = (int) GAMING_HUB_ECOFLOW_SOLAR_PRO_W;
+	$d_cap   = (int) GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W;
+	$total   = max( 1, $pro_cap + $d_cap );
+	$pro     = array();
+	$delta   = array();
+
+	for ( $h = 0; $h < 24; $h++ ) {
+		$combined    = max( 0, (float) ( $hours[ $h ] ?? 0 ) );
+		$pro[ $h ]   = (int) round( $combined * $pro_cap / $total );
+		$delta[ $h ] = (int) max( 0, round( $combined - $pro[ $h ] ) );
+	}
+
+	return array(
+		'pro'   => $pro,
+		'delta' => $delta,
+	);
+}
+
+/**
+ * SVG points for stacked Pro / 1500 solar areas (viewBox 240×100).
+ *
+ * @param array<int, mixed> $pro_hours   Pro HV watts.
+ * @param array<int, mixed> $delta_hours 1500 LV watts.
+ * @param int               $cap         Combined capacity watts.
+ * @return array{delta_area: string, pro_area: string, total_line: string}
+ */
+function gaming_hub_ecoflow_chart_solar_stack_points( array $pro_hours, array $delta_hours, $cap ) {
+	$cap       = max( 1, (int) $cap );
+	$delta_pts = array();
+	$total_pts = array();
+
+	for ( $h = 0; $h < 24; $h++ ) {
+		$d  = max( 0, (float) ( $delta_hours[ $h ] ?? 0 ) );
+		$p  = max( 0, (float) ( $pro_hours[ $h ] ?? 0 ) );
+		$x  = ( ( $h + 0.5 ) * 10 );
+		$dy = max( 0, min( 100, 100 - ( $d / $cap ) * 100 ) );
+		$ty = max( 0, min( 100, 100 - ( ( $d + $p ) / $cap ) * 100 ) );
+		$delta_pts[] = $x . ',' . round( $dy, 1 );
+		$total_pts[] = $x . ',' . round( $ty, 1 );
+	}
+
+	return array(
+		'delta_area' => $delta_pts ? ( '0,100 ' . implode( ' ', $delta_pts ) . ' 240,100' ) : '',
+		'pro_area'   => $delta_pts ? ( implode( ' ', $delta_pts ) . ' ' . implode( ' ', array_reverse( $total_pts ) ) ) : '',
+		'total_line' => implode( ' ', $total_pts ),
+	);
+}
+
+/**
+ * 1500 system pack (main + Extra) energy for stacked SOC.
+ *
+ * @param array<string, mixed> $status EcoFlow status.
+ * @return array{full_wh: float, remain_wh: float|null, soc: float|null}
+ */
+function gaming_hub_ecoflow_plan_delta_pack( array $status ) {
+	$delta = ( isset( $status['secondary'] ) && is_array( $status['secondary'] ) )
+		? $status['secondary']
+		: array();
+	$extra = ( isset( $delta['extra'] ) && is_array( $delta['extra'] ) )
+		? $delta['extra']
+		: array();
+
+	$main_full = isset( $delta['capacity_wh'] ) && is_numeric( $delta['capacity_wh'] ) && $delta['capacity_wh'] > 0
+		? (float) $delta['capacity_wh']
+		: (float) ( defined( 'GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH' )
+			? ( GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH - ( defined( 'GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH' ) ? GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH : 1000 ) )
+			: 1500 );
+
+	$extra_full = 0.0;
+	if ( ! empty( $extra['connected'] ) && isset( $extra['capacity_wh'] ) && is_numeric( $extra['capacity_wh'] ) && $extra['capacity_wh'] > 0 ) {
+		$extra_full = (float) $extra['capacity_wh'];
+	}
+
+	$main_remain = null;
+	if ( isset( $delta['remain_capacity'] ) && is_numeric( $delta['remain_capacity'] ) ) {
+		$main_remain = max( 0.0, (float) $delta['remain_capacity'] );
+	} elseif ( isset( $delta['battery_percent'] ) && is_numeric( $delta['battery_percent'] ) ) {
+		$main_remain = $main_full * max( 0, min( 100, (float) $delta['battery_percent'] ) ) / 100.0;
+	}
+
+	$extra_remain = 0.0;
+	$has_extra    = false;
+	if ( $extra_full > 0 && isset( $extra['battery_percent'] ) && is_numeric( $extra['battery_percent'] ) ) {
+		$has_extra    = true;
+		$extra_remain = isset( $extra['remain_capacity'] ) && is_numeric( $extra['remain_capacity'] )
+			? max( 0.0, (float) $extra['remain_capacity'] )
+			: $extra_full * max( 0, min( 100, (float) $extra['battery_percent'] ) ) / 100.0;
+	} elseif ( $extra_full > 0 && isset( $extra['remain_capacity'] ) && is_numeric( $extra['remain_capacity'] ) ) {
+		$has_extra    = true;
+		$extra_remain = max( 0.0, (float) $extra['remain_capacity'] );
+	}
+
+	$full = $main_full + ( $has_extra ? $extra_full : 0.0 );
+	if ( $full <= 0 ) {
+		return array(
+			'full_wh'   => 0.0,
+			'remain_wh' => null,
+			'soc'       => null,
+		);
+	}
+
+	if ( null === $main_remain ) {
+		return array(
+			'full_wh'   => $full,
+			'remain_wh' => null,
+			'soc'       => null,
+		);
+	}
+
+	$remain = min( $full, $main_remain + ( $has_extra ? $extra_remain : 0.0 ) );
+	$soc    = 100.0 * $remain / $full;
+
+	return array(
+		'full_wh'   => $full,
+		'remain_wh' => $remain,
+		'soc'       => round( max( 0.0, min( 100.0, $soc ) ), 1 ),
+	);
+}
+
+/**
+ * Stacked bar heights: Pro and 1500 remaining energy as % of combined capacity.
+ *
+ * @param float|null $pro_pct   Pro SOC 0–100.
+ * @param float|null $delta_pct 1500 SOC 0–100.
+ * @param float      $pro_wh    Pro full Wh.
+ * @param float      $delta_wh  1500 full Wh.
+ * @return array{pro: float, delta: float, combined: float|null}
+ */
+function gaming_hub_ecoflow_soc_stack_heights( $pro_pct, $delta_pct, $pro_wh, $delta_wh ) {
+	$pro_wh    = max( 1.0, (float) $pro_wh );
+	$delta_wh  = max( 0.0, (float) $delta_wh );
+	$has_pro   = null !== $pro_pct && is_numeric( $pro_pct );
+	$has_delta = null !== $delta_pct && is_numeric( $delta_pct ) && $delta_wh > 0;
+	if ( ! $has_delta ) {
+		$delta_wh = 0.0;
+	}
+	$full    = max( $pro_wh, $pro_wh + $delta_wh );
+	$pro_h   = $has_pro
+		? max( 0.0, min( 100.0, (float) $pro_pct ) ) / 100.0 * $pro_wh / $full * 100.0
+		: 0.0;
+	$delta_h = $has_delta
+		? max( 0.0, min( 100.0, (float) $delta_pct ) ) / 100.0 * $delta_wh / $full * 100.0
+		: 0.0;
+
+	return array(
+		'pro'      => round( $pro_h, 1 ),
+		'delta'    => round( $delta_h, 1 ),
+		'combined' => ( $has_pro || $has_delta ) ? round( $pro_h + $delta_h, 1 ) : null,
+	);
+}
+
+/**
  * Gaming-room hourly weights (24h, sums to 24.0).
  *
  * @return array<int, float>
@@ -226,40 +384,42 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 }
 
 /**
- * Hourly Pro SOC % from now through tonight (null = already past).
+ * Hourly pack SOC % from now through tonight (null = already past).
  *
- * @param int               $from_hour Current hour.
- * @param int               $soc       Current SOC 0–100.
- * @param float             $full_wh   Full pack Wh.
- * @param array<int, mixed> $slots       Plan slots.
- * @param array<int, int>   $ac_watts    Hourly AC watts.
- * @param array<int, mixed> $solar_hours Hourly solar watts.
+ * @param int               $from_hour   Current hour.
+ * @param int|float         $soc         Current SOC 0–100.
+ * @param float             $full_wh     Full pack Wh.
+ * @param array<int, mixed> $slots       Plan slots (grid watts when $use_grid).
+ * @param array<int, mixed> $load_watts  Hourly load watts on this pack.
+ * @param array<int, mixed> $solar_hours Hourly solar watts into this pack.
+ * @param bool              $use_grid    Apply planned grid charge watts.
  * @return array<int, float|null>
  */
-function gaming_hub_ecoflow_soc_series( $from_hour, $soc, $full_wh, array $slots, array $ac_watts, array $solar_hours = array() ) {
+function gaming_hub_ecoflow_soc_series( $from_hour, $soc, $full_wh, array $slots, array $load_watts, array $solar_hours = array(), $use_grid = true ) {
 	$today    = wp_date( 'Y-m-d' );
 	$grid_w   = array_fill( 0, 24, GAMING_HUB_ECOFLOW_PLAN_IDLE_W );
-	$dc_w     = (int) GAMING_HUB_ECOFLOW_DELTA1500_DC_W;
 	$full_kwh = max( 0.5, (float) $full_wh / 1000.0 );
 	$series   = array_fill( 0, 24, null );
 	$pct      = max( 0.0, min( 100.0, (float) $soc ) );
 
-	foreach ( $slots as $slot ) {
-		if ( ( $slot['date'] ?? '' ) !== $today ) {
-			continue;
+	if ( $use_grid ) {
+		foreach ( $slots as $slot ) {
+			if ( ( $slot['date'] ?? '' ) !== $today ) {
+				continue;
+			}
+			$h = (int) ( $slot['hour'] ?? -1 );
+			if ( $h < 0 || $h > 23 || null === ( $slot['watts'] ?? null ) ) {
+				continue;
+			}
+			$grid_w[ $h ] = (int) $slot['watts'];
 		}
-		$h = (int) ( $slot['hour'] ?? -1 );
-		if ( $h < 0 || $h > 23 || null === ( $slot['watts'] ?? null ) ) {
-			continue;
-		}
-		$grid_w[ $h ] = (int) $slot['watts'];
 	}
 
 	for ( $h = $from_hour; $h < 24; $h++ ) {
 		$series[ $h ] = round( $pct, 1 );
-		$load_w       = (int) ( $ac_watts[ $h ] ?? 0 ) + $dc_w;
+		$load_w       = max( 0, (float) ( $load_watts[ $h ] ?? 0 ) );
 		$solar_w      = max( 0, (float) ( $solar_hours[ $h ] ?? 0 ) );
-		$net_w        = $grid_w[ $h ] + $solar_w - $load_w;
+		$net_w        = ( $use_grid ? $grid_w[ $h ] : 0 ) + $solar_w - $load_w;
 		$pct         += ( $net_w / 1000.0 ) / $full_kwh * 100.0;
 		$pct          = max( 0.0, min( 100.0, $pct ) );
 	}
@@ -276,7 +436,9 @@ function gaming_hub_ecoflow_soc_series( $from_hour, $soc, $full_wh, array $slots
 function gaming_hub_ecoflow_get_charge_plan( array $status ) {
 	$hour = (int) wp_date( 'G' );
 	$soc  = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
-	$key  = 'gaming_hub_ecoflow_plan_v23_' . wp_date( 'Y-m-d' ) . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W;
+	$delta_pack = gaming_hub_ecoflow_plan_delta_pack( $status );
+	$delta_key  = null !== ( $delta_pack['soc'] ?? null ) ? (int) floor( (float) $delta_pack['soc'] / 5 ) : 'x';
+	$key        = 'gaming_hub_ecoflow_plan_v24_' . wp_date( 'Y-m-d' ) . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W;
 
 	$cached = get_transient( $key );
 	if ( is_array( $cached ) && ! empty( $cached['slots'] ) && isset( $cached['charge_w'], $cached['dc1500_remaining_kwh'], $cached['ac_today_kwh'], $cached['soc_series'], $cached['solar_hours'] ) ) {
@@ -309,44 +471,80 @@ function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status ) {
 
 	$hour     = (int) wp_date( 'G' );
 	$forecast = is_array( $plan['solar_hours'] ?? null ) ? $plan['solar_hours'] : array();
-	$actuals  = function_exists( 'gaming_hub_ecoflow_energy_today_solar_hours' )
-		? gaming_hub_ecoflow_energy_today_solar_hours()
+	$split_fc = gaming_hub_ecoflow_split_solar_hours( $forecast );
+	$split_act = function_exists( 'gaming_hub_ecoflow_energy_today_split_solar_hours' )
+		? gaming_hub_ecoflow_energy_today_split_solar_hours()
+		: array( 'pro' => array(), 'delta' => array() );
+	$site = function_exists( 'gaming_hub_ecoflow_combined_site_watts' )
+		? gaming_hub_ecoflow_combined_site_watts( $status )
 		: array();
-	$live = (int) ( $plan['solar_now_w'] ?? 0 );
-	if ( function_exists( 'gaming_hub_ecoflow_combined_site_watts' ) ) {
-		$live = (int) round( gaming_hub_ecoflow_combined_site_watts( $status )['solar'] );
-	} elseif ( isset( $status['solar_in'] ) ) {
-		$live = max( 0, (int) $status['solar_in'] );
+	$live_pro   = (int) round( max( 0, (float) ( $site['hv'] ?? 0 ) ) );
+	$live_delta = (int) round( max( 0, (float) ( $site['lv'] ?? 0 ) ) );
+	$live       = $live_pro + $live_delta;
+	if ( $live <= 0 ) {
+		$live = (int) ( $plan['solar_now_w'] ?? 0 );
 	}
-	$chart    = array();
-	$kinds    = array();
+
+	$chart       = array();
+	$chart_pro   = array();
+	$chart_delta = array();
+	$kinds       = array();
 
 	for ( $h = 0; $h < 24; $h++ ) {
-		$forecast_w = (int) round( max( 0, (float) ( $forecast[ $h ] ?? 0 ) ) );
-		if ( $h < $hour && isset( $actuals[ $h ] ) && null !== $actuals[ $h ] ) {
-			$chart[] = (int) $actuals[ $h ];
+		$act_pro   = $split_act['pro'][ $h ] ?? null;
+		$act_delta = $split_act['delta'][ $h ] ?? null;
+		if ( $h < $hour && ( null !== $act_pro || null !== $act_delta ) ) {
+			$pro_w   = (int) ( $act_pro ?? 0 );
+			$delta_w = (int) ( $act_delta ?? 0 );
 			$kinds[] = 'actual';
 		} elseif ( $h === $hour ) {
-			$chart[] = $live;
+			$pro_w   = $live_pro;
+			$delta_w = $live_delta;
 			$kinds[] = 'live';
 		} else {
-			$chart[] = $forecast_w;
+			$pro_w   = (int) ( $split_fc['pro'][ $h ] ?? 0 );
+			$delta_w = (int) ( $split_fc['delta'][ $h ] ?? 0 );
 			$kinds[] = 'forecast';
 		}
+		$chart_pro[]   = $pro_w;
+		$chart_delta[] = $delta_w;
+		$chart[]       = $pro_w + $delta_w;
 	}
 
-	$plan['solar_chart']      = $chart;
-	$plan['solar_chart_kind'] = $kinds;
-	$plan['solar_now_w']      = $live;
+	$plan['solar_chart']       = $chart;
+	$plan['solar_chart_pro']   = $chart_pro;
+	$plan['solar_chart_delta'] = $chart_delta;
+	$plan['solar_chart_kind']  = $kinds;
+	$plan['solar_now_w']       = $live;
+	$plan['solar_now_pro_w']   = $live_pro;
+	$plan['solar_now_delta_w'] = $live_delta;
+	$plan['solar_capacity_w']  = gaming_hub_ecoflow_solar_capacity_w();
+	$plan['solar_pro_w']       = (int) GAMING_HUB_ECOFLOW_SOLAR_PRO_W;
+	$plan['solar_delta_w']     = (int) GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W;
 
-	$soc_series  = is_array( $plan['soc_series'] ?? null ) ? $plan['soc_series'] : array_fill( 0, 24, null );
+	$soc_series  = is_array( $plan['soc_series_pro'] ?? null )
+		? $plan['soc_series_pro']
+		: ( is_array( $plan['soc_series'] ?? null ) ? $plan['soc_series'] : array_fill( 0, 24, null ) );
+	$delta_series = is_array( $plan['soc_series_delta'] ?? null )
+		? $plan['soc_series_delta']
+		: array_fill( 0, 24, null );
 	$soc_actuals = function_exists( 'gaming_hub_ecoflow_energy_today_soc_hours' )
 		? gaming_hub_ecoflow_energy_today_soc_hours()
 		: array();
-	$live_soc    = isset( $status['battery_percent'] ) && null !== $status['battery_percent']
+	$delta_actuals = function_exists( 'gaming_hub_ecoflow_energy_today_delta_soc_hours' )
+		? gaming_hub_ecoflow_energy_today_delta_soc_hours()
+		: array();
+	$live_soc = isset( $status['battery_percent'] ) && null !== $status['battery_percent']
 		? max( 0, min( 100, (float) $status['battery_percent'] ) )
-		: ( isset( $plan['soc_now'] ) ? (float) $plan['soc_now'] : null );
-	$soc_kinds   = array();
+		: ( isset( $plan['soc_now_pro'] ) ? (float) $plan['soc_now_pro'] : ( isset( $plan['soc_now'] ) ? (float) $plan['soc_now'] : null ) );
+	$delta_pack     = gaming_hub_ecoflow_plan_delta_pack( $status );
+	$live_delta_soc = $delta_pack['soc'];
+	$pro_wh         = gaming_hub_ecoflow_plan_full_wh( $status );
+	$delta_wh       = (float) ( $delta_pack['full_wh'] ?? 0 );
+	$soc_kinds      = array();
+	$bar_pro        = array();
+	$bar_delta      = array();
+	$combined       = array();
 
 	for ( $h = 0; $h < 24; $h++ ) {
 		if ( $h < $hour && isset( $soc_actuals[ $h ] ) && null !== $soc_actuals[ $h ] ) {
@@ -360,13 +558,46 @@ function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status ) {
 		} else {
 			$soc_kinds[ $h ] = 'empty';
 		}
+
+		if ( $h < $hour && isset( $delta_actuals[ $h ] ) && null !== $delta_actuals[ $h ] ) {
+			$delta_series[ $h ] = (float) $delta_actuals[ $h ];
+		} elseif ( $h === $hour && null !== $live_delta_soc ) {
+			$delta_series[ $h ] = round( (float) $live_delta_soc, 1 );
+		}
+
+		$stack          = gaming_hub_ecoflow_soc_stack_heights(
+			$soc_series[ $h ] ?? null,
+			$delta_series[ $h ] ?? null,
+			$pro_wh,
+			$delta_wh
+		);
+		$bar_pro[ $h ]   = $stack['pro'];
+		$bar_delta[ $h ] = $stack['delta'];
+		$combined[ $h ]  = $stack['combined'];
+		if ( null === $combined[ $h ] ) {
+			$soc_kinds[ $h ] = 'empty';
+		}
 	}
 
-	$plan['soc_series']     = $soc_series;
-	$plan['soc_chart_kind'] = $soc_kinds;
-	if ( null !== $live_soc ) {
-		$plan['soc_now'] = round( $live_soc, 1 );
-	}
+	$now_stack = gaming_hub_ecoflow_soc_stack_heights( $live_soc, $live_delta_soc, $pro_wh, $delta_wh );
+	$end_pro   = $soc_series[23] ?? null;
+	$end_delta = $delta_series[23] ?? null;
+	$end_stack = gaming_hub_ecoflow_soc_stack_heights( $end_pro, $end_delta, $pro_wh, $delta_wh );
+
+	$plan['soc_series']        = $combined;
+	$plan['soc_series_pro']    = $soc_series;
+	$plan['soc_series_delta']  = $delta_series;
+	$plan['soc_bar_pro']       = $bar_pro;
+	$plan['soc_bar_delta']     = $bar_delta;
+	$plan['soc_chart_kind']    = $soc_kinds;
+	$plan['soc_now_pro']       = null !== $live_soc ? round( $live_soc, 1 ) : null;
+	$plan['soc_now_delta']     = null !== $live_delta_soc ? round( (float) $live_delta_soc, 1 ) : null;
+	$plan['soc_now']           = $now_stack['combined'];
+	$plan['soc_end']           = $end_stack['combined'];
+	$plan['soc_end_pro']       = null !== $end_pro && is_numeric( $end_pro ) ? round( (float) $end_pro, 1 ) : null;
+	$plan['soc_end_delta']     = null !== $end_delta && is_numeric( $end_delta ) ? round( (float) $end_delta, 1 ) : null;
+	$plan['pro_capacity_wh']   = (int) round( $pro_wh );
+	$plan['delta_capacity_wh'] = (int) round( $delta_wh );
 
 	return $plan;
 }
@@ -453,15 +684,33 @@ function gaming_hub_ecoflow_build_charge_plan( array $status ) {
 	}
 
 	$slots      = gaming_hub_ecoflow_build_day_slots( $hour, $solar_hours, $picked['picked'] );
-	$soc_series = gaming_hub_ecoflow_soc_series(
+	$split_solar = gaming_hub_ecoflow_split_solar_hours( $solar_hours );
+	$ac_watts    = is_array( $room['ac_watts'] ?? null ) ? $room['ac_watts'] : array();
+	$soc_series_pro = gaming_hub_ecoflow_soc_series(
 		$hour,
 		$soc,
 		$full_wh,
 		$slots,
-		is_array( $room['ac_watts'] ?? null ) ? $room['ac_watts'] : array(),
-		$solar_hours
+		$ac_watts,
+		$split_solar['pro'],
+		true
 	);
-	$soc_future = array_values( array_filter( $soc_series, 'is_numeric' ) );
+	$delta_pack = gaming_hub_ecoflow_plan_delta_pack( $status );
+	$delta_load = array_fill( 0, 24, $dc1500_w );
+	if ( null !== ( $delta_pack['soc'] ?? null ) && ( $delta_pack['full_wh'] ?? 0 ) > 0 ) {
+		$soc_series_delta = gaming_hub_ecoflow_soc_series(
+			$hour,
+			$delta_pack['soc'],
+			$delta_pack['full_wh'],
+			array(),
+			$delta_load,
+			$split_solar['delta'],
+			false
+		);
+	} else {
+		$soc_series_delta = array_fill( 0, 24, null );
+	}
+	$soc_future = array_values( array_filter( $soc_series_pro, 'is_numeric' ) );
 	$plan_id    = gaming_hub_ecoflow_plan_id_from_slots( $slots );
 	$price      = gaming_hub_ecoflow_smart_time_one_meta();
 	$solar_series = array();
@@ -500,8 +749,12 @@ function gaming_hub_ecoflow_build_charge_plan( array $status ) {
 		'charge_w'             => GAMING_HUB_ECOFLOW_PLAN_CHARGE_W,
 		'idle_w'               => GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
 		'slots'                => $slots,
-		'soc_series'           => $soc_series,
+		'soc_series'           => $soc_series_pro,
+		'soc_series_pro'       => $soc_series_pro,
+		'soc_series_delta'     => $soc_series_delta,
 		'soc_now'              => $soc,
+		'soc_now_pro'          => $soc,
+		'soc_now_delta'        => $delta_pack['soc'],
 		'soc_min'              => $soc_future ? round( min( $soc_future ), 1 ) : $soc,
 		'soc_end'              => $soc_future ? round( (float) end( $soc_future ), 1 ) : $soc,
 		'solar_hours'          => $solar_series,

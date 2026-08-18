@@ -92,7 +92,12 @@
 	}
 
 	function deviceFlowSlice(data) {
-		const remainTime = Number(data.remain_time) || 0;
+		const remainTime = data.remain_time === null || data.remain_time === undefined || data.remain_time === ''
+			? null
+			: Number(data.remain_time);
+		const remainLabel = data.remain_time_label || '';
+		const remainDisplay = data.remain_time_display
+			|| (remainTime && remainTime > 0 ? formatMinutes(remainTime) : '—');
 
 		return {
 			device_name: data.device_name || '',
@@ -110,6 +115,8 @@
 			dc_out: data.dc_out === null || data.dc_out === undefined ? null : Number(data.dc_out) || 0,
 			input_total: data.input_total === null || data.input_total === undefined ? null : Number(data.input_total) || 0,
 			output_total: data.output_total === null || data.output_total === undefined ? null : Number(data.output_total) || 0,
+			input_watts: data.input_watts === null || data.input_watts === undefined ? null : Number(data.input_watts) || 0,
+			output_watts: data.output_watts === null || data.output_watts === undefined ? null : Number(data.output_watts) || 0,
 			battery_percent: data.battery_percent === null || data.battery_percent === undefined
 				? null
 				: Number(data.battery_percent) || 0,
@@ -117,8 +124,9 @@
 			is_discharging: !!data.is_discharging,
 			charge_state: data.charge_state || '',
 			remain_time: remainTime,
-			remain_time_label: data.is_charging ? t('満充電まで') : t('残り使用時間'),
-			remain_time_display: formatMinutes(remainTime),
+			remain_time_label: remainLabel,
+			remain_time_display: remainDisplay,
+			eta_mode: data.eta_mode || 'idle',
 			capacity_wh: data.capacity_wh === null || data.capacity_wh === undefined
 				? null
 				: Number(data.capacity_wh),
@@ -137,6 +145,14 @@
 				capacity_wh: 1000,
 				remain_capacity: null,
 				capacity_source: 'default',
+				input_watts: 0,
+				output_watts: 0,
+				remain_time: null,
+				remain_time_label: '',
+				remain_time_display: '—',
+				eta_mode: 'idle',
+				is_charging: false,
+				is_discharging: false,
 			};
 		}
 
@@ -144,6 +160,9 @@
 			? null
 			: Number(extra.battery_percent);
 		const capacity = Number(extra.capacity_wh) || 1000;
+		const remainTime = extra.remain_time === null || extra.remain_time === undefined || extra.remain_time === ''
+			? null
+			: Number(extra.remain_time);
 
 		return {
 			connected: extra.connected !== false,
@@ -153,6 +172,14 @@
 				? (percent === null ? null : Math.round(capacity * percent / 100))
 				: Number(extra.remain_capacity),
 			capacity_source: extra.capacity_source || 'default',
+			input_watts: Number(extra.input_watts) || 0,
+			output_watts: Number(extra.output_watts) || 0,
+			remain_time: remainTime,
+			remain_time_label: extra.remain_time_label || '',
+			remain_time_display: extra.remain_time_display || (remainTime && remainTime > 0 ? formatMinutes(remainTime) : '—'),
+			eta_mode: extra.eta_mode || 'idle',
+			is_charging: !!extra.is_charging,
+			is_discharging: !!extra.is_discharging,
 		};
 	}
 
@@ -178,6 +205,7 @@
 			remain_time: 0,
 			remain_time_label: '',
 			remain_time_display: '—',
+			eta_mode: 'idle',
 			capacity_wh: 1500,
 			remain_capacity: null,
 			extra: extraBatterySlice(),
@@ -228,6 +256,8 @@
 				: (data.secondary && data.secondary.ac_out !== null && data.secondary.ac_out !== undefined ? 'ecoflow' : 'unavailable'),
 			solar_in_source: (data.secondary && data.secondary.solar_in_source) || data.solar_in_source || 'unavailable',
 			extra: extraBatterySlice(delta.extra || (data.secondary && data.secondary.extra)),
+			today_yen: data.today_yen || (data.energy && data.energy.today_yen) || null,
+			today_solar: data.today_solar || (data.energy && data.energy.today_solar) || null,
 		};
 	}
 
@@ -271,6 +301,73 @@
 			return '—';
 		}
 		return Math.round(Number(value)).toLocaleString() + t(' 円');
+	}
+
+	let lastTodayYen = null;
+
+	function liveTodayYen(todayYen) {
+		if (!todayYen || typeof todayYen !== 'object') {
+			return null;
+		}
+
+		const now = Date.now() / 1000;
+		const ts = Number(todayYen.sample_ts) || now;
+		const dt = Math.max(0, Math.min(15 * 60, now - ts));
+		const rate = Number(todayYen.yen_per_kwh) || 40;
+		const hours = dt / 3600;
+		const roomW = Number(todayYen.room_w) || 0;
+		const upsW = Number(todayYen.ups_w) || 0;
+		const gridW = todayYen.grid_w === null || todayYen.grid_w === undefined
+			? 0
+			: Number(todayYen.grid_w) || 0;
+		const proGridW = Number(todayYen.pro_grid_w) || 0;
+		const room = Math.round(Number(todayYen.logged_room_yen || 0) + (roomW / 1000) * rate * hours);
+		const ups = Math.round(Number(todayYen.logged_ups_yen || 0) + (upsW / 1000) * rate * hours);
+		const grid = Math.round(Number(todayYen.logged_grid_yen || 0) + (gridW / 1000) * rate * hours);
+		const proGrid = Math.round(Number(todayYen.logged_pro_grid_yen || 0) + (proGridW / 1000) * rate * hours);
+		const buy = grid + proGrid;
+
+		return {
+			room: room,
+			ups: ups,
+			grid: grid,
+			proGrid: proGrid,
+			buy: buy,
+			net: room + ups - buy,
+		};
+	}
+
+	function applyTodayYen(todayYen) {
+		if (todayYen && typeof todayYen === 'object') {
+			lastTodayYen = todayYen;
+		}
+
+		const live = liveTodayYen(lastTodayYen);
+		if (!live) {
+			return;
+		}
+
+		const root = calRoot();
+		if (!root) {
+			return;
+		}
+
+		const roomEl = root.querySelector('[data-ecoflow-cal-today-room]');
+		const upsEl = root.querySelector('[data-ecoflow-cal-today-ups]');
+		const gridEl = root.querySelector('[data-ecoflow-cal-today-grid]');
+		const netEl = root.querySelector('[data-ecoflow-cal-today-net]');
+		if (roomEl) {
+			roomEl.textContent = formatCalYen(live.room);
+		}
+		if (upsEl) {
+			upsEl.textContent = formatCalYen(live.ups);
+		}
+		if (gridEl) {
+			gridEl.textContent = formatCalYen(live.buy);
+		}
+		if (netEl) {
+			netEl.textContent = formatCalYen(live.net);
+		}
 	}
 
 	function formatCalWatts(value) {
@@ -581,6 +678,7 @@
 
 		applyEnergyNow(energy);
 		applyEnergyTotals(root, energy);
+		applyTodayYen(energy.today_yen);
 		renderEnergyTodayChart(root, energy);
 		renderEnergyMonthChart(root, energy);
 
@@ -640,6 +738,7 @@
 		}
 
 		applyEnergyNow(energy);
+		applyTodayYen(energy.today_yen);
 
 		const viewing = root.getAttribute('data-month') || energy.month;
 		if (viewing !== energy.month) {
@@ -697,24 +796,48 @@
 	}
 
 	function updateSocLine(plan) {
-		const bars = dashboard.querySelectorAll('[data-ecoflow-soc-bar]');
+		const stacks = dashboard.querySelectorAll('[data-ecoflow-soc-bar]');
+		const proBars = plan && plan.soc_bar_pro ? plan.soc_bar_pro : [];
+		const deltaBars = plan && plan.soc_bar_delta ? plan.soc_bar_delta : [];
 		const series = plan && plan.soc_series ? plan.soc_series : [];
-		bars.forEach(function (bar, hour) {
+		const proSeries = plan && plan.soc_series_pro ? plan.soc_series_pro : [];
+		const deltaSeries = plan && plan.soc_series_delta ? plan.soc_series_delta : [];
+		stacks.forEach(function (stack, hour) {
 			const pct = series[hour];
-			const col = bar.closest('.ecoflow-rate-col');
+			const col = stack.closest('.ecoflow-rate-col');
 			const kind = plan && plan.soc_chart_kind ? plan.soc_chart_kind[hour] : '';
+			const proEl = stack.querySelector('[data-ecoflow-soc-bar-pro]');
+			const deltaEl = stack.querySelector('[data-ecoflow-soc-bar-delta]');
 			if (pct === null || pct === undefined || Number.isNaN(Number(pct))) {
-				bar.style.height = '0%';
-				bar.setAttribute('title', '—');
+				if (proEl) {
+					proEl.style.height = '0%';
+				}
+				if (deltaEl) {
+					deltaEl.style.height = '0%';
+				}
+				stack.setAttribute('title', '—');
 				if (col) {
 					col.classList.add('is-empty');
 					col.classList.remove('is-actual', 'is-forecast');
 				}
 				return;
 			}
-			const value = Math.max(0, Math.min(100, Number(pct)));
-			bar.style.height = value.toFixed(1) + '%';
-			bar.setAttribute('title', Math.round(value) + '%');
+			const proH = Math.max(0, Math.min(100, Number(proBars[hour] != null ? proBars[hour] : pct) || 0));
+			const deltaH = Math.max(0, Math.min(100, Number(deltaBars[hour]) || 0));
+			if (proEl) {
+				proEl.style.height = proH.toFixed(1) + '%';
+			}
+			if (deltaEl) {
+				deltaEl.style.height = deltaH.toFixed(1) + '%';
+			}
+			const tips = [Math.round(Number(pct)) + '%'];
+			if (proSeries[hour] != null && !Number.isNaN(Number(proSeries[hour]))) {
+				tips.push('Pro ' + Math.round(Number(proSeries[hour])) + '%');
+			}
+			if (deltaSeries[hour] != null && !Number.isNaN(Number(deltaSeries[hour]))) {
+				tips.push('1500 ' + Math.round(Number(deltaSeries[hour])) + '%');
+			}
+			stack.setAttribute('title', tips.join(' · '));
 			if (col) {
 				col.classList.remove('is-empty');
 				col.classList.toggle('is-actual', kind === 'actual' || kind === 'live');
@@ -726,8 +849,83 @@
 			nowEl.textContent = Math.round(Number(plan.soc_now)) + '%';
 		}
 		const endEl = dashboard.querySelector('[data-ecoflow-soc-end]');
-		if (endEl && plan && plan.soc_end !== null && plan.soc_end !== undefined) {
-			endEl.textContent = t('24時 ') + Math.round(Number(plan.soc_end)) + '%';
+		if (endEl && plan) {
+			if (plan.soc_now_pro != null || plan.soc_now_delta != null) {
+				const proTxt = plan.soc_now_pro != null ? Math.round(Number(plan.soc_now_pro)) + '%' : '—';
+				const dTxt = plan.soc_now_delta != null ? Math.round(Number(plan.soc_now_delta)) + '%' : '—';
+				endEl.textContent = 'Pro ' + proTxt + ' · 1500 ' + dTxt;
+			} else if (plan.soc_end !== null && plan.soc_end !== undefined) {
+				endEl.textContent = t('24時 ') + Math.round(Number(plan.soc_end)) + '%';
+			}
+		}
+	}
+
+	function solarStackPoints(proHours, deltaHours, cap) {
+		const safeCap = Math.max(1, Number(cap) || 1300);
+		const deltaPts = [];
+		const totalPts = [];
+		for (let hour = 0; hour < 24; hour += 1) {
+			const d = Math.max(0, Number(deltaHours && deltaHours[hour]) || 0);
+			const p = Math.max(0, Number(proHours && proHours[hour]) || 0);
+			const x = ((hour + 0.5) * 10).toFixed(1);
+			const dy = Math.max(0, Math.min(100, 100 - (d / safeCap) * 100));
+			const ty = Math.max(0, Math.min(100, 100 - ((d + p) / safeCap) * 100));
+			deltaPts.push(x + ',' + dy.toFixed(1));
+			totalPts.push(x + ',' + ty.toFixed(1));
+		}
+		return {
+			deltaArea: deltaPts.length ? ('0,100 ' + deltaPts.join(' ') + ' 240,100') : '',
+			proArea: deltaPts.length ? (deltaPts.join(' ') + ' ' + totalPts.slice().reverse().join(' ')) : '',
+			totalLine: totalPts.join(' '),
+		};
+	}
+
+	function splitSolarHours(combined, plan) {
+		const proCap = Number(plan && plan.solar_pro_w) || 800;
+		const dCap = Number(plan && plan.solar_delta_w) || 500;
+		const total = Math.max(1, proCap + dCap);
+		const pro = [];
+		const delta = [];
+		for (let hour = 0; hour < 24; hour += 1) {
+			const watts = Math.max(0, Number(combined[hour]) || 0);
+			pro[hour] = Math.round(watts * proCap / total);
+			delta[hour] = Math.max(0, Math.round(watts - pro[hour]));
+		}
+		return { pro: pro, delta: delta };
+	}
+
+	function updateSolarLine(plan) {
+		const line = dashboard.querySelector('[data-ecoflow-solar-line]');
+		const area = dashboard.querySelector('[data-ecoflow-solar-area]');
+		const deltaArea = dashboard.querySelector('[data-ecoflow-solar-delta-area]');
+		let proHours = plan && plan.solar_chart_pro;
+		let deltaHours = plan && plan.solar_chart_delta;
+		const hours = plan && (plan.solar_chart || plan.solar_hours);
+		if (!line && !area && !deltaArea) {
+			return;
+		}
+		if ((!proHours || !proHours.length) && hours) {
+			const split = splitSolarHours(hours, plan);
+			proHours = split.pro;
+			deltaHours = split.delta;
+		}
+		if (!proHours) {
+			return;
+		}
+		const cap = Math.max(1, Number(plan && plan.solar_capacity_w) || 1300);
+		const stack = solarStackPoints(proHours, deltaHours || [], cap);
+		if (line) {
+			line.setAttribute('points', stack.totalLine);
+		}
+		if (area) {
+			area.setAttribute('points', stack.proArea);
+		}
+		if (deltaArea) {
+			deltaArea.setAttribute('points', stack.deltaArea);
+		}
+		const todayEl = dashboard.querySelector('[data-ecoflow-pv-today]');
+		if (todayEl && plan && plan.solar_today_kwh !== null && plan.solar_today_kwh !== undefined) {
+			todayEl.textContent = t('今日 ') + Number(plan.solar_today_kwh).toFixed(1) + ' kWh';
 		}
 	}
 
@@ -753,36 +951,6 @@
 		ticks.forEach(function (el, i) {
 			el.textContent = (max - (span * i / 4)).toFixed(1);
 		});
-	}
-
-	function updateSolarLine(plan) {
-		const line = dashboard.querySelector('[data-ecoflow-solar-line]');
-		const area = dashboard.querySelector('[data-ecoflow-solar-area]');
-		const hours = plan && (plan.solar_chart || plan.solar_hours);
-		if (!line && !area) {
-			return;
-		}
-		if (!hours || !hours.length) {
-			return;
-		}
-		const cap = Math.max(1, Number(plan && plan.solar_capacity_w) || 1300);
-		const points = [];
-		for (let hour = 0; hour < 24; hour += 1) {
-			const watts = Math.max(0, Number(hours[hour]) || 0);
-			const y = Math.max(0, Math.min(100, 100 - (watts / cap) * 100));
-			points.push(((hour + 0.5) * 10).toFixed(1) + ',' + y.toFixed(1));
-		}
-		const joined = points.join(' ');
-		if (line) {
-			line.setAttribute('points', joined);
-		}
-		if (area) {
-			area.setAttribute('points', joined ? ('0,100 ' + joined + ' 240,100') : '');
-		}
-		const todayEl = dashboard.querySelector('[data-ecoflow-pv-today]');
-		if (todayEl && plan && plan.solar_today_kwh !== null && plan.solar_today_kwh !== undefined) {
-			todayEl.textContent = t('今日 ') + Number(plan.solar_today_kwh).toFixed(1) + ' kWh';
-		}
 	}
 
 	function slotModeLabel(mode) {
@@ -833,6 +1001,10 @@
 		});
 
 		const socSeries = plan && Array.isArray(plan.soc_series) ? plan.soc_series : [];
+		const proBars = plan && Array.isArray(plan.soc_bar_pro) ? plan.soc_bar_pro : [];
+		const deltaBars = plan && Array.isArray(plan.soc_bar_delta) ? plan.soc_bar_delta : [];
+		const proSeries = plan && Array.isArray(plan.soc_series_pro) ? plan.soc_series_pro : [];
+		const deltaSeries = plan && Array.isArray(plan.soc_series_delta) ? plan.soc_series_delta : [];
 
 		for (let h = 0; h < 24; h += 1) {
 			const slot = byHour[h] || {};
@@ -842,6 +1014,8 @@
 			const soc = socSeries[h];
 			const hasSoc = soc !== null && soc !== undefined && !Number.isNaN(Number(soc));
 			const height = hasSoc ? Math.max(0, Math.min(100, Number(soc))) : 0;
+			const proH = Math.max(0, Math.min(100, Number(proBars[h] != null ? proBars[h] : height) || 0));
+			const deltaH = Math.max(0, Math.min(100, Number(deltaBars[h]) || 0));
 			const watts = isCharge ? Number(slot.watts != null ? slot.watts : chargeW) : 0;
 			const chargeH = isCharge ? Math.max(8, Math.min(100, (watts / chargeW) * 100)) : 0;
 			const col = track.querySelector('[data-ecoflow-plan-col][data-hour="' + h + '"]');
@@ -864,11 +1038,24 @@
 					chargeBar.hidden = !isCharge;
 				}
 				const bar = col.querySelector('[data-ecoflow-plan-bar]');
+				const deltaBar = col.querySelector('[data-ecoflow-plan-bar-delta]');
+				const stack = col.querySelector('.ecoflow-soc-stack');
 				if (bar) {
-					bar.style.height = height.toFixed(1) + '%';
+					bar.style.height = proH.toFixed(1) + '%';
+				}
+				if (deltaBar) {
+					deltaBar.style.height = deltaH.toFixed(1) + '%';
+				}
+				if (stack) {
 					const tips = [h + ':00', slotModeLabel(mode)];
 					if (hasSoc) {
 						tips.push(Math.round(height) + '%');
+					}
+					if (proSeries[h] != null && !Number.isNaN(Number(proSeries[h]))) {
+						tips.push('Pro ' + Math.round(Number(proSeries[h])) + '%');
+					}
+					if (deltaSeries[h] != null && !Number.isNaN(Number(deltaSeries[h]))) {
+						tips.push('1500 ' + Math.round(Number(deltaSeries[h])) + '%');
 					}
 					if (isCharge) {
 						tips.push(formatWatts(watts));
@@ -876,7 +1063,7 @@
 					if (slot.yen !== null && slot.yen !== undefined) {
 						tips.push(formatYen(slot.yen));
 					}
-					bar.setAttribute('title', tips.join(' · '));
+					stack.setAttribute('title', tips.join(' · '));
 				}
 			}
 
@@ -918,23 +1105,28 @@
 			}
 		}
 
-		const solarHours = plan && (plan.solar_chart || plan.solar_hours);
 		const solarLine = dashboard.querySelector('[data-ecoflow-plan-solar-line]');
 		const solarArea = dashboard.querySelector('[data-ecoflow-plan-solar-area]');
-		if (solarHours && (solarLine || solarArea)) {
+		const solarDeltaArea = dashboard.querySelector('[data-ecoflow-plan-solar-delta-area]');
+		let proHours = plan && plan.solar_chart_pro;
+		let deltaHours = plan && plan.solar_chart_delta;
+		const solarHours = plan && (plan.solar_chart || plan.solar_hours);
+		if ((!proHours || !proHours.length) && solarHours) {
+			const split = splitSolarHours(solarHours, plan);
+			proHours = split.pro;
+			deltaHours = split.delta;
+		}
+		if (proHours && (solarLine || solarArea || solarDeltaArea)) {
 			const cap = Math.max(1, Number(plan && plan.solar_capacity_w) || 1300);
-			const solarPoints = [];
-			for (let h = 0; h < 24; h += 1) {
-				const watts = Math.max(0, Number(solarHours[h]) || 0);
-				const y = Math.max(0, Math.min(100, 100 - (watts / cap) * 100));
-				solarPoints.push(((h + 0.5) * 10).toFixed(1) + ',' + y.toFixed(1));
-			}
-			const joined = solarPoints.join(' ');
+			const stack = solarStackPoints(proHours, deltaHours || [], cap);
 			if (solarLine) {
-				solarLine.setAttribute('points', joined);
+				solarLine.setAttribute('points', stack.totalLine);
 			}
 			if (solarArea) {
-				solarArea.setAttribute('points', joined ? ('0,100 ' + joined + ' 240,100') : '');
+				solarArea.setAttribute('points', stack.proArea);
+			}
+			if (solarDeltaArea) {
+				solarDeltaArea.setAttribute('points', stack.deltaArea);
 			}
 		}
 
@@ -1290,11 +1482,13 @@
 			);
 			setField(
 				'extra_remain_label',
-				extraPack.capacity_source === 'mqtt'
-					? t('残容量 (Extra · MQTT)')
-					: (extraPack.capacity_source && extraPack.capacity_source !== 'default'
-						? t('残容量 (Extra · 実測)')
-						: t('残容量 (Extra · 未取得)'))
+				extraPack.capacity_source === 'stale'
+					? t('残容量 (Extra · 最終値)')
+					: (extraPack.capacity_source === 'mqtt'
+						? t('残容量 (Extra · MQTT)')
+						: (extraPack.capacity_source && extraPack.capacity_source !== 'default'
+							? t('残容量 (Extra · 実測)')
+							: t('残容量 (Extra · 未取得)')))
 			);
 			setField( 'delta_ac_in', formatWatts( data.secondary.ac_in ) );
 			const mqttLive = data.secondary.mqtt_live === true;
@@ -1419,6 +1613,9 @@
 	refreshRates();
 	setInterval(refreshDashboard, gamingHubEcoflow.interval || 60000);
 	setInterval(refreshRates, 60 * 60 * 1000);
+	setInterval(function () {
+		applyTodayYen(lastTodayYen);
+	}, 1000);
 
 	if (window.gamingHubActiveRefresh) {
 		window.gamingHubActiveRefresh.register(refreshDashboard);

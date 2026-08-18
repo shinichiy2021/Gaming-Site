@@ -72,19 +72,32 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 		$plan_max  = max( $plan_max, $plan_min + 1 );
 		$plan_span = max( 1, $plan_max - $plan_min );
 		$plan_price_points = array();
-		$plan_solar_points = array();
 		for ( $h = 0; $h < 24; $h++ ) {
 			$price = (float) $plan_prices[ $h ];
 			$y     = max( 0, min( 100, 100 - ( ( $price - $plan_min ) / $plan_span ) * 100 ) );
 			$plan_price_points[] = ( ( $h + 0.5 ) * 10 ) . ',' . round( $y, 1 );
-
-			$watts = max( 0, (float) ( $solar_hours[ $h ] ?? 0 ) );
-			$sy    = max( 0, min( 100, 100 - ( $watts / $solar_cap ) * 100 ) );
-			$plan_solar_points[] = ( ( $h + 0.5 ) * 10 ) . ',' . round( $sy, 1 );
 		}
+		$soc_series = is_array( $plan['soc_series'] ?? null ) ? $plan['soc_series'] : array();
+		$soc_bar_pro = is_array( $plan['soc_bar_pro'] ?? null ) ? $plan['soc_bar_pro'] : array();
+		$soc_bar_delta = is_array( $plan['soc_bar_delta'] ?? null ) ? $plan['soc_bar_delta'] : array();
+		$soc_series_pro = is_array( $plan['soc_series_pro'] ?? null ) ? $plan['soc_series_pro'] : array();
+		$soc_series_delta = is_array( $plan['soc_series_delta'] ?? null ) ? $plan['soc_series_delta'] : array();
+		$solar_pro_h = is_array( $plan['solar_chart_pro'] ?? null ) ? $plan['solar_chart_pro'] : array();
+		$solar_delta_h = is_array( $plan['solar_chart_delta'] ?? null ) ? $plan['solar_chart_delta'] : array();
+		if ( ! $solar_pro_h && $solar_hours ) {
+			$split         = function_exists( 'gaming_hub_ecoflow_split_solar_hours' )
+				? gaming_hub_ecoflow_split_solar_hours( $solar_hours )
+				: array( 'pro' => $solar_hours, 'delta' => array() );
+			$solar_pro_h   = $split['pro'];
+			$solar_delta_h = $split['delta'];
+		}
+		$plan_solar_stack = function_exists( 'gaming_hub_ecoflow_chart_solar_stack_points' )
+			? gaming_hub_ecoflow_chart_solar_stack_points( $solar_pro_h, $solar_delta_h, $solar_cap )
+			: array( 'delta_area' => '', 'pro_area' => '', 'total_line' => '' );
 		$plan_price_polyline = implode( ' ', $plan_price_points );
-		$plan_solar_polyline = implode( ' ', $plan_solar_points );
-		$plan_solar_area     = $plan_solar_points ? ( '0,100 ' . $plan_solar_polyline . ' 240,100' ) : '';
+		$plan_solar_polyline = $plan_solar_stack['total_line'];
+		$plan_solar_area     = $plan_solar_stack['pro_area'];
+		$plan_solar_delta_area = $plan_solar_stack['delta_area'];
 
 		$now_slot   = $today_by_hour[ $now_hour ] ?? array();
 		$now_mode   = (string) ( $now_slot['mode'] ?? 'idle' );
@@ -94,7 +107,6 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 			'idle'   => __( '充電オフ', 'gaming-hub' ),
 			'past'   => __( '経過', 'gaming-hub' ),
 		);
-		$soc_series = is_array( $plan['soc_series'] ?? null ) ? $plan['soc_series'] : array();
 		$soc_ticks  = array( 100, 75, 50, 25, 0 );
 		$plan_yen_ticks = array();
 		for ( $i = 0; $i < 5; $i++ ) {
@@ -178,7 +190,8 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				<div class="ecoflow-rate-plot">
 					<div class="ecoflow-rate-track" data-ecoflow-plan-track role="img" aria-label="<?php esc_attr_e( '本日のグリッド充電計画・残量予測・発電見込み・請求単価', 'gaming-hub' ); ?>">
 						<svg class="ecoflow-solar-line" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
-							<polygon data-ecoflow-plan-solar-area points="<?php echo esc_attr( $plan_solar_area ); ?>"></polygon>
+							<polygon class="ecoflow-solar-delta" data-ecoflow-plan-solar-delta-area points="<?php echo esc_attr( $plan_solar_delta_area ); ?>"></polygon>
+							<polygon class="ecoflow-solar-pro" data-ecoflow-plan-solar-area points="<?php echo esc_attr( $plan_solar_area ); ?>"></polygon>
 							<polyline data-ecoflow-plan-solar-line points="<?php echo esc_attr( $plan_solar_polyline ); ?>" vector-effect="non-scaling-stroke"></polyline>
 						</svg>
 						<?php for ( $h = 0; $h < 24; $h++ ) : ?>
@@ -189,7 +202,8 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 							$is_charge = 'charge' === $mode;
 							$soc_pct   = $soc_series[ $h ] ?? null;
 							$has_soc   = is_numeric( $soc_pct );
-							$height    = $has_soc ? max( 0, min( 100, (float) $soc_pct ) ) : 0;
+							$pro_h     = isset( $soc_bar_pro[ $h ] ) ? max( 0, min( 100, (float) $soc_bar_pro[ $h ] ) ) : ( $has_soc ? max( 0, min( 100, (float) $soc_pct ) ) : 0 );
+							$delta_h   = isset( $soc_bar_delta[ $h ] ) ? max( 0, min( 100, (float) $soc_bar_delta[ $h ] ) ) : 0;
 							$charge_h  = $is_charge
 								? max( 8, min( 100, ( (int) ( $slot['watts'] ?? $charge_w ) / $charge_w ) * 100 ) )
 								: 0;
@@ -203,6 +217,12 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 							$tip_parts = array( sprintf( '%d:00', $h ), $mode_label[ $mode ] ?? $mode );
 							if ( $has_soc ) {
 								$tip_parts[] = number_format_i18n( (float) $soc_pct, 0 ) . '%';
+							}
+							$pro_soc_h = $soc_series_pro[ $h ] ?? null;
+							$delta_soc_h = $soc_series_delta[ $h ] ?? null;
+							if ( is_numeric( $pro_soc_h ) || is_numeric( $delta_soc_h ) ) {
+								$tip_parts[] = 'Pro ' . ( is_numeric( $pro_soc_h ) ? number_format_i18n( (float) $pro_soc_h, 0 ) . '%' : '—' );
+								$tip_parts[] = '1500 ' . ( is_numeric( $delta_soc_h ) ? number_format_i18n( (float) $delta_soc_h, 0 ) . '%' : '—' );
 							}
 							if ( $is_charge ) {
 								$tip_parts[] = gaming_hub_format_ecoflow_watts( $slot['watts'] ?? $charge_w );
@@ -221,12 +241,18 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 									style="height: <?php echo esc_attr( (string) round( $charge_h, 1 ) ); ?>%;"
 									<?php echo $is_charge ? '' : 'hidden'; ?>
 								></span>
-								<span
-									class="ecoflow-rate-bar"
-									data-ecoflow-plan-bar
-									style="height: <?php echo esc_attr( (string) round( $height, 1 ) ); ?>%;"
-									title="<?php echo esc_attr( implode( ' · ', $tip_parts ) ); ?>"
-								></span>
+								<span class="ecoflow-soc-stack" title="<?php echo esc_attr( implode( ' · ', $tip_parts ) ); ?>">
+									<span
+										class="ecoflow-rate-bar ecoflow-soc-bar-pro"
+										data-ecoflow-plan-bar
+										style="height: <?php echo esc_attr( (string) round( $pro_h, 1 ) ); ?>%;"
+									></span>
+									<span
+										class="ecoflow-rate-bar ecoflow-soc-bar-delta"
+										data-ecoflow-plan-bar-delta
+										style="height: <?php echo esc_attr( (string) round( $delta_h, 1 ) ); ?>%;"
+									></span>
+								</span>
 							</div>
 						<?php endfor; ?>
 						<svg class="ecoflow-price-line" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
@@ -250,7 +276,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 					<?php endforeach; ?>
 				</div>
 			</div>
-			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量% · 金の帯: グリッド充電（計画）· 橙: 発電見込み · 青緑線: 請求単価', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量 · 青棒: 1500 残量（合算%）· 金の帯: グリッド充電（計画）· 橙: 発電見込み Pro 800W + 1500 500W · 青緑線: 請求単価', 'gaming-hub' ); ?></p>
 			<p class="ecoflow-plan-next" data-ecoflow-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 
 			<details class="ecoflow-plan-more">

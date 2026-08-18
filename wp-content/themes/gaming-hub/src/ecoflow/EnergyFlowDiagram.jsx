@@ -90,6 +90,19 @@ function PhoneBattery( { percent, charging } ) {
 	);
 }
 
+function PackEta( { device } ) {
+	if ( ! device || device.eta_mode === 'idle' || ! device.remain_time_label ) {
+		return null;
+	}
+
+	return (
+		<p className="ecoflow-node-eta">
+			<span>{ device.remain_time_label }</span>
+			<strong>{ device.remain_time_display || '—' }</strong>
+		</p>
+	);
+}
+
 function isDeltaMqttMissing( status ) {
 	const delta = status && status.delta;
 	if ( ! delta ) {
@@ -122,12 +135,17 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 	const packLabel = mqttMissing
 		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
 		: ( Number.isFinite( fullWh ) && fullWh > 0 ? formatPack( remainWh, fullWh ) : '' );
-	const isCharging = ! mqttMissing && !! device.is_charging;
+	const isCharging = ! mqttMissing && (
+		device.eta_mode === 'charge' || ( device.eta_mode !== 'discharge' && !! device.is_charging )
+	);
 	const acOut = Number( device.ac_out ) || 0;
 	const outputTotal = Number( device.output_total ) || 0;
 	const isDischarging = ! mqttMissing && (
-		!! device.is_discharging
-		|| ( ! isCharging && Math.max( acOut, outputTotal ) >= FLOW_THRESHOLD )
+		device.eta_mode === 'discharge'
+		|| ( device.eta_mode !== 'charge' && (
+			!! device.is_discharging
+			|| ( ! isCharging && Math.max( acOut, outputTotal ) >= FLOW_THRESHOLD )
+		) )
 	);
 	const isStandby = ! mqttMissing && ! isCharging && ! isDischarging;
 	const tone = batteryTone( batteryPercent );
@@ -164,6 +182,7 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 			<span className="ecoflow-node-label">{ label }</span>
 			{ packLabel ? <small className="ecoflow-node-pack">{ packLabel }</small> : null }
 			<p className="ecoflow-node-state">{ mqttMissing ? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' ) : ( device.charge_state || '—' ) }</p>
+			{ ! mqttMissing ? <PackEta device={ device } /> : null }
 			{ ! compact && hasBattery && ! photo ? (
 				<div
 					className={ `ecoflow-battery-ring ecoflow-battery-ring-map${ isCharging ? ' is-charging' : ' is-discharging' }` }
@@ -179,7 +198,95 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 	);
 }
 
-function DualFlowDiagram( { status, labels, images } ) {
+function formatYenInt( value ) {
+	if ( ! Number.isFinite( value ) ) {
+		return '—';
+	}
+
+	const suffix = ( typeof window !== 'undefined' && window.gamingHubT )
+		? window.gamingHubT( ' 円' )
+		: ' 円';
+
+	return Math.round( value ).toLocaleString() + suffix;
+}
+
+function liveTodayYen( todayYen ) {
+	if ( ! todayYen || typeof todayYen !== 'object' ) {
+		return { room: null, grid: null, proGrid: null, ups: null, buy: null, net: null };
+	}
+
+	const now = Date.now() / 1000;
+	const ts = Number( todayYen.sample_ts ) || now;
+	const dt = Math.max( 0, Math.min( 15 * 60, now - ts ) );
+	const rate = Number( todayYen.yen_per_kwh ) || 40;
+	const hours = dt / 3600;
+	const roomW = Number( todayYen.room_w ) || 0;
+	const upsW = Number( todayYen.ups_w ) || 0;
+	const gridW = todayYen.grid_w === null || todayYen.grid_w === undefined
+		? 0
+		: Number( todayYen.grid_w ) || 0;
+	const proGridW = Number( todayYen.pro_grid_w ) || 0;
+	const room = Math.round( Number( todayYen.logged_room_yen || 0 ) + ( roomW / 1000 ) * rate * hours );
+	const ups = Math.round( Number( todayYen.logged_ups_yen || 0 ) + ( upsW / 1000 ) * rate * hours );
+	const grid = Math.round( Number( todayYen.logged_grid_yen || 0 ) + ( gridW / 1000 ) * rate * hours );
+	const proGrid = Math.round( Number( todayYen.logged_pro_grid_yen || 0 ) + ( proGridW / 1000 ) * rate * hours );
+	const buy = grid + proGrid;
+
+	return { room, ups, grid, proGrid, buy, net: room + ups - buy };
+}
+
+function useLiveTodayYen( todayYen ) {
+	const [ live, setLive ] = useState( () => liveTodayYen( todayYen ) );
+
+	useEffect( () => {
+		const tick = () => setLive( liveTodayYen( todayYen ) );
+		tick();
+		const id = setInterval( tick, 1000 );
+		return () => clearInterval( id );
+	}, [ todayYen ] );
+
+	return live;
+}
+
+function formatTodayWatts( value ) {
+	if ( ! Number.isFinite( value ) ) {
+		return '—';
+	}
+
+	return Math.round( Math.max( 0, value ) ).toLocaleString() + ' W';
+}
+
+function liveTodaySolar( todaySolar ) {
+	if ( ! todaySolar || typeof todaySolar !== 'object' ) {
+		return { pro: null, delta: null };
+	}
+
+	const now = Date.now() / 1000;
+	const ts = Number( todaySolar.sample_ts ) || now;
+	const dt = Math.max( 0, Math.min( 15 * 60, now - ts ) );
+	const hours = dt / 3600;
+	const proW = Number( todaySolar.pro_w ) || 0;
+	const deltaW = Number( todaySolar.delta_w ) || 0;
+	const pro = Number( todaySolar.logged_pro_wh || 0 ) + proW * hours;
+	const delta = Number( todaySolar.logged_delta_wh || 0 ) + deltaW * hours;
+
+	return { pro, delta };
+}
+
+function useLiveTodaySolar( todaySolar ) {
+	const [ live, setLive ] = useState( () => liveTodaySolar( todaySolar ) );
+
+	useEffect( () => {
+		const tick = () => setLive( liveTodaySolar( todaySolar ) );
+		tick();
+		const id = setInterval( tick, 1000 );
+		return () => clearInterval( id );
+	}, [ todaySolar ] );
+
+	return live;
+}
+
+function DualFlowDiagram( { status, labels, images, liveYen, liveSolar } ) {
 	const pro = status.pro || {};
 	const delta = status.delta || {};
 	const solarWatts = solarToDelta( status );
@@ -191,18 +298,27 @@ function DualFlowDiagram( { status, labels, images } ) {
 	const extra = status.extra || delta.extra || { connected: true, battery_percent: null, capacity_wh: 1000 };
 	const extraSoc = parseSoc( extra.battery_percent );
 	const extraCap = Number( extra.capacity_wh ) || 1000;
-	const extraCapLabel = extraSoc === null
+	const extraMissing = extraSoc === null;
+	const extraCapText = extraCap >= 1000
+		? `${ ( extraCap / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kWh`
+		: `${ extraCap } Wh`;
+	const extraLastLabel = typeof window !== 'undefined' && window.gamingHubT
+		? window.gamingHubT( '最終値' )
+		: '最終値';
+	const extraCapLabel = extraMissing
 		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
-		: ( extraCap >= 1000
-			? `${ ( extraCap / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kWh`
-			: `${ extraCap } Wh` );
+		: ( extra.capacity_source === 'stale' ? `${ extraCapText } · ${ extraLastLabel }` : extraCapText );
 	const deltaSoc = formatSoc( delta.battery_percent );
 	const extraTone = batteryTone( extraSoc );
 	const deltaMissing = isDeltaMqttMissing( status );
-	const extraStandby = ! deltaMissing && ! delta.is_charging
-		&& ! delta.is_discharging
-		&& ( Number( delta.ac_out ) || 0 ) < FLOW_THRESHOLD
-		&& ( Number( delta.output_total ) || 0 ) < FLOW_THRESHOLD;
+	const upsLive = status.ups_source === 'ecoflow' || status.ups_source === 'switchbot';
+	const extraCharging = ! extraMissing && ! deltaMissing && (
+		extra.eta_mode === 'charge' || !! extra.is_charging
+	);
+	const extraDischarging = ! extraMissing && ! deltaMissing && (
+		extra.eta_mode === 'discharge' || !! extra.is_discharging
+	);
+	const extraStandby = extraMissing || deltaMissing || ( ! extraCharging && ! extraDischarging );
 
 	return (
 		<div className="ecoflow-dual-layout is-independent">
@@ -223,6 +339,9 @@ function DualFlowDiagram( { status, labels, images } ) {
 						) }
 						<span className="ecoflow-node-label">{ labels.gridCharge || labels.grid }</span>
 						<strong>{ proGrid.active ? formatWatts( proGrid.watts ) : ( labels.gridIdle || '待機' ) }</strong>
+						<small className="ecoflow-node-yen is-buy">
+							{ labels.todayBuy || '今日 買電' } { formatYenInt( liveYen?.proGrid ) }
+						</small>
 						{ proGrid.message ? <small>{ proGrid.message }</small> : null }
 					</div>
 
@@ -239,6 +358,9 @@ function DualFlowDiagram( { status, labels, images } ) {
 						) }
 						<span className="ecoflow-node-label">{ labels.hv || 'ハイボルト' }</span>
 						<strong>{ formatWatts( hvWatts ) }</strong>
+						<small className="ecoflow-node-yen ecoflow-node-gen">
+							{ labels.todayGen || '今日 発電' } { formatTodayWatts( liveSolar?.pro ) }
+						</small>
 					</div>
 				</div>
 
@@ -255,7 +377,9 @@ function DualFlowDiagram( { status, labels, images } ) {
 					) }
 					<span className="ecoflow-node-label">{ labels.home }</span>
 					<strong>{ formatWatts( roomWatts ) }</strong>
-					<small>{ labels.acOut || 'AC 出力' }</small>
+					<small className="ecoflow-node-yen">
+						{ labels.todaySave || '今日 節約' } { formatYenInt( liveYen?.room ) }
+					</small>
 				</div>
 
 				<div className="ecoflow-flow-summary ecoflow-flow-summary-system">
@@ -293,7 +417,11 @@ function DualFlowDiagram( { status, labels, images } ) {
 						) }
 						<span className="ecoflow-node-label">{ labels.deltaGrid || 'グリッド AC 入力' }</span>
 						<strong>{ formatWatts( deltaAcIn ) }</strong>
-						<small>{ deltaMissing ? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' ) : ( labels.acInMeasured || '実測 · MQTT' ) }</small>
+						<small className={ deltaMissing ? '' : 'ecoflow-node-yen is-buy' }>{
+							deltaMissing
+								? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
+								: `${ labels.todayBuy || '今日 買電' } ${ formatYenInt( liveYen?.grid ) }`
+						}</small>
 					</div>
 
 					<div
@@ -309,10 +437,10 @@ function DualFlowDiagram( { status, labels, images } ) {
 						) }
 						<span className="ecoflow-node-label">{ labels.solar }</span>
 						<strong>{ formatWatts( solarWatts ) }</strong>
-						<small>{
+						<small className={ status.solar_in_source === 'unavailable' || solarWatts === null || solarWatts === undefined ? '' : 'ecoflow-node-yen ecoflow-node-gen' }>{
 							status.solar_in_source === 'unavailable' || solarWatts === null || solarWatts === undefined
-								? '未取得'
-								: ( labels.lvMeasured || '実測 · MQTT' )
+								? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
+								: `${ labels.todayGen || '今日 発電' } ${ formatTodayWatts( liveSolar?.delta ) }`
 						}</small>
 					</div>
 				</div>
@@ -325,8 +453,9 @@ function DualFlowDiagram( { status, labels, images } ) {
 					className={ flowNodeClass(
 						'ecoflow-node ecoflow-node-extra ecoflow-node-banner',
 						Number.isFinite( extraSoc ) ? 'has-soc' : '',
-						! deltaMissing && delta.is_charging ? 'is-charging' : '',
-						deltaMissing ? 'is-unavailable' : ( extraStandby ? 'is-standby' : 'is-active' ),
+						extraCharging ? 'is-charging' : '',
+						extraDischarging ? 'is-discharging' : '',
+						extraMissing ? 'is-unavailable' : ( extraStandby ? 'is-standby' : 'is-active' ),
 						extraTone.className
 					) }
 					data-flow-id="extra"
@@ -340,10 +469,11 @@ function DualFlowDiagram( { status, labels, images } ) {
 								<span className="ecoflow-node-icon">🔋</span>
 							</span>
 						) }
-						<PhoneBattery percent={ extraSoc } charging={ ! deltaMissing && !! delta.is_charging } />
+						<PhoneBattery percent={ extraSoc } charging={ extraCharging } />
 					</div>
 					<span className="ecoflow-node-label">{ labels.extra || 'Extra Battery 1kW' }</span>
 					<small>{ extraCapLabel }</small>
+					{ ! extraMissing && ! deltaMissing ? <PackEta device={ extra } /> : null }
 				</div>
 
 				<div
@@ -357,10 +487,10 @@ function DualFlowDiagram( { status, labels, images } ) {
 					) }
 					<span className="ecoflow-node-label">{ labels.ups || '常時稼働エリア (UPS)' }</span>
 					<strong>{ formatWatts( upsWatts ) }</strong>
-					<small>{
-						status.ups_source === 'ecoflow'
-							? ( labels.acOutMeasured || '実測 · MQTT' )
-							: ( status.ups_source === 'switchbot' ? ( labels.upsPlug || 'SwitchBot Plug' ) : '未取得' )
+					<small className={ upsLive ? 'ecoflow-node-yen' : '' }>{
+						upsLive
+							? `${ labels.todaySave || '今日 節約' } ${ formatYenInt( liveYen?.ups ) }`
+							: ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
 					}</small>
 				</div>
 
@@ -420,7 +550,7 @@ function SingleFlowDiagram( { status, labels } ) {
 						</div>
 					</div>
 					<p className="ecoflow-node-state">{ status.charge_state || '—' }</p>
-					{ status.remain_time > 0 && (
+					{ ( status.eta_mode === 'charge' || status.eta_mode === 'discharge' || status.remain_time > 0 ) && (
 						<p className="ecoflow-remain-time ecoflow-remain-time-map">
 							{ status.remain_time_label }
 							<strong>{ status.remain_time_display || '—' }</strong>
@@ -457,6 +587,8 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 	const canvasRef = useRef( null );
 	const [ status, setStatus ] = useState( initial || {} );
 	const images = window.gamingHubEcoflowFlow?.images || {};
+	const liveYen = useLiveTodayYen( status.today_yen );
+	const liveSolar = useLiveTodaySolar( status.today_solar );
 
 	useFlowCanvas( canvasRef, mapRef, status );
 
@@ -485,7 +617,7 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 
 			<div className="ecoflow-energy-content">
 				{ isDual ? (
-					<DualFlowDiagram status={ status } labels={ labels } images={ images } />
+					<DualFlowDiagram status={ status } labels={ labels } images={ images } liveYen={ liveYen } liveSolar={ liveSolar } />
 				) : (
 					<SingleFlowDiagram status={ status } labels={ labels } />
 				) }

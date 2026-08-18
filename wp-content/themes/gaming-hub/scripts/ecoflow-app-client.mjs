@@ -150,11 +150,24 @@ function genClientId( userId ) {
 	return buildClientId( userId, true );
 }
 
+function mqttCanPublish( mqttClient ) {
+	return !!( mqttClient && mqttClient.connected && mqttClient.outgoingStore );
+}
+
+async function fetchJson( url, options = {}, timeoutMs = 20000 ) {
+	const resp = await fetch( url, {
+		...options,
+		signal: options.signal || AbortSignal.timeout( timeoutMs ),
+	} );
+
+	return resp.json();
+}
+
 export async function login( email, password, region ) {
 	let lastError = 'EcoFlow app login failed';
 
 	for ( const host of apiHostsToTry( region ) ) {
-		const resp = await fetch( `https://${ host }/auth/login`, {
+		const json = await fetchJson( `https://${ host }/auth/login`, {
 			method: 'POST',
 			headers: {
 				lang: 'en_US',
@@ -168,7 +181,6 @@ export async function login( email, password, region ) {
 			} ),
 		} );
 
-		const json = await resp.json();
 		if ( String( json.message || '' ).toLowerCase() === 'success' ) {
 			return { ...json.data, __apiHost: host };
 		}
@@ -193,6 +205,7 @@ export async function getCert( token, userId, region, apiHostOverride = '' ) {
 	let resp = await fetch( `https://${ host }/iot-auth/app/certification?userId=${ encodeURIComponent( userId ) }`, {
 		method: 'GET',
 		headers,
+		signal: AbortSignal.timeout( 20000 ),
 	} );
 
 	let json = await resp.json();
@@ -204,6 +217,7 @@ export async function getCert( token, userId, region, apiHostOverride = '' ) {
 				'content-type': 'application/x-www-form-urlencoded',
 			},
 			body: `userId=${ encodeURIComponent( userId ) }`,
+			signal: AbortSignal.timeout( 20000 ),
 		} );
 		json = await resp.json();
 	}
@@ -213,6 +227,7 @@ export async function getCert( token, userId, region, apiHostOverride = '' ) {
 			method: 'POST',
 			headers,
 			body: JSON.stringify( { userId } ),
+			signal: AbortSignal.timeout( 20000 ),
 		} );
 		json = await resp.json();
 	}
@@ -262,6 +277,15 @@ function quotaHasAcOut( quota ) {
 	return Object.keys( quota ).some( ( key ) => /inv\.outputWatts|pd\.acOutWatts|powGetAcLvOut|powGetAcHvOut/.test( key ) );
 }
 
+export function quotaHasSlaveSoc( quota ) {
+	return Object.keys( quota || {} ).some( ( key ) => {
+		const normalized = String( key ).replace( /^(params\.|data\.quotaMap\.|quotaMap\.)/, '' );
+
+		return ( normalized.startsWith( 'bms_slave' ) || normalized.includes( 'bms_slave' ) )
+			&& ( normalized.endsWith( '.soc' ) || normalized.includes( 'ShowSoc' ) );
+	} );
+}
+
 export async function pollQuota( deviceSn, loginData, cert, clientIdOverride = '', command = null ) {
 	return new Promise( ( resolvePromise, reject ) => {
 		const userId = loginData.user.userId;
@@ -293,10 +317,9 @@ export async function pollQuota( deviceSn, loginData, cert, clientIdOverride = '
 		};
 
 		const maybeFinish = ( force = false ) => {
-			const keys = Object.keys( quota );
 			const hasMainSoc = quotaHasMainSoc( quota );
-			const hasSlaveSoc = keys.some( ( key ) => key.includes( 'bms_slave' ) && ( key.endsWith( '.soc' ) || key.includes( 'ShowSoc' ) ) );
-			const hasPower = keys.some( ( key ) => /^(inv\.|pd\.|powGet)/.test( key ) && /watts|Watts|powGet/i.test( key ) );
+			const hasSlaveSoc = quotaHasSlaveSoc( quota );
+			const hasPower = Object.keys( quota ).some( ( key ) => /^(inv\.|pd\.|powGet)/.test( key ) && /watts|Watts|powGet/i.test( key ) );
 			const setReady = ! command || setAck;
 
 			if ( force ) {
@@ -304,24 +327,9 @@ export async function pollQuota( deviceSn, loginData, cert, clientIdOverride = '
 				return;
 			}
 
-			if ( setReady && hasMainSoc && ( hasPower || quotaHasAcOut( quota ) ) ) {
+			// Wait for Extra (bms_slave) when possible; do not close on the first get_reply.
+			if ( setReady && hasMainSoc && hasSlaveSoc && ( hasPower || quotaHasAcOut( quota ) ) ) {
 				finish();
-				return;
-			}
-
-			if ( setReady && keys.length >= 24 ) {
-				finish();
-				return;
-			}
-
-			if ( setReady && getReplyCount > 0 && hasMainSoc ) {
-				finish();
-				return;
-			}
-
-			// Do not finish early on Extra-only (bms_slave) payloads — wait for main pack / AC out.
-			if ( setReady && hasSlaveSoc && ! hasMainSoc ) {
-				return;
 			}
 		};
 
@@ -432,7 +440,7 @@ export async function pollQuota( deviceSn, loginData, cert, clientIdOverride = '
 					setAck = true;
 				}
 
-				maybeFinish( topic.includes( 'get_reply' ) || topic.includes( 'set_reply' ) );
+				maybeFinish( false );
 			} catch {
 				// Ignore binary / malformed payloads.
 			}
@@ -533,10 +541,12 @@ export function writeCommandResult( cacheDirectory, command, ok, error = '' ) {
 	);
 }
 
-export function writeQuotaCache( cacheDirectory, deviceSn, quota ) {
+export function writeQuotaCache( cacheDirectory, deviceSn, quota, options = {} ) {
 	mkdirSync( cacheDirectory, { recursive: true } );
 	const path = join( cacheDirectory, `${ deviceSn }.json` );
+	const statusPath = join( cacheDirectory, 'bridge-status.json' );
 	let merged = {};
+	let prevStatus = {};
 
 	try {
 		merged = JSON.parse( readFileSync( path, 'utf8' ) );
@@ -544,30 +554,438 @@ export function writeQuotaCache( cacheDirectory, deviceSn, quota ) {
 		merged = {};
 	}
 
+	try {
+		prevStatus = JSON.parse( readFileSync( statusPath, 'utf8' ) );
+	} catch {
+		prevStatus = {};
+	}
+
 	Object.assign( merged, quota );
+
+	const extraTouched = Object.prototype.hasOwnProperty.call( options, 'extraTouched' )
+		? !! options.extraTouched
+		: quotaHasSlaveSoc( quota );
+	const extraUpdatedAt = extraTouched
+		? new Date().toISOString()
+		: ( prevStatus.extra_updated_at || '' );
 
 	writeFileSync( path, JSON.stringify( merged ) );
 	writeFileSync(
-		join( cacheDirectory, 'bridge-status.json' ),
+		statusPath,
 		JSON.stringify( {
 			ok: true,
 			device_sn: deviceSn,
 			keys: Object.keys( merged ).length,
 			updated_at: new Date().toISOString(),
+			extra_updated_at: extraUpdatedAt || undefined,
+			mode: options.mode || prevStatus.mode || undefined,
 		} )
 	);
 }
 
 export function writeBridgeError( cacheDirectory, error ) {
 	mkdirSync( cacheDirectory, { recursive: true } );
+	const statusPath = join( cacheDirectory, 'bridge-status.json' );
+	let prevStatus = {};
+
+	try {
+		prevStatus = JSON.parse( readFileSync( statusPath, 'utf8' ) );
+	} catch {
+		prevStatus = {};
+	}
+
 	const formatted = formatBridgeError( error );
 	writeFileSync(
-		join( cacheDirectory, 'bridge-status.json' ),
+		statusPath,
 		JSON.stringify( {
 			ok: false,
 			error: formatted,
 			error_raw: String( error ),
+			device_sn: prevStatus.device_sn || undefined,
 			updated_at: new Date().toISOString(),
+			extra_updated_at: prevStatus.extra_updated_at || undefined,
+			mode: prevStatus.mode || undefined,
 		} )
 	);
+}
+
+function loadQuotaFile( cacheDirectory, deviceSn ) {
+	try {
+		const raw = JSON.parse( readFileSync( join( cacheDirectory, `${ deviceSn }.json` ), 'utf8' ) );
+		return raw && typeof raw === 'object' ? raw : {};
+	} catch {
+		return {};
+	}
+}
+
+function configFingerprint( config ) {
+	return [ config.email, config.password, config.deviceSn, config.region ].join( '|' );
+}
+
+function mqttPublishLatestQuotas( client, userId, deviceSn ) {
+	if ( ! mqttCanPublish( client ) ) {
+		return;
+	}
+
+	const topicGet = `/app/${ userId }/${ deviceSn }/thing/property/get`;
+	const message = JSON.stringify( {
+		id: Date.now() % 1000000,
+		version: '1.0',
+		sn: deviceSn,
+		moduleType: 0,
+		operateType: 'latestQuotas',
+		params: {},
+	} );
+	client.publish( topicGet, message, { qos: 1 } );
+}
+
+function mqttPublishAcCharge( client, userId, deviceSn, watts ) {
+	if ( ! mqttCanPublish( client ) ) {
+		return;
+	}
+
+	const topicSet = `/app/${ userId }/${ deviceSn }/thing/property/set`;
+	const chgWatts = Math.max( 0, Math.round( Number( watts ) || 0 ) );
+	const id = Date.now() % 1000000;
+	const payloads = [
+		{
+			id,
+			version: '1.0',
+			sn: deviceSn,
+			moduleType: 5,
+			operateType: 'acChgCfg',
+			from: 'Android',
+			params: {
+				chgWatts,
+				chgPauseFlag: 255,
+			},
+		},
+		{
+			id: id + 1,
+			version: '1.0',
+			sn: deviceSn,
+			moduleType: 5,
+			operateType: 'TCP',
+			from: 'Android',
+			params: {
+				cmdSet: 32,
+				id: 69,
+				chgWatts,
+				chgPauseFlag: 255,
+			},
+		},
+	];
+
+	payloads.forEach( ( payload ) => {
+		client.publish( topicSet, JSON.stringify( payload ), { qos: 1 } );
+	} );
+}
+
+/**
+ * Keep a single MQTT session open and merge Extra Battery (bms_slave) packets as they arrive.
+ *
+ * @param {string} cacheDir Shared ecoflow-cache directory.
+ * @param {{ readCommand?: Function, clearCommand?: Function, pingCron?: Function }} hooks
+ */
+export async function startPersistentMqttBridge( cacheDir, hooks = {} ) {
+	const heartbeatMs = Math.max( 5000, Number( process.env.ECOFLOW_BRIDGE_INTERVAL_MS || 30000 ) );
+	const writeMinMs = 1000;
+	const sessionPollMs = 5000;
+	const commandPollMs = 1000;
+
+	let client = null;
+	let quota = {};
+	let auth = null;
+	let lastConfigFp = '';
+	let lastWriteAt = 0;
+	let pendingWrite = false;
+	let pendingExtra = false;
+	let nextAuthAt = 0;
+	let loginBackoffMs = heartbeatMs;
+	let lastLogAt = 0;
+	let lastCommandId = '';
+
+	function bridgeLog( message ) {
+		process.stderr.write( `[ecoflow-bridge] ${ message }\n` );
+	}
+
+	const publishers = {
+		latestQuotas() {},
+		acCharge() {},
+		deviceSn: '',
+	};
+
+	function disconnectClient() {
+		publishers.latestQuotas = () => {};
+		publishers.acCharge = () => {};
+
+		if ( ! client ) {
+			return;
+		}
+
+		const ending = client;
+		client = null;
+		ending.removeAllListeners();
+		try {
+			ending.end( true );
+		} catch {
+			// Already closed.
+		}
+	}
+
+	function flushQuota( deviceSn, extraTouched = false, force = false ) {
+		if ( extraTouched ) {
+			pendingExtra = true;
+		}
+
+		pendingWrite = true;
+		const now = Date.now();
+		if ( ! force && ! extraTouched && now - lastWriteAt < writeMinMs ) {
+			return;
+		}
+
+		lastWriteAt = now;
+		pendingWrite = false;
+		const touched = pendingExtra;
+		pendingExtra = false;
+		writeQuotaCache( cacheDir, deviceSn, quota, {
+			extraTouched: touched,
+			mode: 'persistent',
+		} );
+	}
+
+	async function authenticate( config ) {
+		const loginData = await login( config.email, config.password, config.region || 'us' );
+		const cert = await getCert( loginData.token, loginData.user.userId, config.region || 'us', loginData.__apiHost );
+		const broker = cert.url ? `${ cert.url }:${ cert.port }` : 'unknown';
+
+		return {
+			loginData,
+			cert,
+			broker,
+			clientId: stableMqttClientId( loginData.user.userId ),
+		};
+	}
+
+	function attachClient( config, authState ) {
+		disconnectClient();
+
+		const userId = authState.loginData.user.userId;
+		const deviceSn = config.deviceSn;
+		const topicTelemetry = `/app/device/property/${ deviceSn }`;
+		const topicStatus = `/app/device/status/${ deviceSn }`;
+		const topicGetReply = `/app/${ userId }/${ deviceSn }/thing/property/get_reply`;
+		const topicSetReply = `/app/${ userId }/${ deviceSn }/thing/property/set_reply`;
+		const topics = [ topicTelemetry, topicStatus, topicGetReply, topicSetReply ];
+
+		if ( ! Object.keys( quota ).length ) {
+			quota = loadQuotaFile( cacheDir, deviceSn );
+		}
+
+		const mqttClient = mqtt.connect( buildMqttBrokerUrl( authState.cert ), {
+			clientId: authState.clientId,
+			username: String( authState.cert.certificateAccount || '' ),
+			password: String( authState.cert.certificatePassword || '' ),
+			protocol: 'mqtts',
+			protocolVersion: 4,
+			reconnectPeriod: 5000,
+			connectTimeout: 15000,
+			keepalive: 30,
+			clean: true,
+			rejectUnauthorized: true,
+		} );
+		client = mqttClient;
+
+		publishers.deviceSn = deviceSn;
+		publishers.latestQuotas = () => {
+			mqttPublishLatestQuotas( mqttClient, userId, deviceSn );
+		};
+		publishers.acCharge = ( watts ) => {
+			mqttPublishAcCharge( mqttClient, userId, deviceSn, watts );
+		};
+
+		mqttClient.on( 'connect', () => {
+			if ( client !== mqttClient ) {
+				return;
+			}
+
+			bridgeLog( `mqtt connected ${ deviceSn } broker=${ authState.broker }` );
+			loginBackoffMs = heartbeatMs;
+			mqttClient.subscribe( topics, { qos: 1 }, () => {
+				if ( client === mqttClient ) {
+					publishers.latestQuotas();
+				}
+			} );
+		} );
+
+		mqttClient.on( 'reconnect', () => {
+			if ( client === mqttClient ) {
+				bridgeLog( 'mqtt reconnecting' );
+			}
+		} );
+
+		mqttClient.on( 'message', ( topic, buffer ) => {
+			if ( client !== mqttClient ) {
+				return;
+			}
+
+			try {
+				const payload = JSON.parse( buffer.toString() );
+				const chunk = {};
+				mergePayload( chunk, payload );
+				mergePayload( quota, payload );
+
+				if ( topic.includes( 'set_reply' ) && hooks.clearCommand ) {
+					writeCommandResult( cacheDir, hooks.readCommand?.() || { id: lastCommandId }, true, '' );
+					hooks.clearCommand();
+					lastCommandId = '';
+				}
+
+				flushQuota( deviceSn, quotaHasSlaveSoc( chunk ) );
+
+				const now = Date.now();
+				if ( now - lastLogAt > 15000 ) {
+					lastLogAt = now;
+					bridgeLog( `${ deviceSn } keys=${ Object.keys( quota ).length } extra=${ quotaHasSlaveSoc( quota ) ? 'yes' : 'no' }` );
+				}
+			} catch {
+				// Ignore binary / malformed payloads.
+			}
+		} );
+
+		mqttClient.on( 'error', ( error ) => {
+			if ( client !== mqttClient ) {
+				return;
+			}
+
+			bridgeLog( `mqtt ${ error.message || error }` );
+			if ( isMqttUnauthorized( error ) ) {
+				disconnectClient();
+				auth = null;
+				nextAuthAt = 0;
+			}
+		} );
+
+		mqttClient.on( 'close', () => {
+			if ( client === mqttClient ) {
+				bridgeLog( 'mqtt closed' );
+			}
+		} );
+	}
+
+	async function ensureSession() {
+		const config = resolveConfig( cacheDir );
+
+		if ( ! config.email || ! config.password || ! config.deviceSn ) {
+			writeBridgeError( cacheDir, 'Waiting for App Login in Customizer and Delta 3 SN (bridge-config.json)' );
+			disconnectClient();
+			auth = null;
+			lastConfigFp = '';
+			quota = {};
+			return;
+		}
+
+		const fp = configFingerprint( config );
+		if ( fp !== lastConfigFp ) {
+			disconnectClient();
+			auth = null;
+			quota = loadQuotaFile( cacheDir, config.deviceSn );
+			lastConfigFp = fp;
+			nextAuthAt = 0;
+		}
+
+		if ( ! auth ) {
+			if ( Date.now() < nextAuthAt ) {
+				return;
+			}
+
+			try {
+				bridgeLog( `login ${ config.deviceSn } region=${ config.region || 'us' }` );
+				auth = await authenticate( config );
+				bridgeLog( `login ok ${ config.deviceSn }` );
+				loginBackoffMs = heartbeatMs;
+				nextAuthAt = 0;
+			} catch ( error ) {
+				writeBridgeError( cacheDir, error.message || error );
+				bridgeLog( String( error.message || error ) );
+				auth = null;
+				if ( /server is too busy|too busy/i.test( String( error.message || error ) ) ) {
+					loginBackoffMs = Math.min( 1800000, Math.max( 300000, loginBackoffMs * 2 ) );
+				} else {
+					loginBackoffMs = Math.min( 120000, Math.max( sessionPollMs, loginBackoffMs * 2 ) );
+				}
+				nextAuthAt = Date.now() + loginBackoffMs;
+				return;
+			}
+		}
+
+		if ( ! client && auth ) {
+			attachClient( config, auth );
+		}
+	}
+
+	async function tickCommand() {
+		if ( ! hooks.readCommand || ! client || ! client.connected ) {
+			return;
+		}
+
+		const command = hooks.readCommand();
+		if ( ! command || typeof command !== 'object' ) {
+			return;
+		}
+
+		const commandId = String( command.id || `${ command.watts }-${ command.action || 'ac_charge' }` );
+		if ( commandId === lastCommandId ) {
+			return;
+		}
+
+		lastCommandId = commandId;
+		publishers.acCharge( command.watts );
+		setTimeout( () => {
+			if ( lastCommandId !== commandId ) {
+				return;
+			}
+
+			writeCommandResult( cacheDir, command, true, '' );
+			hooks.clearCommand?.();
+			lastCommandId = '';
+		}, 2500 );
+	}
+
+	function shutdown() {
+		if ( publishers.deviceSn && Object.keys( quota ).length ) {
+			flushQuota( publishers.deviceSn, false, true );
+		}
+		disconnectClient();
+		process.exit( 0 );
+	}
+
+	process.on( 'SIGTERM', shutdown );
+	process.on( 'SIGINT', shutdown );
+
+	bridgeLog( `persistent mqtt cache=${ cacheDir } heartbeat=${ heartbeatMs }ms` );
+	await ensureSession();
+
+	setInterval( () => {
+		ensureSession().catch( ( error ) => {
+			bridgeLog( String( error.message || error ) );
+		} );
+		hooks.pingCron?.();
+	}, sessionPollMs );
+
+	setInterval( () => {
+		publishers.latestQuotas();
+	}, heartbeatMs );
+
+	setInterval( () => {
+		if ( pendingWrite && publishers.deviceSn ) {
+			flushQuota( publishers.deviceSn, false, true );
+		}
+	}, writeMinMs );
+
+	setInterval( () => {
+		tickCommand().catch( ( error ) => {
+			bridgeLog( `command ${ error.message || error }` );
+		} );
+	}, commandPollMs );
 }

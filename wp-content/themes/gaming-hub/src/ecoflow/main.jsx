@@ -27,6 +27,9 @@ if ( mountNode ) {
 		flow: '電力フロー',
 		inputTotal: '入力合計',
 		outputTotal: '出力合計',
+		todaySave: '今日 節約',
+		todayBuy: '今日 買電',
+		todayGen: '今日 発電',
 	};
 
 	createRoot( mountNode ).render(
