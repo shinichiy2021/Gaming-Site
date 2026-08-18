@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL', 90 );
+define( 'GAMING_HUB_ECOFLOW_EXTRA_CACHE_TTL', 600 );
 define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_STALE_TTL', 86400 );
 
 /**
@@ -194,29 +195,82 @@ function gaming_hub_ecoflow_bridge_is_live( $device_sn = '' ) {
  * @param string $device_sn Device serial.
  * @return array<string, mixed>|null
  */
-function gaming_hub_ecoflow_read_bridge_quota( $device_sn ) {
+function gaming_hub_ecoflow_read_bridge_quota_file( $device_sn ) {
 	gaming_hub_ecoflow_sync_bridge_config();
 
-	if ( ! gaming_hub_ecoflow_bridge_is_live( $device_sn ) ) {
+	$device_sn = (string) $device_sn;
+	if ( '' === $device_sn ) {
 		return null;
 	}
 
 	$path = gaming_hub_ecoflow_bridge_cache_path( $device_sn );
-
 	if ( ! file_exists( $path ) ) {
 		return null;
 	}
 
 	$raw = json_decode( (string) file_get_contents( $path ), true );
-	if ( ! is_array( $raw ) || empty( $raw ) ) {
-		return null;
-	}
-
-	if ( isset( $raw['error'] ) ) {
+	if ( ! is_array( $raw ) || empty( $raw ) || isset( $raw['error'] ) ) {
 		return null;
 	}
 
 	return $raw;
+}
+
+/**
+ * Unix timestamp of the last Extra Battery (bms_slave) MQTT packet.
+ */
+function gaming_hub_ecoflow_bridge_extra_updated_ts() {
+	$status = gaming_hub_ecoflow_read_bridge_status();
+	if ( ! is_array( $status ) || empty( $status['extra_updated_at'] ) ) {
+		return 0;
+	}
+
+	$ts = strtotime( (string) $status['extra_updated_at'] );
+
+	return $ts ? (int) $ts : 0;
+}
+
+/**
+ * Age in seconds of Extra Battery MQTT, or null if never received.
+ *
+ * @return int|null
+ */
+function gaming_hub_ecoflow_extra_cache_age() {
+	$ts = gaming_hub_ecoflow_bridge_extra_updated_ts();
+
+	return $ts > 0 ? time() - $ts : null;
+}
+
+/**
+ * Whether Extra Battery MQTT is fresh enough to show (live or last known).
+ */
+function gaming_hub_ecoflow_extra_is_fresh() {
+	$age = gaming_hub_ecoflow_extra_cache_age();
+
+	return null !== $age && $age <= GAMING_HUB_ECOFLOW_EXTRA_CACHE_TTL;
+}
+
+/**
+ * Whether Extra Battery MQTT arrived within the live bridge window.
+ */
+function gaming_hub_ecoflow_extra_is_live() {
+	$age = gaming_hub_ecoflow_extra_cache_age();
+
+	return null !== $age && $age <= GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL;
+}
+
+/**
+ * Read fresh quota map from the App Login bridge cache file.
+ *
+ * @param string $device_sn Device serial.
+ * @return array<string, mixed>|null
+ */
+function gaming_hub_ecoflow_read_bridge_quota( $device_sn ) {
+	if ( ! gaming_hub_ecoflow_bridge_is_live( $device_sn ) ) {
+		return null;
+	}
+
+	return gaming_hub_ecoflow_read_bridge_quota_file( $device_sn );
 }
 
 /**
