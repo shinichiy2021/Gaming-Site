@@ -68,6 +68,7 @@ services:
     volumes:
       - ./wp-content/themes/gaming-hub:/app
       - ./wp-content/ecoflow-cache:/cache
+    tty: true
     command: sh -c "npm install --omit=dev && node scripts/ecoflow-bridge-daemon.mjs"
     networks:
       - gaming-network
