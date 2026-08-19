@@ -1,6 +1,6 @@
 <?php
 /**
- * EcoFlow Pro 3 charge schedule: auto-send when the charge command changes.
+ * EcoFlow Pro 3 charge schedule: review the AI PLAN every 10 minutes and send when this hour's command changes.
  *
  * @package Gaming_Hub
  */
@@ -76,7 +76,7 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 			if ( $reserve ) {
 				return sprintf(
 					/* translators: 1: watts, 2: backup reserve percent */
-					__( '自動承認中。充電スケジュールが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。', 'gaming-hub' ),
+					__( '自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。', 'gaming-hub' ),
 					number_format_i18n( (int) $watts ),
 					number_format_i18n( $reserve )
 				);
@@ -84,12 +84,12 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 
 			return sprintf(
 				/* translators: %s: watts */
-				__( '自動承認中。充電スケジュールが変わったときだけ送ります。直近は充電上限 %s W です。', 'gaming-hub' ),
+				__( '自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %s W です。', 'gaming-hub' ),
 				number_format_i18n( (int) $watts )
 			);
 		}
 
-		return __( '自動承認中。充電スケジュールが変わったときだけ Pro 3 に送ります。', 'gaming-hub' );
+		return __( '自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ Pro 3 に送ります。', 'gaming-hub' );
 	}
 
 	if ( ! empty( $plan['is_approved_current'] ) ) {
@@ -286,6 +286,7 @@ function gaming_hub_ecoflow_autosync_charge_plan( array $plan ) {
 		'last_applied_hour'    => $saved['last_applied_hour'] ?? '',
 		'last_applied_at'      => $saved['last_applied_at'] ?? '',
 		'last_apply_error'     => $saved['last_apply_error'] ?? '',
+		'last_reviewed_at'     => $saved['last_reviewed_at'] ?? '',
 		'send_notice'          => $saved['send_notice'] ?? null,
 	);
 
@@ -403,19 +404,23 @@ function gaming_hub_ecoflow_cancel_schedule() {
 }
 
 /**
- * Send the current hour's approved watts to Pro 3.
+ * Send this hour's plan watts to Pro 3 when they differ from the last send.
  *
- * @param bool $force Ignore last-applied cache.
+ * @param bool                      $force Ignore last-applied cache.
+ * @param array<string, mixed>|null $plan  Live charge plan; uses saved slots when omitted.
  * @return true|WP_Error
  */
-function gaming_hub_ecoflow_apply_approved_schedule( $force = false ) {
+function gaming_hub_ecoflow_apply_approved_schedule( $force = false, $plan = null ) {
 	$saved = gaming_hub_ecoflow_get_saved_schedule();
 	if ( ( $saved['status'] ?? '' ) !== 'approved' ) {
 		return true;
 	}
 
 	$is_auto = ! empty( $saved['auto'] );
-	$slot    = gaming_hub_ecoflow_current_approved_slot( $saved );
+	$slots   = ( is_array( $plan ) && isset( $plan['slots'] ) && is_array( $plan['slots'] ) )
+		? $plan['slots']
+		: null;
+	$slot    = gaming_hub_ecoflow_current_approved_slot( $saved, $slots );
 	$missing = ! $slot || null === ( $slot['watts'] ?? null );
 	$expire  = $missing && ! $is_auto;
 
@@ -475,15 +480,17 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false ) {
 /**
  * Slot that matches the current local hour.
  *
- * @param array<string, mixed> $saved Saved schedule.
+ * @param array<string, mixed>             $saved Saved schedule.
+ * @param array<int, array<string, mixed>>|null $slots Live slots, or saved slots when null.
  * @return array<string, mixed>|null
  */
-function gaming_hub_ecoflow_current_approved_slot( array $saved ) {
+function gaming_hub_ecoflow_current_approved_slot( array $saved, $slots = null ) {
 	$date = wp_date( 'Y-m-d' );
 	$hour = (int) wp_date( 'G' );
 	$id   = $date . 'T' . sprintf( '%02d', $hour );
+	$list = is_array( $slots ) ? $slots : ( $saved['slots'] ?? array() );
 
-	foreach ( $saved['slots'] ?? array() as $slot ) {
+	foreach ( $list as $slot ) {
 		if ( ( $slot['id'] ?? '' ) === $id ) {
 			return $slot;
 		}
@@ -687,6 +694,12 @@ function gaming_hub_ecoflow_cron_schedules( $schedules ) {
 			'display'  => __( 'Every 5 minutes', 'gaming-hub' ),
 		);
 	}
+	if ( ! isset( $schedules['ten_minutes'] ) ) {
+		$schedules['ten_minutes'] = array(
+			'interval' => 10 * MINUTE_IN_SECONDS,
+			'display'  => __( 'Every 10 minutes', 'gaming-hub' ),
+		);
+	}
 
 	return $schedules;
 }
@@ -696,27 +709,37 @@ add_filter( 'cron_schedules', 'gaming_hub_ecoflow_cron_schedules' );
  * Ensure the apply cron is scheduled.
  */
 function gaming_hub_ecoflow_schedule_cron() {
-	$next = wp_next_scheduled( GAMING_HUB_ECOFLOW_SCHEDULE_CRON );
-	if ( $next && $next < time() - 15 * MINUTE_IN_SECONDS ) {
-		wp_clear_scheduled_hook( GAMING_HUB_ECOFLOW_SCHEDULE_CRON );
-		$next = false;
-	}
+	$event = function_exists( 'wp_get_scheduled_event' )
+		? wp_get_scheduled_event( GAMING_HUB_ECOFLOW_SCHEDULE_CRON )
+		: false;
+	$ts    = is_object( $event ) ? (int) ( $event->timestamp ?? 0 ) : 0;
+	$sched = is_object( $event ) ? (string) ( $event->schedule ?? '' ) : '';
+	$stale = $ts && $ts < time() - 20 * MINUTE_IN_SECONDS;
+	$wrong = ! $event || 'ten_minutes' !== $sched;
 
-	if ( ! $next ) {
-		wp_schedule_event( time() + 60, 'five_minutes', GAMING_HUB_ECOFLOW_SCHEDULE_CRON );
+	if ( $stale || $wrong ) {
+		wp_clear_scheduled_hook( GAMING_HUB_ECOFLOW_SCHEDULE_CRON );
+		wp_schedule_event( time() + 30, 'ten_minutes', GAMING_HUB_ECOFLOW_SCHEDULE_CRON );
 	}
 }
 add_action( 'init', 'gaming_hub_ecoflow_schedule_cron' );
 
 /**
- * Cron callback.
+ * Rebuild the AI PLAN and send this hour's command if it changed.
  */
 function gaming_hub_ecoflow_run_schedule_cron() {
+	$GLOBALS['gaming_hub_ecoflow_force_plan_refresh'] = true;
+
 	if ( function_exists( 'gaming_hub_get_ecoflow_status' ) ) {
 		gaming_hub_get_ecoflow_status( true );
-		return;
+	} else {
+		gaming_hub_ecoflow_apply_approved_schedule( false );
 	}
 
-	gaming_hub_ecoflow_apply_approved_schedule( false );
+	$saved = gaming_hub_ecoflow_get_saved_schedule();
+	if ( is_array( $saved ) ) {
+		$saved['last_reviewed_at'] = wp_date( 'c' );
+		update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $saved, false );
+	}
 }
 add_action( GAMING_HUB_ECOFLOW_SCHEDULE_CRON, 'gaming_hub_ecoflow_run_schedule_cron' );

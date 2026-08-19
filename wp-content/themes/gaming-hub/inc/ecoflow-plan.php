@@ -1,6 +1,6 @@
 <?php
 /**
- * EcoFlow daily charge plan: at cheap hours, charge Pro to ~90% after forecasting that day's solar and load.
+ * EcoFlow daily charge plan: at cheap hours, charge Pro to 95% after forecasting that day's solar and load.
  *
  * @package Gaming_Hub
  */
@@ -19,8 +19,8 @@ define( 'GAMING_HUB_ECOFLOW_AC_W_PER_C', 100 );
 define( 'GAMING_HUB_ECOFLOW_AC_MAX_W', 1000 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC', 95 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_MIN_SOC', 100 - GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC );
-define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC', 90 );
-define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX', 92 );
+define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC', 95 );
+define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX', 95 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC', false );
 define( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W', 1000 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W', 0 );
@@ -615,19 +615,22 @@ function gaming_hub_ecoflow_first_logged_soc( $date, $field = 'soc' ) {
  * Get or build the charge plan for the current EcoFlow status.
  *
  * @param array<string, mixed> $status Device status.
+ * @param bool                 $force  Rebuild even when a cached plan exists.
  * @return array<string, mixed>
  */
-function gaming_hub_ecoflow_get_charge_plan( array $status ) {
+function gaming_hub_ecoflow_get_charge_plan( array $status, $force = false ) {
 	$hour = (int) wp_date( 'G' );
 	$soc  = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
 	$delta_pack = gaming_hub_ecoflow_plan_delta_pack( $status );
 	$delta_key  = null !== ( $delta_pack['soc'] ?? null ) ? (int) floor( (float) $delta_pack['soc'] / 5 ) : 'x';
 	$dates      = gaming_hub_ecoflow_plan_dates();
-	$key        = 'gaming_hub_ecoflow_plan_v32_' . $dates['today'] . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC;
+	$key        = 'gaming_hub_ecoflow_plan_v32_' . $dates['today'] . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX;
 
-	$cached = get_transient( $key );
-	if ( is_array( $cached ) && isset( $cached['today']['slots'], $cached['yesterday']['slots'], $cached['tomorrow']['slots'] ) ) {
-		return gaming_hub_ecoflow_bundle_charge_plans( $cached, $status );
+	if ( ! $force ) {
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) && isset( $cached['today']['slots'], $cached['yesterday']['slots'], $cached['tomorrow']['slots'] ) ) {
+			return gaming_hub_ecoflow_bundle_charge_plans( $cached, $status );
+		}
 	}
 
 	$today_plan = gaming_hub_ecoflow_build_charge_plan( $status, $dates['today'] );
@@ -1005,10 +1008,19 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		$avg_yen = $picked['avg_yen'];
 		$note    = __( '昨日の実測です。黄・橙棒は残量、金の帯はグリッド充電の記録です。承認は今日の計画のみです。', 'gaming-hub' );
 	} elseif ( $needed ) {
-		$note = 'today' === $day_key
-			? __( '発電と使用の見込みでは Pro が 90% 付近になるため、グリッド充電は不要です。', 'gaming-hub' )
+		$target = number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC );
+		$note   = 'today' === $day_key
+			? sprintf(
+				/* translators: %s: target SOC percent */
+				__( '発電と使用の見込みでは Pro が %s%% 付近になるため、グリッド充電は不要です。', 'gaming-hub' ),
+				$target
+			)
 			: ( 'tomorrow' === $day_key
-				? __( '明日の発電と使用の見込みでは Pro が 90% 付近になるため、グリッド充電は不要です。', 'gaming-hub' )
+				? sprintf(
+					/* translators: %s: target SOC percent */
+					__( '明日の発電と使用の見込みでは Pro が %s%% 付近になるため、グリッド充電は不要です。', 'gaming-hub' ),
+					$target
+				)
 				: __( '昨日はグリッド充電なしの見込みです。', 'gaming-hub' ) );
 	} else {
 		$picked = gaming_hub_ecoflow_pick_cheap_hours( $hour, $deficit_kwh, $solar_hours, $plan_date );
@@ -1027,7 +1039,11 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		if ( empty( $picked['picked'] ) ) {
 			$needed      = true;
 			$deficit_kwh = 0.0;
-			$note        = __( '安い時間に充電すると 90% を超えそうなため、グリッド充電は見送ります。', 'gaming-hub' );
+			$note        = sprintf(
+				/* translators: %s: target SOC percent */
+				__( '安い時間に充電すると %s%% を超えそうなため、グリッド充電は見送ります。', 'gaming-hub' ),
+				number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX )
+			);
 		} else {
 			$deficit_kwh = round( count( $picked['picked'] ) * ( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W / 1000.0 ), 2 );
 			$note        = sprintf(
@@ -1087,8 +1103,16 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	);
 	$buy_labels = array(
 		'yesterday' => __( '昨日の買電', 'gaming-hub' ),
-		'today'     => __( '90%までの充電', 'gaming-hub' ),
-		'tomorrow'  => __( '明日 90%までの充電', 'gaming-hub' ),
+		'today'     => sprintf(
+			/* translators: %s: target SOC percent */
+			__( '%s%%までの充電', 'gaming-hub' ),
+			number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC )
+		),
+		'tomorrow'  => sprintf(
+			/* translators: %s: target SOC percent */
+			__( '明日 %s%%までの充電', 'gaming-hub' ),
+			number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC )
+		),
 	);
 
 	return array(
@@ -1216,7 +1240,7 @@ function gaming_hub_ecoflow_plan_projected_soc( $soc, $full_wh, $solar_kwh, $loa
 }
 
 /**
- * Grid kWh needed in cheap hours so Pro lands near the 90% target.
+ * Grid kWh needed in cheap hours so Pro lands near the charge target.
  *
  * @param float $soc       Current SOC 0–100.
  * @param float $full_wh   Pro full Wh.
@@ -1232,7 +1256,7 @@ function gaming_hub_ecoflow_plan_charge_to_target_kwh( $soc, $full_wh, $solar_kw
 }
 
 /**
- * Drop earliest cheap hours if simulated Pro SOC would peak above ~92%.
+ * Drop earliest cheap hours if simulated Pro SOC would peak above the charge cap.
  *
  * @param int                                      $from_hour  Current hour.
  * @param float                                    $soc        Current SOC.
