@@ -276,7 +276,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 					<?php endforeach; ?>
 				</div>
 			</div>
-			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量 · 青棒: 1500 残量（合算%）· 金の帯: グリッド充電（計画）· 橙: 発電見込み Pro 800W + 1500 500W · 青緑線: 請求単価', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量 · 橙棒: 1500 残量（合算%）· 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: 請求単価', 'gaming-hub' ); ?></p>
 			<p class="ecoflow-plan-next" data-ecoflow-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 
 			<details class="ecoflow-plan-more">
@@ -329,22 +329,11 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 						<strong data-ecoflow-field="plan_ac"><?php echo esc_html( isset( $plan['ac_today_kwh'] ) ? number_format_i18n( (float) $plan['ac_today_kwh'], 1 ) . ' kWh' : '—' ); ?></strong>
 						<small data-ecoflow-field="plan_ac_meta">
 							<?php
-							if ( ! empty( $plan['ac_weekend'] ) ) {
-								printf(
-									/* translators: 1: watts now, 2: setpoint C */
-									esc_html__( 'いま %1$s W · 設定 %2$s℃', 'gaming-hub' ),
-									esc_html( number_format_i18n( (int) ( $plan['ac_now_w'] ?? 0 ) ) ),
-									esc_html( number_format_i18n( (float) ( $plan['ac_setpoint_c'] ?? 26 ), 0 ) )
-								);
-							} elseif ( ! empty( $plan['ac_on'] ) ) {
-								printf(
-									/* translators: 1: watts now */
-									esc_html__( 'いま %s W · 平日は 28℃超でオン', 'gaming-hub' ),
-									esc_html( number_format_i18n( (int) ( $plan['ac_now_w'] ?? 0 ) ) )
-								);
-							} else {
-								esc_html_e( '平日は 28℃超でオン', 'gaming-hub' );
-							}
+							printf(
+								/* translators: 1: watts now */
+								esc_html__( 'いま %s W · 30℃以上で 500 W開始 / 上限 1 kW', 'gaming-hub' ),
+								esc_html( number_format_i18n( (int) ( $plan['ac_now_w'] ?? 0 ) ) )
+							);
 							?>
 						</small>
 					</div>

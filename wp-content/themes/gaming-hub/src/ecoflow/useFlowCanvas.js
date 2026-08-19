@@ -18,7 +18,8 @@ function wattsForFlow( flowId, status ) {
 	}
 
 	if ( flowId === 'solar' ) {
-		return solarToDelta( status );
+		const watts = solarToDelta( status );
+		return watts === null || watts === undefined ? 0 : Number( watts ) || 0;
 	}
 
 	if ( flowId === 'deltaGrid' ) {

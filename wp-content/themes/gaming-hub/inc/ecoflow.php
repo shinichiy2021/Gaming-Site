@@ -488,9 +488,7 @@ function gaming_hub_ecoflow_extract_lv_watts( $quota ) {
 }
 
 /**
- * Whether Delta 1500 is taking AC (grid) on the inverter / MPPT charger.
- *
- * On this firmware mppt.inWatts is charger throughput, not PV, while AC is connected.
+ * Whether Delta 1500 AC inlet voltage is present (UPS passthrough or grid charge).
  *
  * @param array<string, mixed> $quota Raw quota map.
  */
@@ -517,6 +515,9 @@ function gaming_hub_ecoflow_delta1500_ac_connected( $quota ) {
 /**
  * Delta 1500 Low Volt solar watts from MQTT / bridge quota.
  *
+ * Show MPPT / PV input whenever it is producing. Do not hide it because AC
+ * is plugged in for UPS or the charger type looks like grid.
+ *
  * @param array<string, mixed> $quota Raw quota map.
  * @return float|null
  */
@@ -528,13 +529,9 @@ function gaming_hub_ecoflow_delta1500_solar_from_quota( $quota ) {
 		return abs( (float) $lv_in );
 	}
 
-	if ( gaming_hub_ecoflow_delta1500_ac_connected( $quota ) ) {
-		return 0.0;
-	}
+	$mppt = gaming_hub_ecoflow_quota_value_live( $quota, array( 'mppt.inWatts', 'pd.inWatts' ) );
 
-	$generic = gaming_hub_ecoflow_quota_value_live( $quota, array( 'mppt.inWatts' ) );
-
-	return null !== $generic ? abs( (float) $generic ) : null;
+	return null !== $mppt ? abs( (float) $mppt ) : null;
 }
 
 /**
@@ -559,11 +556,7 @@ function gaming_hub_ecoflow_delta1500_quota_has_solar( $quota ) {
 		return true;
 	}
 
-	if ( gaming_hub_ecoflow_delta1500_ac_connected( $quota ) ) {
-		return true;
-	}
-
-	return null !== gaming_hub_ecoflow_quota_value_live( $quota, array( 'mppt.inWatts' ) );
+	return null !== gaming_hub_ecoflow_quota_value_live( $quota, array( 'mppt.inWatts', 'pd.inWatts' ) );
 }
 
 /**
@@ -1754,6 +1747,9 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 		'today_solar'         => function_exists( 'gaming_hub_ecoflow_energy_today_solar' )
 			? gaming_hub_ecoflow_energy_today_solar( $status )
 			: array(),
+		'today_usage'         => function_exists( 'gaming_hub_ecoflow_energy_today_usage' )
+			? gaming_hub_ecoflow_energy_today_usage( $status )
+			: array(),
 	);
 
 	return $payload;
@@ -1874,18 +1870,18 @@ function gaming_hub_format_ecoflow_delta_solar( array $status ) {
 	$secondary = isset( $status['secondary'] ) && is_array( $status['secondary'] )
 		? $status['secondary']
 		: array();
-	$source    = (string) ( $secondary['solar_in_source'] ?? $status['solar_in_source'] ?? '' );
+	$watts     = $secondary['solar_in'] ?? $status['solar_delta'] ?? $status['solar_in'] ?? null;
 
+	if ( null !== $watts && is_numeric( $watts ) ) {
+		return gaming_hub_format_ecoflow_watts( $watts );
+	}
+
+	$source = (string) ( $secondary['solar_in_source'] ?? $status['solar_in_source'] ?? '' );
 	if ( 'unavailable' === $source ) {
 		return gaming_hub_ecoflow_unavailable_label();
 	}
 
-	$watts = $secondary['solar_in'] ?? $status['solar_delta'] ?? null;
-	if ( null === $watts || ! is_numeric( $watts ) ) {
-		return gaming_hub_ecoflow_unavailable_label();
-	}
-
-	return gaming_hub_format_ecoflow_watts( $watts );
+	return gaming_hub_ecoflow_unavailable_label();
 }
 
 /**
@@ -2762,6 +2758,7 @@ function gaming_hub_ecoflow_scripts() {
 					'todaySave'   => __( '今日 節約', 'gaming-hub' ),
 					'todayBuy'    => __( '今日 買電', 'gaming-hub' ),
 					'todayGen'    => __( '今日 発電', 'gaming-hub' ),
+					'todayUse'    => __( '今日 使用', 'gaming-hub' ),
 				),
 				'images' => array(
 					'solar' => gaming_hub_ecoflow_image_url( 'ecoflow-solar-gaming.jpg' ),
@@ -2769,9 +2766,9 @@ function gaming_hub_ecoflow_scripts() {
 					'dc12v' => gaming_hub_ecoflow_image_url( 'ecoflow-dc12v-gaming.jpg' ),
 					'delta' => gaming_hub_ecoflow_image_url( 'ecoflow-delta1500-gaming.jpg' ),
 					'extra' => gaming_hub_ecoflow_image_url( 'ecoflow-extra-gaming.jpg' ),
-					'room'  => gaming_hub_ecoflow_image_url( 'ecoflow-room-gaming.jpg' ),
-					'ups'   => gaming_hub_ecoflow_image_url( 'ecoflow-ups-gaming.jpg' ),
-					'grid'  => gaming_hub_ecoflow_image_url( 'tesla-grid-gaming.jpg' ),
+					'room'  => gaming_hub_ecoflow_image_url( 'ecoflow-room-ac.jpg' ),
+					'ups'   => gaming_hub_ecoflow_image_url( 'ecoflow-ups-ac.jpg' ),
+					'grid'  => gaming_hub_ecoflow_image_url( 'ecoflow-grid-pole.jpg' ),
 				),
 			)
 		);

@@ -234,7 +234,7 @@ $solar_delta_area = $solar_stack['delta_area'];
 					<?php endforeach; ?>
 				</div>
 			</div>
-			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量 · 青棒: 1500 残量（合算%）· 橙: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量 · 橙棒: 1500 残量（合算%）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価', 'gaming-hub' ); ?></p>
 		<?php endif; ?>
 	<?php endif; ?>
 </section>

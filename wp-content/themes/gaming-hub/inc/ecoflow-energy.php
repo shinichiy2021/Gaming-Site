@@ -14,6 +14,133 @@ define( 'GAMING_HUB_ECOFLOW_ENERGY_LOCK', 'gaming_hub_ecoflow_energy_lock' );
 define( 'GAMING_HUB_ECOFLOW_ENERGY_CRON', 'gaming_hub_ecoflow_sample_energy' );
 define( 'GAMING_HUB_ECOFLOW_ENERGY_MAX_DT', 15 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_ECOFLOW_ENERGY_MIN_DT', 8 );
+define( 'GAMING_HUB_ECOFLOW_ENERGY_ORIGIN_DEFAULT', 'https://shinichiy-gaming-hub.com' );
+define( 'GAMING_HUB_ECOFLOW_ENERGY_ORIGIN_TTL', 8 );
+
+/**
+ * Whether this WordPress instance is a local / LAN copy (not production).
+ */
+function gaming_hub_ecoflow_energy_is_local_site() {
+	$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	if ( '' === $host ) {
+		$host = isset( $_SERVER['HTTP_HOST'] ) ? strtolower( (string) wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+		$host = preg_replace( '/:\\d+$/', '', $host );
+	}
+
+	if ( in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true ) ) {
+		return true;
+	}
+
+	return (bool) preg_match( '/^(192\\.168\\.|10\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.)/', $host );
+}
+
+/**
+ * Production origin for shared today totals, or empty when this server is canonical.
+ */
+function gaming_hub_ecoflow_energy_origin_base() {
+	$origin = getenv( 'GAMING_HUB_ENERGY_ORIGIN' );
+	if ( ! is_string( $origin ) ) {
+		$origin = '';
+	}
+	$origin = untrailingslashit( trim( $origin ) );
+
+	if ( '' === $origin && gaming_hub_ecoflow_energy_is_local_site() ) {
+		$origin = untrailingslashit( GAMING_HUB_ECOFLOW_ENERGY_ORIGIN_DEFAULT );
+	}
+
+	if ( '' === $origin ) {
+		return '';
+	}
+
+	$home_host   = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	$origin_host = (string) wp_parse_url( $origin, PHP_URL_HOST );
+	if ( $home_host && $origin_host && 0 === strcasecmp( $home_host, $origin_host ) ) {
+		return '';
+	}
+
+	return $origin;
+}
+
+/**
+ * Fetch today's yen / solar display payload from the canonical server.
+ *
+ * @return array<string, mixed>|null
+ */
+function gaming_hub_ecoflow_energy_fetch_origin_today() {
+	static $done = false;
+	static $memo = null;
+
+	if ( $done ) {
+		return $memo;
+	}
+	$done = true;
+
+	if ( ! empty( $GLOBALS['gaming_hub_energy_skip_origin'] ) ) {
+		return null;
+	}
+
+	$base = gaming_hub_ecoflow_energy_origin_base();
+	if ( '' === $base ) {
+		return null;
+	}
+
+	$cached = get_transient( 'gaming_hub_ecoflow_today_origin' );
+	if ( is_array( $cached ) && ( $cached['date'] ?? '' ) === wp_date( 'Y-m-d' ) ) {
+		$memo = $cached;
+		return $cached;
+	}
+
+	$url = $base . '/wp-json/gaming-hub/v1/ecoflow/today';
+	$res = wp_remote_get(
+		$url,
+		array(
+			'timeout' => 8,
+			'headers' => array( 'Accept' => 'application/json' ),
+		)
+	);
+	if ( is_wp_error( $res ) ) {
+		return null;
+	}
+
+	$code = (int) wp_remote_retrieve_response_code( $res );
+	$body = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+	if ( 200 !== $code || ! is_array( $body ) || empty( $body['success'] ) ) {
+		return null;
+	}
+
+	$payload = array(
+		'date'  => (string) ( $body['date'] ?? wp_date( 'Y-m-d' ) ),
+		'yen'   => isset( $body['yen'] ) && is_array( $body['yen'] ) ? $body['yen'] : array(),
+		'solar' => isset( $body['solar'] ) && is_array( $body['solar'] ) ? $body['solar'] : array(),
+		'usage' => isset( $body['usage'] ) && is_array( $body['usage'] ) ? $body['usage'] : array(),
+	);
+	set_transient( 'gaming_hub_ecoflow_today_origin', $payload, GAMING_HUB_ECOFLOW_ENERGY_ORIGIN_TTL );
+	$memo = $payload;
+
+	return $payload;
+}
+
+/**
+ * Overlay canonical display fields onto a locally computed today payload.
+ *
+ * @param array<string, mixed>      $local  Local computation.
+ * @param array<string, mixed>|null $remote Remote slice (yen or solar).
+ * @param array<int, string>        $keys   Display keys to copy.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_energy_apply_origin_display( array $local, $remote, array $keys ) {
+	if ( ! is_array( $remote ) || empty( $remote ) ) {
+		return $local;
+	}
+
+	foreach ( $keys as $key ) {
+		if ( isset( $remote[ $key ] ) && is_numeric( $remote[ $key ] ) ) {
+			$local[ $key ] = (int) round( (float) $remote[ $key ] );
+		}
+	}
+
+	return $local;
+}
 
 /**
  * Option key for one month of daily totals.
@@ -529,7 +656,7 @@ function gaming_hub_ecoflow_energy_day_yen_parts( array $day ) {
  * @param array<string, mixed>|null $status Live status, if available.
  * @return array<string, mixed>
  */
-function gaming_hub_ecoflow_energy_today_yen( $status = null ) {
+function gaming_hub_ecoflow_energy_compute_today_yen( $status = null ) {
 	$date = wp_date( 'Y-m-d' );
 	$log  = gaming_hub_ecoflow_energy_month_days( substr( $date, 0, 7 ) );
 	$day  = isset( $log[ $date ] ) && is_array( $log[ $date ] )
@@ -597,12 +724,31 @@ function gaming_hub_ecoflow_energy_today_yen( $status = null ) {
 }
 
 /**
+ * Today's room/UPS savings and grid import cost (canonical display numbers).
+ *
+ * Local / LAN copies overlay production totals so every terminal shows the same yen.
+ *
+ * @param array<string, mixed>|null $status Live status, if available.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_energy_today_yen( $status = null ) {
+	$local  = gaming_hub_ecoflow_energy_compute_today_yen( $status );
+	$remote = gaming_hub_ecoflow_energy_fetch_origin_today();
+
+	return gaming_hub_ecoflow_energy_apply_origin_display(
+		$local,
+		is_array( $remote ) ? ( $remote['yen'] ?? null ) : null,
+		array( 'room_yen', 'ups_yen', 'grid_yen', 'pro_grid_yen', 'buy_yen', 'net_yen' )
+	);
+}
+
+/**
  * Today's Pro HV and 1500 LV generation (Wh), including live remainder.
  *
  * @param array<string, mixed>|null $status Live status, if available.
  * @return array<string, mixed>
  */
-function gaming_hub_ecoflow_energy_today_solar( $status = null ) {
+function gaming_hub_ecoflow_energy_compute_today_solar( $status = null ) {
 	$date = wp_date( 'Y-m-d' );
 	$log  = gaming_hub_ecoflow_energy_month_days( substr( $date, 0, 7 ) );
 	$day  = isset( $log[ $date ] ) && is_array( $log[ $date ] )
@@ -652,6 +798,91 @@ function gaming_hub_ecoflow_energy_today_solar( $status = null ) {
 		'pro_w'          => $pro_w,
 		'delta_w'        => $delta_w,
 		'sample_ts'      => $sample_ts,
+	);
+}
+
+/**
+ * Today's Pro HV and 1500 LV generation for display (canonical on production).
+ *
+ * @param array<string, mixed>|null $status Live status, if available.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_energy_today_solar( $status = null ) {
+	$local  = gaming_hub_ecoflow_energy_compute_today_solar( $status );
+	$remote = gaming_hub_ecoflow_energy_fetch_origin_today();
+
+	return gaming_hub_ecoflow_energy_apply_origin_display(
+		$local,
+		is_array( $remote ) ? ( $remote['solar'] ?? null ) : null,
+		array( 'pro_wh', 'delta_wh' )
+	);
+}
+
+/**
+ * Today's Pro room and UPS AC-out usage (Wh), including live remainder.
+ *
+ * @param array<string, mixed>|null $status Live status, if available.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_energy_compute_today_usage( $status = null ) {
+	$date = wp_date( 'Y-m-d' );
+	$log  = gaming_hub_ecoflow_energy_month_days( substr( $date, 0, 7 ) );
+	$day  = isset( $log[ $date ] ) && is_array( $log[ $date ] )
+		? $log[ $date ]
+		: gaming_hub_ecoflow_energy_empty_day();
+
+	$logged_room = max( 0.0, (float) ( $day['room_out_wh'] ?? 0 ) );
+	$logged_ups  = max( 0.0, (float) ( $day['ups_out_wh'] ?? 0 ) );
+
+	$room_w    = 0.0;
+	$ups_w     = 0.0;
+	$sample_ts = time();
+	$state     = get_transient( GAMING_HUB_ECOFLOW_ENERGY_STATE );
+	$state     = is_array( $state ) ? $state : array();
+
+	if ( is_array( $status ) && function_exists( 'gaming_hub_ecoflow_savings_flow_watts' ) ) {
+		$flow   = gaming_hub_ecoflow_savings_flow_watts( $status );
+		$room_w = max( 0.0, (float) ( $flow['room_out'] ?? 0 ) );
+		$ups_w  = max( 0.0, (float) ( $flow['ups_out'] ?? 0 ) );
+	} else {
+		$room_w = max( 0.0, (float) ( $state['room_out_w'] ?? 0 ) );
+		$ups_w  = max( 0.0, (float) ( $state['ups_out_w'] ?? 0 ) );
+	}
+
+	if ( ! empty( $state['ts'] ) ) {
+		$sample_ts = (int) $state['ts'];
+	}
+
+	$dt        = min( GAMING_HUB_ECOFLOW_ENERGY_MAX_DT, max( 0, time() - $sample_ts ) );
+	$hours     = $dt / 3600.0;
+	$room_total = $logged_room + ( $room_w * $hours );
+	$ups_total  = $logged_ups + ( $ups_w * $hours );
+
+	return array(
+		'room_wh'        => (int) round( $room_total ),
+		'ups_wh'         => (int) round( $ups_total ),
+		'logged_room_wh' => round( $logged_room, 4 ),
+		'logged_ups_wh'  => round( $logged_ups, 4 ),
+		'room_w'         => $room_w,
+		'ups_w'          => $ups_w,
+		'sample_ts'      => $sample_ts,
+	);
+}
+
+/**
+ * Today's AC-out usage for display (canonical on production).
+ *
+ * @param array<string, mixed>|null $status Live status, if available.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_energy_today_usage( $status = null ) {
+	$local  = gaming_hub_ecoflow_energy_compute_today_usage( $status );
+	$remote = gaming_hub_ecoflow_energy_fetch_origin_today();
+
+	return gaming_hub_ecoflow_energy_apply_origin_display(
+		$local,
+		is_array( $remote ) ? ( $remote['usage'] ?? null ) : null,
+		array( 'room_wh', 'ups_wh' )
 	);
 }
 
@@ -862,6 +1093,7 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 		'today_kwh_ticks' => $today_kwh_ticks,
 		'today_yen'       => gaming_hub_ecoflow_energy_today_yen( $status ),
 		'today_solar'     => gaming_hub_ecoflow_energy_today_solar( $status ),
+		'today_usage'     => gaming_hub_ecoflow_energy_today_usage( $status ),
 	);
 }
 
@@ -879,6 +1111,9 @@ function gaming_hub_ecoflow_energy_attach( array $status ) {
 	$status['today_solar'] = isset( $status['energy']['today_solar'] ) && is_array( $status['energy']['today_solar'] )
 		? $status['energy']['today_solar']
 		: gaming_hub_ecoflow_energy_today_solar( $status );
+	$status['today_usage'] = isset( $status['energy']['today_usage'] ) && is_array( $status['energy']['today_usage'] )
+		? $status['energy']['today_usage']
+		: gaming_hub_ecoflow_energy_today_usage( $status );
 
 	return $status;
 }
@@ -941,8 +1176,61 @@ function gaming_hub_register_ecoflow_energy_rest() {
 			),
 		)
 	);
+	register_rest_route(
+		'gaming-hub/v1',
+		'/ecoflow/today',
+		array(
+			'methods'             => 'GET',
+			'callback'            => 'gaming_hub_rest_ecoflow_today',
+			'permission_callback' => '__return_true',
+		)
+	);
 }
 add_action( 'rest_api_init', 'gaming_hub_register_ecoflow_energy_rest' );
+
+/**
+ * REST: canonical today generation Wh and savings yen (no origin proxy).
+ *
+ * @return WP_REST_Response
+ */
+function gaming_hub_rest_ecoflow_today() {
+	$GLOBALS['gaming_hub_energy_skip_origin'] = true;
+
+	$status = function_exists( 'gaming_hub_get_ecoflow_status' )
+		? gaming_hub_get_ecoflow_status( true )
+		: null;
+	if ( is_wp_error( $status ) ) {
+		$status = null;
+	}
+
+	$yen   = gaming_hub_ecoflow_energy_compute_today_yen( is_array( $status ) ? $status : null );
+	$solar = gaming_hub_ecoflow_energy_compute_today_solar( is_array( $status ) ? $status : null );
+	$usage = gaming_hub_ecoflow_energy_compute_today_usage( is_array( $status ) ? $status : null );
+
+	return new WP_REST_Response(
+		array(
+			'success' => true,
+			'date'    => wp_date( 'Y-m-d' ),
+			'yen'     => array(
+				'room_yen'     => (int) ( $yen['room_yen'] ?? 0 ),
+				'ups_yen'      => (int) ( $yen['ups_yen'] ?? 0 ),
+				'grid_yen'     => (int) ( $yen['grid_yen'] ?? 0 ),
+				'pro_grid_yen' => (int) ( $yen['pro_grid_yen'] ?? 0 ),
+				'buy_yen'      => (int) ( $yen['buy_yen'] ?? 0 ),
+				'net_yen'      => (int) ( $yen['net_yen'] ?? 0 ),
+			),
+			'solar'   => array(
+				'pro_wh'   => (int) ( $solar['pro_wh'] ?? 0 ),
+				'delta_wh' => (int) ( $solar['delta_wh'] ?? 0 ),
+			),
+			'usage'   => array(
+				'room_wh' => (int) ( $usage['room_wh'] ?? 0 ),
+				'ups_wh'  => (int) ( $usage['ups_wh'] ?? 0 ),
+			),
+		),
+		200
+	);
+}
 
 /**
  * Background sample when the dashboard is closed.

@@ -30,6 +30,7 @@ if ( mountNode ) {
 		todaySave: '今日 節約',
 		todayBuy: '今日 買電',
 		todayGen: '今日 発電',
+		todayUse: '今日 使用',
 	};
 
 	createRoot( mountNode ).render(

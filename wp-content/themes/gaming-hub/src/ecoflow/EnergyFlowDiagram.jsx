@@ -9,7 +9,7 @@ function isFlowActive( flowId, status ) {
 
 	if ( flowId === 'solar' ) {
 		const watts = solarToDelta( status );
-		return watts !== null && watts !== undefined && watts >= FLOW_THRESHOLD;
+		return watts !== null && watts !== undefined && Number( watts ) >= FLOW_THRESHOLD;
 	}
 
 	if ( flowId === 'deltaGrid' ) {
@@ -215,37 +215,18 @@ function liveTodayYen( todayYen ) {
 		return { room: null, grid: null, proGrid: null, ups: null, buy: null, net: null };
 	}
 
-	const now = Date.now() / 1000;
-	const ts = Number( todayYen.sample_ts ) || now;
-	const dt = Math.max( 0, Math.min( 15 * 60, now - ts ) );
-	const rate = Number( todayYen.yen_per_kwh ) || 40;
-	const hours = dt / 3600;
-	const roomW = Number( todayYen.room_w ) || 0;
-	const upsW = Number( todayYen.ups_w ) || 0;
-	const gridW = todayYen.grid_w === null || todayYen.grid_w === undefined
-		? 0
-		: Number( todayYen.grid_w ) || 0;
-	const proGridW = Number( todayYen.pro_grid_w ) || 0;
-	const room = Math.round( Number( todayYen.logged_room_yen || 0 ) + ( roomW / 1000 ) * rate * hours );
-	const ups = Math.round( Number( todayYen.logged_ups_yen || 0 ) + ( upsW / 1000 ) * rate * hours );
-	const grid = Math.round( Number( todayYen.logged_grid_yen || 0 ) + ( gridW / 1000 ) * rate * hours );
-	const proGrid = Math.round( Number( todayYen.logged_pro_grid_yen || 0 ) + ( proGridW / 1000 ) * rate * hours );
-	const buy = grid + proGrid;
-
-	return { room, ups, grid, proGrid, buy, net: room + ups - buy };
+	return {
+		room: Number( todayYen.room_yen ),
+		ups: Number( todayYen.ups_yen ),
+		grid: Number( todayYen.grid_yen ),
+		proGrid: Number( todayYen.pro_grid_yen ),
+		buy: Number( todayYen.buy_yen ),
+		net: Number( todayYen.net_yen ),
+	};
 }
 
 function useLiveTodayYen( todayYen ) {
-	const [ live, setLive ] = useState( () => liveTodayYen( todayYen ) );
-
-	useEffect( () => {
-		const tick = () => setLive( liveTodayYen( todayYen ) );
-		tick();
-		const id = setInterval( tick, 1000 );
-		return () => clearInterval( id );
-	}, [ todayYen ] );
-
-	return live;
+	return liveTodayYen( todayYen );
 }
 
 function formatTodayWatts( value ) {
@@ -261,32 +242,32 @@ function liveTodaySolar( todaySolar ) {
 		return { pro: null, delta: null };
 	}
 
-	const now = Date.now() / 1000;
-	const ts = Number( todaySolar.sample_ts ) || now;
-	const dt = Math.max( 0, Math.min( 15 * 60, now - ts ) );
-	const hours = dt / 3600;
-	const proW = Number( todaySolar.pro_w ) || 0;
-	const deltaW = Number( todaySolar.delta_w ) || 0;
-	const pro = Number( todaySolar.logged_pro_wh || 0 ) + proW * hours;
-	const delta = Number( todaySolar.logged_delta_wh || 0 ) + deltaW * hours;
-
-	return { pro, delta };
+	return {
+		pro: Number( todaySolar.pro_wh ),
+		delta: Number( todaySolar.delta_wh ),
+	};
 }
 
 function useLiveTodaySolar( todaySolar ) {
-	const [ live, setLive ] = useState( () => liveTodaySolar( todaySolar ) );
-
-	useEffect( () => {
-		const tick = () => setLive( liveTodaySolar( todaySolar ) );
-		tick();
-		const id = setInterval( tick, 1000 );
-		return () => clearInterval( id );
-	}, [ todaySolar ] );
-
-	return live;
+	return liveTodaySolar( todaySolar );
 }
 
-function DualFlowDiagram( { status, labels, images, liveYen, liveSolar } ) {
+function liveTodayUsage( todayUsage ) {
+	if ( ! todayUsage || typeof todayUsage !== 'object' ) {
+		return { room: null, ups: null };
+	}
+
+	return {
+		room: Number( todayUsage.room_wh ),
+		ups: Number( todayUsage.ups_wh ),
+	};
+}
+
+function useLiveTodayUsage( todayUsage ) {
+	return liveTodayUsage( todayUsage );
+}
+
+function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsage } ) {
 	const pro = status.pro || {};
 	const delta = status.delta || {};
 	const solarWatts = solarToDelta( status );
@@ -377,6 +358,9 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar } ) {
 					) }
 					<span className="ecoflow-node-label">{ labels.home }</span>
 					<strong>{ formatWatts( roomWatts ) }</strong>
+					<small className="ecoflow-node-yen ecoflow-node-gen">
+						{ labels.todayUse || '今日 使用' } { formatTodayWatts( liveUsage?.room ) }
+					</small>
 					<small className="ecoflow-node-yen">
 						{ labels.todaySave || '今日 節約' } { formatYenInt( liveYen?.room ) }
 					</small>
@@ -425,7 +409,7 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar } ) {
 					</div>
 
 					<div
-						className={ flowNodeClass( 'ecoflow-node ecoflow-node-solar ecoflow-node-banner', deltaMissing || status.solar_in_source === 'unavailable' ? 'is-unavailable' : ( isFlowActive( 'solar', status ) ? 'is-active' : 'is-standby' ) ) }
+						className={ flowNodeClass( 'ecoflow-node ecoflow-node-solar ecoflow-node-banner', solarWatts === null || solarWatts === undefined ? ( deltaMissing ? 'is-unavailable' : 'is-standby' ) : ( isFlowActive( 'solar', status ) ? 'is-active' : 'is-standby' ) ) }
 						data-flow-id="solar"
 					>
 						{ images.solar ? (
@@ -437,8 +421,8 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar } ) {
 						) }
 						<span className="ecoflow-node-label">{ labels.solar }</span>
 						<strong>{ formatWatts( solarWatts ) }</strong>
-						<small className={ status.solar_in_source === 'unavailable' || solarWatts === null || solarWatts === undefined ? '' : 'ecoflow-node-yen ecoflow-node-gen' }>{
-							status.solar_in_source === 'unavailable' || solarWatts === null || solarWatts === undefined
+						<small className={ solarWatts === null || solarWatts === undefined ? '' : 'ecoflow-node-yen ecoflow-node-gen' }>{
+							solarWatts === null || solarWatts === undefined
 								? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
 								: `${ labels.todayGen || '今日 発電' } ${ formatTodayWatts( liveSolar?.delta ) }`
 						}</small>
@@ -487,11 +471,18 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar } ) {
 					) }
 					<span className="ecoflow-node-label">{ labels.ups || '常時稼働エリア (UPS)' }</span>
 					<strong>{ formatWatts( upsWatts ) }</strong>
-					<small className={ upsLive ? 'ecoflow-node-yen' : '' }>{
-						upsLive
-							? `${ labels.todaySave || '今日 節約' } ${ formatYenInt( liveYen?.ups ) }`
-							: ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
-					}</small>
+					{ upsLive ? (
+						<>
+							<small className="ecoflow-node-yen ecoflow-node-gen">
+								{ labels.todayUse || '今日 使用' } { formatTodayWatts( liveUsage?.ups ) }
+							</small>
+							<small className="ecoflow-node-yen">
+								{ labels.todaySave || '今日 節約' } { formatYenInt( liveYen?.ups ) }
+							</small>
+						</>
+					) : (
+						<small>{ typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' }</small>
+					) }
 				</div>
 
 				<div className="ecoflow-flow-summary ecoflow-flow-summary-system">
@@ -589,6 +580,7 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 	const images = window.gamingHubEcoflowFlow?.images || {};
 	const liveYen = useLiveTodayYen( status.today_yen );
 	const liveSolar = useLiveTodaySolar( status.today_solar );
+	const liveUsage = useLiveTodayUsage( status.today_usage );
 
 	useFlowCanvas( canvasRef, mapRef, status );
 
@@ -617,7 +609,7 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 
 			<div className="ecoflow-energy-content">
 				{ isDual ? (
-					<DualFlowDiagram status={ status } labels={ labels } images={ images } liveYen={ liveYen } liveSolar={ liveSolar } />
+					<DualFlowDiagram status={ status } labels={ labels } images={ images } liveYen={ liveYen } liveSolar={ liveSolar } liveUsage={ liveUsage } />
 				) : (
 					<SingleFlowDiagram status={ status } labels={ labels } />
 				) }

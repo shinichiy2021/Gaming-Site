@@ -42,6 +42,7 @@ services:
       TESLA_REFRESH_TOKEN: ${TESLA_REFRESH_TOKEN:-}
       TESLA_FLEET_API_BASE_URL: ${TESLA_FLEET_API_BASE_URL:-}
       TESLA_REDIRECT_URI: ${TESLA_REDIRECT_URI:-}
+      GAMING_HUB_ENERGY_ORIGIN: ${GAMING_HUB_ENERGY_ORIGIN:-https://shinichiy-gaming-hub.com}
     volumes:
       - wp_data:/var/www/html
       - ./wp-content/themes/gaming-hub:/var/www/html/wp-content/themes/gaming-hub
