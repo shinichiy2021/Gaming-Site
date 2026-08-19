@@ -166,15 +166,10 @@ export function solarToDelta( status ) {
 		return null;
 	}
 
-	const source = status.delta?.solar_in_source || status.solar_in_source || '';
-	if ( source === 'unavailable' || source === 'theoretical_lv' || source === '' ) {
-		return null;
-	}
-
 	const watts = status.delta && Object.prototype.hasOwnProperty.call( status.delta, 'solar_in' )
 		? status.delta.solar_in
 		: status.solar_in;
-	if ( watts === null || watts === undefined ) {
+	if ( watts === null || watts === undefined || watts === '' ) {
 		return null;
 	}
 

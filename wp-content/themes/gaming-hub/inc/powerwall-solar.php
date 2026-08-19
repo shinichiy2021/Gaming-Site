@@ -373,7 +373,7 @@ function gaming_hub_powerwall_get_solar_generation( $force_refresh = false ) {
  */
 function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 	$date       = wp_date( 'Y-m-d' );
-	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv3_' . $date;
+	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv4_' . $date;
 	$capacity_w = gaming_hub_powerwall_solar_capacity_w();
 	$month      = (int) wp_date( 'n' );
 
@@ -384,15 +384,22 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 		}
 	}
 
-	$profile = array_fill( 0, 24, 0 );
-	$temps   = array_fill( 0, 24, null );
-	$payload = gaming_hub_tajimi_fetch_open_meteo();
-	$source  = 'tajimi-normal';
+	$profile       = array_fill( 0, 24, 0 );
+	$temps         = array_fill( 0, 24, null );
+	$clouds        = array_fill( 0, 24, null );
+	$weather_codes = array_fill( 0, 24, null );
+	$payload       = gaming_hub_tajimi_fetch_open_meteo();
+	$source        = 'tajimi-normal';
+	$weather_code  = null;
 
 	if ( ! is_wp_error( $payload ) ) {
 		$source  = 'open-meteo';
 		$hourly  = is_array( $payload['hourly'] ?? null ) ? $payload['hourly'] : array();
 		$times   = is_array( $hourly['time'] ?? null ) ? $hourly['time'] : array();
+		$daily   = is_array( $payload['daily'] ?? null ) ? $payload['daily'] : array();
+		if ( isset( $daily['weather_code'][0] ) ) {
+			$weather_code = (int) $daily['weather_code'][0];
+		}
 
 		foreach ( $times as $index => $time ) {
 			if ( 0 !== strpos( (string) $time, $date ) ) {
@@ -410,6 +417,10 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 
 			if ( isset( $hourly['temperature_2m'][ $index ] ) ) {
 				$temps[ $hour ] = (float) $hourly['temperature_2m'][ $index ];
+			}
+			$clouds[ $hour ] = $cloud;
+			if ( isset( $hourly['weather_code'][ $index ] ) ) {
+				$weather_codes[ $hour ] = (int) $hourly['weather_code'][ $index ];
 			}
 
 			if ( ! $is_day ) {
@@ -452,16 +463,19 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 	}
 
 	$result = array(
-		'hours'     => $profile,
-		'temps'     => $temps,
-		'temp_now'  => $temp_now,
-		'temp_max'  => $temp_max,
-		'temp_min'  => $temp_min,
-		'date'      => $date,
-		'source'    => $source,
-		'today_kwh' => round( array_sum( $profile ) / 1000, 2 ),
-		'weather'   => $weather,
-		'location'  => $loc['name'],
+		'hours'         => $profile,
+		'temps'         => $temps,
+		'clouds'        => $clouds,
+		'weather_codes' => $weather_codes,
+		'weather_code'  => $weather_code,
+		'temp_now'      => $temp_now,
+		'temp_max'      => $temp_max,
+		'temp_min'      => $temp_min,
+		'date'          => $date,
+		'source'        => $source,
+		'today_kwh'     => round( array_sum( $profile ) / 1000, 2 ),
+		'weather'       => $weather,
+		'location'      => $loc['name'],
 	);
 
 	set_transient( $cache_key, $result, GAMING_HUB_TAJIMI_SOLAR_CACHE_TTL );

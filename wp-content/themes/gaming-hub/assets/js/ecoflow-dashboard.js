@@ -258,6 +258,7 @@
 			extra: extraBatterySlice(delta.extra || (data.secondary && data.secondary.extra)),
 			today_yen: data.today_yen || (data.energy && data.energy.today_yen) || null,
 			today_solar: data.today_solar || (data.energy && data.energy.today_solar) || null,
+			today_usage: data.today_usage || (data.energy && data.energy.today_usage) || null,
 		};
 	}
 
@@ -310,30 +311,13 @@
 			return null;
 		}
 
-		const now = Date.now() / 1000;
-		const ts = Number(todayYen.sample_ts) || now;
-		const dt = Math.max(0, Math.min(15 * 60, now - ts));
-		const rate = Number(todayYen.yen_per_kwh) || 40;
-		const hours = dt / 3600;
-		const roomW = Number(todayYen.room_w) || 0;
-		const upsW = Number(todayYen.ups_w) || 0;
-		const gridW = todayYen.grid_w === null || todayYen.grid_w === undefined
-			? 0
-			: Number(todayYen.grid_w) || 0;
-		const proGridW = Number(todayYen.pro_grid_w) || 0;
-		const room = Math.round(Number(todayYen.logged_room_yen || 0) + (roomW / 1000) * rate * hours);
-		const ups = Math.round(Number(todayYen.logged_ups_yen || 0) + (upsW / 1000) * rate * hours);
-		const grid = Math.round(Number(todayYen.logged_grid_yen || 0) + (gridW / 1000) * rate * hours);
-		const proGrid = Math.round(Number(todayYen.logged_pro_grid_yen || 0) + (proGridW / 1000) * rate * hours);
-		const buy = grid + proGrid;
-
 		return {
-			room: room,
-			ups: ups,
-			grid: grid,
-			proGrid: proGrid,
-			buy: buy,
-			net: room + ups - buy,
+			room: Number(todayYen.room_yen),
+			ups: Number(todayYen.ups_yen),
+			grid: Number(todayYen.grid_yen),
+			proGrid: Number(todayYen.pro_grid_yen),
+			buy: Number(todayYen.buy_yen),
+			net: Number(todayYen.net_yen),
 		};
 	}
 
@@ -1187,19 +1171,10 @@
 			);
 		}
 		setField('plan_ac', formatKwh(plan.ac_today_kwh));
-		if (plan.ac_weekend) {
-			setField(
-				'plan_ac_meta',
-				t('いま ') + Number(plan.ac_now_w || 0).toLocaleString() + t(' W · 設定 ') + Number(plan.ac_setpoint_c || 26).toFixed(0) + '℃'
-			);
-		} else if (plan.ac_on) {
-			setField(
-				'plan_ac_meta',
-				t('いま ') + Number(plan.ac_now_w || 0).toLocaleString() + t(' W · 平日は 28℃超でオン')
-			);
-		} else {
-			setField('plan_ac_meta', t('平日は 28℃超でオン'));
-		}
+		setField(
+			'plan_ac_meta',
+			t('いま ') + Number(plan.ac_now_w || 0).toLocaleString() + t(' W · 30℃以上で 500 W開始 / 上限 1 kW')
+		);
 		setField('plan_solar_today', formatKwh(plan.solar_today_kwh));
 		setField('plan_solar', formatKwh(plan.solar_remaining_kwh));
 		setField('plan_load', formatKwh(plan.room_remaining_kwh != null ? plan.room_remaining_kwh : plan.load_remaining_kwh));
@@ -1402,18 +1377,19 @@
 		setField('hv_in', formatWatts(data.hv_in));
 		setField('ac_out', formatWatts(data.ac_out));
 		setField('dc_out', formatWatts(data.dc_out));
-		const lvSource = (data.secondary && data.secondary.solar_in_source) || data.solar_in_source || 'unavailable';
+		const lvWatts = data.secondary && data.secondary.solar_in !== null && data.secondary.solar_in !== undefined
+			? data.secondary.solar_in
+			: data.solar_in;
+		const lvLive = lvWatts !== null && lvWatts !== undefined && lvWatts !== '';
 		setField(
 			'solar_delta_label',
-			lvSource === 'unavailable' || lvSource === 'theoretical_lv' || lvSource === ''
-				? t('Low Volt 入力 (未取得)')
-				: t('Low Volt 入力 (実測)')
+			lvLive
+				? t('Low Volt 入力 (実測)')
+				: t('Low Volt 入力 (未取得)')
 		);
 		setField(
 			'solar_delta',
-			lvSource === 'unavailable'
-				? unavailableLabel
-				: formatWatts(data.secondary && data.secondary.solar_in)
+			lvLive ? formatWatts(lvWatts) : unavailableLabel
 		);
 		if (data.secondary) {
 			setField('secondary_soc', formatPercent(data.secondary.battery_percent));
@@ -1431,10 +1407,10 @@
 
 		const pvNow = dashboard.querySelector('[data-ecoflow-pv-now]');
 		if (pvNow) {
-			if (data.solar_in === null || data.solar_in === undefined || lvSource === 'unavailable') {
+			if (!lvLive) {
 				pvNow.textContent = unavailableLabel;
 			} else {
-				pvNow.textContent = formatWatts(data.solar_in);
+				pvNow.textContent = formatWatts(lvWatts);
 			}
 		}
 
@@ -1613,9 +1589,6 @@
 	refreshRates();
 	setInterval(refreshDashboard, gamingHubEcoflow.interval || 60000);
 	setInterval(refreshRates, 60 * 60 * 1000);
-	setInterval(function () {
-		applyTodayYen(lastTodayYen);
-	}, 1000);
 
 	if (window.gamingHubActiveRefresh) {
 		window.gamingHubActiveRefresh.register(refreshDashboard);

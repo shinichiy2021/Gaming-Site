@@ -3692,9 +3692,13 @@ body.home .site-header.is-scrolled {
 }
 
 .ecoflow-node-photo-grid {
-	object-position: center 40%;
+	width: 96px;
+	height: 96px;
+	object-position: center 46%;
+	object-fit: cover;
 	background: #1b2433;
 	border-color: rgba(124, 77, 255, 0.55);
+	filter: brightness(1.22) contrast(1.12) saturate(1.05);
 	box-shadow:
 		0 0 20px rgba(124, 77, 255, 0.28),
 		0 6px 14px rgba(0, 0, 0, 0.4);
@@ -3746,11 +3750,11 @@ body.home .site-header.is-scrolled {
 }
 
 .ecoflow-node-photo-room {
-	object-position: center 38%;
+	object-position: center 42%;
 }
 
 .ecoflow-node-photo-ups {
-	object-position: 78% 58%;
+	object-position: center 40%;
 }
 
 .ecoflow-node-room small {
@@ -4680,28 +4684,6 @@ body.home .site-header.is-scrolled {
 	box-shadow: none;
 }
 
-.ecoflow-soc-bar-pro {
-	background:
-		repeating-linear-gradient(
-			to top,
-			transparent 0 2px,
-			rgba(0, 0, 0, 0.28) 2px 3px
-		),
-		linear-gradient(180deg, #ffe600, #ffc107);
-	box-shadow: 0 0 8px rgba(255, 230, 0, 0.28);
-}
-
-.ecoflow-soc-bar-delta {
-	background:
-		repeating-linear-gradient(
-			to top,
-			transparent 0 2px,
-			rgba(0, 0, 0, 0.22) 2px 3px
-		),
-		linear-gradient(180deg, #7ec8ff, #3b82f6);
-	box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
-}
-
 .ecoflow-rate-bar {
 	width: 100%;
 	max-width: 10px;
@@ -4715,6 +4697,28 @@ body.home .site-header.is-scrolled {
 		),
 		linear-gradient(180deg, #ffe600, #ff9f1c);
 	box-shadow: 0 0 8px rgba(255, 230, 0, 0.28);
+}
+
+.ecoflow-soc-stack .ecoflow-soc-bar-pro {
+	background:
+		repeating-linear-gradient(
+			to top,
+			transparent 0 2px,
+			rgba(0, 0, 0, 0.28) 2px 3px
+		),
+		linear-gradient(180deg, #ffe600, #ffc107);
+	box-shadow: 0 0 8px rgba(255, 230, 0, 0.28);
+}
+
+.ecoflow-soc-stack .ecoflow-soc-bar-delta {
+	background:
+		repeating-linear-gradient(
+			to top,
+			transparent 0 2px,
+			rgba(0, 0, 0, 0.22) 2px 3px
+		),
+		linear-gradient(180deg, #ff9f1c, #ff6b35);
+	box-shadow: 0 0 8px rgba(255, 107, 53, 0.4);
 }
 
 .ecoflow-rate-col.is-forecast .ecoflow-rate-bar {
@@ -4738,7 +4742,7 @@ body.home .site-header.is-scrolled {
 }
 
 .ecoflow-rate-col.is-now .ecoflow-soc-bar-delta {
-	box-shadow: 0 0 12px #3b82f6;
+	box-shadow: 0 0 12px #ff6b35;
 }
 
 .ecoflow-rate-now-pip {
