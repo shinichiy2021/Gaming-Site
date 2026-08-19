@@ -193,7 +193,10 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 		$status = gaming_hub_ecoflow_apply_delta1500_grid_rescue( $status );
 	}
 
-	$status['charge_plan'] = gaming_hub_ecoflow_get_charge_plan( $status );
+	$status['charge_plan'] = gaming_hub_ecoflow_get_charge_plan(
+		$status,
+		! empty( $GLOBALS['gaming_hub_ecoflow_force_plan_refresh'] )
+	);
 
 	if ( function_exists( 'gaming_hub_ecoflow_autosync_charge_plan' ) ) {
 		$status['charge_plan'] = gaming_hub_ecoflow_autosync_charge_plan( $status['charge_plan'] );
@@ -205,7 +208,7 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 	}
 
 	if ( function_exists( 'gaming_hub_ecoflow_apply_approved_schedule' ) ) {
-		gaming_hub_ecoflow_apply_approved_schedule( false );
+		gaming_hub_ecoflow_apply_approved_schedule( false, $status['charge_plan'] );
 	}
 
 	if ( ! empty( $status['charge_plan'] ) && is_array( $status['charge_plan'] ) && function_exists( 'gaming_hub_ecoflow_attach_schedule_state' ) ) {
