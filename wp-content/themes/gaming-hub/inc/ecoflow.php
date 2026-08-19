@@ -195,6 +195,10 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 
 	$status['charge_plan'] = gaming_hub_ecoflow_get_charge_plan( $status );
 
+	if ( function_exists( 'gaming_hub_ecoflow_autosync_charge_plan' ) ) {
+		$status['charge_plan'] = gaming_hub_ecoflow_autosync_charge_plan( $status['charge_plan'] );
+	}
+
 	if ( function_exists( 'gaming_hub_ecoflow_energy_sample' ) ) {
 		gaming_hub_ecoflow_energy_sample( $status );
 		$status = gaming_hub_ecoflow_energy_attach( $status );
@@ -2740,7 +2744,7 @@ function gaming_hub_ecoflow_scripts() {
 					'gridIdle'    => __( '待機', 'gaming-hub' ),
 					'deltaGrid'    => __( 'グリッド AC 入力', 'gaming-hub' ),
 					'acInMeasured' => __( '実測 · MQTT', 'gaming-hub' ),
-					'home'        => __( '慎一の部屋', 'gaming-hub' ),
+					'home'        => __( 'リビングエアコン他', 'gaming-hub' ),
 					'ups'         => __( '常時稼働エリア (UPS)', 'gaming-hub' ),
 					'battery'     => __( 'バッテリー', 'gaming-hub' ),
 					'pro'         => __( 'Delta Pro 3', 'gaming-hub' ),
@@ -2766,8 +2770,8 @@ function gaming_hub_ecoflow_scripts() {
 					'dc12v' => gaming_hub_ecoflow_image_url( 'ecoflow-dc12v-gaming.jpg' ),
 					'delta' => gaming_hub_ecoflow_image_url( 'ecoflow-delta1500-gaming.jpg' ),
 					'extra' => gaming_hub_ecoflow_image_url( 'ecoflow-extra-gaming.jpg' ),
-					'room'  => gaming_hub_ecoflow_image_url( 'ecoflow-room-ac.jpg' ),
-					'ups'   => gaming_hub_ecoflow_image_url( 'ecoflow-ups-ac.jpg' ),
+					'room'  => gaming_hub_ecoflow_image_url( 'ecoflow-living-aircon-gaming.jpg' ),
+					'ups'   => gaming_hub_ecoflow_image_url( 'ecoflow-ups-gaming.jpg' ),
 					'grid'  => gaming_hub_ecoflow_image_url( 'ecoflow-grid-pole.jpg' ),
 				),
 			)

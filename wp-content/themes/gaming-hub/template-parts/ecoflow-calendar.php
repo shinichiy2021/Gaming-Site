@@ -83,7 +83,7 @@ if ( $show_today ) {
 		<div>
 			<p class="ecoflow-plan-kicker"><?php esc_html_e( 'GEN LOG', 'gaming-hub' ); ?></p>
 			<h3><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></h3>
-			<p class="ecoflow-plan-note"><?php esc_html_e( 'Pro 3 ハイボルト + Delta 1500 Low Volt の合算を積算しています。入力・出力も両機の合計です。節約額は慎一の部屋（Pro AC 出力）と UPS（1500 AC 出力）× その時間の買電単価から、1500 と Pro のグリッド AC 入力（買電）× 同単価を引いた額です。', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-plan-note"><?php esc_html_e( 'Pro 3 ハイボルト + Delta 1500 Low Volt の合算を積算しています。入力・出力も両機の合計です。節約額は リビングエアコン他（Pro AC 出力）と UPS（1500 AC 出力）× その時間の買電単価から、1500 と Pro のグリッド AC 入力（買電）× 同単価を引いた額です。', 'gaming-hub' ); ?></p>
 		</div>
 		<p class="ecoflow-plan-limits">
 			<span data-ecoflow-cal-label><?php echo esc_html( $calendar['label'] ?? '' ); ?></span>
@@ -135,7 +135,7 @@ if ( $show_today ) {
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-room">
 			<span><?php esc_html_e( 'ROOM', 'gaming-hub' ); ?></span>
 			<strong data-ecoflow-cal-today-room><?php echo esc_html( $format_yen( $today_yen['room_yen'] ?? 0 ) ); ?></strong>
-			<small><?php esc_html_e( '今日 部屋節約', 'gaming-hub' ); ?></small>
+			<small><?php esc_html_e( '今日 リビングエアコン他 節約', 'gaming-hub' ); ?></small>
 		</div>
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-ups">
 			<span><?php esc_html_e( 'UPS', 'gaming-hub' ); ?></span>

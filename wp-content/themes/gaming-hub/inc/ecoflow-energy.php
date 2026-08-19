@@ -412,16 +412,26 @@ function gaming_hub_ecoflow_energy_add( $date, $hour, array $add ) {
 }
 
 /**
+ * Logged hour buckets for a Y-m-d date.
+ *
+ * @param string $date Y-m-d.
+ * @return array<int, array<string, mixed>>
+ */
+function gaming_hub_ecoflow_energy_hours_for_date( $date ) {
+	$date  = (string) $date;
+	$log   = gaming_hub_ecoflow_energy_month_days( substr( $date, 0, 7 ) );
+	$hours = $log[ $date ]['hours'] ?? array();
+
+	return is_array( $hours ) ? $hours : array();
+}
+
+/**
  * Today's logged hour buckets.
  *
  * @return array<int, array<string, mixed>>
  */
 function gaming_hub_ecoflow_energy_today_hours() {
-	$date  = wp_date( 'Y-m-d' );
-	$log   = gaming_hub_ecoflow_energy_month_days( substr( $date, 0, 7 ) );
-	$hours = $log[ $date ]['hours'] ?? array();
-
-	return is_array( $hours ) ? $hours : array();
+	return gaming_hub_ecoflow_energy_hours_for_date( wp_date( 'Y-m-d' ) );
 }
 
 /**
@@ -444,12 +454,13 @@ function gaming_hub_ecoflow_energy_today_solar_hours() {
 }
 
 /**
- * Today's last sampled Pro SOC % by hour.
+ * Last sampled Pro SOC % by hour for a date.
  *
+ * @param string|null $date Y-m-d, default today.
  * @return array<int, float|null>
  */
-function gaming_hub_ecoflow_energy_today_soc_hours() {
-	$hours = gaming_hub_ecoflow_energy_today_hours();
+function gaming_hub_ecoflow_energy_soc_hours_for_date( $date = null ) {
+	$hours = gaming_hub_ecoflow_energy_hours_for_date( $date ? (string) $date : wp_date( 'Y-m-d' ) );
 	$out   = array_fill( 0, 24, null );
 
 	for ( $h = 0; $h < 24; $h++ ) {
@@ -463,12 +474,22 @@ function gaming_hub_ecoflow_energy_today_soc_hours() {
 }
 
 /**
- * Today's last sampled 1500 (main + Extra) SOC % by hour.
+ * Today's last sampled Pro SOC % by hour.
  *
  * @return array<int, float|null>
  */
-function gaming_hub_ecoflow_energy_today_delta_soc_hours() {
-	$hours = gaming_hub_ecoflow_energy_today_hours();
+function gaming_hub_ecoflow_energy_today_soc_hours() {
+	return gaming_hub_ecoflow_energy_soc_hours_for_date();
+}
+
+/**
+ * Last sampled 1500 SOC % by hour for a date.
+ *
+ * @param string|null $date Y-m-d, default today.
+ * @return array<int, float|null>
+ */
+function gaming_hub_ecoflow_energy_delta_soc_hours_for_date( $date = null ) {
+	$hours = gaming_hub_ecoflow_energy_hours_for_date( $date ? (string) $date : wp_date( 'Y-m-d' ) );
 	$out   = array_fill( 0, 24, null );
 
 	for ( $h = 0; $h < 24; $h++ ) {
@@ -482,14 +503,24 @@ function gaming_hub_ecoflow_energy_today_delta_soc_hours() {
 }
 
 /**
- * Today's measured HV / LV solar watts by hour.
+ * Today's last sampled 1500 (main + Extra) SOC % by hour.
+ *
+ * @return array<int, float|null>
+ */
+function gaming_hub_ecoflow_energy_today_delta_soc_hours() {
+	return gaming_hub_ecoflow_energy_delta_soc_hours_for_date();
+}
+
+/**
+ * Measured HV / LV solar watts by hour for a date.
  *
  * Falls back to splitting combined solar by Pro 800 : 1500 500.
  *
+ * @param string|null $date Y-m-d, default today.
  * @return array{pro: array<int, int|null>, delta: array<int, int|null>}
  */
-function gaming_hub_ecoflow_energy_today_split_solar_hours() {
-	$hours   = gaming_hub_ecoflow_energy_today_hours();
+function gaming_hub_ecoflow_energy_split_solar_hours_for_date( $date = null ) {
+	$hours   = gaming_hub_ecoflow_energy_hours_for_date( $date ? (string) $date : wp_date( 'Y-m-d' ) );
 	$pro_cap = defined( 'GAMING_HUB_ECOFLOW_SOLAR_PRO_W' ) ? (int) GAMING_HUB_ECOFLOW_SOLAR_PRO_W : 800;
 	$d_cap   = defined( 'GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W' ) ? (int) GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W : 500;
 	$total   = max( 1, $pro_cap + $d_cap );
@@ -520,6 +551,15 @@ function gaming_hub_ecoflow_energy_today_split_solar_hours() {
 		'pro'   => $pro,
 		'delta' => $delta,
 	);
+}
+
+/**
+ * Today's measured HV / LV solar watts by hour.
+ *
+ * @return array{pro: array<int, int|null>, delta: array<int, int|null>}
+ */
+function gaming_hub_ecoflow_energy_today_split_solar_hours() {
+	return gaming_hub_ecoflow_energy_split_solar_hours_for_date();
 }
 
 /**

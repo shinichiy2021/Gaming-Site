@@ -77,11 +77,10 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 			$y     = max( 0, min( 100, 100 - ( ( $price - $plan_min ) / $plan_span ) * 100 ) );
 			$plan_price_points[] = ( ( $h + 0.5 ) * 10 ) . ',' . round( $y, 1 );
 		}
+		$show_delta_soc = defined( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC' ) && GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC;
 		$soc_series = is_array( $plan['soc_series'] ?? null ) ? $plan['soc_series'] : array();
 		$soc_bar_pro = is_array( $plan['soc_bar_pro'] ?? null ) ? $plan['soc_bar_pro'] : array();
 		$soc_bar_delta = is_array( $plan['soc_bar_delta'] ?? null ) ? $plan['soc_bar_delta'] : array();
-		$soc_series_pro = is_array( $plan['soc_series_pro'] ?? null ) ? $plan['soc_series_pro'] : array();
-		$soc_series_delta = is_array( $plan['soc_series_delta'] ?? null ) ? $plan['soc_series_delta'] : array();
 		$solar_pro_h = is_array( $plan['solar_chart_pro'] ?? null ) ? $plan['solar_chart_pro'] : array();
 		$solar_delta_h = is_array( $plan['solar_chart_delta'] ?? null ) ? $plan['solar_chart_delta'] : array();
 		if ( ! $solar_pro_h && $solar_hours ) {
@@ -98,6 +97,14 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 		$plan_solar_polyline = $plan_solar_stack['total_line'];
 		$plan_solar_area     = $plan_solar_stack['pro_area'];
 		$plan_solar_delta_area = $plan_solar_stack['delta_area'];
+		$ac_hours = is_array( $plan['ac_chart'] ?? null ) ? $plan['ac_chart'] : array();
+		$ac_cap   = max(
+			$solar_cap,
+			max( 1, (int) ( $plan['ac_chart_cap'] ?? ( defined( 'GAMING_HUB_ECOFLOW_AC_MAX_W' ) ? GAMING_HUB_ECOFLOW_AC_MAX_W : 1000 ) ) )
+		);
+		$plan_ac_polyline = function_exists( 'gaming_hub_ecoflow_chart_watts_line' )
+			? gaming_hub_ecoflow_chart_watts_line( $ac_hours, $ac_cap )
+			: '';
 
 		$now_slot   = $today_by_hour[ $now_hour ] ?? array();
 		$now_mode   = (string) ( $now_slot['mode'] ?? 'idle' );
@@ -133,10 +140,15 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 			class="ecoflow-plan<?php echo $needs_grid ? ' is-deficit' : ' is-ok'; ?><?php echo $approved ? ' is-approved' : ''; ?><?php echo $stale ? ' is-stale' : ''; ?>"
 			data-plan-id="<?php echo esc_attr( $plan['plan_id'] ?? '' ); ?>"
 		>
+			<nav class="ecoflow-plan-day-nav" aria-label="<?php esc_attr_e( '計画の日付', 'gaming-hub' ); ?>">
+				<button type="button" class="ecoflow-plan-cancel" data-ecoflow-plan-day="yesterday"><?php esc_html_e( '昨日', 'gaming-hub' ); ?></button>
+				<button type="button" class="ecoflow-plan-cancel is-active" data-ecoflow-plan-day="today"><?php esc_html_e( '今日', 'gaming-hub' ); ?></button>
+				<button type="button" class="ecoflow-plan-cancel" data-ecoflow-plan-day="tomorrow"><?php esc_html_e( '明日', 'gaming-hub' ); ?></button>
+			</nav>
 			<div class="ecoflow-plan-header ecoflow-plan-head">
 				<div>
 					<p class="ecoflow-plan-kicker"><?php esc_html_e( 'AI PLAN', 'gaming-hub' ); ?></p>
-					<h3><?php esc_html_e( '今日の充電計画', 'gaming-hub' ); ?></h3>
+					<h3 data-ecoflow-field="plan_title"><?php esc_html_e( '今日の充電計画', 'gaming-hub' ); ?></h3>
 					<p class="ecoflow-plan-note" data-ecoflow-field="plan_note"><?php echo esc_html( $plan['note'] ?? '' ); ?></p>
 				</div>
 			</div>
@@ -171,24 +183,24 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				<div class="ecoflow-rates-stat ecoflow-plan-stat-buy">
 					<span><?php esc_html_e( 'BUY', 'gaming-hub' ); ?></span>
 					<strong data-ecoflow-field="plan_deficit"><?php echo esc_html( isset( $plan['deficit_kwh'] ) ? number_format_i18n( (float) $plan['deficit_kwh'], 1 ) . ' kWh' : '—' ); ?></strong>
-					<small><?php esc_html_e( '今日の不足', 'gaming-hub' ); ?></small>
+					<small data-ecoflow-field="plan_deficit_label"><?php echo esc_html( (string) ( $plan['deficit_hud_label'] ?? __( '今日の不足', 'gaming-hub' ) ) ); ?></small>
 				</div>
 				<div class="ecoflow-rates-stat ecoflow-rates-stat-pv">
 					<span><?php esc_html_e( 'PV', 'gaming-hub' ); ?></span>
-					<strong data-ecoflow-field="plan_solar"><?php echo esc_html( isset( $plan['solar_remaining_kwh'] ) ? number_format_i18n( (float) $plan['solar_remaining_kwh'], 1 ) . ' kWh' : '—' ); ?></strong>
-					<small><?php esc_html_e( '残り予想発電', 'gaming-hub' ); ?></small>
+					<strong data-ecoflow-field="plan_solar"><?php echo esc_html( isset( $plan['solar_hud_kwh'] ) ? number_format_i18n( (float) $plan['solar_hud_kwh'], 1 ) . ' kWh' : ( isset( $plan['solar_remaining_kwh'] ) ? number_format_i18n( (float) $plan['solar_remaining_kwh'], 1 ) . ' kWh' : '—' ) ); ?></strong>
+					<small data-ecoflow-field="plan_solar_hud_label"><?php echo esc_html( (string) ( $plan['solar_hud_label'] ?? __( '残り予想発電', 'gaming-hub' ) ) ); ?></small>
 				</div>
 			</div>
 
-			<div class="ecoflow-rate-chart ecoflow-plan-chart">
+			<div class="ecoflow-rate-chart ecoflow-plan-chart<?php echo $show_delta_soc ? '' : ' is-pro-soc-only'; ?>">
 				<div class="ecoflow-rate-y ecoflow-rate-y-soc" aria-hidden="true">
-					<span class="ecoflow-rate-y-unit"><?php esc_html_e( '%', 'gaming-hub' ); ?></span>
+					<span class="ecoflow-rate-y-unit"><?php echo $show_delta_soc ? esc_html__( '合算%', 'gaming-hub' ) : esc_html__( '%', 'gaming-hub' ); ?></span>
 					<?php foreach ( $soc_ticks as $tick ) : ?>
 						<span><?php echo esc_html( (string) $tick ); ?></span>
 					<?php endforeach; ?>
 				</div>
 				<div class="ecoflow-rate-plot">
-					<div class="ecoflow-rate-track" data-ecoflow-plan-track role="img" aria-label="<?php esc_attr_e( '本日のグリッド充電計画・残量予測・発電見込み・請求単価', 'gaming-hub' ); ?>">
+					<div class="ecoflow-rate-track" data-ecoflow-plan-track role="img" aria-label="<?php esc_attr_e( '本日のグリッド充電計画・残量予測・発電見込み・AC出力見込み・請求単価', 'gaming-hub' ); ?>">
 						<svg class="ecoflow-solar-line" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
 							<polygon class="ecoflow-solar-delta" data-ecoflow-plan-solar-delta-area points="<?php echo esc_attr( $plan_solar_delta_area ); ?>"></polygon>
 							<polygon class="ecoflow-solar-pro" data-ecoflow-plan-solar-area points="<?php echo esc_attr( $plan_solar_area ); ?>"></polygon>
@@ -203,7 +215,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 							$soc_pct   = $soc_series[ $h ] ?? null;
 							$has_soc   = is_numeric( $soc_pct );
 							$pro_h     = isset( $soc_bar_pro[ $h ] ) ? max( 0, min( 100, (float) $soc_bar_pro[ $h ] ) ) : ( $has_soc ? max( 0, min( 100, (float) $soc_pct ) ) : 0 );
-							$delta_h   = isset( $soc_bar_delta[ $h ] ) ? max( 0, min( 100, (float) $soc_bar_delta[ $h ] ) ) : 0;
+							$delta_h   = $show_delta_soc && isset( $soc_bar_delta[ $h ] ) ? max( 0, min( 100, (float) $soc_bar_delta[ $h ] ) ) : 0;
 							$charge_h  = $is_charge
 								? max( 8, min( 100, ( (int) ( $slot['watts'] ?? $charge_w ) / $charge_w ) * 100 ) )
 								: 0;
@@ -216,13 +228,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 							}
 							$tip_parts = array( sprintf( '%d:00', $h ), $mode_label[ $mode ] ?? $mode );
 							if ( $has_soc ) {
-								$tip_parts[] = number_format_i18n( (float) $soc_pct, 0 ) . '%';
-							}
-							$pro_soc_h = $soc_series_pro[ $h ] ?? null;
-							$delta_soc_h = $soc_series_delta[ $h ] ?? null;
-							if ( is_numeric( $pro_soc_h ) || is_numeric( $delta_soc_h ) ) {
-								$tip_parts[] = 'Pro ' . ( is_numeric( $pro_soc_h ) ? number_format_i18n( (float) $pro_soc_h, 0 ) . '%' : '—' );
-								$tip_parts[] = '1500 ' . ( is_numeric( $delta_soc_h ) ? number_format_i18n( (float) $delta_soc_h, 0 ) . '%' : '—' );
+								$tip_parts[] = 'Pro ' . number_format_i18n( (float) $soc_pct, 0 ) . '%';
 							}
 							if ( $is_charge ) {
 								$tip_parts[] = gaming_hub_format_ecoflow_watts( $slot['watts'] ?? $charge_w );
@@ -230,6 +236,8 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 							if ( isset( $slot['yen'] ) && null !== $slot['yen'] ) {
 								$tip_parts[] = number_format_i18n( (float) $slot['yen'], 1 ) . ' 円';
 							}
+							$ac_w_h = (int) round( max( 0, (float) ( $ac_hours[ $h ] ?? 0 ) ) );
+							$tip_parts[] = 'AC ' . number_format_i18n( $ac_w_h ) . ' W';
 							?>
 							<div class="<?php echo esc_attr( $col_class ); ?>" data-ecoflow-plan-col data-hour="<?php echo esc_attr( (string) $h ); ?>">
 								<?php if ( $is_now ) : ?>
@@ -251,12 +259,17 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 										class="ecoflow-rate-bar ecoflow-soc-bar-delta"
 										data-ecoflow-plan-bar-delta
 										style="height: <?php echo esc_attr( (string) round( $delta_h, 1 ) ); ?>%;"
+										<?php echo $show_delta_soc ? '' : 'hidden'; ?>
 									></span>
 								</span>
 							</div>
 						<?php endfor; ?>
 						<svg class="ecoflow-price-line" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
 							<polyline data-ecoflow-plan-price-line points="<?php echo esc_attr( $plan_price_polyline ); ?>" vector-effect="non-scaling-stroke"></polyline>
+						</svg>
+						<svg class="ecoflow-ac-line" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
+							<polyline class="ecoflow-ac-line-under" data-ecoflow-plan-ac-line points="<?php echo esc_attr( $plan_ac_polyline ); ?>" vector-effect="non-scaling-stroke"></polyline>
+							<polyline class="ecoflow-ac-line-over" data-ecoflow-plan-ac-line points="<?php echo esc_attr( $plan_ac_polyline ); ?>" vector-effect="non-scaling-stroke"></polyline>
 						</svg>
 					</div>
 					<div class="ecoflow-rate-hours" aria-hidden="true">
@@ -276,7 +289,9 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 					<?php endforeach; ?>
 				</div>
 			</div>
-			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量 · 橙棒: 1500 残量（合算%）· 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: 請求単価', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-rate-legend"><?php echo $show_delta_soc
+				? esc_html__( '黄棒: Pro 残量W · 橙棒: 1500 残量W · 棒の高さ: 合算容量に対する割合 · 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 朱橙線: AC出力見込み · 青緑線: 請求単価', 'gaming-hub' )
+				: esc_html__( '黄棒: Pro 残量 · 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 朱橙線: AC出力見込み · 青緑線: 請求単価', 'gaming-hub' ); ?></p>
 			<p class="ecoflow-plan-next" data-ecoflow-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 
 			<details class="ecoflow-plan-more">
@@ -330,9 +345,12 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 						<small data-ecoflow-field="plan_ac_meta">
 							<?php
 							printf(
-								/* translators: 1: watts now */
-								esc_html__( 'いま %s W · 30℃以上で 500 W開始 / 上限 1 kW', 'gaming-hub' ),
-								esc_html( number_format_i18n( (int) ( $plan['ac_now_w'] ?? 0 ) ) )
+								/* translators: 1: watts now, 2: start C, 3: start watts, 4: max C */
+								esc_html__( 'いま %1$s W · %2$s℃で %3$s W開始 / %4$s℃以上で 1 kW', 'gaming-hub' ),
+								esc_html( number_format_i18n( (int) ( $plan['ac_now_w'] ?? 0 ) ) ),
+								esc_html( number_format_i18n( (float) ( $plan['ac_start_c'] ?? 28 ), 0 ) ),
+								esc_html( number_format_i18n( (int) ( $plan['ac_start_w'] ?? 300 ) ) ),
+								'35'
 							);
 							?>
 						</small>
@@ -370,7 +388,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 						<small data-ecoflow-field="plan_weather_meta"><?php echo esc_html( $plan['weather_location'] ?? '' ); ?></small>
 					</div>
 					<div class="ecoflow-plan-card">
-						<span class="ecoflow-stat-label"><?php esc_html_e( '残り予想使用（部屋）', 'gaming-hub' ); ?></span>
+						<span class="ecoflow-stat-label"><?php esc_html_e( '残り予想使用（リビングエアコン他）', 'gaming-hub' ); ?></span>
 						<strong data-ecoflow-field="plan_load"><?php echo esc_html( isset( $plan['room_remaining_kwh'] ) ? number_format_i18n( (float) $plan['room_remaining_kwh'], 1 ) . ' kWh' : '—' ); ?></strong>
 						<small data-ecoflow-field="plan_load_meta">
 							<?php
@@ -406,13 +424,13 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 						</small>
 					</div>
 					<div class="ecoflow-plan-card">
-						<span class="ecoflow-stat-label"><?php esc_html_e( '使える電池（予備 25%除く）', 'gaming-hub' ); ?></span>
+						<span class="ecoflow-stat-label"><?php esc_html_e( '使える電池（容量の 80% · 予備 20%除く）', 'gaming-hub' ); ?></span>
 						<strong data-ecoflow-field="plan_battery"><?php echo esc_html( isset( $plan['usable_battery_kwh'] ) ? number_format_i18n( (float) $plan['usable_battery_kwh'], 1 ) . ' kWh' : '—' ); ?></strong>
 					</div>
 				</div>
 			</details>
 
-			<div class="ecoflow-plan-actions">
+			<div class="ecoflow-plan-actions" data-ecoflow-plan-actions>
 				<p class="ecoflow-plan-approval" data-ecoflow-field="plan_approval"><?php echo esc_html( $plan['approval_note'] ?? '' ); ?></p>
 				<?php if ( $can_approve ) : ?>
 					<button type="button" class="ecoflow-plan-approve" data-ecoflow-approve<?php echo $approved && ! $stale ? ' hidden' : ''; ?>>
@@ -503,7 +521,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				<strong data-ecoflow-field="hv_in"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['hv_in'] ?? 0 ) ); ?></strong>
 			</div>
 			<div class="ecoflow-stat-card">
-				<span class="ecoflow-stat-label"><?php esc_html_e( 'AC 出力 → 部屋', 'gaming-hub' ); ?></span>
+				<span class="ecoflow-stat-label"><?php esc_html_e( 'AC 出力 → リビングエアコン他', 'gaming-hub' ); ?></span>
 				<strong data-ecoflow-field="ac_out"><?php echo esc_html( gaming_hub_format_ecoflow_watts( $status['ac_out'] ) ); ?></strong>
 			</div>
 			<div class="ecoflow-stat-card">

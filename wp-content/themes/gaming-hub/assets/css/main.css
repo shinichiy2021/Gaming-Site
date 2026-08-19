@@ -3750,7 +3750,7 @@ body.home .site-header.is-scrolled {
 }
 
 .ecoflow-node-photo-room {
-	object-position: center 42%;
+	object-position: center 28%;
 }
 
 .ecoflow-node-photo-ups {
@@ -4101,6 +4101,9 @@ body.home .site-header.is-scrolled {
 }
 
 .ecoflow-plan {
+	position: relative;
+	display: flex;
+	flex-direction: column;
 	margin: 0 0 20px;
 	padding: 18px 16px 16px;
 	background:
@@ -4129,6 +4132,45 @@ body.home .site-header.is-scrolled {
 	justify-content: space-between;
 	align-items: flex-start;
 	gap: 12px;
+}
+
+.ecoflow-plan-day-nav {
+	display: flex;
+	flex-shrink: 0;
+	gap: 8px;
+}
+
+.ecoflow-plan:not(.ecoflow-cal) > .ecoflow-plan-day-nav {
+	position: sticky;
+	top: 78px;
+	align-self: flex-end;
+	z-index: 20;
+	margin: 0 0 8px;
+	padding: 4px;
+	border-radius: 8px;
+	background: rgba(8, 7, 15, 0.88);
+	backdrop-filter: blur(10px);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.ecoflow-plan:not(.ecoflow-cal) > .ecoflow-plan-head {
+	margin-top: -42px;
+	padding-right: 178px;
+}
+
+.ecoflow-plan-day-nav .ecoflow-plan-cancel {
+	padding: 6px 12px;
+}
+
+.ecoflow-plan-day-nav .ecoflow-plan-cancel.is-active {
+	border-color: #ffe600;
+	color: #ffe600;
+	background: rgba(255, 230, 0, 0.12);
+}
+
+.ecoflow-plan-day-nav .ecoflow-plan-cancel:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
 }
 
 .ecoflow-cal .ecoflow-plan-kicker {
@@ -4220,6 +4262,10 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-plan-chart .ecoflow-price-line {
 	z-index: 6;
+}
+
+.ecoflow-plan-chart .ecoflow-ac-line {
+	z-index: 7;
 }
 
 .ecoflow-plan-charge-bar {
@@ -4351,6 +4397,10 @@ body.home .site-header.is-scrolled {
 	align-items: center;
 	gap: 10px;
 	margin-top: 16px;
+}
+
+.ecoflow-plan-actions[hidden] {
+	display: none;
 }
 
 .ecoflow-plan-approval {
@@ -4643,6 +4693,34 @@ body.home .site-header.is-scrolled {
 	filter: drop-shadow(0 0 2px rgba(0, 245, 212, 0.55));
 }
 
+.ecoflow-ac-line {
+	position: absolute;
+	inset: 0 4px;
+	width: calc(100% - 8px);
+	height: 100%;
+	pointer-events: none;
+	z-index: 7;
+	overflow: visible;
+}
+
+.ecoflow-ac-line polyline {
+	fill: none;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+
+.ecoflow-ac-line polyline.ecoflow-ac-line-under {
+	stroke: #2a0c00;
+	stroke-width: 5.5px;
+}
+
+.ecoflow-ac-line polyline.ecoflow-ac-line-over {
+	stroke: #ff3d00;
+	stroke-width: 2.6px;
+	filter: drop-shadow(0 0 3px rgba(255, 61, 0, 0.9));
+}
+
 .ecoflow-rate-legend {
 	margin: 8px 0 0;
 	font-size: 0.72rem;
@@ -4721,6 +4799,11 @@ body.home .site-header.is-scrolled {
 	box-shadow: 0 0 8px rgba(255, 107, 53, 0.4);
 }
 
+.ecoflow-soc-stack .ecoflow-soc-bar-delta[hidden],
+.ecoflow-rate-chart.is-pro-soc-only .ecoflow-soc-bar-delta {
+	display: none;
+}
+
 .ecoflow-rate-col.is-forecast .ecoflow-rate-bar {
 	opacity: 0.55;
 }
@@ -4795,6 +4878,12 @@ body.home .site-header.is-scrolled {
 	.ecoflow-rate-track,
 	.ecoflow-rate-y {
 		height: 120px;
+	}
+
+	.ecoflow-plan:not(.ecoflow-cal) > .ecoflow-plan-head {
+		margin-top: 0;
+		padding-right: 0;
+		padding-top: 4px;
 	}
 }
 
