@@ -348,9 +348,9 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 								/* translators: 1: watts now, 2: start C, 3: start watts, 4: max C */
 								esc_html__( 'いま %1$s W · %2$s℃で %3$s W開始 / %4$s℃以上で 1 kW', 'gaming-hub' ),
 								esc_html( number_format_i18n( (int) ( $plan['ac_now_w'] ?? 0 ) ) ),
-								esc_html( number_format_i18n( (float) ( $plan['ac_start_c'] ?? 28 ), 0 ) ),
+								esc_html( number_format_i18n( (float) ( $plan['ac_start_c'] ?? ( defined( 'GAMING_HUB_ECOFLOW_AC_START_C' ) ? GAMING_HUB_ECOFLOW_AC_START_C : 27 ) ), 0 ) ),
 								esc_html( number_format_i18n( (int) ( $plan['ac_start_w'] ?? 300 ) ) ),
-								'35'
+								esc_html( number_format_i18n( (float) ( $plan['ac_max_c'] ?? ( function_exists( 'gaming_hub_ecoflow_ac_max_c' ) ? gaming_hub_ecoflow_ac_max_c() : 34 ) ), 0 ) )
 							);
 							?>
 						</small>
@@ -424,7 +424,14 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 						</small>
 					</div>
 					<div class="ecoflow-plan-card">
-						<span class="ecoflow-stat-label"><?php esc_html_e( '使える電池（容量の 80% · 予備 20%除く）', 'gaming-hub' ); ?></span>
+						<span class="ecoflow-stat-label" data-ecoflow-field="plan_battery_label"><?php
+						printf(
+							/* translators: 1: usable percent of capacity, 2: discharge reserve percent */
+							esc_html__( '使える電池（容量の %1$s%% · 予備 %2$s%%除く）', 'gaming-hub' ),
+							esc_html( number_format_i18n( (int) ( $plan['usable_soc'] ?? ( defined( 'GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC' ) ? GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC : 95 ) ) ) ),
+							esc_html( number_format_i18n( (int) ( $plan['reserve_soc'] ?? ( defined( 'GAMING_HUB_ECOFLOW_PLAN_MIN_SOC' ) ? GAMING_HUB_ECOFLOW_PLAN_MIN_SOC : 5 ) ) ) )
+						);
+						?></span>
 						<strong data-ecoflow-field="plan_battery"><?php echo esc_html( isset( $plan['usable_battery_kwh'] ) ? number_format_i18n( (float) $plan['usable_battery_kwh'], 1 ) . ' kWh' : '—' ); ?></strong>
 					</div>
 				</div>
