@@ -12,7 +12,7 @@ if ( mountNode ) {
 		gridCharge: 'グリッド補充電',
 		deltaGrid: 'グリッド AC 入力',
 		acInMeasured: '実測 · MQTT',
-		home: '慎一の部屋',
+		home: 'リビングエアコン他',
 		ups: '常時稼働エリア (UPS)',
 		extra: 'Extra Battery 1kW',
 		battery: 'バッテリー',

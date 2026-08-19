@@ -105,19 +105,38 @@ function gaming_hub_tajimi_weather_label( $code ) {
 }
 
 /**
+ * Daily weather label from an Open-Meteo payload for a Y-m-d date.
+ *
+ * @param array<string, mixed> $payload Open-Meteo JSON.
+ * @param string|null          $date    Y-m-d, default today.
+ */
+function gaming_hub_tajimi_weather_for_date( array $payload, $date = null ) {
+	$date  = $date ? (string) $date : wp_date( 'Y-m-d' );
+	$daily = is_array( $payload['daily'] ?? null ) ? $payload['daily'] : array();
+	$times = is_array( $daily['time'] ?? null ) ? $daily['time'] : array();
+	$codes = is_array( $daily['weather_code'] ?? null ) ? $daily['weather_code'] : array();
+	$index = array_search( $date, $times, true );
+
+	if ( false !== $index && isset( $codes[ $index ] ) ) {
+		return gaming_hub_tajimi_weather_label( (int) $codes[ $index ] );
+	}
+
+	if ( $date === wp_date( 'Y-m-d' ) ) {
+		$parsed = gaming_hub_tajimi_parse_open_meteo_hour( $payload );
+
+		return gaming_hub_tajimi_weather_label( (int) ( $parsed['weather_code'] ?? 0 ) );
+	}
+
+	return __( '不明', 'gaming-hub' );
+}
+
+/**
  * Today's daily weather label from an Open-Meteo payload.
  *
  * @param array<string, mixed> $payload Open-Meteo JSON.
  */
 function gaming_hub_tajimi_today_weather_from_payload( array $payload ) {
-	$daily = is_array( $payload['daily'] ?? null ) ? $payload['daily'] : array();
-	if ( isset( $daily['weather_code'][0] ) ) {
-		return gaming_hub_tajimi_weather_label( (int) $daily['weather_code'][0] );
-	}
-
-	$parsed = gaming_hub_tajimi_parse_open_meteo_hour( $payload );
-
-	return gaming_hub_tajimi_weather_label( (int) ( $parsed['weather_code'] ?? 0 ) );
+	return gaming_hub_tajimi_weather_for_date( $payload, wp_date( 'Y-m-d' ) );
 }
 
 /**
@@ -158,7 +177,8 @@ function gaming_hub_tajimi_fetch_open_meteo() {
 			'latitude'       => $loc['lat'],
 			'longitude'      => $loc['lon'],
 			'timezone'       => 'Asia/Tokyo',
-			'forecast_days'  => 1,
+			'past_days'      => 1,
+			'forecast_days'  => 2,
 			'current'        => 'cloud_cover,is_day,weather_code,global_tilted_irradiance,temperature_2m',
 			'hourly'         => 'global_tilted_irradiance,cloud_cover,is_day,weather_code,temperature_2m',
 			'daily'          => 'weather_code',
@@ -167,6 +187,12 @@ function gaming_hub_tajimi_fetch_open_meteo() {
 		),
 		'https://api.open-meteo.com/v1/forecast'
 	);
+
+	$cache_key = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'om_v3_' . wp_date( 'Y-m-d-H' );
+	$cached    = get_transient( $cache_key );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
 
 	$response = wp_remote_get(
 		$url,
@@ -184,6 +210,8 @@ function gaming_hub_tajimi_fetch_open_meteo() {
 	if ( ! is_array( $body ) ) {
 		return new WP_Error( 'open_meteo_invalid', __( 'Open-Meteo response invalid.', 'gaming-hub' ) );
 	}
+
+	set_transient( $cache_key, $body, GAMING_HUB_TAJIMI_SOLAR_CACHE_TTL );
 
 	return $body;
 }
@@ -366,16 +394,18 @@ function gaming_hub_powerwall_get_solar_generation( $force_refresh = false ) {
 }
 
 /**
- * 24-hour solar profile for today (Open-Meteo hourly or Tajimi normals).
+ * 24-hour solar profile for a local date (Open-Meteo hourly or Tajimi normals).
  *
- * @param bool $force_refresh Skip day cache.
+ * @param bool        $force_refresh Skip day cache.
+ * @param string|null $date          Y-m-d, default today.
  * @return array{hours: array<int, int>, date: string, source: string}
  */
-function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
-	$date       = wp_date( 'Y-m-d' );
-	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv4_' . $date;
+function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $date = null ) {
+	$date       = $date ? (string) $date : wp_date( 'Y-m-d' );
+	$is_today   = $date === wp_date( 'Y-m-d' );
+	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv5_' . $date;
 	$capacity_w = gaming_hub_powerwall_solar_capacity_w();
-	$month      = (int) wp_date( 'n' );
+	$month      = (int) substr( $date, 5, 2 );
 
 	if ( ! $force_refresh ) {
 		$cached = get_transient( $cache_key );
@@ -397,8 +427,11 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 		$hourly  = is_array( $payload['hourly'] ?? null ) ? $payload['hourly'] : array();
 		$times   = is_array( $hourly['time'] ?? null ) ? $hourly['time'] : array();
 		$daily   = is_array( $payload['daily'] ?? null ) ? $payload['daily'] : array();
-		if ( isset( $daily['weather_code'][0] ) ) {
-			$weather_code = (int) $daily['weather_code'][0];
+		$d_times = is_array( $daily['time'] ?? null ) ? $daily['time'] : array();
+		$d_codes = is_array( $daily['weather_code'] ?? null ) ? $daily['weather_code'] : array();
+		$d_index = array_search( $date, $d_times, true );
+		if ( false !== $d_index && isset( $d_codes[ $d_index ] ) ) {
+			$weather_code = (int) $d_codes[ $d_index ];
 		}
 
 		foreach ( $times as $index => $time ) {
@@ -439,7 +472,7 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 
 	$weather = __( '不明', 'gaming-hub' );
 	if ( ! is_wp_error( $payload ) ) {
-		$weather = gaming_hub_tajimi_today_weather_from_payload( $payload );
+		$weather = gaming_hub_tajimi_weather_for_date( $payload, $date );
 	} else {
 		$weather = __( '天気取得不可', 'gaming-hub' );
 	}
@@ -453,12 +486,12 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false ) {
 	if ( $numeric_temps ) {
 		$temp_max = max( $numeric_temps );
 		$temp_min = min( $numeric_temps );
-		$now_h    = (int) wp_date( 'G' );
+		$now_h    = $is_today ? (int) wp_date( 'G' ) : 12;
 		$temp_now = isset( $temps[ $now_h ] ) && is_numeric( $temps[ $now_h ] )
 			? (float) $temps[ $now_h ]
 			: (float) $numeric_temps[0];
 	}
-	if ( ! is_wp_error( $payload ) && isset( $payload['current']['temperature_2m'] ) ) {
+	if ( $is_today && ! is_wp_error( $payload ) && isset( $payload['current']['temperature_2m'] ) ) {
 		$temp_now = (float) $payload['current']['temperature_2m'];
 	}
 

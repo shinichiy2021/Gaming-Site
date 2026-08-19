@@ -784,8 +784,6 @@
 		const proBars = plan && plan.soc_bar_pro ? plan.soc_bar_pro : [];
 		const deltaBars = plan && plan.soc_bar_delta ? plan.soc_bar_delta : [];
 		const series = plan && plan.soc_series ? plan.soc_series : [];
-		const proSeries = plan && plan.soc_series_pro ? plan.soc_series_pro : [];
-		const deltaSeries = plan && plan.soc_series_delta ? plan.soc_series_delta : [];
 		stacks.forEach(function (stack, hour) {
 			const pct = series[hour];
 			const col = stack.closest('.ecoflow-rate-col');
@@ -806,22 +804,17 @@
 				}
 				return;
 			}
+			const showDelta = !!(plan && plan.show_delta_soc);
 			const proH = Math.max(0, Math.min(100, Number(proBars[hour] != null ? proBars[hour] : pct) || 0));
-			const deltaH = Math.max(0, Math.min(100, Number(deltaBars[hour]) || 0));
+			const deltaH = showDelta ? Math.max(0, Math.min(100, Number(deltaBars[hour]) || 0)) : 0;
 			if (proEl) {
 				proEl.style.height = proH.toFixed(1) + '%';
 			}
 			if (deltaEl) {
 				deltaEl.style.height = deltaH.toFixed(1) + '%';
+				deltaEl.hidden = !showDelta;
 			}
-			const tips = [Math.round(Number(pct)) + '%'];
-			if (proSeries[hour] != null && !Number.isNaN(Number(proSeries[hour]))) {
-				tips.push('Pro ' + Math.round(Number(proSeries[hour])) + '%');
-			}
-			if (deltaSeries[hour] != null && !Number.isNaN(Number(deltaSeries[hour]))) {
-				tips.push('1500 ' + Math.round(Number(deltaSeries[hour])) + '%');
-			}
-			stack.setAttribute('title', tips.join(' · '));
+			stack.setAttribute('title', 'Pro ' + Math.round(Number(pct)) + '%');
 			if (col) {
 				col.classList.remove('is-empty');
 				col.classList.toggle('is-actual', kind === 'actual' || kind === 'live');
@@ -834,10 +827,8 @@
 		}
 		const endEl = dashboard.querySelector('[data-ecoflow-soc-end]');
 		if (endEl && plan) {
-			if (plan.soc_now_pro != null || plan.soc_now_delta != null) {
-				const proTxt = plan.soc_now_pro != null ? Math.round(Number(plan.soc_now_pro)) + '%' : '—';
-				const dTxt = plan.soc_now_delta != null ? Math.round(Number(plan.soc_now_delta)) + '%' : '—';
-				endEl.textContent = 'Pro ' + proTxt + ' · 1500 ' + dTxt;
+			if (plan.soc_now_pro != null) {
+				endEl.textContent = 'Pro ' + Math.round(Number(plan.soc_now_pro)) + '%';
 			} else if (plan.soc_end !== null && plan.soc_end !== undefined) {
 				endEl.textContent = t('24時 ') + Math.round(Number(plan.soc_end)) + '%';
 			}
@@ -862,6 +853,17 @@
 			proArea: deltaPts.length ? (deltaPts.join(' ') + ' ' + totalPts.slice().reverse().join(' ')) : '',
 			totalLine: totalPts.join(' '),
 		};
+	}
+
+	function wattsLinePoints(hours, cap) {
+		const safeCap = Math.max(1, Number(cap) || 1000);
+		const pts = [];
+		for (let hour = 0; hour < 24; hour += 1) {
+			const watts = Math.max(0, Number(hours && hours[hour]) || 0);
+			const y = Math.max(0, Math.min(100, 100 - (watts / safeCap) * 100));
+			pts.push(((hour + 0.5) * 10).toFixed(1) + ',' + y.toFixed(1));
+		}
+		return pts.join(' ');
 	}
 
 	function splitSolarHours(combined, plan) {
@@ -965,7 +967,8 @@
 		}
 
 		const slots = Array.isArray(plan && plan.slots) ? plan.slots : [];
-		const today = todayStamp();
+		const viewDate = (plan && plan.plan_date) || todayStamp();
+		const isLiveDay = (plan && plan.plan_day ? plan.plan_day : 'today') === 'today';
 		const hour = new Date().getHours();
 		const chargeW = Math.max(1, Number(plan && plan.charge_w) || 1000);
 		const byHour = {};
@@ -977,9 +980,9 @@
 			if (!slot) {
 				return;
 			}
-			if (slot.date === today && slot.hour !== null && slot.hour !== undefined) {
+			if (slot.date === viewDate && slot.hour !== null && slot.hour !== undefined) {
 				byHour[Number(slot.hour)] = slot;
-			} else if (slot.date && slot.date !== today && slot.mode === 'charge' && slot.label) {
+			} else if (slot.date && slot.date !== viewDate && slot.mode === 'charge' && slot.label) {
 				nextLabels.push(slot.label);
 			}
 		});
@@ -987,19 +990,22 @@
 		const socSeries = plan && Array.isArray(plan.soc_series) ? plan.soc_series : [];
 		const proBars = plan && Array.isArray(plan.soc_bar_pro) ? plan.soc_bar_pro : [];
 		const deltaBars = plan && Array.isArray(plan.soc_bar_delta) ? plan.soc_bar_delta : [];
-		const proSeries = plan && Array.isArray(plan.soc_series_pro) ? plan.soc_series_pro : [];
-		const deltaSeries = plan && Array.isArray(plan.soc_series_delta) ? plan.soc_series_delta : [];
+		const showDelta = !!(plan && plan.show_delta_soc);
+		const acHours = [];
+		for (let h = 0; h < 24; h += 1) {
+			acHours[h] = Math.max(0, Number(plan && plan.ac_chart && plan.ac_chart[h]) || 0);
+		}
 
 		for (let h = 0; h < 24; h += 1) {
 			const slot = byHour[h] || {};
 			const mode = slot.mode || 'idle';
-			const isNow = h === hour;
+			const isNow = isLiveDay && h === hour;
 			const isCharge = mode === 'charge';
 			const soc = socSeries[h];
 			const hasSoc = soc !== null && soc !== undefined && !Number.isNaN(Number(soc));
 			const height = hasSoc ? Math.max(0, Math.min(100, Number(soc))) : 0;
 			const proH = Math.max(0, Math.min(100, Number(proBars[h] != null ? proBars[h] : height) || 0));
-			const deltaH = Math.max(0, Math.min(100, Number(deltaBars[h]) || 0));
+			const deltaH = showDelta ? Math.max(0, Math.min(100, Number(deltaBars[h]) || 0)) : 0;
 			const watts = isCharge ? Number(slot.watts != null ? slot.watts : chargeW) : 0;
 			const chargeH = isCharge ? Math.max(8, Math.min(100, (watts / chargeW) * 100)) : 0;
 			const col = track.querySelector('[data-ecoflow-plan-col][data-hour="' + h + '"]');
@@ -1029,17 +1035,12 @@
 				}
 				if (deltaBar) {
 					deltaBar.style.height = deltaH.toFixed(1) + '%';
+					deltaBar.hidden = !showDelta;
 				}
 				if (stack) {
 					const tips = [h + ':00', slotModeLabel(mode)];
 					if (hasSoc) {
-						tips.push(Math.round(height) + '%');
-					}
-					if (proSeries[h] != null && !Number.isNaN(Number(proSeries[h]))) {
-						tips.push('Pro ' + Math.round(Number(proSeries[h])) + '%');
-					}
-					if (deltaSeries[h] != null && !Number.isNaN(Number(deltaSeries[h]))) {
-						tips.push('1500 ' + Math.round(Number(deltaSeries[h])) + '%');
+						tips.push('Pro ' + Math.round(height) + '%');
 					}
 					if (isCharge) {
 						tips.push(formatWatts(watts));
@@ -1047,6 +1048,8 @@
 					if (slot.yen !== null && slot.yen !== undefined) {
 						tips.push(formatYen(slot.yen));
 					}
+					const acW = Math.round(Math.max(0, Number(acHours[h]) || 0));
+					tips.push('AC ' + acW.toLocaleString() + ' W');
 					stack.setAttribute('title', tips.join(' · '));
 				}
 			}
@@ -1059,7 +1062,7 @@
 
 		dashboard.querySelectorAll('[data-ecoflow-plan-hour]').forEach(function (el) {
 			const h = Number(el.getAttribute('data-hour'));
-			const isNow = h === hour;
+			const isNow = isLiveDay && h === hour;
 			el.classList.toggle('is-now', isNow);
 			el.textContent = (h % 3 === 0 || isNow) ? String(h) : '';
 		});
@@ -1114,6 +1117,16 @@
 			}
 		}
 
+		const acLines = dashboard.querySelectorAll('[data-ecoflow-plan-ac-line]');
+		if (acLines.length) {
+			const solarCap = Math.max(1, Number(plan && plan.solar_capacity_w) || 1300);
+			const acCap = Math.max(solarCap, Math.max(1, Number(plan && plan.ac_chart_cap) || 1000));
+			const acPoints = wattsLinePoints(acHours, acCap);
+			acLines.forEach(function (line) {
+				line.setAttribute('points', acPoints);
+			});
+		}
+
 		const priceLine = dashboard.querySelector('[data-ecoflow-plan-price-line]');
 		if (priceLine && yenByHour.length) {
 			const min = 0;
@@ -1130,21 +1143,95 @@
 		}
 	}
 
+	let planViewDay = 'today';
+	const planViews = {
+		yesterday: null,
+		today: null,
+		tomorrow: null,
+	};
+
+	function storePlanViews(plan) {
+		if (!plan || typeof plan !== 'object') {
+			return;
+		}
+		const day = plan.plan_day || 'today';
+		if (day === 'today' || plan.view_days) {
+			planViews.today = plan;
+		} else if (day === 'yesterday' || day === 'tomorrow') {
+			planViews[day] = plan;
+		}
+		if (plan.view_days && plan.view_days.yesterday) {
+			planViews.yesterday = plan.view_days.yesterday;
+		}
+		if (plan.view_days && plan.view_days.tomorrow) {
+			planViews.tomorrow = plan.view_days.tomorrow;
+		}
+	}
+
+	function selectedPlan() {
+		return planViews[planViewDay] || planViews.today || null;
+	}
+
+	function paintPlanDayNav() {
+		dashboard.querySelectorAll('[data-ecoflow-plan-day]').forEach(function (btn) {
+			const day = btn.getAttribute('data-ecoflow-plan-day');
+			btn.classList.toggle('is-active', day === planViewDay);
+			btn.disabled = day !== 'today' && !planViews[day];
+		});
+	}
+
+	function bindPlanDayNav() {
+		dashboard.querySelectorAll('[data-ecoflow-plan-day]').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				const day = btn.getAttribute('data-ecoflow-plan-day');
+				if (day !== 'yesterday' && day !== 'today' && day !== 'tomorrow') {
+					return;
+				}
+				if (day !== 'today' && !planViews[day]) {
+					return;
+				}
+				planViewDay = day;
+				paintSelectedPlan();
+			});
+		});
+	}
+
 	function applyChargePlan(plan) {
+		storePlanViews(plan);
+		paintSelectedPlan();
+	}
+
+	function paintSelectedPlan() {
+		const plan = selectedPlan();
+		if (!plan) {
+			return;
+		}
+
+		const livePlan = planViews.today || plan;
+		const isToday = (plan.plan_day || 'today') === 'today';
 		const panel = dashboard.querySelector('.ecoflow-plan');
 		if (panel) {
 			panel.classList.toggle('is-deficit', !!plan.needs_grid);
 			panel.classList.toggle('is-ok', !plan.needs_grid);
-			panel.classList.toggle('is-approved', !!plan.is_approved_current);
-			panel.classList.toggle('is-stale', !!plan.needs_reapprove);
-			if (plan.plan_id) {
-				panel.setAttribute('data-plan-id', plan.plan_id);
+			panel.classList.toggle('is-approved', !!livePlan.is_approved_current);
+			panel.classList.toggle('is-stale', !!livePlan.needs_reapprove);
+			if (livePlan.plan_id) {
+				panel.setAttribute('data-plan-id', livePlan.plan_id);
 			}
 		}
 
+		paintPlanDayNav();
+
+		const titles = {
+			yesterday: t('昨日の充電計画'),
+			today: t('今日の充電計画'),
+			tomorrow: t('明日の充電計画'),
+		};
+		setField('plan_title', plan.title || titles[plan.plan_day] || titles.today);
 		setField('plan_note', plan.note || '');
-		setField('plan_approval', plan.approval_note || '');
+		setField('plan_approval', isToday ? (plan.approval_note || '') : '');
 		setField('plan_deficit', formatKwh(plan.deficit_kwh));
+		setField('plan_deficit_label', plan.deficit_hud_label || '');
 		setField('plan_window', plan.window_label || '—');
 		setField(
 			'plan_window_price',
@@ -1173,15 +1260,29 @@
 		setField('plan_ac', formatKwh(plan.ac_today_kwh));
 		setField(
 			'plan_ac_meta',
-			t('いま ') + Number(plan.ac_now_w || 0).toLocaleString() + t(' W · 30℃以上で 500 W開始 / 上限 1 kW')
+			t('いま ') + Number(plan.ac_now_w || 0).toLocaleString()
+				+ t(' W · ')
+				+ Math.round(Number(plan.ac_start_c != null ? plan.ac_start_c : 28))
+				+ t('℃で ')
+				+ Number(plan.ac_start_w != null ? plan.ac_start_w : 300).toLocaleString()
+				+ t(' W開始 / ')
+				+ '35'
+				+ t('℃以上で 1 kW')
 		);
 		setField('plan_solar_today', formatKwh(plan.solar_today_kwh));
-		setField('plan_solar', formatKwh(plan.solar_remaining_kwh));
+		setField(
+			'plan_solar',
+			formatKwh(plan.solar_hud_kwh != null ? plan.solar_hud_kwh : plan.solar_remaining_kwh)
+		);
+		setField('plan_solar_hud_label', plan.solar_hud_label || '');
 		setField('plan_load', formatKwh(plan.room_remaining_kwh != null ? plan.room_remaining_kwh : plan.load_remaining_kwh));
 		if (plan.room_daily_kwh != null) {
+			const dayPrefix = plan.plan_day === 'yesterday'
+				? t('全日 ')
+				: (plan.plan_day === 'tomorrow' ? t('見込み ') : t('今日 '));
 			setField(
 				'plan_load_meta',
-				t('今日 ') + Number(plan.room_daily_kwh).toFixed(1) + t(' kWh（AC ')
+				dayPrefix + Number(plan.room_daily_kwh).toFixed(1) + t(' kWh（AC ')
 					+ Number(plan.ac_today_kwh || 0).toFixed(1) + t(' + その他 ')
 					+ Number(plan.base_today_kwh || 0).toFixed(1) + '）'
 			);
@@ -1189,25 +1290,32 @@
 		const dcW = Number(plan.dc1500_w) || 100;
 		const dcKwh = plan.dc1500_remaining_kwh != null
 			? plan.dc1500_remaining_kwh
-			: (dcW / 1000) * (24 - new Date().getHours());
+			: (dcW / 1000) * (isToday ? (24 - new Date().getHours()) : 24);
 		setField('plan_dc1500', formatKwh(dcKwh));
 		setField('plan_dc1500_meta', (dcW / 1000).toLocaleString(undefined, {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2,
 		}) + t(' kW 固定'));
 		setField('plan_battery', formatKwh(plan.usable_battery_kwh));
-		updateSocLine(plan);
-		updateSolarLine(plan);
+		updateSocLine(livePlan);
+		updateSolarLine(livePlan);
 		renderPlanChart(plan);
-		showSendNotice(plan.send_notice);
+		if (isToday) {
+			showSendNotice(livePlan.send_notice);
+		}
 
+		const isAuto = !!livePlan.auto_send;
+		const actions = dashboard.querySelector('[data-ecoflow-plan-actions]');
+		if (actions) {
+			actions.hidden = !isToday;
+		}
 		const approveBtn = dashboard.querySelector('[data-ecoflow-approve]');
 		const cancelBtn = dashboard.querySelector('[data-ecoflow-cancel]');
 		if (approveBtn) {
-			approveBtn.hidden = !!plan.is_approved_current && !plan.needs_reapprove;
+			approveBtn.hidden = isAuto || !isToday || (!!livePlan.is_approved_current && !livePlan.needs_reapprove);
 		}
 		if (cancelBtn) {
-			cancelBtn.hidden = !(plan.is_approved_current || plan.needs_reapprove);
+			cancelBtn.hidden = isAuto || !isToday || !(livePlan.is_approved_current || livePlan.needs_reapprove);
 		}
 	}
 
@@ -1583,6 +1691,8 @@
 	}
 
 	bindSendToast();
+	bindPlanDayNav();
+	paintPlanDayNav();
 	refreshDashboard();
 	bindPlanActions();
 	bindCalendarNav();

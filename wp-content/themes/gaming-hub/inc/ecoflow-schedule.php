@@ -1,6 +1,6 @@
 <?php
 /**
- * EcoFlow Pro 3 charge schedule: propose on site, send after approval.
+ * EcoFlow Pro 3 charge schedule: auto-send when the charge command changes.
  *
  * @package Gaming_Hub
  */
@@ -31,15 +31,15 @@ function gaming_hub_ecoflow_attach_schedule_state( array $plan ) {
 	$status    = $saved['status'] ?? '';
 	$saved_id  = $saved['plan_id'] ?? '';
 	$plan_id   = $plan['plan_id'] ?? '';
-	$is_auto   = ! empty( $saved['auto'] );
+	$is_auto   = ! empty( $saved['auto'] ) && 'approved' === $status;
 	$is_match  = ( ! $is_auto && 'approved' === $status && $saved_id && $saved_id === $plan_id );
 	$stale     = ( ! $is_auto && 'approved' === $status && $saved_id && $saved_id !== $plan_id );
 
-	$plan['can_approve']         = gaming_hub_ecoflow_can_control();
-	$plan['auto_send']           = false;
+	$plan['can_approve']         = $is_auto ? false : gaming_hub_ecoflow_can_control();
+	$plan['auto_send']           = $is_auto;
 	$plan['approval_status']     = $status ? $status : 'proposed';
 	$plan['approved_plan_id']    = $saved_id;
-	$plan['is_approved_current'] = $is_match;
+	$plan['is_approved_current'] = $is_auto || $is_match;
 	$plan['needs_reapprove']     = $stale;
 	$plan['last_applied_w']         = isset( $saved['last_applied_w'] ) && null !== $saved['last_applied_w']
 		? gaming_hub_ecoflow_clamp_charge_watts( (int) $saved['last_applied_w'] )
@@ -64,9 +64,32 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 	if ( ! empty( $plan['last_apply_error'] ) ) {
 		return sprintf(
 			/* translators: %s: error message */
-			__( '送信エラー: %s', 'gaming-hub' ),
+			! empty( $plan['auto_send'] ) ? __( '自動送信エラー: %s', 'gaming-hub' ) : __( '送信エラー: %s', 'gaming-hub' ),
 			$plan['last_apply_error']
 		);
+	}
+
+	if ( ! empty( $plan['auto_send'] ) ) {
+		$watts = $plan['last_applied_w'];
+		if ( $watts ) {
+			$reserve = isset( $plan['last_applied_reserve'] ) ? (int) $plan['last_applied_reserve'] : null;
+			if ( $reserve ) {
+				return sprintf(
+					/* translators: 1: watts, 2: backup reserve percent */
+					__( '自動承認中。充電スケジュールが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。', 'gaming-hub' ),
+					number_format_i18n( (int) $watts ),
+					number_format_i18n( $reserve )
+				);
+			}
+
+			return sprintf(
+				/* translators: %s: watts */
+				__( '自動承認中。充電スケジュールが変わったときだけ送ります。直近は充電上限 %s W です。', 'gaming-hub' ),
+				number_format_i18n( (int) $watts )
+			);
+		}
+
+		return __( '自動承認中。充電スケジュールが変わったときだけ Pro 3 に送ります。', 'gaming-hub' );
 	}
 
 	if ( ! empty( $plan['is_approved_current'] ) ) {
@@ -233,12 +256,41 @@ function gaming_hub_ecoflow_get_saved_schedule() {
 }
 
 /**
- * Overlay schedule state only. Plans are not sent until an admin approves.
+ * Adopt the current proposed plan and send only when the charge command changes.
  *
  * @param array<string, mixed> $plan Proposed plan.
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_autosync_charge_plan( array $plan ) {
+	$plan_id = $plan['plan_id'] ?? '';
+	if ( '' === $plan_id ) {
+		return gaming_hub_ecoflow_attach_schedule_state( $plan );
+	}
+
+	$saved = gaming_hub_ecoflow_get_saved_schedule();
+	if ( ( $saved['plan_id'] ?? '' ) === $plan_id && ( $saved['status'] ?? '' ) === 'approved' && ! empty( $saved['auto'] ) ) {
+		return gaming_hub_ecoflow_attach_schedule_state( $plan );
+	}
+
+	$record = array(
+		'status'               => 'approved',
+		'plan_id'              => $plan_id,
+		'charge_w'             => defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000,
+		'idle_w'               => defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0,
+		'slots'                => $plan['slots'] ?? array(),
+		'approved_at'          => wp_date( 'c' ),
+		'approved_by'          => 0,
+		'auto'                 => true,
+		'last_applied_w'       => $saved['last_applied_w'] ?? null,
+		'last_applied_reserve' => $saved['last_applied_reserve'] ?? null,
+		'last_applied_hour'    => $saved['last_applied_hour'] ?? '',
+		'last_applied_at'      => $saved['last_applied_at'] ?? '',
+		'last_apply_error'     => $saved['last_apply_error'] ?? '',
+		'send_notice'          => $saved['send_notice'] ?? null,
+	);
+
+	update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $record, false );
+
 	return gaming_hub_ecoflow_attach_schedule_state( $plan );
 }
 
@@ -358,48 +410,35 @@ function gaming_hub_ecoflow_cancel_schedule() {
  */
 function gaming_hub_ecoflow_apply_approved_schedule( $force = false ) {
 	$saved = gaming_hub_ecoflow_get_saved_schedule();
-	if ( ( $saved['status'] ?? '' ) !== 'approved' || ! empty( $saved['auto'] ) ) {
+	if ( ( $saved['status'] ?? '' ) !== 'approved' ) {
 		return true;
 	}
 
-	$slot = gaming_hub_ecoflow_current_approved_slot( $saved );
-	if ( ! $slot || null === $slot['watts'] ) {
-		$result = gaming_hub_ecoflow_apply_charge_and_backup( GAMING_HUB_ECOFLOW_PLAN_IDLE_W, GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF );
-		$saved  = gaming_hub_ecoflow_get_saved_schedule();
-		$saved['status'] = 'expired';
-		if ( is_wp_error( $result ) ) {
-			$saved['last_apply_error'] = $result->get_error_message();
-			$saved['send_notice']      = gaming_hub_ecoflow_schedule_send_notice(
-				GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
-				GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF,
-				$result->get_error_message()
-			);
+	$is_auto = ! empty( $saved['auto'] );
+	$slot    = gaming_hub_ecoflow_current_approved_slot( $saved );
+	$missing = ! $slot || null === ( $slot['watts'] ?? null );
+	$expire  = $missing && ! $is_auto;
+
+	if ( $missing ) {
+		$hour_key = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
+		$watts    = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+		$reserve  = GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
+	} else {
+		$hour_key = (string) ( $slot['id'] ?? '' );
+		$watts    = gaming_hub_ecoflow_clamp_charge_watts( (int) $slot['watts'] );
+		$reserve  = gaming_hub_ecoflow_backup_reserve_for_watts( $watts );
+	}
+
+	$same_command = (int) ( $saved['last_applied_w'] ?? 0 ) === (int) $watts
+		&& (int) ( $saved['last_applied_reserve'] ?? 0 ) === (int) $reserve
+		&& null !== ( $saved['last_applied_w'] ?? null );
+
+	if ( ! $force && $same_command ) {
+		if ( $expire ) {
+			$saved['status'] = 'expired';
 			update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $saved, false );
-			return $result;
 		}
-		$saved['last_applied_w']        = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
-		$saved['last_applied_reserve']  = GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
-		$saved['last_applied_hour']     = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
-		$saved['last_applied_at']       = wp_date( 'c' );
-		$saved['last_apply_error']      = '';
-		$saved['send_notice']           = gaming_hub_ecoflow_schedule_send_notice(
-			GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
-			GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF
-		);
-		update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $saved, false );
-		return true;
-	}
 
-	$hour_key = $slot['id'];
-	$watts    = gaming_hub_ecoflow_clamp_charge_watts( (int) $slot['watts'] );
-	$reserve  = gaming_hub_ecoflow_backup_reserve_for_watts( $watts );
-
-	if (
-		! $force
-		&& ( $saved['last_applied_hour'] ?? '' ) === $hour_key
-		&& (int) ( $saved['last_applied_w'] ?? 0 ) === $watts
-		&& (int) ( $saved['last_applied_reserve'] ?? 0 ) === $reserve
-	) {
 		return true;
 	}
 
@@ -425,6 +464,9 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false ) {
 	$saved['last_applied_at']      = wp_date( 'c' );
 	$saved['last_apply_error']     = '';
 	$saved['send_notice']          = gaming_hub_ecoflow_schedule_send_notice( $watts, $reserve );
+	if ( $expire ) {
+		$saved['status'] = 'expired';
+	}
 	update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $saved, false );
 
 	return true;
@@ -670,6 +712,11 @@ add_action( 'init', 'gaming_hub_ecoflow_schedule_cron' );
  * Cron callback.
  */
 function gaming_hub_ecoflow_run_schedule_cron() {
+	if ( function_exists( 'gaming_hub_get_ecoflow_status' ) ) {
+		gaming_hub_get_ecoflow_status( true );
+		return;
+	}
+
 	gaming_hub_ecoflow_apply_approved_schedule( false );
 }
 add_action( GAMING_HUB_ECOFLOW_SCHEDULE_CRON, 'gaming_hub_ecoflow_run_schedule_cron' );

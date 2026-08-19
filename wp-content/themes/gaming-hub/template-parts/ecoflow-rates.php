@@ -30,6 +30,7 @@ $now_hour = (int) wp_date( 'G' );
 $soc_series = is_array( $plan['soc_series'] ?? null ) ? $plan['soc_series'] : array();
 $soc_bar_pro = is_array( $plan['soc_bar_pro'] ?? null ) ? $plan['soc_bar_pro'] : array();
 $soc_bar_delta = is_array( $plan['soc_bar_delta'] ?? null ) ? $plan['soc_bar_delta'] : array();
+$show_delta_soc = defined( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC' ) && GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC;
 $solar_hours = is_array( $plan['solar_chart'] ?? null ) ? $plan['solar_chart'] : ( is_array( $plan['solar_hours'] ?? null ) ? $plan['solar_hours'] : array() );
 $solar_pro_h = is_array( $plan['solar_chart_pro'] ?? null ) ? $plan['solar_chart_pro'] : array();
 $solar_delta_h = is_array( $plan['solar_chart_delta'] ?? null ) ? $plan['solar_chart_delta'] : array();
@@ -99,17 +100,9 @@ $solar_delta_area = $solar_stack['delta_area'];
 				<strong data-ecoflow-soc-now><?php echo esc_html( isset( $plan['soc_now'] ) ? number_format( (float) $plan['soc_now'], 0 ) . '%' : '—' ); ?></strong>
 				<small data-ecoflow-soc-end>
 					<?php
-					$pro_now   = $plan['soc_now_pro'] ?? null;
-					$delta_now = $plan['soc_now_delta'] ?? null;
-					if ( null !== $pro_now || null !== $delta_now ) {
-						echo esc_html(
-							sprintf(
-								/* translators: 1: Pro SOC, 2: 1500 SOC */
-								__( 'Pro %s%% · 1500 %s%%', 'gaming-hub' ),
-								null !== $pro_now ? number_format( (float) $pro_now, 0 ) : '—',
-								null !== $delta_now ? number_format( (float) $delta_now, 0 ) : '—'
-							)
-						);
+					$pro_now = $plan['soc_now_pro'] ?? $plan['soc_now'] ?? null;
+					if ( null !== $pro_now ) {
+						echo esc_html( 'Pro ' . number_format( (float) $pro_now, 0 ) . '%' );
 					} elseif ( isset( $plan['soc_end'] ) ) {
 						printf(
 							/* translators: %s: percent */
@@ -149,15 +142,15 @@ $solar_delta_area = $solar_stack['delta_area'];
 				$yen_ticks[] = $max - ( $span * $i / 4 );
 			}
 			?>
-			<div class="ecoflow-rate-chart">
+			<div class="ecoflow-rate-chart<?php echo $show_delta_soc ? '' : ' is-pro-soc-only'; ?>">
 				<div class="ecoflow-rate-y ecoflow-rate-y-soc" aria-hidden="true">
-					<span class="ecoflow-rate-y-unit"><?php esc_html_e( '%', 'gaming-hub' ); ?></span>
+					<span class="ecoflow-rate-y-unit"><?php echo $show_delta_soc ? esc_html__( '合算%', 'gaming-hub' ) : esc_html__( '%', 'gaming-hub' ); ?></span>
 					<?php foreach ( $soc_ticks as $tick ) : ?>
 						<span><?php echo esc_html( (string) $tick ); ?></span>
 					<?php endforeach; ?>
 				</div>
 				<div class="ecoflow-rate-plot">
-					<div class="ecoflow-rate-track" role="img" aria-label="<?php esc_attr_e( '本日の時間別単価・発電見込み・Pro / 1500 残量予測', 'gaming-hub' ); ?>">
+					<div class="ecoflow-rate-track" role="img" aria-label="<?php esc_attr_e( '本日の時間別単価・発電見込み・Pro 残量予測', 'gaming-hub' ); ?>">
 						<svg class="ecoflow-solar-line" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
 							<polygon class="ecoflow-solar-delta" data-ecoflow-solar-delta-area points="<?php echo esc_attr( $solar_delta_area ); ?>"></polygon>
 							<polygon class="ecoflow-solar-pro" data-ecoflow-solar-area points="<?php echo esc_attr( $solar_area ); ?>"></polygon>
@@ -170,7 +163,7 @@ $solar_delta_area = $solar_stack['delta_area'];
 							$soc_pct  = $soc_series[ $hour_num ] ?? null;
 							$has_soc  = is_numeric( $soc_pct );
 							$pro_h    = isset( $soc_bar_pro[ $hour_num ] ) ? max( 0, min( 100, (float) $soc_bar_pro[ $hour_num ] ) ) : ( $has_soc ? max( 0, min( 100, (float) $soc_pct ) ) : 0 );
-							$delta_h  = isset( $soc_bar_delta[ $hour_num ] ) ? max( 0, min( 100, (float) $soc_bar_delta[ $hour_num ] ) ) : 0;
+							$delta_h  = $show_delta_soc && isset( $soc_bar_delta[ $hour_num ] ) ? max( 0, min( 100, (float) $soc_bar_delta[ $hour_num ] ) ) : 0;
 							$soc_kind = is_array( $plan['soc_chart_kind'] ?? null ) ? ( $plan['soc_chart_kind'][ $hour_num ] ?? '' ) : '';
 							$col_class = 'ecoflow-rate-col';
 							if ( $is_now ) {
@@ -183,15 +176,9 @@ $solar_delta_area = $solar_stack['delta_area'];
 							} elseif ( 'forecast' === $soc_kind ) {
 								$col_class .= ' is-forecast';
 							}
-							$pro_now_h = $plan['soc_series_pro'][ $hour_num ] ?? null;
-							$delta_now_h = $plan['soc_series_delta'][ $hour_num ] ?? null;
 							$tip = $hour['label'];
 							if ( $has_soc ) {
-								$tip .= ' ' . number_format( (float) $soc_pct, 0 ) . '%';
-							}
-							if ( is_numeric( $pro_now_h ) || is_numeric( $delta_now_h ) ) {
-								$tip .= ' · Pro ' . ( is_numeric( $pro_now_h ) ? number_format( (float) $pro_now_h, 0 ) . '%' : '—' );
-								$tip .= ' · 1500 ' . ( is_numeric( $delta_now_h ) ? number_format( (float) $delta_now_h, 0 ) . '%' : '—' );
+								$tip .= ' · Pro ' . number_format( (float) $soc_pct, 0 ) . '%';
 							}
 							?>
 							<div class="<?php echo esc_attr( $col_class ); ?>">
@@ -208,6 +195,7 @@ $solar_delta_area = $solar_stack['delta_area'];
 										class="ecoflow-rate-bar ecoflow-soc-bar-delta"
 										data-ecoflow-soc-bar-delta
 										style="height: <?php echo esc_attr( (string) round( $delta_h, 1 ) ); ?>%;"
+										<?php echo $show_delta_soc ? '' : 'hidden'; ?>
 									></span>
 								</span>
 							</div>
@@ -234,7 +222,9 @@ $solar_delta_area = $solar_stack['delta_area'];
 					<?php endforeach; ?>
 				</div>
 			</div>
-			<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Pro 残量 · 橙棒: 1500 残量（合算%）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-rate-legend"><?php echo $show_delta_soc
+				? esc_html__( '黄棒: Pro 残量W · 橙棒: 1500 残量W · 棒の高さ: 合算容量に対する割合 · 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価', 'gaming-hub' )
+				: esc_html__( '黄棒: Pro 残量 · 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価', 'gaming-hub' ); ?></p>
 		<?php endif; ?>
 	<?php endif; ?>
 </section>
