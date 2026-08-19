@@ -1262,11 +1262,11 @@
 			'plan_ac_meta',
 			t('いま ') + Number(plan.ac_now_w || 0).toLocaleString()
 				+ t(' W · ')
-				+ Math.round(Number(plan.ac_start_c != null ? plan.ac_start_c : 28))
+				+ Math.round(Number(plan.ac_start_c != null ? plan.ac_start_c : 27))
 				+ t('℃で ')
 				+ Number(plan.ac_start_w != null ? plan.ac_start_w : 300).toLocaleString()
 				+ t(' W開始 / ')
-				+ '35'
+				+ Math.round(Number(plan.ac_max_c != null ? plan.ac_max_c : 34))
 				+ t('℃以上で 1 kW')
 		);
 		setField('plan_solar_today', formatKwh(plan.solar_today_kwh));
@@ -1297,6 +1297,15 @@
 			maximumFractionDigits: 2,
 		}) + t(' kW 固定'));
 		setField('plan_battery', formatKwh(plan.usable_battery_kwh));
+		const usableSoc = plan.usable_soc != null ? Number(plan.usable_soc) : 95;
+		const reserveSoc = plan.reserve_soc != null ? Number(plan.reserve_soc) : 5;
+		setField(
+			'plan_battery_label',
+			t('使える電池（容量の %1$s%% · 予備 %2$s%%除く）')
+				.replace('%1$s', String(usableSoc))
+				.replace('%2$s', String(reserveSoc))
+				.replace(/%%/g, '%')
+		);
 		updateSocLine(livePlan);
 		updateSolarLine(livePlan);
 		renderPlanChart(plan);

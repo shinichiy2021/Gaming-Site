@@ -481,7 +481,7 @@ EN = {
     "1500 DC（常時）": "1500 DC (always-on)",
     "%s kW 固定": "%s kW fixed",
     "使える電池（予備 25%除く）": "Usable battery (excludes 25% reserve)",
-    "使える電池（容量の 80% · 予備 20%除く）": "Usable battery (80% of capacity · excludes 20% reserve)",
+    "使える電池（容量の %1$s%% · 予備 %2$s%%除く）": "Usable battery (%1$s%% of capacity · excludes %2$s%% reserve)",
     "充電": "Charge",
     "太陽光": "Solar",
     "充電オフ": "Charge off",

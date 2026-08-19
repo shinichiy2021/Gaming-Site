@@ -13,11 +13,11 @@ define( 'GAMING_HUB_ECOFLOW_SOLAR_PRO_W', 800 );
 define( 'GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W', 500 );
 define( 'GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W', GAMING_HUB_ECOFLOW_SOLAR_PRO_W + GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W );
 define( 'GAMING_HUB_ECOFLOW_ROOM_BASE_DAILY_KWH', 0 );
-define( 'GAMING_HUB_ECOFLOW_AC_START_C', 28.0 );
+define( 'GAMING_HUB_ECOFLOW_AC_START_C', 27.0 );
 define( 'GAMING_HUB_ECOFLOW_AC_START_W', 300 );
 define( 'GAMING_HUB_ECOFLOW_AC_W_PER_C', 100 );
 define( 'GAMING_HUB_ECOFLOW_AC_MAX_W', 1000 );
-define( 'GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC', 80 );
+define( 'GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC', 95 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_MIN_SOC', 100 - GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC );
 define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC', 90 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX', 92 );
@@ -342,7 +342,7 @@ function gaming_hub_ecoflow_room_hourly_weights() {
 /**
  * Electrical watts for リビングエアコン他 from outdoor temperature.
  *
- * Off below 28°C. At 28°C starts at 300 W, then +100 W per °C, cap 1 kW (35°C+).
+ * Off below 27°C. At 27°C starts at 300 W, then +100 W per °C, cap 1 kW (34°C+).
  *
  * @param float|null $celsius Outdoor °C.
  */
@@ -360,6 +360,20 @@ function gaming_hub_ecoflow_ac_watts_for_temp( $celsius ) {
 	$watts = (int) GAMING_HUB_ECOFLOW_AC_START_W + (int) round( $delta * (int) GAMING_HUB_ECOFLOW_AC_W_PER_C );
 
 	return (int) min( (int) GAMING_HUB_ECOFLOW_AC_MAX_W, max( 0, $watts ) );
+}
+
+/**
+ * Outdoor °C at which the AC model hits the 1 kW cap.
+ */
+function gaming_hub_ecoflow_ac_max_c() {
+	$per = (int) GAMING_HUB_ECOFLOW_AC_W_PER_C;
+	if ( $per < 1 ) {
+		return (float) GAMING_HUB_ECOFLOW_AC_START_C;
+	}
+
+	$delta_w = (int) GAMING_HUB_ECOFLOW_AC_MAX_W - (int) GAMING_HUB_ECOFLOW_AC_START_W;
+
+	return (float) GAMING_HUB_ECOFLOW_AC_START_C + ( $delta_w / $per );
 }
 
 /**
@@ -436,6 +450,7 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 		'ac_start_c'         => (float) GAMING_HUB_ECOFLOW_AC_START_C,
 		'ac_start_w'         => (int) GAMING_HUB_ECOFLOW_AC_START_W,
 		'ac_max_w'           => (int) GAMING_HUB_ECOFLOW_AC_MAX_W,
+		'ac_max_c'           => gaming_hub_ecoflow_ac_max_c(),
 		'temp_now'           => $now_temp,
 	);
 }
@@ -1109,6 +1124,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'ac_start_c'           => $room['ac_start_c'] ?? GAMING_HUB_ECOFLOW_AC_START_C,
 		'ac_start_w'           => $room['ac_start_w'] ?? GAMING_HUB_ECOFLOW_AC_START_W,
 		'ac_max_w'             => $room['ac_max_w'] ?? GAMING_HUB_ECOFLOW_AC_MAX_W,
+		'ac_max_c'             => $room['ac_max_c'] ?? gaming_hub_ecoflow_ac_max_c(),
 		'ac_chart'             => $ac_watts,
 		'ac_chart_cap'         => max(
 			(int) ( $room['ac_max_w'] ?? GAMING_HUB_ECOFLOW_AC_MAX_W ),
@@ -1116,6 +1132,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		),
 		'base_today_kwh'       => $room['base_today_kwh'],
 		'reserve_soc'          => GAMING_HUB_ECOFLOW_PLAN_MIN_SOC,
+		'usable_soc'           => GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC,
 		'room_daily_kwh'       => $room['room_today_kwh'],
 		'charge_w'             => GAMING_HUB_ECOFLOW_PLAN_CHARGE_W,
 		'idle_w'               => GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
@@ -1165,7 +1182,7 @@ function gaming_hub_ecoflow_smart_time_one_price_map() {
 }
 
 /**
- * Usable kWh above the 20% floor (80% of nameplate) on Pro and 1500.
+ * Usable kWh above the 5% discharge reserve (95% of nameplate) on Pro and 1500.
  *
  * @param float      $pro_soc   Pro SOC 0–100.
  * @param float      $pro_wh    Pro full Wh.
