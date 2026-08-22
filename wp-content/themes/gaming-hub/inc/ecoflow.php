@@ -1757,6 +1757,9 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 		'today_usage'         => function_exists( 'gaming_hub_ecoflow_energy_today_usage' )
 			? gaming_hub_ecoflow_energy_today_usage( $status )
 			: array(),
+		'today_buy'           => function_exists( 'gaming_hub_ecoflow_energy_today_buy' )
+			? gaming_hub_ecoflow_energy_today_buy( $status )
+			: array(),
 	);
 
 	return $payload;

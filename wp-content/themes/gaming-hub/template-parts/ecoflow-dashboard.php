@@ -515,11 +515,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 			<div class="ecoflow-stat-card">
 				<span class="ecoflow-stat-label"><?php esc_html_e( 'Pro グリッド補充電', 'gaming-hub' ); ?></span>
 				<strong data-ecoflow-field="pro_grid_charge">
-					<?php
-					echo ! empty( $pro_grid['active'] )
-						? esc_html( gaming_hub_format_ecoflow_watts( $pro_grid['watts'] ?? 0 ) )
-						: esc_html__( '待機', 'gaming-hub' );
-					?>
+					<?php echo esc_html( gaming_hub_format_ecoflow_watts( gaming_hub_ecoflow_pro_grid_live_watts( $status ) ) ); ?>
 				</strong>
 				<small data-ecoflow-field="pro_grid_charge_note"><?php echo esc_html( (string) ( $pro_grid['message'] ?? '' ) ); ?></small>
 			</div>

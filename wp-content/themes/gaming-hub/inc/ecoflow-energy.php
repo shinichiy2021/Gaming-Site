@@ -113,6 +113,7 @@ function gaming_hub_ecoflow_energy_fetch_origin_today() {
 		'yen'   => isset( $body['yen'] ) && is_array( $body['yen'] ) ? $body['yen'] : array(),
 		'solar' => isset( $body['solar'] ) && is_array( $body['solar'] ) ? $body['solar'] : array(),
 		'usage' => isset( $body['usage'] ) && is_array( $body['usage'] ) ? $body['usage'] : array(),
+		'buy'   => isset( $body['buy'] ) && is_array( $body['buy'] ) ? $body['buy'] : array(),
 	);
 	set_transient( 'gaming_hub_ecoflow_today_origin', $payload, GAMING_HUB_ECOFLOW_ENERGY_ORIGIN_TTL );
 	$memo = $payload;
@@ -927,6 +928,78 @@ function gaming_hub_ecoflow_energy_today_usage( $status = null ) {
 }
 
 /**
+ * Today's grid buy (Wh), including live remainder after the last sample.
+ *
+ * @param array<string, mixed>|null $status Live status, if available.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_energy_compute_today_buy( $status = null ) {
+	$date = wp_date( 'Y-m-d' );
+	$log  = gaming_hub_ecoflow_energy_month_days( substr( $date, 0, 7 ) );
+	$day  = isset( $log[ $date ] ) && is_array( $log[ $date ] )
+		? $log[ $date ]
+		: gaming_hub_ecoflow_energy_empty_day();
+
+	$logged_pro   = max( 0.0, (float) ( $day['pro_ac_in_wh'] ?? 0 ) );
+	$logged_delta = max( 0.0, (float) ( $day['delta_ac_in_wh'] ?? 0 ) );
+
+	$pro_w     = 0.0;
+	$delta_w   = 0.0;
+	$sample_ts = time();
+	$state     = get_transient( GAMING_HUB_ECOFLOW_ENERGY_STATE );
+	$state     = is_array( $state ) ? $state : array();
+
+	if ( is_array( $status ) && function_exists( 'gaming_hub_ecoflow_savings_flow_watts' ) ) {
+		$flow  = gaming_hub_ecoflow_savings_flow_watts( $status );
+		$pro_w = max( 0.0, (float) ( $flow['pro_ac_in'] ?? 0 ) );
+		if ( isset( $flow['delta_ac_in'] ) && is_numeric( $flow['delta_ac_in'] ) ) {
+			$delta_w = max( 0.0, (float) $flow['delta_ac_in'] );
+		} elseif ( isset( $state['delta_ac_in_w'] ) && is_numeric( $state['delta_ac_in_w'] ) ) {
+			$delta_w = max( 0.0, (float) $state['delta_ac_in_w'] );
+		}
+	} else {
+		$pro_w   = max( 0.0, (float) ( $state['pro_ac_in_w'] ?? 0 ) );
+		$delta_w = max( 0.0, (float) ( $state['delta_ac_in_w'] ?? 0 ) );
+	}
+
+	if ( ! empty( $state['ts'] ) ) {
+		$sample_ts = (int) $state['ts'];
+	}
+
+	$dt          = min( GAMING_HUB_ECOFLOW_ENERGY_MAX_DT, max( 0, time() - $sample_ts ) );
+	$hours       = $dt / 3600.0;
+	$pro_total   = $logged_pro + ( $pro_w * $hours );
+	$delta_total = $logged_delta + ( $delta_w * $hours );
+
+	return array(
+		'pro_wh'          => (int) round( $pro_total ),
+		'delta_wh'        => (int) round( $delta_total ),
+		'logged_pro_wh'   => round( $logged_pro, 4 ),
+		'logged_delta_wh' => round( $logged_delta, 4 ),
+		'pro_w'           => $pro_w,
+		'delta_w'         => $delta_w,
+		'sample_ts'       => $sample_ts,
+	);
+}
+
+/**
+ * Today's Pro and 1500 grid buy for display (canonical on production).
+ *
+ * @param array<string, mixed>|null $status Live status, if available.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_energy_today_buy( $status = null ) {
+	$local  = gaming_hub_ecoflow_energy_compute_today_buy( $status );
+	$remote = gaming_hub_ecoflow_energy_fetch_origin_today();
+
+	return gaming_hub_ecoflow_energy_apply_origin_display(
+		$local,
+		is_array( $remote ) ? ( $remote['buy'] ?? null ) : null,
+		array( 'pro_wh', 'delta_wh' )
+	);
+}
+
+/**
  * Month log from options.
  *
  * @param string $ym Y-m.
@@ -1134,6 +1207,7 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 		'today_yen'       => gaming_hub_ecoflow_energy_today_yen( $status ),
 		'today_solar'     => gaming_hub_ecoflow_energy_today_solar( $status ),
 		'today_usage'     => gaming_hub_ecoflow_energy_today_usage( $status ),
+		'today_buy'       => gaming_hub_ecoflow_energy_today_buy( $status ),
 	);
 }
 
@@ -1154,6 +1228,9 @@ function gaming_hub_ecoflow_energy_attach( array $status ) {
 	$status['today_usage'] = isset( $status['energy']['today_usage'] ) && is_array( $status['energy']['today_usage'] )
 		? $status['energy']['today_usage']
 		: gaming_hub_ecoflow_energy_today_usage( $status );
+	$status['today_buy'] = isset( $status['energy']['today_buy'] ) && is_array( $status['energy']['today_buy'] )
+		? $status['energy']['today_buy']
+		: gaming_hub_ecoflow_energy_today_buy( $status );
 
 	return $status;
 }
@@ -1246,6 +1323,7 @@ function gaming_hub_rest_ecoflow_today() {
 	$yen   = gaming_hub_ecoflow_energy_compute_today_yen( is_array( $status ) ? $status : null );
 	$solar = gaming_hub_ecoflow_energy_compute_today_solar( is_array( $status ) ? $status : null );
 	$usage = gaming_hub_ecoflow_energy_compute_today_usage( is_array( $status ) ? $status : null );
+	$buy   = gaming_hub_ecoflow_energy_compute_today_buy( is_array( $status ) ? $status : null );
 
 	return new WP_REST_Response(
 		array(
@@ -1266,6 +1344,10 @@ function gaming_hub_rest_ecoflow_today() {
 			'usage'   => array(
 				'room_wh' => (int) ( $usage['room_wh'] ?? 0 ),
 				'ups_wh'  => (int) ( $usage['ups_wh'] ?? 0 ),
+			),
+			'buy'     => array(
+				'pro_wh'   => (int) ( $buy['pro_wh'] ?? 0 ),
+				'delta_wh' => (int) ( $buy['delta_wh'] ?? 0 ),
 			),
 		),
 		200
