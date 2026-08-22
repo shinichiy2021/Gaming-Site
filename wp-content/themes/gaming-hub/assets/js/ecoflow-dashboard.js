@@ -259,6 +259,7 @@
 			today_yen: data.today_yen || (data.energy && data.energy.today_yen) || null,
 			today_solar: data.today_solar || (data.energy && data.energy.today_solar) || null,
 			today_usage: data.today_usage || (data.energy && data.energy.today_usage) || null,
+			today_buy: data.today_buy || (data.energy && data.energy.today_buy) || null,
 		};
 	}
 
@@ -352,6 +353,25 @@
 		if (netEl) {
 			netEl.textContent = formatCalYen(live.net);
 		}
+	}
+
+	function applyTodayBuy(todayBuy) {
+		if (!todayBuy || typeof todayBuy !== 'object') {
+			return;
+		}
+
+		const root = calRoot();
+		if (!root) {
+			return;
+		}
+
+		const buyEl = root.querySelector('[data-ecoflow-cal-today-buy-kwh]');
+		if (!buyEl) {
+			return;
+		}
+
+		const wh = Math.max(0, Number(todayBuy.pro_wh) || 0) + Math.max(0, Number(todayBuy.delta_wh) || 0);
+		buyEl.textContent = formatCalKwh(wh / 1000);
 	}
 
 	function formatCalWatts(value) {
@@ -663,6 +683,7 @@
 		applyEnergyNow(energy);
 		applyEnergyTotals(root, energy);
 		applyTodayYen(energy.today_yen);
+		applyTodayBuy(energy.today_buy);
 		renderEnergyTodayChart(root, energy);
 		renderEnergyMonthChart(root, energy);
 
@@ -723,6 +744,7 @@
 
 		applyEnergyNow(energy);
 		applyTodayYen(energy.today_yen);
+		applyTodayBuy(energy.today_buy);
 
 		const viewing = root.getAttribute('data-month') || energy.month;
 		if (viewing !== energy.month) {
@@ -1473,23 +1495,18 @@
 			: null;
 		const liveGrid = (function () {
 			const ac = data.ac_in;
-			if (ac !== null && ac !== undefined && Number(ac) >= 8) {
-				return Number(ac);
+			if (ac !== null && ac !== undefined && ac !== '') {
+				const watts = Number(ac);
+				if (Number.isFinite(watts)) {
+					return Math.max(0, watts);
+				}
 			}
 			const input = Number(data.input_total) || 0;
 			const hv = Number(data.hv_in) || 0;
 			return Math.max(0, input - hv);
 		}());
-		if (liveGrid >= 8) {
-			setField('pro_grid_charge', formatWatts(liveGrid));
-			setField('pro_grid_charge_note', (proGrid && proGrid.message) || '');
-		} else if (proGrid) {
-			setField(
-				'pro_grid_charge',
-				proGrid.active ? formatWatts(proGrid.watts) : t('待機')
-			);
-			setField('pro_grid_charge_note', proGrid.message || '');
-		}
+		setField('pro_grid_charge', formatWatts(liveGrid));
+		setField('pro_grid_charge_note', (proGrid && proGrid.message) || '');
 
 		setField('hv_in', formatWatts(data.hv_in));
 		setField('ac_out', formatWatts(data.ac_out));

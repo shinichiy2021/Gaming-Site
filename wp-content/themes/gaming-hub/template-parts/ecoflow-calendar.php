@@ -130,6 +130,8 @@ if ( $show_today ) {
 
 	<?php
 	$today_yen = is_array( $calendar['today_yen'] ?? null ) ? $calendar['today_yen'] : array();
+	$today_buy = is_array( $calendar['today_buy'] ?? null ) ? $calendar['today_buy'] : array();
+	$today_buy_kwh = ( max( 0, (int) ( $today_buy['pro_wh'] ?? 0 ) ) + max( 0, (int) ( $today_buy['delta_wh'] ?? 0 ) ) ) / 1000.0;
 	?>
 	<div class="ecoflow-rates-hud ecoflow-plan-hud ecoflow-cal-hud ecoflow-cal-hud-yen" data-ecoflow-cal-today-yen>
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-room">
@@ -145,7 +147,10 @@ if ( $show_today ) {
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-buy">
 			<span><?php esc_html_e( 'GRID', 'gaming-hub' ); ?></span>
 			<strong data-ecoflow-cal-today-grid><?php echo esc_html( $format_yen( $today_yen['buy_yen'] ?? ( ( $today_yen['grid_yen'] ?? 0 ) + ( $today_yen['pro_grid_yen'] ?? 0 ) ) ) ); ?></strong>
-			<small><?php esc_html_e( '今日 買電', 'gaming-hub' ); ?></small>
+			<small>
+				<?php esc_html_e( '今日 買電', 'gaming-hub' ); ?>
+				<span data-ecoflow-cal-today-buy-kwh><?php echo esc_html( $format_kwh( $today_buy_kwh, 2 ) ); ?></span> kWh
+			</small>
 		</div>
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-net">
 			<span><?php esc_html_e( 'NET', 'gaming-hub' ); ?></span>

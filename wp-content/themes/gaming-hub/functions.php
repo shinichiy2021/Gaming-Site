@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.10.17' );
+define( 'GAMING_HUB_VERSION', '1.10.20' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -79,6 +79,7 @@ add_filter( 'wp_get_attachment_url', 'gaming_hub_rewrite_local_url' );
 require get_template_directory() . '/inc/i18n.php';
 require get_template_directory() . '/inc/pokemon-go.php';
 require get_template_directory() . '/inc/pokemon-go-youtube.php';
+require get_template_directory() . '/inc/pokemon-go-events.php';
 require get_template_directory() . '/inc/ecoflow.php';
 require get_template_directory() . '/inc/switchbot.php';
 require get_template_directory() . '/inc/looop.php';

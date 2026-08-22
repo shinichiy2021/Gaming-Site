@@ -185,20 +185,18 @@ export function proGridCharge( status ) {
 	const plan = status.pro_grid_charge && typeof status.pro_grid_charge === 'object'
 		? status.pro_grid_charge
 		: null;
-	const active = live >= FLOW_THRESHOLD;
-	const watts = active ? live : 0;
 
 	return {
-		active,
-		watts,
+		active: live >= FLOW_THRESHOLD,
+		watts: live,
 		message: plan && plan.message ? plan.message : '',
 	};
 }
 
 function liveProGridWatts( status ) {
 	const ac = status.pro?.ac_in ?? status.grid_in ?? status.ac_in;
-	if ( ac !== null && ac !== undefined && ac !== '' && Number( ac ) >= FLOW_THRESHOLD ) {
-		return Number( ac ) || 0;
+	if ( ac !== null && ac !== undefined && ac !== '' && Number.isFinite( Number( ac ) ) ) {
+		return Math.max( 0, Number( ac ) || 0 );
 	}
 
 	const input = Number( status.pro?.input_total ?? status.input_total ) || 0;

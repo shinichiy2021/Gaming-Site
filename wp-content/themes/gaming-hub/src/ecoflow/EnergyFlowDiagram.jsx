@@ -267,7 +267,22 @@ function useLiveTodayUsage( todayUsage ) {
 	return liveTodayUsage( todayUsage );
 }
 
-function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsage } ) {
+function liveTodayBuy( todayBuy ) {
+	if ( ! todayBuy || typeof todayBuy !== 'object' ) {
+		return { pro: null, delta: null };
+	}
+
+	return {
+		pro: Number( todayBuy.pro_wh ),
+		delta: Number( todayBuy.delta_wh ),
+	};
+}
+
+function useLiveTodayBuy( todayBuy ) {
+	return liveTodayBuy( todayBuy );
+}
+
+function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsage, liveBuy } ) {
 	const pro = status.pro || {};
 	const delta = status.delta || {};
 	const solarWatts = solarToDelta( status );
@@ -319,9 +334,12 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 							</span>
 						) }
 						<span className="ecoflow-node-label">{ labels.gridCharge || labels.grid }</span>
-						<strong>{ proGrid.active ? formatWatts( proGrid.watts ) : ( labels.gridIdle || '待機' ) }</strong>
+						<strong>{ formatWatts( proGrid.watts ) }</strong>
+						<small className="ecoflow-node-yen ecoflow-node-gen">
+							{ labels.todayBuy || '今日 買電' } { formatTodayWatts( liveBuy?.pro ) }
+						</small>
 						<small className="ecoflow-node-yen is-buy">
-							{ labels.todayBuy || '今日 買電' } { formatYenInt( liveYen?.proGrid ) }
+							{ formatYenInt( liveYen?.proGrid ) }
 						</small>
 						{ proGrid.message ? <small>{ proGrid.message }</small> : null }
 					</div>
@@ -369,7 +387,10 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 				<div className="ecoflow-flow-summary ecoflow-flow-summary-system">
 					<div className="ecoflow-flow-summary-item">
 						<span>{ labels.gridCharge || labels.grid }</span>
-						<strong>{ proGrid.active ? formatWatts( proGrid.watts ) : ( labels.gridIdle || '待機' ) }</strong>
+						<strong>{ formatWatts( proGrid.watts ) }</strong>
+						<small className="ecoflow-node-yen ecoflow-node-gen">
+							{ labels.todayBuy || '今日 買電' } { formatTodayWatts( liveBuy?.pro ) }
+						</small>
 						{ proGrid.message ? <small>{ proGrid.message }</small> : null }
 					</div>
 					<div className="ecoflow-flow-summary-item">
@@ -401,11 +422,18 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 						) }
 						<span className="ecoflow-node-label">{ labels.deltaGrid || 'グリッド AC 入力' }</span>
 						<strong>{ formatWatts( deltaAcIn ) }</strong>
-						<small className={ deltaMissing ? '' : 'ecoflow-node-yen is-buy' }>{
-							deltaMissing
-								? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
-								: `${ labels.todayBuy || '今日 買電' } ${ formatYenInt( liveYen?.grid ) }`
-						}</small>
+						{ deltaMissing ? (
+							<small>{ typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' }</small>
+						) : (
+							<>
+								<small className="ecoflow-node-yen ecoflow-node-gen">
+									{ labels.todayBuy || '今日 買電' } { formatTodayWatts( liveBuy?.delta ) }
+								</small>
+								<small className="ecoflow-node-yen is-buy">
+									{ formatYenInt( liveYen?.grid ) }
+								</small>
+							</>
+						) }
 					</div>
 
 					<div
@@ -489,6 +517,11 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 					<div className="ecoflow-flow-summary-item">
 						<span>{ labels.deltaGrid || 'グリッド AC 入力' }</span>
 						<strong>{ formatWatts( deltaAcIn ) }</strong>
+						{ ! deltaMissing ? (
+							<small className="ecoflow-node-yen ecoflow-node-gen">
+								{ labels.todayBuy || '今日 買電' } { formatTodayWatts( liveBuy?.delta ) }
+							</small>
+						) : null }
 					</div>
 					<div className="ecoflow-flow-summary-item">
 						<span>{ labels.solar }</span>
@@ -581,6 +614,7 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 	const liveYen = useLiveTodayYen( status.today_yen );
 	const liveSolar = useLiveTodaySolar( status.today_solar );
 	const liveUsage = useLiveTodayUsage( status.today_usage );
+	const liveBuy = useLiveTodayBuy( status.today_buy );
 
 	useFlowCanvas( canvasRef, mapRef, status );
 
@@ -609,7 +643,7 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 
 			<div className="ecoflow-energy-content">
 				{ isDual ? (
-					<DualFlowDiagram status={ status } labels={ labels } images={ images } liveYen={ liveYen } liveSolar={ liveSolar } liveUsage={ liveUsage } />
+					<DualFlowDiagram status={ status } labels={ labels } images={ images } liveYen={ liveYen } liveSolar={ liveSolar } liveUsage={ liveUsage } liveBuy={ liveBuy } />
 				) : (
 					<SingleFlowDiagram status={ status } labels={ labels } />
 				) }

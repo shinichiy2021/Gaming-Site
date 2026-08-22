@@ -15,6 +15,11 @@
 				<?php esc_html_e( 'イベント、Community Day、レイド、新ポケモンなど最新ニュースをチェック', 'gaming-hub' ); ?>
 			</p>
 			<div class="pgo-hero-links">
+				<?php if ( function_exists( 'gaming_hub_pgo_hub_events' ) && gaming_hub_pgo_hub_events() ) : ?>
+					<a href="<?php echo esc_url( gaming_hub_pgo_tokushuu_url() ); ?>" class="btn btn-primary">
+						<?php esc_html_e( '大型イベント特集', 'gaming-hub' ); ?>
+					</a>
+				<?php endif; ?>
 				<a href="https://pokemongolive.com/ja/news/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
 					<?php esc_html_e( '公式ニュース', 'gaming-hub' ); ?>
 				</a>
@@ -24,6 +29,8 @@
 			</div>
 		</div>
 	</section>
+
+	<?php get_template_part( 'template-parts/pokemon-go', 'tokushuu-banner' ); ?>
 
 	<section class="section pgo-news-section">
 		<div class="container">
@@ -50,6 +57,11 @@
 					<span class="pgo-link-icon">✨</span>
 					<h3><?php esc_html_e( 'スポライ', 'gaming-hub' ); ?></h3>
 					<p><?php esc_html_e( 'スポライトアワーのスケジュール', 'gaming-hub' ); ?></p>
+				</a>
+				<a href="<?php echo esc_url( gaming_hub_pgo_tokushuu_url() ); ?>" class="pgo-link-card">
+					<span class="pgo-link-icon">🏆</span>
+					<h3><?php esc_html_e( '大型イベント特集', 'gaming-hub' ); ?></h3>
+					<p><?php esc_html_e( '世界大会・ウルトラアンロック・レイドデイ', 'gaming-hub' ); ?></p>
 				</a>
 				<a href="https://pokemongohub.net/post/category/events/" target="_blank" rel="noopener noreferrer" class="pgo-link-card">
 					<span class="pgo-link-icon">🎉</span>
