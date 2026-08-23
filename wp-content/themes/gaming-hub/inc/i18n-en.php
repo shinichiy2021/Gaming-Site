@@ -654,4 +654,6 @@ return array(
 	'時刻に応じたデモ（通勤・Wall Connector・Supercharger）' => 'Time-based demo: commute, Wall Connector, and Supercharger',
 	'走行中' => 'Driving',
 	'エアコン' => 'Climate',
+	'回生充電' => 'Regen charging',
+	'減速・ブレーキ' => 'Braking / regen',
 );

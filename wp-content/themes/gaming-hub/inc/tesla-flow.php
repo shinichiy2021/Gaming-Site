@@ -41,6 +41,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'super_w'         => null,
 			'drive_w'         => null,
 			'cabin_w'         => null,
+			'regen_w'         => null,
 			'mode'            => 'idle',
 			'shift'           => 'P',
 			'speed_km'        => 0,
@@ -67,6 +68,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	$super_w = ( $charging && 'supercharger' === $kind ) ? $charge_w : 0;
 	$drive_w = array_key_exists( 'drive_w', $model3 ) ? gaming_hub_tesla_live_watt( $model3['drive_w'] ) : null;
 	$cabin_w = array_key_exists( 'cabin_w', $model3 ) ? gaming_hub_tesla_live_watt( $model3['cabin_w'] ) : null;
+	$regen_w = array_key_exists( 'regen_w', $model3 ) ? gaming_hub_tesla_live_watt( $model3['regen_w'] ) : 0;
 	$mode    = (string) ( $model3['vehicle_mode'] ?? '' );
 
 	if ( '' === $mode ) {
@@ -74,6 +76,8 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			$mode = 'supercharger';
 		} elseif ( ( $wall_w ?? 0 ) >= 80 ) {
 			$mode = 'wall';
+		} elseif ( ( $regen_w ?? 0 ) >= 80 ) {
+			$mode = 'regen';
 		} elseif ( ( $drive_w ?? 0 ) >= 80 ) {
 			$mode = 'drive';
 		} elseif ( ( $cabin_w ?? 0 ) >= 80 ) {
@@ -92,6 +96,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'super_w'         => $super_w,
 		'drive_w'         => $drive_w,
 		'cabin_w'         => $cabin_w,
+		'regen_w'         => $regen_w,
 		'mode'            => $mode,
 		'shift'           => (string) ( $model3['shift_state'] ?? 'P' ),
 		'speed_km'        => (int) ( $model3['speed_km'] ?? 0 ),
@@ -101,7 +106,9 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'is_charging'     => $charging,
 		'charge_state'    => $charging
 			? __( '充電中', 'gaming-hub' )
-			: ( ! empty( $model3['climate_on'] ) ? __( 'エアコン', 'gaming-hub' ) : __( '待機', 'gaming-hub' ) ),
+			: ( ( $regen_w ?? 0 ) >= 80
+				? __( '回生充電', 'gaming-hub' )
+				: ( ! empty( $model3['climate_on'] ) ? __( 'エアコン', 'gaming-hub' ) : __( '待機', 'gaming-hub' ) ) ),
 		'vehicle_name'    => (string) ( $model3['vehicle_name'] ?? 'Model 3' ),
 		'supply_kind'     => $kind,
 		'supply_label'    => (string) ( $model3['supply_label'] ?? '' ),
@@ -128,6 +135,8 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'superNote'  => __( 'Supercharger', 'gaming-hub' ),
 			'tesla'      => __( 'Tesla', 'gaming-hub' ),
 			'drive'      => __( '走行消費', 'gaming-hub' ),
+			'regen'      => __( '回生充電', 'gaming-hub' ),
+			'regenNote'  => __( '減速・ブレーキ', 'gaming-hub' ),
 			'cabin'      => __( '車内電力', 'gaming-hub' ),
 			'flow'       => __( 'Tesla の入出力', 'gaming-hub' ),
 			'idle'       => __( '待機', 'gaming-hub' ),

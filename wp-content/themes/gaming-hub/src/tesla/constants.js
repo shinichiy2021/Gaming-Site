@@ -49,6 +49,25 @@ export function formatWatts( value, standbyLabel ) {
 	return `${ Math.round( watts ).toLocaleString() } W`;
 }
 
+export function isRegenActive( status ) {
+	return Number( status?.regen_w ) >= FLOW_THRESHOLD;
+}
+
+export function connectionsForStatus( status ) {
+	return FLOW_CONNECTIONS.map( ( connection ) => {
+		if ( connection.id !== 'drive' || ! isRegenActive( status ) ) {
+			return connection;
+		}
+
+		return {
+			...connection,
+			from: { id: 'drive', side: 'left' },
+			to: { id: 'tesla', side: 'right' },
+			color: '#64d2ff',
+		};
+	} );
+}
+
 export function wattsForFlow( flowId, status ) {
 	if ( ! status ) {
 		return 0;
@@ -63,6 +82,10 @@ export function wattsForFlow( flowId, status ) {
 	}
 
 	if ( flowId === 'drive' ) {
+		if ( isRegenActive( status ) ) {
+			return Number( status.regen_w ) || 0;
+		}
+
 		return Number( status.drive_w ) || 0;
 	}
 

@@ -13,6 +13,8 @@ if ( mountNode ) {
 		superNote: 'Supercharger',
 		tesla: 'Tesla',
 		drive: '走行消費',
+		regen: '回生充電',
+		regenNote: '減速・ブレーキ',
 		cabin: '車内電力',
 		flow: 'Tesla の入出力',
 		idle: '待機',
