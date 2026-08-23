@@ -17,7 +17,7 @@ define( 'GAMING_HUB_TESLA_SCOPES_OPTION', 'gaming_hub_tesla_token_scopes' );
 define( 'GAMING_HUB_TESLA_LOCATION_DENIED_OPTION', 'gaming_hub_tesla_location_denied' );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
-define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v4' );
+define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v5' );
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
 define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 5 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 2 * MINUTE_IN_SECONDS );
@@ -932,7 +932,7 @@ function gaming_hub_tesla_snapshot_is_active( array $model3 ) {
 		return true;
 	}
 
-	if ( (int) ( $model3['drive_w'] ?? 0 ) >= 80 || (int) ( $model3['regen_w'] ?? 0 ) >= 80 ) {
+	if ( (int) ( $model3['drive_w'] ?? 0 ) >= 80 || (int) ( $model3['regen_w'] ?? 0 ) >= 80 || (int) ( $model3['cabin_w'] ?? 0 ) >= 80 ) {
 		return true;
 	}
 
@@ -1140,11 +1140,84 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 }
 
 /**
+ * Today's parked cabin energy from the last live snapshots.
+ *
+ * @return array{today_kwh: float, today_yen: int}
+ */
+function gaming_hub_tesla_cabin_energy_today() {
+	$today = wp_date( 'Y-m-d' );
+	$saved = get_option( GAMING_HUB_TESLA_CABIN_ENERGY_OPTION, array() );
+	if ( ! is_array( $saved ) || (string) ( $saved['date'] ?? '' ) !== $today ) {
+		return array(
+			'today_kwh' => 0.0,
+			'today_yen' => 0,
+		);
+	}
+
+	return array(
+		'today_kwh' => round( max( 0, (float) ( $saved['wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'today_yen' => (int) round( max( 0, (float) ( $saved['yen'] ?? 0 ) ) ),
+	);
+}
+
+/**
+ * Integrate parked cabin watts between Tesla polls.
+ *
+ * Gaps longer than 8 minutes (sleep / errors) are skipped so we do not invent load.
+ *
+ * @param int  $watts      Latest cabin watts.
+ * @param bool $accumulate Whether this snapshot is parked cabin load.
+ * @return array{today_kwh: float, today_yen: int}
+ */
+function gaming_hub_tesla_record_cabin_energy( $watts, $accumulate ) {
+	$today = wp_date( 'Y-m-d' );
+	$now   = time();
+	$watts = max( 0, (int) round( (float) $watts ) );
+	$saved = get_option( GAMING_HUB_TESLA_CABIN_ENERGY_OPTION, array() );
+	$saved = is_array( $saved ) ? $saved : array();
+
+	if ( (string) ( $saved['date'] ?? '' ) !== $today ) {
+		$saved = array(
+			'date' => $today,
+			'wh'   => 0.0,
+			'yen'  => 0.0,
+		);
+	}
+
+	$last_ts = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
+	$last_w  = isset( $saved['last_w'] ) ? max( 0, (int) $saved['last_w'] ) : 0;
+
+	if ( ! empty( $saved['last_on'] ) && $last_ts > 0 ) {
+		$delta = $now - $last_ts;
+		if ( $delta > 0 && $delta <= GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX ) {
+			$hours = $delta / HOUR_IN_SECONDS;
+			$saved['wh'] = (float) ( $saved['wh'] ?? 0 ) + ( $last_w * $hours );
+			$yen_per_kwh = function_exists( 'gaming_hub_tesla_electricity_yen_per_kwh' )
+				? gaming_hub_tesla_electricity_yen_per_kwh()
+				: 30.0;
+			$saved['yen'] = (float) ( $saved['yen'] ?? 0 ) + ( $last_w / 1000.0 ) * $hours * $yen_per_kwh;
+		}
+	}
+
+	$saved['last_ts']    = $now;
+	$saved['last_w']     = $accumulate ? $watts : 0;
+	$saved['last_on']    = $accumulate;
+	$saved['updated_at'] = $now;
+
+	update_option( GAMING_HUB_TESLA_CABIN_ENERGY_OPTION, $saved, false );
+
+	return array(
+		'today_kwh' => round( max( 0, (float) $saved['wh'] ) / 1000.0, 2 ),
+		'today_yen' => (int) round( max( 0, (float) $saved['yen'] ) ),
+	);
+}
+
+/**
  * Live pack power from drive_state (or charge_state fallbacks).
  *
- * Tesla Fleet `drive_state.power` is usually a whole-number kW, so parked
- * HVAC often arrives as 1 and must not be shown as a fake 1000 W cabin load.
- * Watt-scale or fractional readings are marked precise.
+ * Tesla Fleet `drive_state.power` is usually a whole-number kW. Parked HVAC
+ * often arrives as 1 (= 1000 W). Watt-scale or fractional readings are marked
+ * precise for drive math; parked cabin still shows the live kW as watts.
  *
  * @param array<string, mixed> $drive_state  Tesla drive_state.
  * @param array<string, mixed> $charge_state Tesla charge_state.
@@ -1364,7 +1437,6 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$pack      = gaming_hub_tesla_pack_power( $drive_state, $charge_state );
 	$pack_kw   = $pack['kw'];
 	$has_pack  = null !== $pack_kw;
-	$pack_live = ! empty( $pack['precise'] );
 	$moving    = $has_drive_slice && ( $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true ) );
 	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
 	$climate_on = gaming_hub_tesla_climate_is_on( $climate_state );
@@ -1377,11 +1449,15 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$cabin_w = gaming_hub_tesla_cabin_watts_from_climate( $climate_state );
 	$regen_w = 0;
 
-	if ( null === $cabin_w && ! $charging && ! $moving && $pack_live && $pack_kw > 0.08 ) {
+	if ( null === $cabin_w && ! $charging && ! $moving && $has_pack && $pack_kw > 0.08 ) {
 		$cabin_w = max( 0, (int) round( $pack_kw * 1000 ) );
 	} elseif ( null === $cabin_w ) {
 		$cabin_w = ( $has_pack || $has_drive_slice ) ? 0 : null;
 	}
+
+	$cabin_energy = null !== $cabin_w
+		? gaming_hub_tesla_record_cabin_energy( $cabin_w, ! $charging && ! $moving )
+		: gaming_hub_tesla_cabin_energy_today();
 
 	if ( $charging ) {
 		$drive_w = 0;
@@ -1430,6 +1506,8 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'live'                      => true,
 			'drive_w'                   => $drive_w,
 			'cabin_w'                   => $cabin_w,
+			'cabin_today_kwh'           => $cabin_energy['today_kwh'],
+			'cabin_today_yen'           => $cabin_energy['today_yen'],
 			'regen_w'                   => $regen_w,
 			'shift_state'               => $has_drive_slice ? ( $shift ? $shift : 'P' ) : '',
 			'speed_km'                  => $speed_km,
@@ -1439,7 +1517,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 				? ( 'supercharger' === $supply['kind'] ? 'supercharger' : 'wall' )
 				: ( $regen_w >= 80
 					? 'regen'
-					: ( ( $drive_w ?? 0 ) >= 80 ? 'drive' : ( ( ( $cabin_w ?? 0 ) >= 80 || $climate_on ) ? 'cabin' : 'idle' ) ) ),
+					: ( ( $drive_w ?? 0 ) >= 80 ? 'drive' : ( ( $cabin_w ?? 0 ) >= 80 ? 'cabin' : 'idle' ) ) ),
 		)
 	);
 }

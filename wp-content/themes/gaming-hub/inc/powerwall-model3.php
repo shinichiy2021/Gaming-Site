@@ -27,6 +27,10 @@ define( 'GAMING_HUB_MODEL3_CHARGE_END', 22.5 );
 /** Stored odometer snapshots for the daily driving quest. */
 define( 'GAMING_HUB_MODEL3_ODO_OPTION', 'gaming_hub_model3_odometer_v1' );
 
+/** Parked cabin watt-hours and yen accumulated for today. */
+define( 'GAMING_HUB_TESLA_CABIN_ENERGY_OPTION', 'gaming_hub_tesla_cabin_energy_v1' );
+define( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX', 8 * MINUTE_IN_SECONDS );
+
 /**
  * Daily energy to replenish after 30 km driving.
  */

@@ -36,6 +36,33 @@ function formatYen( value ) {
 	return `¥${ Math.round( Number( value ) || 0 ).toLocaleString() }`;
 }
 
+function formatCabinWatts( value, idle, live ) {
+	if ( ! live || value === null || value === undefined || value === '' ) {
+		return idle;
+	}
+
+	const watts = Number( value );
+	if ( ! Number.isFinite( watts ) ) {
+		return idle;
+	}
+
+	return `${ Math.round( Math.max( 0, watts ) ).toLocaleString() } W`;
+}
+
+function cabinExtras( status, labels ) {
+	if ( ! status.live ) {
+		return [];
+	}
+
+	const kwh = Number( status.cabin_today_kwh );
+	const yen = Number( status.cabin_today_yen );
+
+	return [
+		`${ labels.todayUse || '今日 使用' } ${ ( Number.isFinite( kwh ) ? kwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh`,
+		`${ labels.todayBill || '今日 電気代' } ${ formatYen( yen ) }`,
+	];
+}
+
 function formatGasValue( status, labels, idle ) {
 	const gas = status.gas || {};
 	if ( ( status.regen_w || 0 ) >= 80 ) {
@@ -160,12 +187,6 @@ function teslaStateLabel( status, labels ) {
 		return status.supply_label || labels.charging;
 	}
 
-	if ( status.climate_on ) {
-		return status.drive_ready
-			? labels.climate
-			: `${ labels.climate } · ${ labels.drivePending || '' }`.replace( /\s·\s$/, '' );
-	}
-
 	if ( status.sentry ) {
 		return labels.sentry;
 	}
@@ -205,9 +226,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const regenOn = isRegenActive( status );
 	const driveOn = isFlowActive( 'drive', status );
 	const cabinOn = isFlowActive( 'cabin', status );
-	const climateOn = !! status.live && !! status.climate_on && ! charging;
-	const sentryOn = !! status.live && !! status.sentry && ! charging && ! climateOn;
-	const teslaActive = charging || driveOn || cabinOn || climateOn;
+	const teslaActive = charging || driveOn || cabinOn;
 	const teslaClasses = [
 		'ecoflow-node',
 		'ecoflow-node-battery',
@@ -291,10 +310,12 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							watts={ status.cabin_w }
 							photo={ images.cabin }
 							photoClass="tesla-photo-cabin"
-							active={ cabinOn || climateOn || sentryOn }
+							active={ cabinOn }
 							standbyLabel={ idle }
-							display={ cabinOn ? null : ( climateOn ? labels.climate : ( sentryOn ? labels.sentry : null ) ) }
-							extra={ cabinOn && status.climate_on ? <small>{ labels.climate }</small> : ( cabinOn && status.sentry ? <small>{ labels.sentry }</small> : null ) }
+							display={ formatCabinWatts( status.cabin_w, idle, !! status.live ) }
+							extra={ cabinExtras( status, labels ).map( ( line ) => (
+								<small key={ line } className={ line.indexOf( labels.todayBill || '今日 電気代' ) === 0 ? 'tesla-gas-saved' : '' }>{ line }</small>
+							) ) }
 						/>
 					</div>
 				</div>
