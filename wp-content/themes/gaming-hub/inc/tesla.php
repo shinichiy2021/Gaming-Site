@@ -17,7 +17,7 @@ define( 'GAMING_HUB_TESLA_SCOPES_OPTION', 'gaming_hub_tesla_token_scopes' );
 define( 'GAMING_HUB_TESLA_LOCATION_DENIED_OPTION', 'gaming_hub_tesla_location_denied' );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
-define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v3' );
+define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v4' );
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
 define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 5 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 2 * MINUTE_IN_SECONDS );
@@ -1140,18 +1140,24 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 }
 
 /**
- * Live pack power in kW from drive_state (or charge_state fallbacks).
+ * Live pack power from drive_state (or charge_state fallbacks).
+ *
+ * Tesla Fleet `drive_state.power` is usually a whole-number kW, so parked
+ * HVAC often arrives as 1 and must not be shown as a fake 1000 W cabin load.
+ * Watt-scale or fractional readings are marked precise.
  *
  * @param array<string, mixed> $drive_state  Tesla drive_state.
  * @param array<string, mixed> $charge_state Tesla charge_state.
- * @return float|null
+ * @return array{kw: float|null, precise: bool}
  */
-function gaming_hub_tesla_pack_kw( array $drive_state, array $charge_state = array() ) {
+function gaming_hub_tesla_pack_power( array $drive_state, array $charge_state = array() ) {
 	$candidates = array(
 		$drive_state['power'] ?? null,
 		$drive_state['power_w'] ?? null,
 		$charge_state['battery_power'] ?? null,
 	);
+
+	$coarse_kw = null;
 
 	foreach ( $candidates as $raw ) {
 		if ( ! is_numeric( $raw ) ) {
@@ -1160,13 +1166,48 @@ function gaming_hub_tesla_pack_kw( array $drive_state, array $charge_state = arr
 
 		$value = (float) $raw;
 		if ( abs( $value ) > 80 ) {
-			return $value / 1000.0;
+			return array(
+				'kw'      => $value / 1000.0,
+				'precise' => true,
+			);
 		}
 
-		return $value;
+		if ( abs( $value - round( $value ) ) > 0.04 ) {
+			return array(
+				'kw'      => $value,
+				'precise' => true,
+			);
+		}
+
+		if ( null === $coarse_kw ) {
+			$coarse_kw = $value;
+		}
 	}
 
-	return null;
+	if ( null === $coarse_kw ) {
+		return array(
+			'kw'      => null,
+			'precise' => false,
+		);
+	}
+
+	return array(
+		'kw'      => $coarse_kw,
+		'precise' => false,
+	);
+}
+
+/**
+ * Live pack power in kW from drive_state (or charge_state fallbacks).
+ *
+ * @param array<string, mixed> $drive_state  Tesla drive_state.
+ * @param array<string, mixed> $charge_state Tesla charge_state.
+ * @return float|null
+ */
+function gaming_hub_tesla_pack_kw( array $drive_state, array $charge_state = array() ) {
+	$pack = gaming_hub_tesla_pack_power( $drive_state, $charge_state );
+
+	return $pack['kw'];
 }
 
 /**
@@ -1320,8 +1361,10 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		? (float) $drive_state['speed']
 		: 0.0;
 	$speed_km  = $has_drive_slice ? (int) round( $speed_mph * 1.60934 ) : 0;
-	$pack_kw   = gaming_hub_tesla_pack_kw( $drive_state, $charge_state );
+	$pack      = gaming_hub_tesla_pack_power( $drive_state, $charge_state );
+	$pack_kw   = $pack['kw'];
 	$has_pack  = null !== $pack_kw;
+	$pack_live = ! empty( $pack['precise'] );
 	$moving    = $has_drive_slice && ( $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true ) );
 	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
 	$climate_on = gaming_hub_tesla_climate_is_on( $climate_state );
@@ -1334,7 +1377,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$cabin_w = gaming_hub_tesla_cabin_watts_from_climate( $climate_state );
 	$regen_w = 0;
 
-	if ( null === $cabin_w && ! $charging && ! $moving && $has_pack && $pack_kw > 0.08 ) {
+	if ( null === $cabin_w && ! $charging && ! $moving && $pack_live && $pack_kw > 0.08 ) {
 		$cabin_w = max( 0, (int) round( $pack_kw * 1000 ) );
 	} elseif ( null === $cabin_w ) {
 		$cabin_w = ( $has_pack || $has_drive_slice ) ? 0 : null;
@@ -1396,7 +1439,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 				? ( 'supercharger' === $supply['kind'] ? 'supercharger' : 'wall' )
 				: ( $regen_w >= 80
 					? 'regen'
-					: ( ( $drive_w ?? 0 ) >= 80 ? 'drive' : ( ( $cabin_w ?? 0 ) >= 80 ? 'cabin' : 'idle' ) ) ),
+					: ( ( $drive_w ?? 0 ) >= 80 ? 'drive' : ( ( ( $cabin_w ?? 0 ) >= 80 || $climate_on ) ? 'cabin' : 'idle' ) ) ),
 		)
 	);
 }
