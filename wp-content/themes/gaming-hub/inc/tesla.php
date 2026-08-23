@@ -407,7 +407,7 @@ function gaming_hub_tesla_oauth_state_is_valid( $state ) {
 /**
  * Build Tesla OAuth authorize URL.
  */
-function gaming_hub_tesla_oauth_authorize_url() {
+function gaming_hub_tesla_oauth_authorize_url( $force_login = false ) {
 	$config = gaming_hub_get_tesla_config();
 
 	if ( empty( $config['client_id'] ) || empty( $config['redirect_uri'] ) ) {
@@ -422,21 +422,27 @@ function gaming_hub_tesla_oauth_authorize_url() {
 		'state'         => gaming_hub_tesla_oauth_state(),
 	);
 
+	if ( $force_login ) {
+		$params['prompt'] = 'login';
+	}
+
 	return add_query_arg( $params, 'https://auth.tesla.com/oauth2/v3/authorize' );
 }
 
 /**
  * Render the Tesla OAuth button.
+ *
+ * @param bool $force_login Force Tesla login so new scopes can be granted.
  */
-function gaming_hub_render_tesla_oauth_button() {
-	$authorize = gaming_hub_tesla_oauth_authorize_url();
+function gaming_hub_render_tesla_oauth_button( $force_login = false ) {
+	$authorize = gaming_hub_tesla_oauth_authorize_url( $force_login );
 
 	if ( ! $authorize ) {
 		echo '<span class="pw-flow-oauth-missing">' . esc_html__( 'Client ID を設定すると認証リンクが表示されます', 'gaming-hub' ) . '</span>';
 		return;
 	}
 	?>
-	<a href="<?php echo esc_url( $authorize ); ?>" class="btn btn-outline btn-sm pw-tesla-oauth-btn" target="_blank" rel="noopener noreferrer">
+	<a href="<?php echo esc_url( $authorize ); ?>" class="btn btn-outline btn-sm pw-tesla-oauth-btn">
 		<?php esc_html_e( 'Tesla で認証', 'gaming-hub' ); ?>
 	</a>
 	<?php
@@ -525,31 +531,47 @@ function gaming_hub_tesla_decode_token_scopes( $token ) {
  * @param string $access_token Access token JWT.
  * @param string $scope_string Space-separated scopes from the token response.
  */
-function gaming_hub_tesla_remember_token_scopes( $access_token = '', $scope_string = '' ) {
-	$scopes = array();
-
-	if ( is_string( $scope_string ) && '' !== trim( $scope_string ) ) {
-		$scopes = preg_split( '/\s+/', trim( $scope_string ) );
+function gaming_hub_tesla_normalize_scope_list( $scopes ) {
+	if ( is_string( $scopes ) ) {
+		$scopes = preg_split( '/\s+/', trim( $scopes ) );
 	}
 
-	if ( empty( $scopes ) ) {
-		$scopes = gaming_hub_tesla_decode_token_scopes( $access_token );
+	if ( ! is_array( $scopes ) ) {
+		return array();
 	}
 
-	if ( empty( $scopes ) || ! is_array( $scopes ) ) {
-		return;
-	}
-
-	$joined = implode(
-		' ',
-		array_values(
-			array_unique(
-				array_filter( array_map( 'strval', $scopes ) )
+	return array_values(
+		array_unique(
+			array_filter(
+				array_map( 'strval', $scopes ),
+				static function ( $scope ) {
+					return '' !== $scope;
+				}
 			)
 		)
 	);
+}
 
-	if ( '' === $joined || get_option( GAMING_HUB_TESLA_SCOPES_OPTION, '' ) === $joined ) {
+/**
+ * Persist granted Tesla OAuth scopes (never stores the token).
+ *
+ * @param string $access_token Access token JWT.
+ * @param string $scope_string Space-separated scopes from the token response.
+ */
+function gaming_hub_tesla_remember_token_scopes( $access_token = '', $scope_string = '' ) {
+	$scopes = array_merge(
+		gaming_hub_tesla_normalize_scope_list( $scope_string ),
+		gaming_hub_tesla_decode_token_scopes( $access_token )
+	);
+	$scopes = gaming_hub_tesla_normalize_scope_list( $scopes );
+
+	if ( empty( $scopes ) ) {
+		return;
+	}
+
+	$joined = implode( ' ', $scopes );
+
+	if ( get_option( GAMING_HUB_TESLA_SCOPES_OPTION, '' ) === $joined ) {
 		return;
 	}
 
@@ -563,13 +585,14 @@ function gaming_hub_tesla_remember_token_scopes( $access_token = '', $scope_stri
  */
 function gaming_hub_tesla_token_scopes() {
 	$saved = get_option( GAMING_HUB_TESLA_SCOPES_OPTION, '' );
-	if ( is_string( $saved ) && '' !== trim( $saved ) ) {
-		return array_values( array_filter( preg_split( '/\s+/', trim( $saved ) ) ) );
-	}
-
 	$token = get_transient( GAMING_HUB_TESLA_ACCESS_TOKEN_KEY );
 
-	return gaming_hub_tesla_decode_token_scopes( is_string( $token ) ? $token : '' );
+	return gaming_hub_tesla_normalize_scope_list(
+		array_merge(
+			gaming_hub_tesla_normalize_scope_list( $saved ),
+			gaming_hub_tesla_decode_token_scopes( is_string( $token ) ? $token : '' )
+		)
+	);
 }
 
 /**
@@ -624,8 +647,11 @@ function gaming_hub_tesla_needs_drive_scope( array $status ) {
 	}
 
 	$model3 = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	if ( ! empty( $model3['drive_ready'] ) ) {
+		return false;
+	}
 
-	return empty( $model3['drive_ready'] );
+	return ! gaming_hub_tesla_has_location_scope();
 }
 
 /**
@@ -637,9 +663,20 @@ function gaming_hub_render_tesla_drive_scope_notice() {
 		<p class="pw-flow-error">
 			<?php esc_html_e( '走行中の速度と消費電力には、Tesla の位置スコープが必要です。もう一度「Tesla で認証」してください。位置情報は保存しません。', 'gaming-hub' ); ?>
 		</p>
-		<?php gaming_hub_render_tesla_oauth_button(); ?>
+		<?php gaming_hub_render_tesla_oauth_button( true ); ?>
 	</div>
 	<?php
+}
+
+/**
+ * Drop Tesla / Powerwall caches after a new OAuth grant.
+ */
+function gaming_hub_tesla_invalidate_status_caches() {
+	gaming_hub_tesla_clear_api_skip();
+	delete_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
+	if ( defined( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY' ) ) {
+		delete_transient( GAMING_HUB_POWERWALL_FLOW_CACHE_KEY );
+	}
 }
 
 /**
@@ -1452,6 +1489,7 @@ function gaming_hub_rest_tesla_oauth_callback( WP_REST_Request $request ) {
 	}
 
 	gaming_hub_tesla_store_tokens( $tokens );
+	gaming_hub_tesla_invalidate_status_caches();
 
 	$api->set_access_token( (string) $tokens['access_token'] );
 	$fleet_ready = gaming_hub_tesla_ensure_fleet_base_url( $api );
