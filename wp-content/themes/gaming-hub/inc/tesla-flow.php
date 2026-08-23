@@ -35,6 +35,10 @@ function gaming_hub_tesla_live_watt( $value ) {
 function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simulated' ) {
 	$live = 'tesla' === $source;
 
+	$empty_gas = function_exists( 'gaming_hub_tesla_gasoline_compare' )
+		? gaming_hub_tesla_gasoline_compare( $model3, 0, 0 )
+		: array();
+
 	if ( ! $live ) {
 		return array(
 			'wall_w'          => null,
@@ -58,6 +62,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'simulated'       => false,
 			'drive_ready'     => false,
 			'asleep'          => false,
+			'gas'             => $empty_gas,
 		);
 	}
 
@@ -93,6 +98,10 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		? max( 0, min( 100, (int) $model3['battery_percent'] ) )
 		: null;
 
+	$gas = function_exists( 'gaming_hub_tesla_gasoline_compare' )
+		? gaming_hub_tesla_gasoline_compare( $model3, $drive_w, (int) ( $model3['speed_km'] ?? 0 ) )
+		: array();
+
 	return array(
 		'wall_w'          => $wall_w,
 		'super_w'         => $super_w,
@@ -119,6 +128,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'simulated'       => false,
 		'drive_ready'     => ! empty( $model3['drive_ready'] ),
 		'asleep'          => ! empty( $model3['asleep'] ),
+		'gas'             => $gas,
 	);
 }
 
@@ -138,7 +148,7 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'super'      => __( '急速充電', 'gaming-hub' ),
 			'superNote'  => __( 'Supercharger', 'gaming-hub' ),
 			'tesla'      => __( 'Tesla', 'gaming-hub' ),
-			'drive'      => __( '走行消費', 'gaming-hub' ),
+			'drive'      => __( 'ガソリン換算', 'gaming-hub' ),
 			'regen'      => __( '回生充電', 'gaming-hub' ),
 			'regenNote'  => __( '減速・ブレーキ', 'gaming-hub' ),
 			'cabin'      => __( '車内電力', 'gaming-hub' ),
@@ -157,6 +167,9 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'neutral'       => __( 'ニュートラル', 'gaming-hub' ),
 			'driveGear'     => __( 'ドライブ', 'gaming-hub' ),
 			'shiftUnknown'  => __( 'シフト未取得', 'gaming-hub' ),
+			'saved'         => __( '節約', 'gaming-hub' ),
+			'gasToday'      => __( '本日', 'gaming-hub' ),
+			'gasCar'        => __( '普通車 15 km/L', 'gaming-hub' ),
 		),
 		'images' => array(
 			'wall'  => $base . 'tesla-wall-connector-gaming.jpg',

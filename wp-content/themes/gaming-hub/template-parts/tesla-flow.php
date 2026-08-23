@@ -33,7 +33,7 @@ $flow   = isset( $status['tesla_flow'] ) && is_array( $status['tesla_flow'] )
 	</div>
 
 	<p class="tesla-flow-note">
-		<?php esc_html_e( '入力は普通充電（Wall Connector）と急速充電（Supercharger）。出力は走行消費と車内電力です。', 'gaming-hub' ); ?>
+		<?php esc_html_e( '入力は普通充電（Wall Connector）と急速充電（Supercharger）。走行は多治見のガソリン価格で普通車換算し、節約額を出します。', 'gaming-hub' ); ?>
 	</p>
 
 	<?php if ( 'tesla' === $source ) : ?>
