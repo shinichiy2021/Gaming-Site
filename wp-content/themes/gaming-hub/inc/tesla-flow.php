@@ -69,7 +69,8 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	}
 
 	$model3   = gaming_hub_powerwall_model3_present( $model3 );
-	$charging = ! empty( $model3['is_charging'] );
+	$asleep   = ! empty( $model3['asleep'] );
+	$charging = ! $asleep && ! empty( $model3['is_charging'] );
 	$kind     = (string) ( $model3['supply_kind'] ?? 'none' );
 	$charge_w = $charging ? gaming_hub_tesla_live_watt( $model3['watts'] ?? null ) : 0;
 
@@ -111,6 +112,18 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'today_yen' => 0,
 		);
 
+	if ( $asleep ) {
+		$wall_w  = 0;
+		$super_w = 0;
+		$drive_w = 0;
+		$cabin_w = 0;
+		$regen_w = 0;
+		$mode    = 'idle';
+		$gas     = function_exists( 'gaming_hub_tesla_gasoline_compare' )
+			? gaming_hub_tesla_gasoline_compare( $model3, 0, 0 )
+			: array();
+	}
+
 	return array(
 		'wall_w'          => $wall_w,
 		'super_w'         => $super_w,
@@ -119,9 +132,9 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'regen_w'         => $regen_w,
 		'mode'            => $mode,
 		'shift'           => (string) ( $model3['shift_state'] ?? '' ),
-		'speed_km'        => (int) ( $model3['speed_km'] ?? 0 ),
-		'climate_on'      => ! empty( $model3['climate_on'] ),
-		'sentry'          => ! empty( $model3['sentry_mode'] ),
+		'speed_km'        => $asleep ? 0 : (int) ( $model3['speed_km'] ?? 0 ),
+		'climate_on'      => ! $asleep && ! empty( $model3['climate_on'] ),
+		'sentry'          => ! $asleep && ! empty( $model3['sentry_mode'] ),
 		'battery_percent' => $soc,
 		'is_charging'     => $charging,
 		'charge_state'    => $charging
@@ -134,11 +147,11 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'vehicle_name'    => (string) ( $model3['vehicle_name'] ?? 'Model 3' ),
 		'supply_kind'     => $kind,
 		'supply_label'    => (string) ( $model3['supply_label'] ?? '' ),
-		'range_label'     => (string) ( $model3['range_label'] ?? '' ),
+		'range_label'     => $asleep ? '' : (string) ( $model3['range_label'] ?? '' ),
 		'live'            => true,
 		'simulated'       => false,
-		'drive_ready'     => ! empty( $model3['drive_ready'] ),
-		'asleep'          => ! empty( $model3['asleep'] ),
+		'drive_ready'     => ! $asleep && ! empty( $model3['drive_ready'] ),
+		'asleep'          => $asleep,
 		'gas'             => $gas,
 	);
 }

@@ -50,6 +50,10 @@ export function formatWatts( value, standbyLabel ) {
 }
 
 export function isRegenActive( status ) {
+	if ( status?.asleep ) {
+		return false;
+	}
+
 	return Number( status?.regen_w ) >= FLOW_THRESHOLD;
 }
 
@@ -69,7 +73,7 @@ export function connectionsForStatus( status ) {
 }
 
 export function wattsForFlow( flowId, status ) {
-	if ( ! status ) {
+	if ( ! status || status.asleep ) {
 		return 0;
 	}
 

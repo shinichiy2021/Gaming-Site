@@ -50,7 +50,7 @@ function formatCabinWatts( value, idle, live ) {
 }
 
 function cabinExtras( status, labels ) {
-	if ( ! status.live ) {
+	if ( ! status.live || status.asleep ) {
 		return [];
 	}
 
@@ -64,6 +64,10 @@ function cabinExtras( status, labels ) {
 }
 
 function formatGasValue( status, labels, idle ) {
+	if ( status.asleep ) {
+		return idle;
+	}
+
 	const gas = status.gas || {};
 	if ( ( status.regen_w || 0 ) >= 80 ) {
 		return null;
@@ -81,6 +85,10 @@ function formatGasValue( status, labels, idle ) {
 }
 
 function gasExtras( status, labels ) {
+	if ( status.asleep ) {
+		return [];
+	}
+
 	const gas = status.gas || {};
 	const items = [];
 	const driving = ( gas.gas_l_per_h || 0 ) > 0;
@@ -166,7 +174,7 @@ function teslaStateLabel( status, labels ) {
 	}
 
 	if ( status.asleep ) {
-		return labels.asleep || labels.idle;
+		return labels.idle;
 	}
 
 	if ( status.mode === 'regen' || ( status.regen_w || 0 ) >= 80 ) {
@@ -219,14 +227,15 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const assets = window.gamingHubTeslaFlow || {};
 	const images = assets.images || {};
 	const idle = labels.idle || '待機';
+	const asleep = !! status.asleep;
 	const soc = Number( status.battery_percent );
 	const hasSoc = status.live && Number.isFinite( soc );
 	const tone = batteryTone( hasSoc ? soc : NaN );
-	const charging = !! status.live && !! status.is_charging;
-	const regenOn = isRegenActive( status );
-	const driveOn = isFlowActive( 'drive', status );
-	const cabinOn = isFlowActive( 'cabin', status );
-	const teslaActive = charging || driveOn || cabinOn;
+	const charging = ! asleep && !! status.live && !! status.is_charging;
+	const regenOn = ! asleep && isRegenActive( status );
+	const driveOn = ! asleep && isFlowActive( 'drive', status );
+	const cabinOn = ! asleep && isFlowActive( 'cabin', status );
+	const teslaActive = ! asleep && ( charging || driveOn || cabinOn );
 	const teslaClasses = [
 		'ecoflow-node',
 		'ecoflow-node-battery',
@@ -255,20 +264,20 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							flowId="wall"
 							label={ labels.wall }
 							note={ labels.wallNote }
-							watts={ status.wall_w }
+							watts={ asleep ? 0 : status.wall_w }
 							photo={ images.wall }
 							photoClass="tesla-photo-wall"
-							active={ isFlowActive( 'wall', status ) }
+							active={ ! asleep && isFlowActive( 'wall', status ) }
 							standbyLabel={ idle }
 						/>
 						<PhotoNode
 							flowId="super"
 							label={ labels.super }
 							note={ labels.superNote }
-							watts={ status.super_w }
+							watts={ asleep ? 0 : status.super_w }
 							photo={ images.super }
 							photoClass="tesla-photo-super"
-							active={ isFlowActive( 'super', status ) }
+							active={ ! asleep && isFlowActive( 'super', status ) }
 							standbyLabel={ idle }
 						/>
 					</div>
@@ -286,7 +295,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 						</div>
 						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
 						<p className="ecoflow-node-state">{ teslaStateLabel( status, labels ) }</p>
-						{ status.live && status.range_label ? <small>{ status.range_label }</small> : null }
+						{ ! asleep && status.live && status.range_label ? <small>{ status.range_label }</small> : null }
 					</div>
 
 					<div className="tesla-flow-outputs">
@@ -296,7 +305,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							note={ regenOn ? labels.regenNote : ( labels.gasCar || null ) }
 							watts={ regenOn ? status.regen_w : status.drive_w }
 							className={ regenOn ? 'is-regen' : '' }
-							active={ driveOn || ( status.gas?.saved_yen || 0 ) > 0 }
+							active={ ! asleep && ( driveOn || ( status.gas?.saved_yen || 0 ) > 0 ) }
 							standbyLabel={ idle }
 							overlay={ <ShiftIcon status={ status } labels={ labels } /> }
 							display={ regenOn ? null : formatGasValue( status, labels, idle ) }
@@ -312,7 +321,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							photoClass="tesla-photo-cabin"
 							active={ cabinOn }
 							standbyLabel={ idle }
-							display={ formatCabinWatts( status.cabin_w, idle, !! status.live ) }
+							display={ formatCabinWatts( status.cabin_w, idle, ! asleep && !! status.live ) }
 							extra={ cabinExtras( status, labels ).map( ( line ) => (
 								<small key={ line } className={ line.indexOf( labels.todayBill || '今日 電気代' ) === 0 ? 'tesla-gas-saved' : '' }>{ line }</small>
 							) ) }
