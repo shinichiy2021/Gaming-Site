@@ -1670,6 +1670,23 @@ body.home .site-header.is-scrolled {
 	border-radius: var(--radius-md);
 }
 
+.pw-flow-error-action {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 14px;
+	margin: 0 0 16px;
+}
+
+.pw-flow-error-action .pw-flow-error {
+	margin: 0;
+	flex: 1 1 240px;
+}
+
+.pw-tesla-oauth-btn {
+	flex: 0 0 auto;
+}
+
 .pw-flow-setup-panel {
 	margin-bottom: 16px;
 	padding: 16px;

@@ -87,8 +87,48 @@ function gaming_hub_get_tesla_config() {
 		'refresh_token'  => gaming_hub_tesla_get_refresh_token(),
 		'vehicle_vin'    => gaming_hub_tesla_env( 'TESLA_VEHICLE_VIN' ) ?: get_theme_mod( 'tesla_vehicle_vin', '' ),
 		'fleet_base_url' => gaming_hub_tesla_default_fleet_base_url(),
-		'redirect_uri'   => gaming_hub_tesla_env( 'TESLA_REDIRECT_URI' ) ?: rest_url( 'gaming-hub/v1/tesla/oauth/callback' ),
+		'redirect_uri'   => gaming_hub_tesla_oauth_redirect_uri(),
 	);
+}
+
+/**
+ * Whether a host is local development.
+ *
+ * @param string $host Hostname.
+ */
+function gaming_hub_tesla_is_local_host( $host = '' ) {
+	if ( '' === $host ) {
+		$parsed = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
+		$host   = is_string( $parsed ) ? $parsed : '';
+	}
+
+	$host = strtolower( (string) $host );
+
+	return in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true )
+		|| (bool) preg_match( '/\.local$/', $host );
+}
+
+/**
+ * Registered Tesla OAuth redirect URI (production callback).
+ */
+function gaming_hub_tesla_oauth_redirect_uri() {
+	$configured = gaming_hub_tesla_env( 'TESLA_REDIRECT_URI' );
+	if ( $configured ) {
+		return $configured;
+	}
+
+	if ( ! gaming_hub_tesla_is_local_host() ) {
+		return rest_url( 'gaming-hub/v1/tesla/oauth/callback' );
+	}
+
+	$origin = gaming_hub_tesla_env( 'GAMING_HUB_ENERGY_ORIGIN' );
+	$host   = $origin ? wp_parse_url( $origin, PHP_URL_HOST ) : gaming_hub_tesla_partner_domain();
+
+	if ( ! is_string( $host ) || '' === $host || gaming_hub_tesla_is_local_host( $host ) ) {
+		$host = 'shinichiy-gaming-hub.com';
+	}
+
+	return 'https://' . strtolower( $host ) . '/wp-json/gaming-hub/v1/tesla/oauth/callback';
 }
 
 /**
@@ -291,6 +331,65 @@ function gaming_hub_tesla_model3_is_configured() {
 }
 
 /**
+ * Shared secret for Tesla OAuth state (works across local → production callback).
+ */
+function gaming_hub_tesla_oauth_state_key() {
+	$secret = gaming_hub_tesla_env( 'TESLA_CLIENT_SECRET' ) ?: get_theme_mod( 'tesla_client_secret', '' );
+
+	return '' !== $secret ? $secret : wp_salt( 'auth' );
+}
+
+/**
+ * Create a signed OAuth state that production can verify without a local transient.
+ */
+function gaming_hub_tesla_oauth_state() {
+	$issued = (string) time();
+	$nonce  = wp_generate_password( 16, false );
+	$body   = $issued . '.' . $nonce;
+	$state  = $body . '.' . hash_hmac( 'sha256', $body, gaming_hub_tesla_oauth_state_key() );
+
+	set_transient( 'gaming_hub_tesla_oauth_state_' . $state, 1, 15 * MINUTE_IN_SECONDS );
+
+	return $state;
+}
+
+/**
+ * Whether Tesla OAuth state is valid.
+ *
+ * @param string $state OAuth state.
+ */
+function gaming_hub_tesla_oauth_state_is_valid( $state ) {
+	$state = (string) $state;
+
+	if ( '' === $state ) {
+		return false;
+	}
+
+	if ( get_transient( 'gaming_hub_tesla_oauth_state_' . $state ) ) {
+		return true;
+	}
+
+	$parts = explode( '.', $state );
+	if ( 3 !== count( $parts ) ) {
+		return false;
+	}
+
+	list( $issued, $nonce, $sig ) = $parts;
+
+	if ( ! ctype_digit( $issued ) || ! preg_match( '/^[A-Za-z0-9]+$/', $nonce ) ) {
+		return false;
+	}
+
+	if ( abs( time() - (int) $issued ) > 15 * MINUTE_IN_SECONDS ) {
+		return false;
+	}
+
+	$expected = hash_hmac( 'sha256', $issued . '.' . $nonce, gaming_hub_tesla_oauth_state_key() );
+
+	return hash_equals( $expected, $sig );
+}
+
+/**
  * Build Tesla OAuth authorize URL.
  */
 function gaming_hub_tesla_oauth_authorize_url() {
@@ -300,18 +399,32 @@ function gaming_hub_tesla_oauth_authorize_url() {
 		return '';
 	}
 
-	$state = wp_generate_password( 24, false );
-	set_transient( 'gaming_hub_tesla_oauth_state_' . $state, 1, 15 * MINUTE_IN_SECONDS );
-
 	$params = array(
 		'client_id'     => $config['client_id'],
 		'redirect_uri'  => $config['redirect_uri'],
 		'response_type' => 'code',
 		'scope'         => 'openid offline_access vehicle_device_data',
-		'state'         => $state,
+		'state'         => gaming_hub_tesla_oauth_state(),
 	);
 
 	return add_query_arg( $params, 'https://auth.tesla.com/oauth2/v3/authorize' );
+}
+
+/**
+ * Render the Tesla OAuth button.
+ */
+function gaming_hub_render_tesla_oauth_button() {
+	$authorize = gaming_hub_tesla_oauth_authorize_url();
+
+	if ( ! $authorize ) {
+		echo '<span class="pw-flow-oauth-missing">' . esc_html__( 'Client ID を設定すると認証リンクが表示されます', 'gaming-hub' ) . '</span>';
+		return;
+	}
+	?>
+	<a href="<?php echo esc_url( $authorize ); ?>" class="btn btn-outline btn-sm pw-tesla-oauth-btn" target="_blank" rel="noopener noreferrer">
+		<?php esc_html_e( 'Tesla で認証', 'gaming-hub' ); ?>
+	</a>
+	<?php
 }
 
 /**
@@ -726,20 +839,13 @@ function gaming_hub_powerwall_recalc_flow_load( array $status ) {
  * Setup instructions for Tesla Model 3 API.
  */
 function gaming_hub_render_tesla_setup_instructions() {
-	$authorize = gaming_hub_tesla_oauth_authorize_url();
 	?>
 	<ol class="pw-flow-setup-steps">
 		<li><?php esc_html_e( 'developer.tesla.com でアプリを作成し Client ID / Secret を取得', 'gaming-hub' ); ?></li>
 		<li><?php esc_html_e( '.env または 外観 → カスタマイズ → Tesla API に Client ID / Secret / VIN を設定', 'gaming-hub' ); ?></li>
 		<li>
 			<?php esc_html_e( 'Tesla アカウント連携:', 'gaming-hub' ); ?>
-			<?php if ( $authorize ) : ?>
-				<a href="<?php echo esc_url( $authorize ); ?>" class="btn btn-outline btn-sm" target="_blank" rel="noopener noreferrer">
-					<?php esc_html_e( 'Tesla で認証', 'gaming-hub' ); ?>
-				</a>
-			<?php else : ?>
-				<?php esc_html_e( 'Client ID を設定すると認証リンクが表示されます', 'gaming-hub' ); ?>
-			<?php endif; ?>
+			<?php gaming_hub_render_tesla_oauth_button(); ?>
 		</li>
 		<li><?php esc_html_e( 'Redirect URI: /wp-json/gaming-hub/v1/tesla/oauth/callback', 'gaming-hub' ); ?></li>
 		<li>
@@ -771,7 +877,7 @@ function gaming_hub_rest_tesla_oauth_callback( WP_REST_Request $request ) {
 	$code  = sanitize_text_field( (string) $request->get_param( 'code' ) );
 	$state = sanitize_text_field( (string) $request->get_param( 'state' ) );
 
-	if ( ! $code || ! $state || ! get_transient( 'gaming_hub_tesla_oauth_state_' . $state ) ) {
+	if ( ! $code || ! $state || ! gaming_hub_tesla_oauth_state_is_valid( $state ) ) {
 		return new WP_REST_Response(
 			array(
 				'success' => false,
