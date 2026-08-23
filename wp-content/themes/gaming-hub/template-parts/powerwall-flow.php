@@ -86,7 +86,10 @@ $model3_charging = ! empty( $model3['is_charging'] );
 			<?php gaming_hub_render_tesla_setup_instructions(); ?>
 		</div>
 	<?php elseif ( ! empty( $status['model3_error'] ) ) : ?>
-		<p class="pw-flow-error"><?php echo esc_html( 'Model 3 API: ' . $status['model3_error'] ); ?></p>
+		<div class="pw-flow-error-action">
+			<p class="pw-flow-error"><?php echo esc_html( 'Model 3 API: ' . $status['model3_error'] ); ?></p>
+			<?php gaming_hub_render_tesla_oauth_button(); ?>
+		</div>
 	<?php elseif ( 'tesla' === ( $status['model3_source'] ?? '' ) ) : ?>
 		<p class="pw-flow-live-note"><?php esc_html_e( 'Model 3: Tesla Fleet API 実データ', 'gaming-hub' ); ?></p>
 	<?php endif; ?>
