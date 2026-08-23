@@ -56,6 +56,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'range_label'     => '',
 			'live'            => false,
 			'simulated'       => false,
+			'drive_ready'     => false,
 		);
 	}
 
@@ -98,7 +99,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'cabin_w'         => $cabin_w,
 		'regen_w'         => $regen_w,
 		'mode'            => $mode,
-		'shift'           => (string) ( $model3['shift_state'] ?? 'P' ),
+		'shift'           => (string) ( $model3['shift_state'] ?? '' ),
 		'speed_km'        => (int) ( $model3['speed_km'] ?? 0 ),
 		'climate_on'      => ! empty( $model3['climate_on'] ),
 		'sentry'          => ! empty( $model3['sentry_mode'] ),
@@ -115,6 +116,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'range_label'     => (string) ( $model3['range_label'] ?? '' ),
 		'live'            => true,
 		'simulated'       => false,
+		'drive_ready'     => ! empty( $model3['drive_ready'] ),
 	);
 }
 

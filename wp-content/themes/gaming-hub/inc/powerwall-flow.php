@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v13' );
+define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v14' );
 define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 30 );
 define( 'GAMING_HUB_POWERWALL_SOLAR_POLL_MS', HOUR_IN_SECONDS * 1000 );
 
@@ -140,6 +140,11 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 			(string) ( $status['model3_source'] ?? 'simulated' )
 		);
 	}
+
+	$status['tesla_drive_ready'] = ! empty( $status['model3']['drive_ready'] );
+	$status['tesla_needs_location_scope'] = function_exists( 'gaming_hub_tesla_has_location_scope' )
+		&& 'tesla' === (string) ( $status['model3_source'] ?? '' )
+		&& ! gaming_hub_tesla_has_location_scope();
 
 	$status['updated_at'] = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) );
 
