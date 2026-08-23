@@ -1,6 +1,6 @@
 <?php
 /**
- * Tag archive template
+ * Tag archive — EcoFlow / Tesla / Pokémon GO screens.
  *
  * @package Gaming_Hub
  */
@@ -8,46 +8,52 @@
 get_header();
 
 $is_ecoflow = is_tag( 'ecoflow' );
-$is_energy  = is_tag( 'energy' );
+$is_tesla   = is_tag( 'tesla' );
+$is_pgo     = is_tag( 'pokemon-go' );
+$is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
 ?>
 
-<div class="archive-header <?php echo ( $is_ecoflow || $is_energy ) ? 'ecoflow-archive-header' : ''; ?>">
-	<div class="container">
-		<?php if ( $is_ecoflow ) : ?>
-			<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">EcoFlow</span>
-		<?php elseif ( $is_energy ) : ?>
-			<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">Energy</span>
-		<?php endif; ?>
-		<?php the_archive_title( '<h1 class="archive-title">', '</h1>' ); ?>
-		<?php the_archive_description( '<div class="archive-description">', '</div>' ); ?>
-		<?php if ( $is_ecoflow ) : ?>
-			<p class="ecoflow-archive-desc"><?php esc_html_e( 'ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事', 'gaming-hub' ); ?></p>
-			<div class="ecoflow-official-links">
-				<a href="<?php echo esc_url( gaming_hub_energy_url() ); ?>" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
-				<a href="https://jp.ecoflow.com/" target="_blank" rel="noopener noreferrer" class="btn btn-primary ecoflow-btn"><?php esc_html_e( 'EcoFlow 公式サイト', 'gaming-hub' ); ?></a>
-				<a href="https://jp.ecoflow.com/pages/blog" target="_blank" rel="noopener noreferrer" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '公式ブログ', 'gaming-hub' ); ?></a>
-			</div>
-		<?php elseif ( $is_energy ) : ?>
-			<p class="ecoflow-archive-desc"><?php esc_html_e( 'EcoFlow の実測ワットを積算した発電・入出力ログです。', 'gaming-hub' ); ?></p>
-			<div class="ecoflow-official-links">
-				<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>" class="btn btn-primary ecoflow-btn"><?php esc_html_e( 'EcoFlow ダッシュボード', 'gaming-hub' ); ?></a>
-			</div>
-		<?php endif; ?>
+<?php if ( $is_tesla ) : ?>
+	<section class="hub-section hub-tesla">
+		<?php get_template_part( 'template-parts/powerwall', 'page' ); ?>
+	</section>
+<?php elseif ( $is_pgo ) : ?>
+	<section class="hub-section hub-pokemon-go">
+		<?php get_template_part( 'template-parts/pokemon-go', 'page' ); ?>
+	</section>
+<?php else : ?>
+	<div class="archive-header <?php echo $is_ecoflow ? 'ecoflow-archive-header' : ''; ?>">
+		<div class="container">
+			<?php if ( $is_ecoflow ) : ?>
+				<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">EcoFlow</span>
+			<?php endif; ?>
+			<?php if ( ! $is_ecoflow ) : ?>
+				<?php the_archive_title( '<h1 class="archive-title">', '</h1>' ); ?>
+				<?php the_archive_description( '<div class="archive-description">', '</div>' ); ?>
+			<?php endif; ?>
+			<?php if ( $is_ecoflow ) : ?>
+				<p class="ecoflow-archive-desc"><?php esc_html_e( 'ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事', 'gaming-hub' ); ?></p>
+				<div class="ecoflow-official-links">
+					<a href="#energy" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
+					<a href="https://jp.ecoflow.com/" target="_blank" rel="noopener noreferrer" class="btn btn-primary ecoflow-btn"><?php esc_html_e( 'EcoFlow 公式サイト', 'gaming-hub' ); ?></a>
+					<a href="https://jp.ecoflow.com/pages/blog" target="_blank" rel="noopener noreferrer" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '公式ブログ', 'gaming-hub' ); ?></a>
+				</div>
+			<?php endif; ?>
+		</div>
 	</div>
-</div>
+<?php endif; ?>
 
 <?php if ( $is_ecoflow ) : ?>
 	<div class="container ecoflow-dashboard-wrap">
 		<?php gaming_hub_render_ecoflow_dashboard(); ?>
 	</div>
-<?php elseif ( $is_energy ) : ?>
-	<div class="container ecoflow-dashboard-wrap">
+	<div id="energy" class="container ecoflow-dashboard-wrap">
 		<?php gaming_hub_render_ecoflow_energy_page(); ?>
 	</div>
 <?php endif; ?>
 
-<div class="container content-area">
-	<?php if ( have_posts() ) : ?>
+<?php if ( have_posts() ) : ?>
+	<div class="container content-area">
 		<div class="posts-grid">
 			<?php
 			while ( have_posts() ) :
@@ -57,12 +63,17 @@ $is_energy  = is_tag( 'energy' );
 			?>
 		</div>
 
-		<?php the_posts_pagination( array(
-			'prev_text' => '&larr; ' . __( 'Previous', 'gaming-hub' ),
-			'next_text' => __( 'Next', 'gaming-hub' ) . ' &rarr;',
-		) ); ?>
-
-	<?php elseif ( $is_ecoflow ) : ?>
+		<?php
+		the_posts_pagination(
+			array(
+				'prev_text' => '&larr; ' . __( 'Previous', 'gaming-hub' ),
+				'next_text' => __( 'Next', 'gaming-hub' ) . ' &rarr;',
+			)
+		);
+		?>
+	</div>
+<?php elseif ( $is_ecoflow ) : ?>
+	<div class="container content-area">
 		<div class="ecoflow-empty">
 			<p><?php esc_html_e( 'EcoFlow タグの記事はまだありません。', 'gaming-hub' ); ?></p>
 			<div class="ecoflow-links-grid">
@@ -83,17 +94,15 @@ $is_energy  = is_tag( 'energy' );
 				</a>
 			</div>
 		</div>
-	<?php elseif ( $is_energy ) : ?>
-		<div class="ecoflow-empty">
-			<p><?php esc_html_e( 'Energy タグの記事はまだありません。上のグラフが発電ログです。', 'gaming-hub' ); ?></p>
-		</div>
-	<?php else : ?>
+	</div>
+<?php elseif ( ! $is_dash ) : ?>
+	<div class="container content-area">
 		<div class="no-results">
 			<h2><?php esc_html_e( 'Nothing Found', 'gaming-hub' ); ?></h2>
 			<p><?php esc_html_e( 'No posts found with this tag.', 'gaming-hub' ); ?></p>
 		</div>
-	<?php endif; ?>
-</div>
+	</div>
+<?php endif; ?>
 
 <?php
 get_footer();

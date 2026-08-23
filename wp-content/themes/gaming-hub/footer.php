@@ -4,7 +4,7 @@
 	<div class="container">
 		<div class="footer-grid">
 			<div class="footer-brand">
-				<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="footer-logo">
+				<a href="<?php echo esc_url( gaming_hub_default_entry_url() ); ?>" class="footer-logo">
 					<?php gaming_hub_render_logo_mark(); ?>
 					<?php bloginfo( 'name' ); ?>
 				</a>

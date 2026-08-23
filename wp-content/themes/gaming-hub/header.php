@@ -11,7 +11,7 @@
 <header class="site-header">
 	<div class="container header-inner">
 		<div class="site-branding">
-			<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="site-title">
+			<a href="<?php echo esc_url( gaming_hub_default_entry_url() ); ?>" class="site-title">
 				<?php gaming_hub_render_logo_mark(); ?>
 				<?php bloginfo( 'name' ); ?>
 			</a>

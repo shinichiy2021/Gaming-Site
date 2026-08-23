@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.10.43' );
+define( 'GAMING_HUB_VERSION', '1.10.47' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -95,62 +95,29 @@ require get_template_directory() . '/inc/tajimi-gasoline.php';
 require get_template_directory() . '/inc/tesla-flow.php';
 
 /**
- * Front-page section hash for a hub block.
+ * Tag archive URL (creates a stable /tag/{slug}/ fallback).
  *
- * @param string               $section Section id without #.
- * @param array<string, mixed> $query   Optional query args.
+ * @param string               $slug  Tag slug.
+ * @param array<string, mixed> $query Optional query args.
  */
-function gaming_hub_hub_section_url( $section, $query = array() ) {
-	$section = sanitize_title( $section );
-	$url     = home_url( '/' );
-	if ( ! empty( $query ) ) {
-		$url = add_query_arg( $query, $url );
+function gaming_hub_tag_url( $slug, $query = array() ) {
+	$slug = sanitize_title( $slug );
+	$term = get_term_by( 'slug', $slug, 'post_tag' );
+	$url  = ( $term && ! is_wp_error( $term ) ) ? get_term_link( $term ) : home_url( '/tag/' . $slug . '/' );
+
+	if ( is_wp_error( $url ) || ! is_string( $url ) || '' === $url ) {
+		$url = home_url( '/tag/' . $slug . '/' );
 	}
 
-	return $url . '#' . $section;
+	return empty( $query ) ? $url : add_query_arg( $query, $url );
 }
 
 /**
- * Map a legacy page/tag URL to a hub section id.
+ * Tesla OAuth flags that must follow the visitor to the Tesla tag.
  *
- * @param string $url Absolute or relative URL.
+ * @return array<string, string>
  */
-function gaming_hub_url_hub_section( $url ) {
-	$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
-	$path = untrailingslashit( $path );
-	$map  = array(
-		'/tag/ecoflow' => 'ecoflow',
-		'/tag/energy'  => 'energy',
-		'/powerwall'   => 'powerwall',
-		'/pokemon-go'  => 'pokemon-go',
-	);
-
-	return isset( $map[ $path ] ) ? $map[ $path ] : '';
-}
-
-/**
- * Send old section pages to the one-page hub with the same jump target.
- */
-function gaming_hub_redirect_legacy_section_pages() {
-	if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || is_front_page() ) {
-		return;
-	}
-
-	$section = '';
-	if ( is_tag( 'ecoflow' ) ) {
-		$section = 'ecoflow';
-	} elseif ( is_tag( 'energy' ) ) {
-		$section = 'energy';
-	} elseif ( is_page( 'powerwall' ) ) {
-		$section = 'powerwall';
-	} elseif ( is_page( 'pokemon-go' ) ) {
-		$section = 'pokemon-go';
-	}
-
-	if ( '' === $section ) {
-		return;
-	}
-
+function gaming_hub_tesla_oauth_query() {
 	$query = array();
 	if ( ! empty( $_GET['tesla_connected'] ) ) {
 		$query['tesla_connected'] = '1';
@@ -159,10 +126,190 @@ function gaming_hub_redirect_legacy_section_pages() {
 		$query['tesla_revoked'] = '1';
 	}
 
-	wp_safe_redirect( gaming_hub_hub_section_url( $section, $query ), 301 );
-	exit;
+	return $query;
+}
+
+/**
+ * Default landing URL: Tesla while driving, otherwise EcoFlow.
+ */
+function gaming_hub_default_entry_url() {
+	$query = gaming_hub_tesla_oauth_query();
+	if ( $query ) {
+		return function_exists( 'gaming_hub_tesla_url' )
+			? gaming_hub_tesla_url( $query )
+			: gaming_hub_tag_url( 'tesla', $query );
+	}
+
+	if ( function_exists( 'gaming_hub_tesla_is_driving_now' ) && gaming_hub_tesla_is_driving_now() ) {
+		return function_exists( 'gaming_hub_tesla_url' )
+			? gaming_hub_tesla_url()
+			: gaming_hub_tag_url( 'tesla' );
+	}
+
+	return function_exists( 'gaming_hub_ecoflow_url' )
+		? gaming_hub_ecoflow_url()
+		: gaming_hub_tag_url( 'ecoflow' );
+}
+
+/**
+ * Legacy hub section id → tag URL.
+ *
+ * @param string               $section Section id without #.
+ * @param array<string, mixed> $query   Optional query args.
+ */
+function gaming_hub_hub_section_url( $section, $query = array() ) {
+	$section = sanitize_title( $section );
+
+	if ( 'energy' === $section ) {
+		return ( function_exists( 'gaming_hub_energy_url' )
+			? gaming_hub_energy_url( $query )
+			: gaming_hub_tag_url( 'ecoflow', $query ) . '#energy' );
+	}
+
+	if ( 'powerwall' === $section || 'tesla' === $section ) {
+		return function_exists( 'gaming_hub_tesla_url' )
+			? gaming_hub_tesla_url( $query )
+			: gaming_hub_tag_url( 'tesla', $query );
+	}
+
+	if ( 'pokemon-go' === $section ) {
+		return function_exists( 'gaming_hub_pokemon_go_url' )
+			? gaming_hub_pokemon_go_url( $query )
+			: gaming_hub_tag_url( 'pokemon-go', $query );
+	}
+
+	return function_exists( 'gaming_hub_ecoflow_url' )
+		? gaming_hub_ecoflow_url( $query )
+		: gaming_hub_tag_url( 'ecoflow', $query );
+}
+
+/**
+ * Map a legacy page/tag/hash URL to a section id.
+ *
+ * @param string $url Absolute or relative URL.
+ */
+function gaming_hub_url_hub_section( $url ) {
+	$parts = wp_parse_url( (string) $url );
+	$path  = untrailingslashit( (string) ( $parts['path'] ?? '' ) );
+	$hash  = (string) ( $parts['fragment'] ?? '' );
+	$map   = array(
+		'/tag/ecoflow'     => 'ecoflow',
+		'/tag/energy'      => 'energy',
+		'/tag/tesla'       => 'tesla',
+		'/tag/pokemon-go'  => 'pokemon-go',
+		'/powerwall'       => 'tesla',
+		'/pokemon-go'      => 'pokemon-go',
+	);
+
+	if ( isset( $map[ $path ] ) ) {
+		return $map[ $path ];
+	}
+
+	if ( in_array( $hash, array( 'ecoflow', 'energy', 'powerwall', 'tesla', 'pokemon-go' ), true ) ) {
+		return 'powerwall' === $hash ? 'tesla' : $hash;
+	}
+
+	return '';
+}
+
+/**
+ * Home → EcoFlow (or Tesla while driving). Old pages/tags → the new tag screens.
+ */
+function gaming_hub_redirect_legacy_section_pages() {
+	if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || is_feed() || is_customize_preview() ) {
+		return;
+	}
+
+	$query = gaming_hub_tesla_oauth_query();
+
+	if ( is_front_page() ) {
+		wp_safe_redirect( gaming_hub_default_entry_url(), 302 );
+		exit;
+	}
+
+	if ( is_tag( 'energy' ) ) {
+		wp_safe_redirect(
+			function_exists( 'gaming_hub_ecoflow_url' ) ? gaming_hub_ecoflow_url() : gaming_hub_tag_url( 'ecoflow' ),
+			301
+		);
+		exit;
+	}
+
+	if ( is_tag( 'powerwall' ) || is_page( 'powerwall' ) ) {
+		wp_safe_redirect(
+			function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url( $query ) : gaming_hub_tag_url( 'tesla', $query ),
+			301
+		);
+		exit;
+	}
+
+	if ( is_page( 'pokemon-go' ) ) {
+		wp_safe_redirect(
+			function_exists( 'gaming_hub_pokemon_go_url' ) ? gaming_hub_pokemon_go_url() : gaming_hub_tag_url( 'pokemon-go' ),
+			301
+		);
+		exit;
+	}
 }
 add_action( 'template_redirect', 'gaming_hub_redirect_legacy_section_pages' );
+
+/**
+ * Keep dashboard tags visible even when they have no posts.
+ *
+ * @param bool     $preempt Whether to short-circuit 404 handling.
+ * @param WP_Query $query   Main query.
+ */
+function gaming_hub_allow_empty_dashboard_tags( $preempt, $query ) {
+	if ( $preempt || ! $query instanceof WP_Query ) {
+		return $preempt;
+	}
+
+	if ( $query->is_tag( array( 'ecoflow', 'energy', 'tesla', 'pokemon-go' ) ) ) {
+		return true;
+	}
+
+	return $preempt;
+}
+add_filter( 'pre_handle_404', 'gaming_hub_allow_empty_dashboard_tags', 10, 2 );
+
+/**
+ * EcoFlow tag archive also lists Energy-tagged posts.
+ *
+ * @param WP_Query $query Main query.
+ */
+function gaming_hub_ecoflow_tag_includes_energy( $query ) {
+	if ( is_admin() || ! $query->is_main_query() || ! $query->is_tag( 'ecoflow' ) ) {
+		return;
+	}
+
+	$ids  = array();
+	$eco  = get_term_by( 'slug', 'ecoflow', 'post_tag' );
+	$nrg  = get_term_by( 'slug', 'energy', 'post_tag' );
+	if ( $eco && ! is_wp_error( $eco ) ) {
+		$ids[] = (int) $eco->term_id;
+	}
+	if ( $nrg && ! is_wp_error( $nrg ) ) {
+		$ids[] = (int) $nrg->term_id;
+	}
+	if ( ! $ids ) {
+		return;
+	}
+
+	$query->set( 'tag', '' );
+	$query->set( 'tag_id', 0 );
+	$query->set(
+		'tax_query',
+		array(
+			array(
+				'taxonomy' => 'post_tag',
+				'field'    => 'term_id',
+				'terms'    => $ids,
+				'operator' => 'IN',
+			),
+		)
+	);
+}
+add_action( 'pre_get_posts', 'gaming_hub_ecoflow_tag_includes_energy' );
 
 function gaming_hub_setup() {
 	load_theme_textdomain( 'gaming-hub', get_template_directory() . '/languages' );
@@ -233,7 +380,7 @@ function gaming_hub_login_logo_styles() {
 add_action( 'login_enqueue_scripts', 'gaming_hub_login_logo_styles' );
 
 function gaming_hub_login_logo_url() {
-	return home_url( '/' );
+	return gaming_hub_default_entry_url();
 }
 add_filter( 'login_headerurl', 'gaming_hub_login_logo_url' );
 
@@ -296,10 +443,8 @@ function gaming_hub_scripts() {
 		'gamingHubActiveRefreshConfig',
 		array(
 			'reloadAfterMs'  => MINUTE_IN_SECONDS * 1000,
-			'reloadOnActive' => is_front_page()
-				|| is_tag( 'ecoflow' )
-				|| is_tag( 'energy' )
-				|| is_page( array( 'pokemon-go', 'pokemon-go-raid', 'powerwall' ) ),
+			'reloadOnActive' => is_tag( array( 'ecoflow', 'tesla', 'pokemon-go' ) )
+				|| is_page( array( 'pokemon-go-raid' ) ),
 		)
 	);
 
@@ -309,6 +454,20 @@ function gaming_hub_scripts() {
 		array( 'gaming-hub-active-refresh', 'gaming-hub-i18n' ),
 		GAMING_HUB_VERSION,
 		true
+	);
+
+	wp_localize_script(
+		'gaming-hub-main',
+		'gamingHubNav',
+		array(
+			'hashMap' => array(
+				'#ecoflow'    => function_exists( 'gaming_hub_ecoflow_url' ) ? gaming_hub_ecoflow_url() : gaming_hub_tag_url( 'ecoflow' ),
+				'#energy'     => function_exists( 'gaming_hub_energy_url' ) ? gaming_hub_energy_url() : gaming_hub_tag_url( 'ecoflow' ) . '#energy',
+				'#powerwall'  => function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : gaming_hub_tag_url( 'tesla' ),
+				'#tesla'      => function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : gaming_hub_tag_url( 'tesla' ),
+				'#pokemon-go' => function_exists( 'gaming_hub_pokemon_go_url' ) ? gaming_hub_pokemon_go_url() : gaming_hub_tag_url( 'pokemon-go' ),
+			),
+		)
 	);
 }
 add_action( 'wp_enqueue_scripts', 'gaming_hub_scripts' );
@@ -590,7 +749,7 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 		'tesla_refresh_token',
 		array(
 			'label'       => __( 'Refresh Token', 'gaming-hub' ),
-			'description' => __( 'Powerwall ページの「Tesla で認証」後に自動保存。手動設定も可。', 'gaming-hub' ),
+			'description' => __( 'Tesla タグの「Tesla で認証」後に自動保存。手動設定も可。', 'gaming-hub' ),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'password',
 		)
@@ -599,11 +758,17 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 add_action( 'customize_register', 'gaming_hub_customize_register_tesla' );
 
 function gaming_hub_fallback_menu() {
+	$items = array(
+		array( 'url' => gaming_hub_ecoflow_url(), 'label' => __( 'EcoFlow', 'gaming-hub' ), 'current' => is_tag( 'ecoflow' ) ),
+		array( 'url' => gaming_hub_tesla_url(), 'label' => __( 'Tesla', 'gaming-hub' ), 'current' => is_tag( 'tesla' ) ),
+		array( 'url' => gaming_hub_pokemon_go_url(), 'label' => __( 'Pokémon GO', 'gaming-hub' ), 'current' => is_tag( 'pokemon-go' ) ),
+	);
+
 	echo '<ul class="nav-menu">';
-	echo '<li><a href="' . esc_url( gaming_hub_ecoflow_url() ) . '">' . esc_html__( 'EcoFlow', 'gaming-hub' ) . '</a></li>';
-	echo '<li><a href="' . esc_url( gaming_hub_energy_url() ) . '">' . esc_html__( 'Energy', 'gaming-hub' ) . '</a></li>';
-	echo '<li><a href="' . esc_url( gaming_hub_powerwall_url() ) . '">' . esc_html__( 'Powerwall', 'gaming-hub' ) . '</a></li>';
-	echo '<li><a href="' . esc_url( gaming_hub_pokemon_go_url() ) . '">' . esc_html__( 'Pokémon GO', 'gaming-hub' ) . '</a></li>';
+	foreach ( $items as $item ) {
+		$li = $item['current'] ? ' class="current-menu-item"' : '';
+		echo '<li' . $li . '><a href="' . esc_url( $item['url'] ) . '">' . esc_html( $item['label'] ) . '</a></li>';
+	}
 	echo '</ul>';
 }
 
@@ -645,6 +810,17 @@ function gaming_hub_hide_nav_categories( $items ) {
 					return false;
 				}
 
+				if ( in_array( $title, array( 'home', 'ホーム', 'energy', '発電ログ' ), true )
+					|| false !== strpos( $url, '/tag/energy' ) ) {
+					return false;
+				}
+
+				$path = untrailingslashit( (string) wp_parse_url( $url, PHP_URL_PATH ) );
+				$hash = (string) wp_parse_url( $url, PHP_URL_FRAGMENT );
+				if ( ( '' === $path || '/' === $path ) && '' === $hash && in_array( $title, array( 'home', 'ホーム', '' ), true ) ) {
+					return false;
+				}
+
 				if ( in_array( $slug, $hidden, true ) || in_array( $title, $hidden, true ) ) {
 					return false;
 				}
@@ -663,19 +839,74 @@ function gaming_hub_hide_nav_categories( $items ) {
 add_filter( 'wp_nav_menu_objects', 'gaming_hub_hide_nav_categories' );
 
 /**
- * Keep menu items as in-page jump links to the combined hub.
+ * Point menu items at the tag screens (EcoFlow / Tesla / Pokémon GO).
  *
  * @param array<int, WP_Post> $items Menu items.
  * @return array<int, WP_Post>
  */
 function gaming_hub_nav_hub_section_urls( $items ) {
 	foreach ( $items as $item ) {
-		$section = gaming_hub_url_hub_section( $item->url ?? '' );
-		if ( '' !== $section ) {
-			$item->url = gaming_hub_hub_section_url( $section );
+		$url     = (string) ( $item->url ?? '' );
+		$section = gaming_hub_url_hub_section( $url );
+		$title   = strtolower( trim( (string) ( $item->title ?? '' ) ) );
+
+		if ( 'energy' === $section ) {
+			$item->url = function_exists( 'gaming_hub_energy_url' )
+				? gaming_hub_energy_url()
+				: gaming_hub_tag_url( 'ecoflow' ) . '#energy';
+			continue;
+		}
+
+		if ( 'ecoflow' === $section || 'ecoflow' === $title ) {
+			$item->url = function_exists( 'gaming_hub_ecoflow_url' )
+				? gaming_hub_ecoflow_url()
+				: gaming_hub_tag_url( 'ecoflow' );
+			continue;
+		}
+
+		if ( in_array( $section, array( 'tesla', 'powerwall' ), true )
+			|| false !== strpos( $url, '/powerwall' )
+			|| false !== stripos( (string) ( $item->title ?? '' ), 'powerwall' )
+			|| 'tesla' === $title ) {
+			$item->url = function_exists( 'gaming_hub_tesla_url' )
+				? gaming_hub_tesla_url()
+				: gaming_hub_tag_url( 'tesla' );
+			if ( false !== stripos( (string) ( $item->title ?? '' ), 'powerwall' ) ) {
+				$item->title = 'Tesla';
+			}
+			continue;
+		}
+
+		if ( 'pokemon-go' === $section
+			|| ( false !== strpos( $url, '/pokemon-go' )
+				&& false === strpos( $url, 'raid' )
+				&& false === strpos( $url, 'tokushuu' )
+				&& false === strpos( $url, 'event' ) ) ) {
+			$item->url = function_exists( 'gaming_hub_pokemon_go_url' )
+				? gaming_hub_pokemon_go_url()
+				: gaming_hub_tag_url( 'pokemon-go' );
 		}
 	}
 
 	return $items;
 }
 add_filter( 'wp_nav_menu_objects', 'gaming_hub_nav_hub_section_urls' );
+
+/**
+ * Mark the active tag in the rewritten WordPress menu.
+ *
+ * @param array<int, string> $classes Menu item classes.
+ * @param WP_Post            $item    Menu item.
+ * @return array<int, string>
+ */
+function gaming_hub_nav_current_tag_class( $classes, $item ) {
+	$url = (string) ( $item->url ?? '' );
+	if ( ( is_tag( 'ecoflow' ) && false !== strpos( $url, '/tag/ecoflow' ) )
+		|| ( is_tag( 'tesla' ) && false !== strpos( $url, '/tag/tesla' ) )
+		|| ( is_tag( 'pokemon-go' ) && false !== strpos( $url, '/tag/pokemon-go' ) ) ) {
+		$classes[] = 'current-menu-item';
+	}
+
+	return $classes;
+}
+add_filter( 'nav_menu_css_class', 'gaming_hub_nav_current_tag_class', 10, 2 );

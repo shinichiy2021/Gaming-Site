@@ -24,6 +24,67 @@ define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 2 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 30 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 2 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_TAG_SLUG', 'tesla' );
+
+/**
+ * Register the Tesla tag used as the vehicle screen.
+ */
+function gaming_hub_setup_tesla_tag() {
+	if ( get_option( 'gaming_hub_tesla_tag_created' ) ) {
+		if ( term_exists( GAMING_HUB_TESLA_TAG_SLUG, 'post_tag' ) ) {
+			return;
+		}
+		delete_option( 'gaming_hub_tesla_tag_created' );
+	}
+
+	if ( ! term_exists( GAMING_HUB_TESLA_TAG_SLUG, 'post_tag' ) ) {
+		wp_insert_term(
+			'Tesla',
+			'post_tag',
+			array(
+				'slug'        => GAMING_HUB_TESLA_TAG_SLUG,
+				'description' => __( 'Tesla Model 3 の電力フローと充電', 'gaming-hub' ),
+			)
+		);
+	}
+
+	update_option( 'gaming_hub_tesla_tag_created', 1 );
+}
+add_action( 'init', 'gaming_hub_setup_tesla_tag' );
+
+/**
+ * Tesla tag URL.
+ *
+ * @param array<string, mixed> $query Optional query args.
+ */
+function gaming_hub_tesla_url( $query = array() ) {
+	return function_exists( 'gaming_hub_tag_url' )
+		? gaming_hub_tag_url( GAMING_HUB_TESLA_TAG_SLUG, $query )
+		: home_url( '/tag/' . GAMING_HUB_TESLA_TAG_SLUG . '/' );
+}
+
+/**
+ * Cached snapshot says the car is driving (never wakes the vehicle).
+ */
+function gaming_hub_tesla_is_driving_now() {
+	$skip   = gaming_hub_tesla_api_skip_reason();
+	$model3 = gaming_hub_tesla_cached_model3( 'asleep' === $skip );
+
+	if ( ! is_array( $model3 ) || ! empty( $model3['asleep'] ) ) {
+		return false;
+	}
+
+	$shift = strtoupper( (string) ( $model3['shift_state'] ?? '' ) );
+	if ( in_array( $shift, array( 'D', 'R' ), true ) ) {
+		return true;
+	}
+
+	if ( (int) ( $model3['speed_km'] ?? 0 ) >= 3 ) {
+		return true;
+	}
+
+	return (int) ( $model3['drive_w'] ?? 0 ) >= 80;
+}
 
 /**
  * Read Tesla-related environment variables (Docker / .env).
@@ -451,9 +512,7 @@ function gaming_hub_tesla_revoke_consent_url() {
 		return '';
 	}
 
-	$back = function_exists( 'gaming_hub_hub_section_url' )
-		? gaming_hub_hub_section_url( 'powerwall', array( 'tesla_revoked' => '1' ) )
-		: add_query_arg( 'tesla_revoked', '1', home_url( '/' ) );
+	$back = gaming_hub_tesla_url( array( 'tesla_revoked' => '1' ) );
 
 	return 'https://auth.tesla.com/user/revoke/consent?' . rawurlencode( 'revoke_client_id' ) . '=' . rawurlencode( $config['client_id'] )
 		. '&' . rawurlencode( 'back_url' ) . '=' . rawurlencode( $back );
@@ -1757,7 +1816,7 @@ function gaming_hub_rest_tesla_oauth_callback( WP_REST_Request $request ) {
 		);
 	}
 
-	wp_safe_redirect( gaming_hub_hub_section_url( 'powerwall', array( 'tesla_connected' => '1' ) ) );
+	wp_safe_redirect( gaming_hub_tesla_url( array( 'tesla_connected' => '1' ) ) );
 	exit;
 }
 
@@ -1781,7 +1840,7 @@ add_action( 'rest_api_init', 'gaming_hub_register_tesla_rest_routes' );
  * Show admin notice after successful Tesla OAuth.
  */
 function gaming_hub_tesla_oauth_admin_notice() {
-	if ( ! is_front_page() && ! is_page( 'powerwall' ) ) {
+	if ( ! is_tag( 'tesla' ) && ! is_page( 'powerwall' ) ) {
 		return;
 	}
 

@@ -11,6 +11,34 @@
 		});
 	}
 
+	function remapLegacyHubHash() {
+		const map = (window.gamingHubNav && window.gamingHubNav.hashMap) || {};
+		const dest = map[window.location.hash];
+		if (!dest) {
+			return;
+		}
+
+		try {
+			const destUrl = new URL(dest, window.location.origin);
+			const herePath = window.location.pathname.replace(/\/+$/, '') || '/';
+			const destPath = destUrl.pathname.replace(/\/+$/, '') || '/';
+			if (herePath === destPath) {
+				if (destUrl.hash === '#energy') {
+					const energy = document.querySelector('#energy');
+					if (energy) {
+						energy.scrollIntoView({ behavior: 'smooth' });
+					}
+				}
+				return;
+			}
+			window.location.replace(destUrl.pathname + destUrl.search + destUrl.hash);
+		} catch (err) {
+			window.location.replace(dest);
+		}
+	}
+
+	remapLegacyHubHash();
+
 	function hubHashFromHref(href) {
 		try {
 			const url = new URL(href, window.location.href);
