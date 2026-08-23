@@ -99,7 +99,9 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'sentry'          => ! empty( $model3['sentry_mode'] ),
 		'battery_percent' => $soc,
 		'is_charging'     => $charging,
-		'charge_state'    => __( '待機', 'gaming-hub' ),
+		'charge_state'    => $charging
+			? __( '充電中', 'gaming-hub' )
+			: ( ! empty( $model3['climate_on'] ) ? __( 'エアコン', 'gaming-hub' ) : __( '待機', 'gaming-hub' ) ),
 		'vehicle_name'    => (string) ( $model3['vehicle_name'] ?? 'Model 3' ),
 		'supply_kind'     => $kind,
 		'supply_label'    => (string) ( $model3['supply_label'] ?? '' ),

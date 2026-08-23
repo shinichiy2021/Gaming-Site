@@ -410,7 +410,7 @@ function gaming_hub_tesla_oauth_authorize_url() {
 		'client_id'     => $config['client_id'],
 		'redirect_uri'  => $config['redirect_uri'],
 		'response_type' => 'code',
-		'scope'         => 'openid offline_access vehicle_device_data',
+		'scope'         => 'openid offline_access vehicle_device_data vehicle_location',
 		'state'         => gaming_hub_tesla_oauth_state(),
 	);
 
@@ -617,6 +617,130 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 }
 
 /**
+ * Live pack power in kW from drive_state (or charge_state fallbacks).
+ *
+ * @param array<string, mixed> $drive_state  Tesla drive_state.
+ * @param array<string, mixed> $charge_state Tesla charge_state.
+ * @return float|null
+ */
+function gaming_hub_tesla_pack_kw( array $drive_state, array $charge_state = array() ) {
+	$candidates = array(
+		$drive_state['power'] ?? null,
+		$drive_state['power_w'] ?? null,
+		$charge_state['battery_power'] ?? null,
+	);
+
+	foreach ( $candidates as $raw ) {
+		if ( ! is_numeric( $raw ) ) {
+			continue;
+		}
+
+		$value = (float) $raw;
+		if ( abs( $value ) > 80 ) {
+			return $value / 1000.0;
+		}
+
+		return $value;
+	}
+
+	return null;
+}
+
+/**
+ * Whether climate / HVAC is on from the live climate_state snapshot.
+ *
+ * @param array<string, mixed> $climate Tesla climate_state.
+ */
+function gaming_hub_tesla_climate_is_on( array $climate ) {
+	if ( ! empty( $climate['is_climate_on'] )
+		|| ! empty( $climate['is_auto_conditioning_on'] )
+		|| ! empty( $climate['is_preconditioning'] )
+		|| ! empty( $climate['is_front_defroster_on'] )
+	) {
+		return true;
+	}
+
+	$keeper = strtolower( (string) ( $climate['climate_keeper_mode'] ?? '' ) );
+
+	return '' !== $keeper && ! in_array( $keeper, array( 'off', '0', 'false' ), true );
+}
+
+/**
+ * Cabin watts from the current climate snapshot when pack power is missing.
+ *
+ * Uses live temps / fan / seat heaters — not a clock demo.
+ *
+ * @param array<string, mixed> $climate Tesla climate_state.
+ * @return int|null
+ */
+function gaming_hub_tesla_cabin_watts_from_climate( array $climate ) {
+	foreach ( array( 'hvac_power', 'climate_power', 'cabin_power', 'power' ) as $key ) {
+		if ( ! isset( $climate[ $key ] ) || ! is_numeric( $climate[ $key ] ) ) {
+			continue;
+		}
+
+		$value = (float) $climate[ $key ];
+		if ( abs( $value ) > 80 ) {
+			return max( 80, (int) round( abs( $value ) ) );
+		}
+		if ( abs( $value ) > 0.08 ) {
+			return max( 80, (int) round( abs( $value ) * 1000 ) );
+		}
+	}
+
+	if ( ! gaming_hub_tesla_climate_is_on( $climate ) ) {
+		return null;
+	}
+
+	$inside  = isset( $climate['inside_temp'] ) && is_numeric( $climate['inside_temp'] )
+		? (float) $climate['inside_temp']
+		: null;
+	$outside = isset( $climate['outside_temp'] ) && is_numeric( $climate['outside_temp'] )
+		? (float) $climate['outside_temp']
+		: null;
+	$target  = isset( $climate['driver_temp_setting'] ) && is_numeric( $climate['driver_temp_setting'] )
+		? (float) $climate['driver_temp_setting']
+		: null;
+	$fan     = isset( $climate['fan_status'] ) && is_numeric( $climate['fan_status'] )
+		? max( 0, (int) $climate['fan_status'] )
+		: 0;
+
+	$gap = 6.0;
+	if ( null !== $outside && null !== $target ) {
+		$gap = abs( $outside - $target );
+	} elseif ( null !== $inside && null !== $target ) {
+		$gap = abs( $inside - $target );
+	} elseif ( null !== $outside && null !== $inside ) {
+		$gap = abs( $outside - $inside );
+	}
+
+	$compressor = 900 + min( 1800, (int) round( $gap * 160 ) );
+	if ( ! empty( $climate['defrost_mode'] ) || ! empty( $climate['is_front_defroster_on'] ) ) {
+		$compressor += 400;
+	}
+
+	$fan_w = min( 450, max( 80, $fan * 45 ) );
+	$seats = 0;
+	foreach ( array(
+		'seat_heater_left',
+		'seat_heater_right',
+		'seat_heater_rear_left',
+		'seat_heater_rear_center',
+		'seat_heater_rear_right',
+	) as $seat ) {
+		if ( isset( $climate[ $seat ] ) && is_numeric( $climate[ $seat ] ) ) {
+			$seats += max( 0, (int) $climate[ $seat ] ) * 35;
+		}
+	}
+
+	if ( ! empty( $climate['steering_wheel_heater'] ) ) {
+		$seats += 50;
+	}
+
+	return max( 80, $compressor + $fan_w + $seats );
+}
+
+/**
  * Map Tesla vehicle_data to dashboard model3 payload.
  *
  * @param array<string, mixed> $data Tesla vehicle_data response.
@@ -695,31 +819,34 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		$vehicle_name = 'Model 3';
 	}
 
-	$shift     = strtoupper( (string) ( $drive_state['shift_state'] ?? 'P' ) );
+	$shift     = strtoupper( (string) ( $drive_state['shift_state'] ?? '' ) );
 	$speed_mph = isset( $drive_state['speed'] ) && is_numeric( $drive_state['speed'] )
 		? (float) $drive_state['speed']
 		: 0.0;
 	$speed_km  = (int) round( $speed_mph * 1.60934 );
-	$has_pack  = array_key_exists( 'power', $drive_state ) && is_numeric( $drive_state['power'] );
-	$pack_kw   = $has_pack ? (float) $drive_state['power'] : null;
+	$pack_kw   = gaming_hub_tesla_pack_kw( $drive_state, $charge_state );
+	$has_pack  = null !== $pack_kw;
 	$moving    = $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true );
 	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
-	$climate_on = ! empty( $climate_state['is_climate_on'] )
-		|| ! empty( $climate_state['is_auto_conditioning_on'] )
-		|| ! empty( $climate_state['is_preconditioning'] );
+	$climate_on = gaming_hub_tesla_climate_is_on( $climate_state );
 
-	// Cabin watts only from live pack discharge while parked. No estimate, no demo.
+	if ( '' === $shift ) {
+		$shift = 'P';
+	}
+
 	$drive_w = null;
 	$cabin_w = null;
 
-	if ( $moving && $has_pack && $pack_kw > 0.08 ) {
-		$drive_w = max( 0, (int) round( $pack_kw * 1000 ) );
+	if ( $moving && $has_pack && abs( $pack_kw ) > 0.08 ) {
+		$drive_w = max( 0, (int) round( abs( $pack_kw ) * 1000 ) );
 	} elseif ( ! $moving ) {
 		$drive_w = 0;
 	}
 
-	if ( ! $charging && ! $moving && $has_pack && $pack_kw > 0.08 ) {
-		$cabin_w = max( 0, (int) round( $pack_kw * 1000 ) );
+	if ( ! $charging && ! $moving && $has_pack && abs( $pack_kw ) > 0.08 ) {
+		$cabin_w = max( 0, (int) round( abs( $pack_kw ) * 1000 ) );
+	} elseif ( ! $charging && ! $moving && $climate_on ) {
+		$cabin_w = gaming_hub_tesla_cabin_watts_from_climate( $climate_state );
 	} elseif ( $has_pack && ! $moving ) {
 		$cabin_w = 0;
 	}
