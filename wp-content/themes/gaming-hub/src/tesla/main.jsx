@@ -33,6 +33,8 @@ if ( mountNode ) {
 		saved: '節約',
 		gasToday: '本日',
 		gasCar: '普通車 15 km/L',
+		todayUse: '今日 使用',
+		todayBill: '今日 電気代',
 	};
 
 	createRoot( mountNode ).render(

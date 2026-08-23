@@ -63,6 +63,8 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'drive_ready'     => false,
 			'asleep'          => false,
 			'gas'             => $empty_gas,
+			'cabin_today_kwh' => 0,
+			'cabin_today_yen' => 0,
 		);
 	}
 
@@ -87,7 +89,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			$mode = 'regen';
 		} elseif ( ( $drive_w ?? 0 ) >= 80 ) {
 			$mode = 'drive';
-		} elseif ( ( $cabin_w ?? 0 ) >= 80 || ! empty( $model3['climate_on'] ) ) {
+		} elseif ( ( $cabin_w ?? 0 ) >= 80 ) {
 			$mode = 'cabin';
 		} else {
 			$mode = 'idle';
@@ -101,6 +103,13 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	$gas = function_exists( 'gaming_hub_tesla_gasoline_compare' )
 		? gaming_hub_tesla_gasoline_compare( $model3, $drive_w, (int) ( $model3['speed_km'] ?? 0 ) )
 		: array();
+
+	$cabin_energy = function_exists( 'gaming_hub_tesla_cabin_energy_today' )
+		? gaming_hub_tesla_cabin_energy_today()
+		: array(
+			'today_kwh' => 0.0,
+			'today_yen' => 0,
+		);
 
 	return array(
 		'wall_w'          => $wall_w,
@@ -119,7 +128,9 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			? __( '充電中', 'gaming-hub' )
 			: ( ( $regen_w ?? 0 ) >= 80
 				? __( '回生充電', 'gaming-hub' )
-				: ( ! empty( $model3['climate_on'] ) ? __( 'エアコン', 'gaming-hub' ) : __( '待機', 'gaming-hub' ) ) ),
+				: __( '待機', 'gaming-hub' ) ),
+		'cabin_today_kwh' => $cabin_energy['today_kwh'],
+		'cabin_today_yen' => $cabin_energy['today_yen'],
 		'vehicle_name'    => (string) ( $model3['vehicle_name'] ?? 'Model 3' ),
 		'supply_kind'     => $kind,
 		'supply_label'    => (string) ( $model3['supply_label'] ?? '' ),
@@ -170,6 +181,8 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'saved'         => __( '節約', 'gaming-hub' ),
 			'gasToday'      => __( '本日', 'gaming-hub' ),
 			'gasCar'        => __( '普通車 15 km/L', 'gaming-hub' ),
+			'todayUse'      => __( '今日 使用', 'gaming-hub' ),
+			'todayBill'     => __( '今日 電気代', 'gaming-hub' ),
 		),
 		'images' => array(
 			'wall'  => $base . 'tesla-wall-connector-gaming.jpg',

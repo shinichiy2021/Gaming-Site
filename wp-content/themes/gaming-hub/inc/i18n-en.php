@@ -678,6 +678,7 @@ return array(
 	'本日' => 'Today',
 	'普通車 15 km/L' => 'Gas car 15 km/L',
 	'%1$s %2$s 円/L' => '%1$s %2$s yen/L',
+	'今日 電気代' => "Today’s bill",
 	'車内電力' => 'Cabin power',
 	'入力は普通充電（Wall Connector）と急速充電（Supercharger）。出力は走行消費と車内電力です。' => 'Inputs are AC charging (Wall Connector) and DC fast charging (Supercharger). Outputs are driving and cabin power.',
 	'入力は普通充電（Wall Connector）と急速充電（Supercharger）。走行は多治見のガソリン価格で普通車換算し、節約額を出します。' => 'Inputs are AC charging (Wall Connector) and DC fast charging (Supercharger). Driving is converted with Tajimi gasoline prices to show savings versus a gas car.',
