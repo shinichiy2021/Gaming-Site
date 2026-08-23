@@ -20,18 +20,4 @@
 			?>
 		</div>
 	</section>
-
-	<section class="section pw-flow-section">
-		<div class="container">
-			<?php
-			get_template_part(
-				'template-parts/powerwall',
-				'flow',
-				array(
-					'status' => $energy_status,
-				)
-			);
-			?>
-		</div>
-	</section>
 </div>
