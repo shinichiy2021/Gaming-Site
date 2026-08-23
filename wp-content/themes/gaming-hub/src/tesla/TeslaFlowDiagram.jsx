@@ -32,7 +32,7 @@ function PhoneBattery( { percent, charging } ) {
 	);
 }
 
-function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, extra } ) {
+function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, extra, standbyLabel } ) {
 	const classes = [
 		'ecoflow-node',
 		'ecoflow-node-banner',
@@ -47,13 +47,17 @@ function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, ext
 			) : null }
 			<span className="ecoflow-node-label">{ label }</span>
 			{ note ? <small>{ note }</small> : null }
-			<strong>{ formatWatts( watts ) }</strong>
+			<strong>{ formatWatts( watts, standbyLabel ) }</strong>
 			{ extra }
 		</div>
 	);
 }
 
 function teslaStateLabel( status, labels ) {
+	if ( ! status.live ) {
+		return labels.idle;
+	}
+
 	if ( status.mode === 'drive' || ( status.drive_w || 0 ) >= 80 ) {
 		const speed = Number( status.speed_km ) || 0;
 		return speed > 0
@@ -65,15 +69,15 @@ function teslaStateLabel( status, labels ) {
 		return status.supply_label || labels.charging;
 	}
 
-	if ( status.climate_on ) {
+	if ( ( status.cabin_w || 0 ) >= 80 && status.climate_on ) {
 		return labels.climate;
 	}
 
-	if ( status.sentry ) {
+	if ( ( status.cabin_w || 0 ) >= 80 && status.sentry ) {
 		return labels.sentry;
 	}
 
-	return status.charge_state || labels.idle;
+	return labels.idle;
 }
 
 export default function TeslaFlowDiagram( { initial, labels } ) {
@@ -96,19 +100,22 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 
 	const assets = window.gamingHubTeslaFlow || {};
 	const images = assets.images || {};
+	const idle = labels.idle || '待機';
 	const soc = Number( status.battery_percent );
-	const hasSoc = Number.isFinite( soc );
-	const tone = batteryTone( soc );
-	const charging = !! status.is_charging;
+	const hasSoc = status.live && Number.isFinite( soc );
+	const tone = batteryTone( hasSoc ? soc : NaN );
+	const charging = !! status.live && !! status.is_charging;
+	const driveOn = isFlowActive( 'drive', status );
+	const cabinOn = isFlowActive( 'cabin', status );
+	const teslaActive = charging || driveOn || cabinOn;
 	const teslaClasses = [
 		'ecoflow-node',
 		'ecoflow-node-battery',
 		'ecoflow-node-device',
 		'is-hero',
 		charging ? 'is-charging' : '',
-		! charging && ( status.drive_w || 0 ) >= 80 ? 'is-discharging' : '',
-		! charging && ( status.drive_w || 0 ) < 80 && ( status.cabin_w || 0 ) < 80 ? 'is-standby' : '',
-		charging || ( status.drive_w || 0 ) >= 80 || ( status.cabin_w || 0 ) >= 80 ? 'is-active' : '',
+		! charging && driveOn ? 'is-discharging' : '',
+		teslaActive ? 'is-active' : 'is-standby',
 		tone.className,
 	].filter( Boolean ).join( ' ' );
 
@@ -133,6 +140,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							photo={ images.wall }
 							photoClass="tesla-photo-wall"
 							active={ isFlowActive( 'wall', status ) }
+							standbyLabel={ idle }
 						/>
 						<PhotoNode
 							flowId="super"
@@ -142,6 +150,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							photo={ images.super }
 							photoClass="tesla-photo-super"
 							active={ isFlowActive( 'super', status ) }
+							standbyLabel={ idle }
 						/>
 					</div>
 
@@ -154,11 +163,11 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							{ images.tesla ? (
 								<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
 							) : null }
-							<PhoneBattery percent={ soc } charging={ charging } />
+							{ hasSoc ? <PhoneBattery percent={ soc } charging={ charging } /> : null }
 						</div>
 						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
 						<p className="ecoflow-node-state">{ teslaStateLabel( status, labels ) }</p>
-						{ status.range_label ? <small>{ status.range_label }</small> : null }
+						{ status.live && status.range_label ? <small>{ status.range_label }</small> : null }
 					</div>
 
 					<div className="tesla-flow-outputs">
@@ -168,8 +177,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							watts={ status.drive_w }
 							photo={ images.drive }
 							photoClass="tesla-photo-drive"
-							active={ isFlowActive( 'drive', status ) }
-							extra={ status.speed_km > 0 ? <small>{ `${ status.speed_km } km/h` }</small> : null }
+							active={ driveOn }
+							standbyLabel={ idle }
+							extra={ driveOn && status.speed_km > 0 ? <small>{ `${ status.speed_km } km/h` }</small> : null }
 						/>
 						<PhotoNode
 							flowId="cabin"
@@ -177,8 +187,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							watts={ status.cabin_w }
 							photo={ images.cabin }
 							photoClass="tesla-photo-cabin"
-							active={ isFlowActive( 'cabin', status ) }
-							extra={ status.climate_on ? <small>{ labels.climate }</small> : ( status.sentry ? <small>{ labels.sentry }</small> : null ) }
+							active={ cabinOn }
+							standbyLabel={ idle }
+							extra={ cabinOn && status.climate_on ? <small>{ labels.climate }</small> : ( cabinOn && status.sentry ? <small>{ labels.sentry }</small> : null ) }
 						/>
 					</div>
 				</div>

@@ -35,12 +35,18 @@ export function flowSpeed( watts ) {
 	return Math.max( 0.12, Math.min( 0.85, 900 / Math.max( watts, 1 ) ) );
 }
 
-export function formatWatts( value ) {
-	if ( value === null || value === undefined ) {
-		return '—';
+export function formatWatts( value, standbyLabel ) {
+	const idle = standbyLabel || '待機';
+	if ( value === null || value === undefined || value === '' ) {
+		return idle;
 	}
 
-	return `${ Math.round( value ).toLocaleString() } W`;
+	const watts = Number( value );
+	if ( ! Number.isFinite( watts ) || watts < FLOW_THRESHOLD ) {
+		return idle;
+	}
+
+	return `${ Math.round( watts ).toLocaleString() } W`;
 }
 
 export function wattsForFlow( flowId, status ) {

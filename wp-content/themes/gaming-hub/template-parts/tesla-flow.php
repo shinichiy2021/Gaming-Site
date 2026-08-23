@@ -38,8 +38,6 @@ $flow   = isset( $status['tesla_flow'] ) && is_array( $status['tesla_flow'] )
 
 	<?php if ( 'tesla' === $source ) : ?>
 		<p class="pw-flow-live-note"><?php esc_html_e( 'Tesla Fleet API 実データ', 'gaming-hub' ); ?></p>
-	<?php else : ?>
-		<p class="pw-flow-sim-note"><?php esc_html_e( '時刻に応じたデモ（通勤・Wall Connector・Supercharger）', 'gaming-hub' ); ?></p>
 	<?php endif; ?>
 
 	<div
