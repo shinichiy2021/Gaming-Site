@@ -14,6 +14,10 @@ const entries = {
 		input: 'src/powerwall/main.jsx',
 		out: 'powerwall-flow.js',
 	},
+	tesla: {
+		input: 'src/tesla/main.jsx',
+		out: 'tesla-flow.js',
+	},
 };
 
 const target = process.env.FLOW_TARGET || 'ecoflow';

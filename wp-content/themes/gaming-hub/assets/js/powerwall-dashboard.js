@@ -245,6 +245,12 @@
 		document.dispatchEvent(new CustomEvent('gamingHubPowerwallFlow', {
 			detail: flow,
 		}));
+
+		if (flow.tesla) {
+			document.dispatchEvent(new CustomEvent('gamingHubTeslaFlow', {
+				detail: flow.tesla,
+			}));
+		}
 	}
 
 	function refresh() {

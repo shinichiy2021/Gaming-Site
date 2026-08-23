@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.10.20' );
+define( 'GAMING_HUB_VERSION', '1.10.22' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -80,6 +80,7 @@ require get_template_directory() . '/inc/i18n.php';
 require get_template_directory() . '/inc/pokemon-go.php';
 require get_template_directory() . '/inc/pokemon-go-youtube.php';
 require get_template_directory() . '/inc/pokemon-go-events.php';
+require get_template_directory() . '/inc/pokemon-go-raids.php';
 require get_template_directory() . '/inc/ecoflow.php';
 require get_template_directory() . '/inc/switchbot.php';
 require get_template_directory() . '/inc/looop.php';
@@ -90,6 +91,7 @@ require get_template_directory() . '/inc/powerwall-home.php';
 require get_template_directory() . '/inc/powerwall-model3.php';
 require get_template_directory() . '/inc/powerwall-cost.php';
 require get_template_directory() . '/inc/tesla.php';
+require get_template_directory() . '/inc/tesla-flow.php';
 
 /**
  * Front-page section hash for a hub block.
@@ -293,7 +295,7 @@ function gaming_hub_scripts() {
 			'reloadOnActive' => is_front_page()
 				|| is_tag( 'ecoflow' )
 				|| is_tag( 'energy' )
-				|| is_page( array( 'pokemon-go', 'powerwall' ) ),
+				|| is_page( array( 'pokemon-go', 'pokemon-go-raid', 'powerwall' ) ),
 		)
 	);
 

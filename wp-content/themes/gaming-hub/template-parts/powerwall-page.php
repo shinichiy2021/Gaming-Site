@@ -37,6 +37,21 @@
 		</div>
 	</section>
 
+	<?php $energy_status = gaming_hub_get_powerwall_flow_status(); ?>
+	<section class="section tesla-flow-section">
+		<div class="container">
+			<?php
+			get_template_part(
+				'template-parts/tesla',
+				'flow',
+				array(
+					'status' => $energy_status,
+				)
+			);
+			?>
+		</div>
+	</section>
+
 	<section class="section pw-flow-section">
 		<div class="container">
 			<?php
@@ -44,7 +59,7 @@
 				'template-parts/powerwall',
 				'flow',
 				array(
-					'status' => gaming_hub_get_powerwall_flow_status(),
+					'status' => $energy_status,
 				)
 			);
 			?>

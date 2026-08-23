@@ -1,0 +1,28 @@
+import { createRoot } from 'react-dom/client';
+import TeslaFlowDiagram from './TeslaFlowDiagram';
+
+const mountNode = document.getElementById( 'tesla-energy-flow-root' );
+
+if ( mountNode ) {
+	const initial = mountNode.dataset.initial ? JSON.parse( mountNode.dataset.initial ) : {};
+	const labels = window.gamingHubTeslaFlow?.labels || {
+		title: 'Tesla 電力フロー',
+		wall: '普通充電',
+		wallNote: 'Wall Connector',
+		super: '急速充電',
+		superNote: 'Supercharger',
+		tesla: 'Tesla',
+		drive: '走行消費',
+		cabin: '車内電力',
+		flow: 'Tesla の入出力',
+		idle: '待機',
+		charging: '充電中',
+		driving: '走行中',
+		climate: 'エアコン',
+		sentry: 'Sentry',
+	};
+
+	createRoot( mountNode ).render(
+		<TeslaFlowDiagram initial={ initial } labels={ labels } />
+	);
+}
