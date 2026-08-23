@@ -160,13 +160,13 @@ function teslaStateLabel( status, labels ) {
 		return status.supply_label || labels.charging;
 	}
 
-	if ( ( status.cabin_w || 0 ) >= 80 && status.climate_on ) {
+	if ( status.climate_on ) {
 		return status.drive_ready
 			? labels.climate
 			: `${ labels.climate } · ${ labels.drivePending || '' }`.replace( /\s·\s$/, '' );
 	}
 
-	if ( ( status.cabin_w || 0 ) >= 80 && status.sentry ) {
+	if ( status.sentry ) {
 		return labels.sentry;
 	}
 
@@ -205,7 +205,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const regenOn = isRegenActive( status );
 	const driveOn = isFlowActive( 'drive', status );
 	const cabinOn = isFlowActive( 'cabin', status );
-	const teslaActive = charging || driveOn || cabinOn;
+	const climateOn = !! status.live && !! status.climate_on && ! charging;
+	const sentryOn = !! status.live && !! status.sentry && ! charging && ! climateOn;
+	const teslaActive = charging || driveOn || cabinOn || climateOn;
 	const teslaClasses = [
 		'ecoflow-node',
 		'ecoflow-node-battery',
@@ -289,8 +291,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							watts={ status.cabin_w }
 							photo={ images.cabin }
 							photoClass="tesla-photo-cabin"
-							active={ cabinOn }
+							active={ cabinOn || climateOn || sentryOn }
 							standbyLabel={ idle }
+							display={ cabinOn ? null : ( climateOn ? labels.climate : ( sentryOn ? labels.sentry : null ) ) }
 							extra={ cabinOn && status.climate_on ? <small>{ labels.climate }</small> : ( cabinOn && status.sentry ? <small>{ labels.sentry }</small> : null ) }
 						/>
 					</div>

@@ -87,7 +87,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			$mode = 'regen';
 		} elseif ( ( $drive_w ?? 0 ) >= 80 ) {
 			$mode = 'drive';
-		} elseif ( ( $cabin_w ?? 0 ) >= 80 ) {
+		} elseif ( ( $cabin_w ?? 0 ) >= 80 || ! empty( $model3['climate_on'] ) ) {
 			$mode = 'cabin';
 		} else {
 			$mode = 'idle';
