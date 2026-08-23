@@ -325,29 +325,7 @@ class Gaming_Hub_Tesla_Api {
 	}
 
 	/**
-	 * Wake the vehicle and retry vehicle_data once.
-	 *
-	 * @param string               $vin   Vehicle VIN.
-	 * @param array<string, mixed> $query vehicle_data query.
-	 * @return array<string, mixed>|WP_Error
-	 */
-	private function wake_and_fetch_vehicle_data( $vin, array $query ) {
-		$wake = $this->fleet_request( 'POST', '/api/1/vehicles/' . rawurlencode( $vin ) . '/wake_up' );
-		if ( is_wp_error( $wake ) ) {
-			return $wake;
-		}
-
-		sleep( 4 );
-
-		return $this->fleet_request(
-			'GET',
-			'/api/1/vehicles/' . rawurlencode( $vin ) . '/vehicle_data',
-			$query
-		);
-	}
-
-	/**
-	 * Fetch live vehicle_data slices.
+	 * Fetch live vehicle_data slices. Does not wake the vehicle.
 	 *
 	 * location_data may be requested to unlock drive_state; callers must strip GPS.
 	 *
@@ -369,39 +347,15 @@ class Gaming_Hub_Tesla_Api {
 		);
 
 		if ( is_wp_error( $data ) ) {
-			$asleep = 'tesla_vehicle_asleep' === $data->get_error_code();
-
-			if ( ! $asleep ) {
-				$vehicle = $this->fleet_request( 'GET', '/api/1/vehicles/' . rawurlencode( $vin ) );
-				if ( ! is_wp_error( $vehicle ) && ! empty( $vehicle['state'] ) && 'online' !== $vehicle['state'] ) {
-					$asleep = true;
-				}
-			}
-
-			if ( $asleep ) {
-				$data = $this->wake_and_fetch_vehicle_data( $vin, $query );
-			}
-		}
-
-		if ( is_wp_error( $data ) ) {
 			return $data;
 		}
 
 		$data = $this->unwrap_vehicle_data( $data );
 
 		if ( empty( $data['charge_state'] ) || ! is_array( $data['charge_state'] ) ) {
-			$retry = $this->wake_and_fetch_vehicle_data( $vin, $query );
-			if ( ! is_wp_error( $retry ) ) {
-				$data = $this->unwrap_vehicle_data( $retry );
-			} else {
-				return $retry;
-			}
-		}
-
-		if ( empty( $data['charge_state'] ) || ! is_array( $data['charge_state'] ) ) {
 			return new WP_Error(
-				'tesla_missing_charge_state',
-				__( 'Tesla から充電データ（charge_state）が返りませんでした。車がスリープ中のことがあります。Tesla アプリで車両を起こしてから再読み込みしてください。', 'gaming-hub' )
+				'tesla_vehicle_asleep',
+				__( 'Tesla vehicle is asleep.', 'gaming-hub' )
 			);
 		}
 

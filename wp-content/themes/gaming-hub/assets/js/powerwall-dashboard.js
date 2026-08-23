@@ -242,6 +242,10 @@
 			applyCostMeta(data.cost_meta);
 		}
 
+		document.querySelectorAll('[data-pw-field="tesla_asleep_note"]').forEach(function (el) {
+			el.hidden = !data.tesla_asleep;
+		});
+
 		document.dispatchEvent(new CustomEvent('gamingHubPowerwallFlow', {
 			detail: flow,
 		}));
