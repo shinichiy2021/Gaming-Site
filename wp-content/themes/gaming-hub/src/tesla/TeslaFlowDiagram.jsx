@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { batteryTone, formatWatts, isFlowActive } from './constants';
+import { batteryTone, formatWatts, isFlowActive, isRegenActive } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
 
 function PhoneBattery( { percent, charging } ) {
@@ -32,12 +32,13 @@ function PhoneBattery( { percent, charging } ) {
 	);
 }
 
-function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, extra, standbyLabel } ) {
+function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, extra, standbyLabel, className } ) {
 	const classes = [
 		'ecoflow-node',
 		'ecoflow-node-banner',
 		`tesla-node-${ flowId }`,
 		active ? 'is-active' : 'is-standby',
+		className,
 	].filter( Boolean ).join( ' ' );
 
 	return (
@@ -56,6 +57,13 @@ function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, ext
 function teslaStateLabel( status, labels ) {
 	if ( ! status.live ) {
 		return labels.idle;
+	}
+
+	if ( status.mode === 'regen' || ( status.regen_w || 0 ) >= 80 ) {
+		const speed = Number( status.speed_km ) || 0;
+		return speed > 0
+			? `${ labels.regen } · ${ speed } km/h`
+			: ( labels.regen || labels.charging );
 	}
 
 	if ( status.mode === 'drive' || ( status.drive_w || 0 ) >= 80 ) {
@@ -105,6 +113,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const hasSoc = status.live && Number.isFinite( soc );
 	const tone = batteryTone( hasSoc ? soc : NaN );
 	const charging = !! status.live && !! status.is_charging;
+	const regenOn = isRegenActive( status );
 	const driveOn = isFlowActive( 'drive', status );
 	const cabinOn = isFlowActive( 'cabin', status );
 	const teslaActive = charging || driveOn || cabinOn;
@@ -113,8 +122,8 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 		'ecoflow-node-battery',
 		'ecoflow-node-device',
 		'is-hero',
-		charging ? 'is-charging' : '',
-		! charging && driveOn ? 'is-discharging' : '',
+		charging || regenOn ? 'is-charging' : '',
+		! charging && ! regenOn && driveOn ? 'is-discharging' : '',
 		teslaActive ? 'is-active' : 'is-standby',
 		tone.className,
 	].filter( Boolean ).join( ' ' );
@@ -163,7 +172,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							{ images.tesla ? (
 								<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
 							) : null }
-							{ hasSoc ? <PhoneBattery percent={ soc } charging={ charging } /> : null }
+							{ hasSoc ? <PhoneBattery percent={ soc } charging={ charging || regenOn } /> : null }
 						</div>
 						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
 						<p className="ecoflow-node-state">{ teslaStateLabel( status, labels ) }</p>
@@ -173,10 +182,12 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 					<div className="tesla-flow-outputs">
 						<PhotoNode
 							flowId="drive"
-							label={ labels.drive }
-							watts={ status.drive_w }
+							label={ regenOn ? ( labels.regen || labels.drive ) : labels.drive }
+							note={ regenOn ? labels.regenNote : null }
+							watts={ regenOn ? status.regen_w : status.drive_w }
 							photo={ images.drive }
 							photoClass="tesla-photo-drive"
+							className={ regenOn ? 'is-regen' : '' }
 							active={ driveOn }
 							standbyLabel={ idle }
 							extra={ driveOn && status.speed_km > 0 ? <small>{ `${ status.speed_km } km/h` }</small> : null }

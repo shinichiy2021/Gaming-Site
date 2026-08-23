@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import {
-	FLOW_CONNECTIONS,
 	FLOW_THRESHOLD,
+	connectionsForStatus,
 	flowSpeed,
 	wattsForFlow,
 } from './constants';
@@ -217,7 +217,7 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 
 			const width = mapEl.clientWidth;
 			const height = mapEl.clientHeight;
-			const paths = FLOW_CONNECTIONS
+			const paths = connectionsForStatus( status )
 				.map( ( connection ) => resolveConnection( mapEl, connection ) )
 				.filter( Boolean );
 

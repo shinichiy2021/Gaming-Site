@@ -741,6 +741,23 @@ function gaming_hub_tesla_cabin_watts_from_climate( array $climate ) {
 }
 
 /**
+ * Propulsion watts from live speed when pack power is missing.
+ *
+ * @param mixed $speed_km Speed in km/h.
+ * @return int|null
+ */
+function gaming_hub_tesla_drive_watts_from_speed( $speed_km ) {
+	$speed = is_numeric( $speed_km ) ? max( 0, (float) $speed_km ) : 0.0;
+	if ( $speed < 3 ) {
+		return null;
+	}
+
+	$wh_per_km = 130 + min( 140, ( $speed * $speed ) / 70 );
+
+	return max( 80, (int) round( $wh_per_km * $speed ) );
+}
+
+/**
  * Map Tesla vehicle_data to dashboard model3 payload.
  *
  * @param array<string, mixed> $data Tesla vehicle_data response.
@@ -836,19 +853,32 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 
 	$drive_w = null;
 	$cabin_w = null;
+	$regen_w = 0;
 
-	if ( $moving && $has_pack && abs( $pack_kw ) > 0.08 ) {
-		$drive_w = max( 0, (int) round( abs( $pack_kw ) * 1000 ) );
+	if ( $climate_on ) {
+		$cabin_w = gaming_hub_tesla_cabin_watts_from_climate( $climate_state );
+	} elseif ( ! $charging && ! $moving && $has_pack && $pack_kw > 0.08 ) {
+		$cabin_w = max( 0, (int) round( $pack_kw * 1000 ) );
 	} elseif ( ! $moving ) {
-		$drive_w = 0;
+		$cabin_w = $has_pack ? 0 : null;
 	}
 
-	if ( ! $charging && ! $moving && $has_pack && abs( $pack_kw ) > 0.08 ) {
-		$cabin_w = max( 0, (int) round( abs( $pack_kw ) * 1000 ) );
-	} elseif ( ! $charging && ! $moving && $climate_on ) {
-		$cabin_w = gaming_hub_tesla_cabin_watts_from_climate( $climate_state );
-	} elseif ( $has_pack && ! $moving ) {
-		$cabin_w = 0;
+	if ( $charging ) {
+		$drive_w = 0;
+		$regen_w = 0;
+	} elseif ( $moving && $has_pack && $pack_kw < -0.08 ) {
+		$regen_w = max( 0, (int) round( abs( $pack_kw ) * 1000 ) );
+		$drive_w = 0;
+	} elseif ( $moving && $has_pack && $pack_kw > 0.08 ) {
+		$pack_discharge = max( 0, (int) round( $pack_kw * 1000 ) );
+		$cabin_live     = (int) ( $cabin_w ?? 0 );
+		$drive_w        = $pack_discharge > $cabin_live
+			? max( 80, $pack_discharge - $cabin_live )
+			: $pack_discharge;
+	} elseif ( $moving ) {
+		$drive_w = gaming_hub_tesla_drive_watts_from_speed( $speed_km );
+	} else {
+		$drive_w = 0;
 	}
 
 	return gaming_hub_powerwall_model3_present(
@@ -880,12 +910,15 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'live'                      => true,
 			'drive_w'                   => $drive_w,
 			'cabin_w'                   => $cabin_w,
+			'regen_w'                   => $regen_w,
 			'shift_state'               => $shift ? $shift : 'P',
 			'speed_km'                  => $speed_km,
 			'climate_on'                => $climate_on,
 			'vehicle_mode'              => $charging
 				? ( 'supercharger' === $supply['kind'] ? 'supercharger' : 'wall' )
-				: ( $moving ? 'drive' : ( $cabin_w >= 80 ? 'cabin' : 'idle' ) ),
+				: ( $regen_w >= 80
+					? 'regen'
+					: ( ( $drive_w ?? 0 ) >= 80 ? 'drive' : ( ( $cabin_w ?? 0 ) >= 80 ? 'cabin' : 'idle' ) ) ),
 		)
 	);
 }

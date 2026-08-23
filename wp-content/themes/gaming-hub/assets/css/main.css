@@ -1563,6 +1563,10 @@ body.home .site-header.is-scrolled {
 	border-color: rgba(255, 179, 0, 0.7);
 }
 
+.tesla-node-drive.is-regen.is-active {
+	border-color: rgba(100, 210, 255, 0.75);
+}
+
 .tesla-node-cabin.is-active {
 	border-color: rgba(105, 240, 174, 0.7);
 }
