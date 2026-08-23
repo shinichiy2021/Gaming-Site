@@ -22,6 +22,8 @@ if ( mountNode ) {
 		driving: '走行中',
 		climate: 'エアコン',
 		sentry: 'Sentry',
+		asleep: 'スリープ中',
+		drivePending: '走行データ未取得',
 	};
 
 	createRoot( mountNode ).render(

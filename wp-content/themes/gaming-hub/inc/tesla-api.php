@@ -354,7 +354,7 @@ class Gaming_Hub_Tesla_Api {
 
 		if ( empty( $data['charge_state'] ) || ! is_array( $data['charge_state'] ) ) {
 			return new WP_Error(
-				'tesla_vehicle_asleep',
+				'tesla_missing_charge_state',
 				__( 'Tesla vehicle is asleep.', 'gaming-hub' )
 			);
 		}

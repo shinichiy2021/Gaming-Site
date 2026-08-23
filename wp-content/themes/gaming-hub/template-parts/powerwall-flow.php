@@ -91,13 +91,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 			<?php gaming_hub_render_tesla_oauth_button(); ?>
 		</div>
 	<?php elseif ( 'tesla' === ( $status['model3_source'] ?? '' ) ) : ?>
-		<p class="pw-flow-live-note"><?php esc_html_e( 'Model 3: Tesla Fleet API 実データ', 'gaming-hub' ); ?></p>
-		<?php gaming_hub_render_tesla_asleep_notice( $status ); ?>
-		<?php
-		if ( gaming_hub_tesla_needs_drive_scope( $status ) ) {
-			gaming_hub_render_tesla_drive_scope_notice();
-		}
-		?>
+		<?php gaming_hub_render_tesla_link_status( $status ); ?>
 	<?php endif; ?>
 
 	<p class="pw-flow-sim-note"><?php esc_html_e( 'グリッドは買電のみ（売電なし）。Powerwall SOC はデモ。', 'gaming-hub' ); ?></p>
