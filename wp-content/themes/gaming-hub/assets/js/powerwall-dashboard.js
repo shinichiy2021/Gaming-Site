@@ -1,7 +1,7 @@
 (function () {
 	'use strict';
 
-	const dashboard = document.querySelector('.pw-flow-dashboard');
+	const dashboard = document.querySelector('.tesla-flow-dashboard, .pw-flow-dashboard');
 	if (!dashboard || !window.gamingHubPowerwall) {
 		return;
 	}
@@ -263,6 +263,12 @@
 		if (flow.tesla) {
 			document.dispatchEvent(new CustomEvent('gamingHubTeslaFlow', {
 				detail: flow.tesla,
+			}));
+		}
+
+		if (data.tesla_plan) {
+			document.dispatchEvent(new CustomEvent('gamingHubTeslaPlan', {
+				detail: data.tesla_plan,
 			}));
 		}
 	}

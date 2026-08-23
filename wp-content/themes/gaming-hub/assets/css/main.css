@@ -4447,6 +4447,25 @@ body.home .site-header.is-scrolled {
 	color: var(--color-text-muted);
 }
 
+.ecoflow-plan-stat-now.is-drive strong {
+	color: #ff6b35;
+}
+
+.tesla-plan {
+	border-color: rgba(232, 33, 39, 0.32);
+	background:
+		radial-gradient(ellipse at 0% 0%, rgba(232, 33, 39, 0.1), transparent 50%),
+		rgba(8, 7, 15, 0.72);
+}
+
+.tesla-plan .ecoflow-plan-kicker {
+	color: #ff6b6b;
+}
+
+.tesla-plan .ecoflow-plan-col.is-drive {
+	background: rgba(255, 107, 53, 0.1);
+}
+
 .ecoflow-plan-next {
 	margin: 6px 0 0;
 	font-size: 0.75rem;
@@ -5285,6 +5304,27 @@ body.home .site-header.is-scrolled {
 		padding: 6px 4px;
 		font-size: 0.62rem;
 	}
+}
+
+.tesla-cal {
+	border-color: rgba(232, 33, 39, 0.32);
+	background:
+		radial-gradient(ellipse at 0% 0%, rgba(232, 33, 39, 0.1), transparent 50%),
+		rgba(8, 7, 15, 0.72);
+}
+
+.tesla-cal .ecoflow-plan-kicker {
+	color: #ff6b6b;
+}
+
+.tesla-cal .ecoflow-plan-note a,
+.tesla-flow-note a {
+	margin-left: 0.4em;
+	color: #00f5d4;
+}
+
+.tesla-cal-chart-today {
+	grid-template-columns: 34px minmax(0, 1fr) 42px;
 }
 
 .ecoflow-plan-grid {

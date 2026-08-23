@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.10.48' );
+define( 'GAMING_HUB_VERSION', '1.10.52' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -93,6 +93,8 @@ require get_template_directory() . '/inc/powerwall-cost.php';
 require get_template_directory() . '/inc/tesla.php';
 require get_template_directory() . '/inc/tajimi-gasoline.php';
 require get_template_directory() . '/inc/tesla-flow.php';
+require get_template_directory() . '/inc/tesla-gas-log.php';
+require get_template_directory() . '/inc/tesla-plan.php';
 
 /**
  * Tag archive URL (creates a stable /tag/{slug}/ fallback).

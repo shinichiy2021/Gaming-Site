@@ -8,7 +8,7 @@ if ( mountNode ) {
 	const labels = window.gamingHubTeslaFlow?.labels || {
 		title: 'Tesla 電力フロー',
 		wall: '普通充電',
-		wallNote: 'Wall Connector',
+		wallNote: '200V',
 		super: '急速充電',
 		superNote: 'Supercharger',
 		tesla: 'Tesla',
