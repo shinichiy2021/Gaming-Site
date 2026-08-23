@@ -13,6 +13,7 @@ require get_template_directory() . '/inc/tesla-api.php';
 
 define( 'GAMING_HUB_TESLA_ACCESS_TOKEN_KEY', 'gaming_hub_tesla_access_token' );
 define( 'GAMING_HUB_TESLA_REFRESH_TOKEN_OPTION', 'gaming_hub_tesla_refresh_token' );
+define( 'GAMING_HUB_TESLA_SCOPES_OPTION', 'gaming_hub_tesla_token_scopes' );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
 
@@ -450,6 +451,188 @@ function gaming_hub_tesla_store_tokens( array $tokens ) {
 		$expires = isset( $tokens['expires_in'] ) ? max( 300, (int) $tokens['expires_in'] - 120 ) : 45 * MINUTE_IN_SECONDS;
 		set_transient( GAMING_HUB_TESLA_ACCESS_TOKEN_KEY, (string) $tokens['access_token'], $expires );
 	}
+
+	gaming_hub_tesla_remember_token_scopes(
+		isset( $tokens['access_token'] ) ? (string) $tokens['access_token'] : '',
+		isset( $tokens['scope'] ) ? (string) $tokens['scope'] : ''
+	);
+}
+
+/**
+ * Decode OAuth scopes from a Tesla access token JWT payload.
+ * Does not log or return the token.
+ *
+ * @param string $token Access token.
+ * @return array<int, string>
+ */
+function gaming_hub_tesla_decode_token_scopes( $token ) {
+	if ( ! is_string( $token ) || '' === $token ) {
+		return array();
+	}
+
+	$parts = explode( '.', $token );
+	if ( count( $parts ) < 2 ) {
+		return array();
+	}
+
+	$b64 = $parts[1];
+	$pad = strlen( $b64 ) % 4;
+	if ( $pad ) {
+		$b64 .= str_repeat( '=', 4 - $pad );
+	}
+
+	$payload = base64_decode( strtr( $b64, '-_', '+/' ), true );
+	if ( ! is_string( $payload ) || '' === $payload ) {
+		return array();
+	}
+
+	$json = json_decode( $payload, true );
+	if ( ! is_array( $json ) ) {
+		return array();
+	}
+
+	$raw = $json['scp'] ?? $json['scope'] ?? array();
+	if ( is_string( $raw ) ) {
+		$raw = preg_split( '/\s+/', trim( $raw ) );
+	}
+
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+
+	return array_values(
+		array_unique(
+			array_filter(
+				array_map( 'strval', $raw ),
+				static function ( $scope ) {
+					return '' !== $scope;
+				}
+			)
+		)
+	);
+}
+
+/**
+ * Persist granted Tesla OAuth scopes (never stores the token).
+ *
+ * @param string $access_token Access token JWT.
+ * @param string $scope_string Space-separated scopes from the token response.
+ */
+function gaming_hub_tesla_remember_token_scopes( $access_token = '', $scope_string = '' ) {
+	$scopes = array();
+
+	if ( is_string( $scope_string ) && '' !== trim( $scope_string ) ) {
+		$scopes = preg_split( '/\s+/', trim( $scope_string ) );
+	}
+
+	if ( empty( $scopes ) ) {
+		$scopes = gaming_hub_tesla_decode_token_scopes( $access_token );
+	}
+
+	if ( empty( $scopes ) || ! is_array( $scopes ) ) {
+		return;
+	}
+
+	$joined = implode(
+		' ',
+		array_values(
+			array_unique(
+				array_filter( array_map( 'strval', $scopes ) )
+			)
+		)
+	);
+
+	if ( '' === $joined || get_option( GAMING_HUB_TESLA_SCOPES_OPTION, '' ) === $joined ) {
+		return;
+	}
+
+	update_option( GAMING_HUB_TESLA_SCOPES_OPTION, $joined, false );
+}
+
+/**
+ * Granted Tesla OAuth scopes for the current tokens.
+ *
+ * @return array<int, string>
+ */
+function gaming_hub_tesla_token_scopes() {
+	$saved = get_option( GAMING_HUB_TESLA_SCOPES_OPTION, '' );
+	if ( is_string( $saved ) && '' !== trim( $saved ) ) {
+		return array_values( array_filter( preg_split( '/\s+/', trim( $saved ) ) ) );
+	}
+
+	$token = get_transient( GAMING_HUB_TESLA_ACCESS_TOKEN_KEY );
+
+	return gaming_hub_tesla_decode_token_scopes( is_string( $token ) ? $token : '' );
+}
+
+/**
+ * Whether the current Tesla token can read drive_state (speed / power / gear).
+ */
+function gaming_hub_tesla_has_location_scope() {
+	return in_array( 'vehicle_location', gaming_hub_tesla_token_scopes(), true );
+}
+
+/**
+ * Drop GPS fields. location_data is requested only to unlock drive_state.
+ *
+ * @param array<string, mixed> $data Tesla vehicle_data.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_strip_location( array $data ) {
+	$keys = array(
+		'latitude',
+		'longitude',
+		'native_latitude',
+		'native_longitude',
+		'corrected_latitude',
+		'corrected_longitude',
+		'active_route_latitude',
+		'active_route_longitude',
+		'active_route_destination',
+		'heading',
+		'gps_as_of',
+		'native_type',
+		'native_location_supported',
+	);
+
+	if ( isset( $data['drive_state'] ) && is_array( $data['drive_state'] ) ) {
+		foreach ( $keys as $key ) {
+			unset( $data['drive_state'][ $key ] );
+		}
+	}
+
+	unset( $data['location_data'] );
+
+	return $data;
+}
+
+/**
+ * Live Tesla data is present but drive_state (speed / gear / pack power) is missing.
+ *
+ * @param array<string, mixed> $status Powerwall flow status.
+ */
+function gaming_hub_tesla_needs_drive_scope( array $status ) {
+	if ( 'tesla' !== (string) ( $status['model3_source'] ?? '' ) ) {
+		return false;
+	}
+
+	$model3 = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+
+	return empty( $model3['drive_ready'] );
+}
+
+/**
+ * Re-auth notice when Tesla omitted drive_state.
+ */
+function gaming_hub_render_tesla_drive_scope_notice() {
+	?>
+	<div class="pw-flow-error-action">
+		<p class="pw-flow-error">
+			<?php esc_html_e( '走行中の速度と消費電力には、Tesla の位置スコープが必要です。もう一度「Tesla で認証」してください。位置情報は保存しません。', 'gaming-hub' ); ?>
+		</p>
+		<?php gaming_hub_render_tesla_oauth_button(); ?>
+	</div>
+	<?php
 }
 
 /**
@@ -481,6 +664,8 @@ function gaming_hub_tesla_get_api() {
 
 		gaming_hub_tesla_store_tokens( $tokens );
 		$access_token = $tokens['access_token'];
+	} else {
+		gaming_hub_tesla_remember_token_scopes( (string) $access_token );
 	}
 
 	$api->set_access_token( $access_token );
@@ -764,6 +949,8 @@ function gaming_hub_tesla_drive_watts_from_speed( $speed_km ) {
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
+	$data = gaming_hub_tesla_strip_location( $data );
+
 	$charge_state = isset( $data['charge_state'] ) && is_array( $data['charge_state'] )
 		? $data['charge_state']
 		: array();
@@ -776,6 +963,11 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$climate_state = isset( $data['climate_state'] ) && is_array( $data['climate_state'] )
 		? $data['climate_state']
 		: array();
+
+	$has_drive_slice = array_key_exists( 'power', $drive_state )
+		|| array_key_exists( 'power_w', $drive_state )
+		|| array_key_exists( 'speed', $drive_state )
+		|| array_key_exists( 'shift_state', $drive_state );
 
 	$state    = (string) ( $charge_state['charging_state'] ?? '' );
 	$charging = in_array( $state, array( 'Charging', 'Starting' ), true );
@@ -840,14 +1032,14 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$speed_mph = isset( $drive_state['speed'] ) && is_numeric( $drive_state['speed'] )
 		? (float) $drive_state['speed']
 		: 0.0;
-	$speed_km  = (int) round( $speed_mph * 1.60934 );
+	$speed_km  = $has_drive_slice ? (int) round( $speed_mph * 1.60934 ) : 0;
 	$pack_kw   = gaming_hub_tesla_pack_kw( $drive_state, $charge_state );
 	$has_pack  = null !== $pack_kw;
-	$moving    = $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true );
+	$moving    = $has_drive_slice && ( $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true ) );
 	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
 	$climate_on = gaming_hub_tesla_climate_is_on( $climate_state );
 
-	if ( '' === $shift ) {
+	if ( $has_drive_slice && '' === $shift ) {
 		$shift = 'P';
 	}
 
@@ -911,9 +1103,10 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'drive_w'                   => $drive_w,
 			'cabin_w'                   => $cabin_w,
 			'regen_w'                   => $regen_w,
-			'shift_state'               => $shift ? $shift : 'P',
+			'shift_state'               => $has_drive_slice ? ( $shift ? $shift : 'P' ) : '',
 			'speed_km'                  => $speed_km,
 			'climate_on'                => $climate_on,
+			'drive_ready'               => $has_drive_slice,
 			'vehicle_mode'              => $charging
 				? ( 'supercharger' === $supply['kind'] ? 'supercharger' : 'wall' )
 				: ( $regen_w >= 80
@@ -936,7 +1129,20 @@ function gaming_hub_fetch_tesla_model3_status() {
 		return $api;
 	}
 
-	$data = $api->get_vehicle_data( $config['vehicle_vin'], 'charge_state;vehicle_state;drive_state;climate_state' );
+	$endpoints     = 'charge_state;vehicle_state;drive_state;climate_state';
+	$with_location = gaming_hub_tesla_has_location_scope();
+	if ( $with_location ) {
+		$endpoints .= ';location_data';
+	}
+
+	$data = $api->get_vehicle_data( $config['vehicle_vin'], $endpoints );
+
+	if ( is_wp_error( $data ) && $with_location ) {
+		$data = $api->get_vehicle_data(
+			$config['vehicle_vin'],
+			'charge_state;vehicle_state;drive_state;climate_state'
+		);
+	}
 
 	if ( is_wp_error( $data ) ) {
 		return $data;
@@ -1008,7 +1214,7 @@ function gaming_hub_powerwall_recalc_flow_load( array $status ) {
 function gaming_hub_render_tesla_setup_instructions() {
 	?>
 	<ol class="pw-flow-setup-steps">
-		<li><?php esc_html_e( 'developer.tesla.com でアプリを作成し Client ID / Secret を取得', 'gaming-hub' ); ?></li>
+		<li><?php esc_html_e( 'developer.tesla.com でアプリを作成し Client ID / Secret を取得。Vehicle Location（車両位置）スコープも有効にする', 'gaming-hub' ); ?></li>
 		<li><?php esc_html_e( '.env または 外観 → カスタマイズ → Tesla API に Client ID / Secret / VIN を設定', 'gaming-hub' ); ?></li>
 		<li>
 			<?php esc_html_e( 'Tesla アカウント連携:', 'gaming-hub' ); ?>

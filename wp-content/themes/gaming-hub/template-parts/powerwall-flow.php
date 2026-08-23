@@ -92,6 +92,11 @@ $model3_charging = ! empty( $model3['is_charging'] );
 		</div>
 	<?php elseif ( 'tesla' === ( $status['model3_source'] ?? '' ) ) : ?>
 		<p class="pw-flow-live-note"><?php esc_html_e( 'Model 3: Tesla Fleet API 実データ', 'gaming-hub' ); ?></p>
+		<?php
+		if ( gaming_hub_tesla_needs_drive_scope( $status ) ) {
+			gaming_hub_render_tesla_drive_scope_notice();
+		}
+		?>
 	<?php endif; ?>
 
 	<p class="pw-flow-sim-note"><?php esc_html_e( 'グリッドは買電のみ（売電なし）。Powerwall SOC はデモ。', 'gaming-hub' ); ?></p>

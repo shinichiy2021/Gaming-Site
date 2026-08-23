@@ -299,10 +299,12 @@ class Gaming_Hub_Tesla_Api {
 			return is_array( $data ) ? $data : array();
 		}
 
-		if ( isset( $data['charge_state'] ) && is_string( $data['charge_state'] ) ) {
-			$decoded = json_decode( $data['charge_state'], true );
-			if ( is_array( $decoded ) ) {
-				$data['charge_state'] = $decoded;
+		foreach ( array( 'charge_state', 'vehicle_state', 'drive_state', 'climate_state', 'location_data' ) as $slice ) {
+			if ( isset( $data[ $slice ] ) && is_string( $data[ $slice ] ) ) {
+				$decoded = json_decode( $data[ $slice ], true );
+				if ( is_array( $decoded ) ) {
+					$data[ $slice ] = $decoded;
+				}
 			}
 		}
 
@@ -345,7 +347,9 @@ class Gaming_Hub_Tesla_Api {
 	}
 
 	/**
-	 * Fetch live vehicle_data slices (does not poll location).
+	 * Fetch live vehicle_data slices.
+	 *
+	 * location_data may be requested to unlock drive_state; callers must strip GPS.
 	 *
 	 * @param string $vin       Vehicle VIN.
 	 * @param string $endpoints Comma or semicolon separated endpoints.
