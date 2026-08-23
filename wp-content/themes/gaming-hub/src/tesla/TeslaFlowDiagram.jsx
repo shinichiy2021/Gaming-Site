@@ -138,7 +138,7 @@ function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, ext
 
 function shiftMeta( status, labels ) {
 	const gears = [ 'P', 'R', 'N', 'D' ];
-	const current = String( status.shift || '' ).toUpperCase();
+	const current = status.asleep ? 'P' : String( status.shift || '' ).toUpperCase();
 	const ready = gears.includes( current );
 	const names = {
 		P: labels.park || 'P',

@@ -1191,6 +1191,10 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 		false
 	);
 
+	if ( function_exists( 'gaming_hub_tesla_gas_log_record_today' ) ) {
+		gaming_hub_tesla_gas_log_record_today( $today_km );
+	}
+
 	return array(
 		'today_km'       => $today_km,
 		'today_start_km' => $start_km,

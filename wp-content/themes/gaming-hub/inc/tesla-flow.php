@@ -131,7 +131,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'cabin_w'         => $cabin_w,
 		'regen_w'         => $regen_w,
 		'mode'            => $mode,
-		'shift'           => (string) ( $model3['shift_state'] ?? '' ),
+		'shift'           => $asleep ? 'P' : (string) ( $model3['shift_state'] ?? '' ),
 		'speed_km'        => $asleep ? 0 : (int) ( $model3['speed_km'] ?? 0 ),
 		'climate_on'      => ! $asleep && ! empty( $model3['climate_on'] ),
 		'sentry'          => ! $asleep && ! empty( $model3['sentry_mode'] ),
@@ -168,7 +168,7 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 		'labels' => array(
 			'title'      => __( 'Tesla 電力フロー', 'gaming-hub' ),
 			'wall'       => __( '普通充電', 'gaming-hub' ),
-			'wallNote'   => __( 'Wall Connector', 'gaming-hub' ),
+			'wallNote'   => __( '200V', 'gaming-hub' ),
 			'super'      => __( '急速充電', 'gaming-hub' ),
 			'superNote'  => __( 'Supercharger', 'gaming-hub' ),
 			'tesla'      => __( 'Tesla', 'gaming-hub' ),

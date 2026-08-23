@@ -33,7 +33,9 @@ $flow   = isset( $status['tesla_flow'] ) && is_array( $status['tesla_flow'] )
 	</div>
 
 	<p class="tesla-flow-note">
-		<?php esc_html_e( '入力は普通充電（Wall Connector）と急速充電（Supercharger）。走行は多治見のガソリン価格で普通車換算し、節約額を出します。', 'gaming-hub' ); ?>
+		<?php esc_html_e( '入力は自宅の 200V 普通充電と急速充電（Supercharger）。走行は多治見のガソリン価格で普通車換算し、節約額を出します。', 'gaming-hub' ); ?>
+		<a href="#plan"><?php esc_html_e( 'AI PLAN', 'gaming-hub' ); ?></a>
+		<a href="#gas"><?php esc_html_e( '節約ログ', 'gaming-hub' ); ?></a>
 	</p>
 
 	<?php if ( 'tesla' === $source ) : ?>
@@ -52,3 +54,11 @@ $flow   = isset( $status['tesla_flow'] ) && is_array( $status['tesla_flow'] )
 		data-initial="<?php echo esc_attr( wp_json_encode( $flow ) ); ?>"
 	></div>
 </section>
+<?php
+if ( function_exists( 'gaming_hub_render_tesla_plan' ) ) {
+	gaming_hub_render_tesla_plan( $status );
+}
+if ( function_exists( 'gaming_hub_render_tesla_gas_log' ) ) {
+	gaming_hub_render_tesla_gas_log( $status );
+}
+?>
