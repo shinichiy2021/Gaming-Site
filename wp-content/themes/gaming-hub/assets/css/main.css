@@ -1530,19 +1530,10 @@ body.home .site-header.is-scrolled {
 	box-shadow: 0 0 18px rgba(232, 33, 39, 0.28);
 }
 
-.tesla-photo-drive,
 .tesla-photo-cabin {
 	width: 96px;
 	height: 96px;
 	object-fit: cover;
-}
-
-.tesla-photo-drive {
-	border-color: rgba(255, 179, 0, 0.55);
-	box-shadow: 0 0 18px rgba(255, 179, 0, 0.22);
-}
-
-.tesla-photo-cabin {
 	border-color: rgba(105, 240, 174, 0.5);
 	box-shadow: 0 0 18px rgba(105, 240, 174, 0.2);
 }
@@ -1552,88 +1543,47 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-shift {
-	position: absolute;
-	right: 8px;
-	bottom: 8px;
-	z-index: 3;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 4px 6px 4px 4px;
-	background: rgba(6, 6, 10, 0.82);
-	border: 1px solid rgba(255, 255, 255, 0.16);
-	border-radius: 10px;
-	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-}
-
-.tesla-shift-badge {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 28px;
-	height: 28px;
-	border-radius: 8px;
-	font-size: 0.95rem;
+	width: 96px;
+	height: 96px;
+	border-radius: 14px;
+	font-size: 3.6rem;
 	font-weight: 800;
 	letter-spacing: 0;
 	line-height: 1;
 	color: #f5f5f5;
-	background: #2a2a32;
+	background: #141418;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.45);
 }
 
-.tesla-shift.is-p .tesla-shift-badge {
+.tesla-shift.is-p {
 	color: #ff8a80;
-	background: rgba(232, 33, 39, 0.22);
+	border-color: rgba(232, 33, 39, 0.55);
+	box-shadow: 0 0 18px rgba(232, 33, 39, 0.22);
 }
 
-.tesla-shift.is-r .tesla-shift-badge {
+.tesla-shift.is-r {
 	color: #ffd54f;
-	background: rgba(255, 179, 0, 0.22);
+	border-color: rgba(255, 179, 0, 0.55);
+	box-shadow: 0 0 18px rgba(255, 179, 0, 0.22);
 }
 
-.tesla-shift.is-n .tesla-shift-badge {
+.tesla-shift.is-n {
 	color: #cfd8dc;
-	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.2);
 }
 
-.tesla-shift.is-d .tesla-shift-badge {
+.tesla-shift.is-d {
 	color: #69f0ae;
-	background: rgba(0, 200, 83, 0.2);
+	border-color: rgba(0, 200, 83, 0.5);
+	box-shadow: 0 0 18px rgba(0, 200, 83, 0.2);
 }
 
-.tesla-shift.is-unknown .tesla-shift-badge {
+.tesla-shift.is-unknown {
 	color: #9aa0a6;
-}
-
-.tesla-shift-prnd {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 1px;
-	font-size: 0.58rem;
-	font-weight: 700;
-	line-height: 1.05;
-	color: rgba(255, 255, 255, 0.32);
-}
-
-.tesla-shift-prnd .is-current {
-	color: #fff;
-}
-
-.tesla-shift.is-p .tesla-shift-prnd .is-current {
-	color: #ff8a80;
-}
-
-.tesla-shift.is-r .tesla-shift-prnd .is-current {
-	color: #ffd54f;
-}
-
-.tesla-shift.is-n .tesla-shift-prnd .is-current {
-	color: #eceff1;
-}
-
-.tesla-shift.is-d .tesla-shift-prnd .is-current {
-	color: #69f0ae;
 }
 
 .tesla-node-wall.is-active {

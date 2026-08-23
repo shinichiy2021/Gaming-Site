@@ -32,7 +32,7 @@ function PhoneBattery( { percent, charging } ) {
 	);
 }
 
-function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, extra, standbyLabel, className } ) {
+function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, extra, overlay, standbyLabel, className } ) {
 	const classes = [
 		'ecoflow-node',
 		'ecoflow-node-banner',
@@ -43,9 +43,9 @@ function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, ext
 
 	return (
 		<div className={ classes } data-flow-id={ flowId }>
-			{ photo ? (
+			{ overlay || ( photo ? (
 				<img src={ photo } alt="" className={ `ecoflow-node-photo ${ photoClass || '' }` } />
-			) : null }
+			) : null ) }
 			<span className="ecoflow-node-label">{ label }</span>
 			{ note ? <small>{ note }</small> : null }
 			<strong>{ formatWatts( watts, standbyLabel ) }</strong>
@@ -66,7 +66,6 @@ function shiftMeta( status, labels ) {
 	};
 
 	return {
-		gears,
 		current,
 		ready,
 		label: ready ? names[ current ] : ( labels.shiftUnknown || '—' ),
@@ -74,7 +73,7 @@ function shiftMeta( status, labels ) {
 }
 
 function ShiftIcon( { status, labels } ) {
-	const { gears, current, ready, label } = shiftMeta( status, labels );
+	const { current, ready, label } = shiftMeta( status, labels );
 
 	return (
 		<span
@@ -82,17 +81,7 @@ function ShiftIcon( { status, labels } ) {
 			title={ ready ? `${ label } (${ current })` : label }
 			aria-label={ ready ? `${ labels.shift || 'シフト' } ${ current }` : label }
 		>
-			<span className="tesla-shift-badge">{ ready ? current : '—' }</span>
-			<span className="tesla-shift-prnd" aria-hidden="true">
-				{ gears.map( ( gear ) => (
-					<span
-						key={ gear }
-						className={ ready && gear === current ? 'is-current' : '' }
-					>
-						{ gear }
-					</span>
-				) ) }
-			</span>
+			{ ready ? current : '—' }
 		</span>
 	);
 }
@@ -226,7 +215,6 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 								<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
 							) : null }
 							{ hasSoc ? <PhoneBattery percent={ soc } charging={ charging || regenOn } /> : null }
-							<ShiftIcon status={ status } labels={ labels } />
 						</div>
 						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
 						<p className="ecoflow-node-state">{ teslaStateLabel( status, labels ) }</p>
@@ -239,11 +227,10 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ regenOn ? ( labels.regen || labels.drive ) : labels.drive }
 							note={ regenOn ? labels.regenNote : null }
 							watts={ regenOn ? status.regen_w : status.drive_w }
-							photo={ images.drive }
-							photoClass="tesla-photo-drive"
 							className={ regenOn ? 'is-regen' : '' }
 							active={ driveOn }
 							standbyLabel={ idle }
+							overlay={ <ShiftIcon status={ status } labels={ labels } /> }
 							extra={ driveOn && status.speed_km > 0 ? <small>{ `${ status.speed_km } km/h` }</small> : null }
 						/>
 						<PhotoNode
