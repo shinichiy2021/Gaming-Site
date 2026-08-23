@@ -23,8 +23,11 @@ class Gaming_Hub_Tesla_Api {
 	/** @var string */
 	private $access_token = '';
 
-	/** @var string */
-	private $token_url = 'https://auth.tesla.com/oauth2/v3/token';
+	/** @var string Tesla-documented token host for server-side exchanges. */
+	private $token_url = 'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token';
+
+	/** @var string Fallback token host. */
+	private $legacy_token_url = 'https://auth.tesla.com/oauth2/v3/token';
 
 	/** @var string Default Fleet API audience (Japan / APAC / NA). */
 	private $default_audience = 'https://fleet-api.prd.na.vn.cloud.tesla.com';
@@ -67,24 +70,15 @@ class Gaming_Hub_Tesla_Api {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public function get_partner_access_token() {
-		$response = wp_remote_post(
-			$this->token_url,
+		return $this->post_token(
 			array(
-				'timeout' => 20,
-				'headers' => array(
-					'Content-Type' => 'application/x-www-form-urlencoded',
-				),
-				'body'    => array(
-					'grant_type'    => 'client_credentials',
-					'client_id'     => $this->client_id,
-					'client_secret' => $this->client_secret,
-					'scope'         => 'openid vehicle_device_data vehicle_cmds vehicle_charging_cmds',
-					'audience'      => $this->token_audience(),
-				),
+				'grant_type'    => 'client_credentials',
+				'client_id'     => $this->client_id,
+				'client_secret' => $this->client_secret,
+				'scope'         => 'openid vehicle_device_data vehicle_cmds vehicle_charging_cmds',
+				'audience'      => $this->token_audience(),
 			)
 		);
-
-		return $this->parse_token_response( $response );
 	}
 
 	/**
@@ -154,24 +148,15 @@ class Gaming_Hub_Tesla_Api {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public function refresh_access_token( $refresh_token ) {
-		$response = wp_remote_post(
-			$this->token_url,
+		return $this->post_token(
 			array(
-				'timeout' => 20,
-				'headers' => array(
-					'Content-Type' => 'application/x-www-form-urlencoded',
-				),
-				'body'    => array(
-					'grant_type'    => 'refresh_token',
-					'client_id'     => $this->client_id,
-					'client_secret' => $this->client_secret,
-					'refresh_token' => $refresh_token,
-					'audience'      => $this->token_audience(),
-				),
+				'grant_type'    => 'refresh_token',
+				'client_id'     => $this->client_id,
+				'client_secret' => $this->client_secret,
+				'refresh_token' => $refresh_token,
+				'audience'      => $this->token_audience(),
 			)
 		);
-
-		return $this->parse_token_response( $response );
 	}
 
 	/**
@@ -182,25 +167,40 @@ class Gaming_Hub_Tesla_Api {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public function exchange_authorization_code( $code, $redirect_uri ) {
-		$response = wp_remote_post(
-			$this->token_url,
+		return $this->post_token(
 			array(
-				'timeout' => 20,
-				'headers' => array(
-					'Content-Type' => 'application/x-www-form-urlencoded',
-				),
-				'body'    => array(
-					'grant_type'    => 'authorization_code',
-					'client_id'     => $this->client_id,
-					'client_secret' => $this->client_secret,
-					'code'          => $code,
-					'redirect_uri'  => $redirect_uri,
-					'audience'      => $this->token_audience(),
-				),
+				'grant_type'    => 'authorization_code',
+				'client_id'     => $this->client_id,
+				'client_secret' => $this->client_secret,
+				'code'          => $code,
+				'redirect_uri'  => $redirect_uri,
+				'audience'      => $this->token_audience(),
+				'scope'         => 'openid offline_access vehicle_device_data vehicle_location',
 			)
 		);
+	}
 
-		return $this->parse_token_response( $response );
+	/**
+	 * POST to Tesla token endpoint, then the legacy host if needed.
+	 *
+	 * @param array<string, string> $body Form body.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	private function post_token( array $body ) {
+		$args = array(
+			'timeout' => 20,
+			'headers' => array(
+				'Content-Type' => 'application/x-www-form-urlencoded',
+			),
+			'body'    => $body,
+		);
+
+		$parsed = $this->parse_token_response( wp_remote_post( $this->token_url, $args ) );
+		if ( ! is_wp_error( $parsed ) ) {
+			return $parsed;
+		}
+
+		return $this->parse_token_response( wp_remote_post( $this->legacy_token_url, $args ) );
 	}
 
 	/**
