@@ -1551,6 +1551,91 @@ body.home .site-header.is-scrolled {
 	border-color: var(--batt-tone, #e82127);
 }
 
+.tesla-shift {
+	position: absolute;
+	right: 8px;
+	bottom: 8px;
+	z-index: 3;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 6px 4px 4px;
+	background: rgba(6, 6, 10, 0.82);
+	border: 1px solid rgba(255, 255, 255, 0.16);
+	border-radius: 10px;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.tesla-shift-badge {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	font-size: 0.95rem;
+	font-weight: 800;
+	letter-spacing: 0;
+	line-height: 1;
+	color: #f5f5f5;
+	background: #2a2a32;
+}
+
+.tesla-shift.is-p .tesla-shift-badge {
+	color: #ff8a80;
+	background: rgba(232, 33, 39, 0.22);
+}
+
+.tesla-shift.is-r .tesla-shift-badge {
+	color: #ffd54f;
+	background: rgba(255, 179, 0, 0.22);
+}
+
+.tesla-shift.is-n .tesla-shift-badge {
+	color: #cfd8dc;
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.tesla-shift.is-d .tesla-shift-badge {
+	color: #69f0ae;
+	background: rgba(0, 200, 83, 0.2);
+}
+
+.tesla-shift.is-unknown .tesla-shift-badge {
+	color: #9aa0a6;
+}
+
+.tesla-shift-prnd {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+	font-size: 0.58rem;
+	font-weight: 700;
+	line-height: 1.05;
+	color: rgba(255, 255, 255, 0.32);
+}
+
+.tesla-shift-prnd .is-current {
+	color: #fff;
+}
+
+.tesla-shift.is-p .tesla-shift-prnd .is-current {
+	color: #ff8a80;
+}
+
+.tesla-shift.is-r .tesla-shift-prnd .is-current {
+	color: #ffd54f;
+}
+
+.tesla-shift.is-n .tesla-shift-prnd .is-current {
+	color: #eceff1;
+}
+
+.tesla-shift.is-d .tesla-shift-prnd .is-current {
+	color: #69f0ae;
+}
+
 .tesla-node-wall.is-active {
 	border-color: rgba(100, 210, 255, 0.7);
 }
@@ -1684,7 +1769,8 @@ body.home .site-header.is-scrolled {
 	border-radius: var(--radius-md);
 }
 
-.pw-flow-error-action {
+.pw-flow-error-action,
+.pw-tesla-link-actions {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;

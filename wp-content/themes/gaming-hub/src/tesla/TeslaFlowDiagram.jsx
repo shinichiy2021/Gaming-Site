@@ -54,6 +54,49 @@ function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, ext
 	);
 }
 
+function shiftMeta( status, labels ) {
+	const gears = [ 'P', 'R', 'N', 'D' ];
+	const current = String( status.shift || '' ).toUpperCase();
+	const ready = gears.includes( current );
+	const names = {
+		P: labels.park || 'P',
+		R: labels.reverse || 'R',
+		N: labels.neutral || 'N',
+		D: labels.driveGear || 'D',
+	};
+
+	return {
+		gears,
+		current,
+		ready,
+		label: ready ? names[ current ] : ( labels.shiftUnknown || '—' ),
+	};
+}
+
+function ShiftIcon( { status, labels } ) {
+	const { gears, current, ready, label } = shiftMeta( status, labels );
+
+	return (
+		<span
+			className={ `tesla-shift${ ready ? ` is-${ current.toLowerCase() }` : ' is-unknown' }` }
+			title={ ready ? `${ label } (${ current })` : label }
+			aria-label={ ready ? `${ labels.shift || 'シフト' } ${ current }` : label }
+		>
+			<span className="tesla-shift-badge">{ ready ? current : '—' }</span>
+			<span className="tesla-shift-prnd" aria-hidden="true">
+				{ gears.map( ( gear ) => (
+					<span
+						key={ gear }
+						className={ ready && gear === current ? 'is-current' : '' }
+					>
+						{ gear }
+					</span>
+				) ) }
+			</span>
+		</span>
+	);
+}
+
 function teslaStateLabel( status, labels ) {
 	if ( ! status.live ) {
 		return labels.idle;
@@ -183,6 +226,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 								<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
 							) : null }
 							{ hasSoc ? <PhoneBattery percent={ soc } charging={ charging || regenOn } /> : null }
+							<ShiftIcon status={ status } labels={ labels } />
 						</div>
 						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
 						<p className="ecoflow-node-state">{ teslaStateLabel( status, labels ) }</p>

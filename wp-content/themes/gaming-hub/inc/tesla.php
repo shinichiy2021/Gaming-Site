@@ -681,6 +681,13 @@ function gaming_hub_tesla_has_location_scope() {
  */
 function gaming_hub_tesla_should_request_location_data() {
 	if ( gaming_hub_tesla_has_location_scope() ) {
+		$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
+
+		// Scope already unlocked drive_state — do not keep polling GPS.
+		if ( is_array( $cached ) && ! empty( $cached['drive_ready'] ) ) {
+			return false;
+		}
+
 		return true;
 	}
 
@@ -790,22 +797,21 @@ function gaming_hub_tesla_link_note( array $status ) {
 
 	if ( ! empty( $model3['drive_ready'] ) ) {
 		$shift = strtoupper( (string) ( $model3['shift_state'] ?? '' ) );
-		$parts[] = $shift
-			? sprintf(
-				/* translators: %s: gear P/D/R/N */
+		if ( in_array( $shift, array( 'D', 'R' ), true ) ) {
+			$parts[] = sprintf(
+				/* translators: %s: gear D/R */
 				__( '走行データ取得中 · シフト %s', 'gaming-hub' ),
 				$shift
-			)
-			: __( '走行データ取得中', 'gaming-hub' );
+			);
+		} elseif ( 'N' === $shift ) {
+			$parts[] = __( '走行データ取得中 · ニュートラル', 'gaming-hub' );
+		} else {
+			$parts[] = __( '走行データ取得中 · 駐車中', 'gaming-hub' );
+		}
 	} elseif ( gaming_hub_tesla_has_location_scope() ) {
 		$parts[] = __( '位置スコープあり · 走行スライス待ち', 'gaming-hub' );
 	} else {
 		$parts[] = __( '走行用の位置スコープは未許可', 'gaming-hub' );
-	}
-
-	$scopes = gaming_hub_tesla_token_scopes();
-	if ( ! empty( $scopes ) ) {
-		$parts[] = implode( ' ', $scopes );
 	}
 
 	return implode( ' · ', $parts );
@@ -826,7 +832,7 @@ function gaming_hub_render_tesla_link_status( array $status ) {
 		echo '<p class="pw-flow-live-note" data-pw-field="tesla_link_note">' . esc_html( $note ) . '</p>';
 	}
 
-	echo '<div class="pw-flow-error-action pw-tesla-link-actions">';
+	echo '<div class="pw-tesla-link-actions">';
 	if ( gaming_hub_tesla_needs_drive_scope( $status ) ) {
 		gaming_hub_render_tesla_oauth_button( true, true );
 	}
