@@ -17,7 +17,7 @@ define( 'GAMING_HUB_TESLA_SCOPES_OPTION', 'gaming_hub_tesla_token_scopes' );
 define( 'GAMING_HUB_TESLA_LOCATION_DENIED_OPTION', 'gaming_hub_tesla_location_denied' );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
-define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v2' );
+define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v3' );
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
 define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 5 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 2 * MINUTE_IN_SECONDS );
@@ -1189,15 +1189,13 @@ function gaming_hub_tesla_climate_is_on( array $climate ) {
 }
 
 /**
- * Cabin watts from the current climate snapshot when pack power is missing.
- *
- * Uses live temps / fan / seat heaters — not a clock demo.
+ * Cabin watts only from Tesla climate power fields. No temp/fan estimates.
  *
  * @param array<string, mixed> $climate Tesla climate_state.
  * @return int|null
  */
 function gaming_hub_tesla_cabin_watts_from_climate( array $climate ) {
-	foreach ( array( 'hvac_power', 'climate_power', 'cabin_power', 'power' ) as $key ) {
+	foreach ( array( 'hvac_power', 'climate_power', 'cabin_power' ) as $key ) {
 		if ( ! isset( $climate[ $key ] ) || ! is_numeric( $climate[ $key ] ) ) {
 			continue;
 		}
@@ -1211,56 +1209,7 @@ function gaming_hub_tesla_cabin_watts_from_climate( array $climate ) {
 		}
 	}
 
-	if ( ! gaming_hub_tesla_climate_is_on( $climate ) ) {
-		return null;
-	}
-
-	$inside  = isset( $climate['inside_temp'] ) && is_numeric( $climate['inside_temp'] )
-		? (float) $climate['inside_temp']
-		: null;
-	$outside = isset( $climate['outside_temp'] ) && is_numeric( $climate['outside_temp'] )
-		? (float) $climate['outside_temp']
-		: null;
-	$target  = isset( $climate['driver_temp_setting'] ) && is_numeric( $climate['driver_temp_setting'] )
-		? (float) $climate['driver_temp_setting']
-		: null;
-	$fan     = isset( $climate['fan_status'] ) && is_numeric( $climate['fan_status'] )
-		? max( 0, (int) $climate['fan_status'] )
-		: 0;
-
-	$gap = 6.0;
-	if ( null !== $outside && null !== $target ) {
-		$gap = abs( $outside - $target );
-	} elseif ( null !== $inside && null !== $target ) {
-		$gap = abs( $inside - $target );
-	} elseif ( null !== $outside && null !== $inside ) {
-		$gap = abs( $outside - $inside );
-	}
-
-	$compressor = 900 + min( 1800, (int) round( $gap * 160 ) );
-	if ( ! empty( $climate['defrost_mode'] ) || ! empty( $climate['is_front_defroster_on'] ) ) {
-		$compressor += 400;
-	}
-
-	$fan_w = min( 450, max( 80, $fan * 45 ) );
-	$seats = 0;
-	foreach ( array(
-		'seat_heater_left',
-		'seat_heater_right',
-		'seat_heater_rear_left',
-		'seat_heater_rear_center',
-		'seat_heater_rear_right',
-	) as $seat ) {
-		if ( isset( $climate[ $seat ] ) && is_numeric( $climate[ $seat ] ) ) {
-			$seats += max( 0, (int) $climate[ $seat ] ) * 35;
-		}
-	}
-
-	if ( ! empty( $climate['steering_wheel_heater'] ) ) {
-		$seats += 50;
-	}
-
-	return max( 80, $compressor + $fan_w + $seats );
+	return null;
 }
 
 /**
@@ -1382,15 +1331,13 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	}
 
 	$drive_w = null;
-	$cabin_w = null;
+	$cabin_w = gaming_hub_tesla_cabin_watts_from_climate( $climate_state );
 	$regen_w = 0;
 
-	if ( $climate_on ) {
-		$cabin_w = gaming_hub_tesla_cabin_watts_from_climate( $climate_state );
-	} elseif ( ! $charging && ! $moving && $has_pack && $pack_kw > 0.08 ) {
+	if ( null === $cabin_w && ! $charging && ! $moving && $has_pack && $pack_kw > 0.08 ) {
 		$cabin_w = max( 0, (int) round( $pack_kw * 1000 ) );
-	} elseif ( ! $moving ) {
-		$cabin_w = $has_pack ? 0 : null;
+	} elseif ( null === $cabin_w ) {
+		$cabin_w = ( $has_pack || $has_drive_slice ) ? 0 : null;
 	}
 
 	if ( $charging ) {
@@ -1402,7 +1349,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	} elseif ( $moving && $has_pack && $pack_kw > 0.08 ) {
 		$pack_discharge = max( 0, (int) round( $pack_kw * 1000 ) );
 		$cabin_live     = (int) ( $cabin_w ?? 0 );
-		$drive_w        = $pack_discharge > $cabin_live
+		$drive_w        = $cabin_live >= 80 && $pack_discharge > $cabin_live
 			? max( 80, $pack_discharge - $cabin_live )
 			: $pack_discharge;
 	} elseif ( $moving ) {
