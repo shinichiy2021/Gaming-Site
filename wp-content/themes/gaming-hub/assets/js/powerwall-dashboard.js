@@ -246,6 +246,16 @@
 			el.hidden = !data.tesla_asleep;
 		});
 
+		document.querySelectorAll('[data-pw-field="tesla_link_note"]').forEach(function (el) {
+			if (data.tesla_link_note) {
+				el.textContent = data.tesla_link_note;
+			}
+		});
+
+		document.querySelectorAll('[data-pw-field="tesla_drive_scope"]').forEach(function (el) {
+			el.hidden = !data.tesla_needs_location_scope;
+		});
+
 		document.dispatchEvent(new CustomEvent('gamingHubPowerwallFlow', {
 			detail: flow,
 		}));

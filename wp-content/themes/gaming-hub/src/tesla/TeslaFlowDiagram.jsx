@@ -59,6 +59,10 @@ function teslaStateLabel( status, labels ) {
 		return labels.idle;
 	}
 
+	if ( status.asleep ) {
+		return labels.asleep || labels.idle;
+	}
+
 	if ( status.mode === 'regen' || ( status.regen_w || 0 ) >= 80 ) {
 		const speed = Number( status.speed_km ) || 0;
 		return speed > 0
@@ -78,11 +82,17 @@ function teslaStateLabel( status, labels ) {
 	}
 
 	if ( ( status.cabin_w || 0 ) >= 80 && status.climate_on ) {
-		return labels.climate;
+		return status.drive_ready
+			? labels.climate
+			: `${ labels.climate } · ${ labels.drivePending || '' }`.replace( /\s·\s$/, '' );
 	}
 
 	if ( ( status.cabin_w || 0 ) >= 80 && status.sentry ) {
 		return labels.sentry;
+	}
+
+	if ( status.live && status.drive_ready === false ) {
+		return labels.drivePending || labels.idle;
 	}
 
 	return labels.idle;

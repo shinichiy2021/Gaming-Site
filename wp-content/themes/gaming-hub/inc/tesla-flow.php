@@ -148,7 +148,9 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'driving'    => __( '走行中', 'gaming-hub' ),
 			'climate'    => __( 'エアコン', 'gaming-hub' ),
 			'sentry'     => __( 'Sentry', 'gaming-hub' ),
-			'live'       => __( 'Tesla Fleet API 実データ', 'gaming-hub' ),
+			'live'          => __( 'Tesla Fleet API 実データ', 'gaming-hub' ),
+			'asleep'        => __( 'スリープ中', 'gaming-hub' ),
+			'drivePending'  => __( '走行データ未取得', 'gaming-hub' ),
 		),
 		'images' => array(
 			'wall'  => $base . 'tesla-wall-connector-gaming.jpg',

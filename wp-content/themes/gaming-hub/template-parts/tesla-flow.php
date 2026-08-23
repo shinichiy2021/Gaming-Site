@@ -37,13 +37,7 @@ $flow   = isset( $status['tesla_flow'] ) && is_array( $status['tesla_flow'] )
 	</p>
 
 	<?php if ( 'tesla' === $source ) : ?>
-		<p class="pw-flow-live-note"><?php esc_html_e( 'Tesla Fleet API 実データ', 'gaming-hub' ); ?></p>
-		<?php gaming_hub_render_tesla_asleep_notice( $status ); ?>
-		<?php
-		if ( gaming_hub_tesla_needs_drive_scope( $status ) ) {
-			gaming_hub_render_tesla_drive_scope_notice();
-		}
-		?>
+		<?php gaming_hub_render_tesla_link_status( $status ); ?>
 	<?php elseif ( ! empty( $status['model3_error'] ) ) : ?>
 		<div class="pw-flow-error-action">
 			<p class="pw-flow-error"><?php echo esc_html( 'Model 3 API: ' . $status['model3_error'] ); ?></p>
