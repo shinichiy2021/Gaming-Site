@@ -133,9 +133,6 @@ function drawPath( ctx, path, active, dashOffset, watts ) {
 
 	if ( ! active ) {
 		drawArrow( ctx, from, to, 'rgba(255, 255, 255, 0.35)' );
-		if ( path.showLabel ) {
-			drawWattsLabel( ctx, from, to, watts, color );
-		}
 		return;
 	}
 

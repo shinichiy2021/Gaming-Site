@@ -580,26 +580,29 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		? (float) $drive_state['speed']
 		: 0.0;
 	$speed_km  = (int) round( $speed_mph * 1.60934 );
-	$pack_kw   = isset( $drive_state['power'] ) && is_numeric( $drive_state['power'] )
-		? (float) $drive_state['power']
-		: 0.0;
+	$has_pack  = array_key_exists( 'power', $drive_state ) && is_numeric( $drive_state['power'] );
+	$pack_kw   = $has_pack ? (float) $drive_state['power'] : null;
 	$moving    = $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true );
 	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
-	$cabin_w   = function_exists( 'gaming_hub_tesla_estimate_cabin_w' )
-		? gaming_hub_tesla_estimate_cabin_w( $climate_state, $sentry )
-		: 0;
-	$drive_w   = 0;
-
-	if ( $moving && $pack_kw > 0.2 ) {
-		$total_out = (int) round( $pack_kw * 1000 );
-		$drive_w   = max( 0, $total_out - $cabin_w );
-	} elseif ( ! $charging && $pack_kw > 0.2 ) {
-		$cabin_w = max( $cabin_w, (int) round( $pack_kw * 1000 ) );
-	}
-
 	$climate_on = ! empty( $climate_state['is_climate_on'] )
 		|| ! empty( $climate_state['is_auto_conditioning_on'] )
 		|| ! empty( $climate_state['is_preconditioning'] );
+
+	// Cabin watts only from live pack discharge while parked. No estimate, no demo.
+	$drive_w = null;
+	$cabin_w = null;
+
+	if ( $moving && $has_pack && $pack_kw > 0.08 ) {
+		$drive_w = max( 0, (int) round( $pack_kw * 1000 ) );
+	} elseif ( ! $moving ) {
+		$drive_w = 0;
+	}
+
+	if ( ! $charging && ! $moving && $has_pack && $pack_kw > 0.08 ) {
+		$cabin_w = max( 0, (int) round( $pack_kw * 1000 ) );
+	} elseif ( $has_pack && ! $moving ) {
+		$cabin_w = 0;
+	}
 
 	return gaming_hub_powerwall_model3_present(
 		array(
