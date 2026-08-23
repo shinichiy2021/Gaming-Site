@@ -408,7 +408,7 @@ function gaming_hub_tesla_oauth_state_is_valid( $state ) {
 /**
  * Build Tesla OAuth authorize URL.
  */
-function gaming_hub_tesla_oauth_authorize_url( $force_login = false ) {
+function gaming_hub_tesla_oauth_authorize_url( $force_login = false, $require_all_scopes = false ) {
 	$config = gaming_hub_get_tesla_config();
 
 	if ( empty( $config['client_id'] ) || empty( $config['redirect_uri'] ) ) {
@@ -416,27 +416,57 @@ function gaming_hub_tesla_oauth_authorize_url( $force_login = false ) {
 	}
 
 	$params = array(
-		'client_id'     => $config['client_id'],
-		'redirect_uri'  => $config['redirect_uri'],
-		'response_type' => 'code',
-		'scope'         => 'openid offline_access vehicle_device_data vehicle_location',
-		'state'         => gaming_hub_tesla_oauth_state(),
+		'client_id'              => $config['client_id'],
+		'redirect_uri'           => $config['redirect_uri'],
+		'response_type'          => 'code',
+		'scope'                  => 'openid offline_access vehicle_device_data vehicle_location',
+		'state'                  => gaming_hub_tesla_oauth_state(),
+		'locale'                 => 'ja-JP',
+		'prompt_missing_scopes'  => 'true',
 	);
 
 	if ( $force_login ) {
 		$params['prompt'] = 'login';
 	}
 
-	return add_query_arg( $params, 'https://auth.tesla.com/oauth2/v3/authorize' );
+	if ( $require_all_scopes ) {
+		$params['require_requested_scopes'] = 'true';
+	}
+
+	$pairs = array();
+	foreach ( $params as $key => $value ) {
+		$pairs[] = rawurlencode( (string) $key ) . '=' . rawurlencode( (string) $value );
+	}
+
+	return 'https://auth.tesla.com/oauth2/v3/authorize?' . implode( '&', $pairs );
+}
+
+/**
+ * Tesla page to revoke or edit this app's granted scopes.
+ */
+function gaming_hub_tesla_revoke_consent_url() {
+	$config = gaming_hub_get_tesla_config();
+
+	if ( empty( $config['client_id'] ) ) {
+		return '';
+	}
+
+	$back = function_exists( 'gaming_hub_hub_section_url' )
+		? gaming_hub_hub_section_url( 'powerwall', array( 'tesla_revoked' => '1' ) )
+		: add_query_arg( 'tesla_revoked', '1', home_url( '/' ) );
+
+	return 'https://auth.tesla.com/user/revoke/consent?' . rawurlencode( 'revoke_client_id' ) . '=' . rawurlencode( $config['client_id'] )
+		. '&' . rawurlencode( 'back_url' ) . '=' . rawurlencode( $back );
 }
 
 /**
  * Render the Tesla OAuth button.
  *
- * @param bool $force_login Force Tesla login so new scopes can be granted.
+ * @param bool $force_login        Force Tesla login so new scopes can be granted.
+ * @param bool $require_all_scopes Block continue unless Vehicle Location is granted.
  */
-function gaming_hub_render_tesla_oauth_button( $force_login = false ) {
-	$authorize = gaming_hub_tesla_oauth_authorize_url( $force_login );
+function gaming_hub_render_tesla_oauth_button( $force_login = false, $require_all_scopes = false ) {
+	$authorize = gaming_hub_tesla_oauth_authorize_url( $force_login, $require_all_scopes );
 
 	if ( ! $authorize ) {
 		echo '<span class="pw-flow-oauth-missing">' . esc_html__( 'Client ID を設定すると認証リンクが表示されます', 'gaming-hub' ) . '</span>';
@@ -444,9 +474,44 @@ function gaming_hub_render_tesla_oauth_button( $force_login = false ) {
 	}
 	?>
 	<a href="<?php echo esc_url( $authorize ); ?>" class="btn btn-outline btn-sm pw-tesla-oauth-btn">
-		<?php esc_html_e( 'Tesla で認証', 'gaming-hub' ); ?>
+		<?php
+		echo $require_all_scopes
+			? esc_html__( '不足スコープを追加', 'gaming-hub' )
+			: esc_html__( 'Tesla で認証', 'gaming-hub' );
+		?>
 	</a>
 	<?php
+}
+
+/**
+ * Render the Tesla revoke-consent button.
+ */
+function gaming_hub_render_tesla_revoke_button() {
+	$revoke = gaming_hub_tesla_revoke_consent_url();
+
+	if ( ! $revoke ) {
+		return;
+	}
+	?>
+	<a href="<?php echo esc_url( $revoke ); ?>" class="btn btn-outline btn-sm pw-tesla-oauth-btn pw-tesla-revoke-btn">
+		<?php esc_html_e( '連携を解除', 'gaming-hub' ); ?>
+	</a>
+	<?php
+}
+
+/**
+ * Drop stored Tesla tokens after the owner revokes the app.
+ */
+function gaming_hub_tesla_disconnect_local() {
+	delete_transient( GAMING_HUB_TESLA_ACCESS_TOKEN_KEY );
+	delete_option( GAMING_HUB_TESLA_REFRESH_TOKEN_OPTION );
+	delete_option( GAMING_HUB_TESLA_SCOPES_OPTION );
+	if ( defined( 'GAMING_HUB_TESLA_LOCATION_DENIED_OPTION' ) ) {
+		delete_option( GAMING_HUB_TESLA_LOCATION_DENIED_OPTION );
+	}
+	if ( function_exists( 'gaming_hub_tesla_invalidate_status_caches' ) ) {
+		gaming_hub_tesla_invalidate_status_caches();
+	}
 }
 
 /**
@@ -695,9 +760,8 @@ function gaming_hub_render_tesla_drive_scope_notice() {
 	?>
 	<div class="pw-flow-error-action" data-pw-field="tesla_drive_scope">
 		<p class="pw-flow-error">
-			<?php esc_html_e( 'Tesla 連携はできています（充電・車内）。走行の速度と消費電力だけ、位置スコープが未許可です。Tesla の画面で Vehicle Location を許可してもう一度認証してください。位置情報は保存しません。', 'gaming-hub' ); ?>
+			<?php esc_html_e( 'Tesla は前回の許可内容を使い回すため、同じ認証を繰り返しても位置スコープは増えません。developer.tesla.com のアプリで Vehicle Location を有効にしたうえで、「不足スコープを追加」を押してください。Tesla の画面で車両位置を許可する必要があります。まだ付かないときは一度連携を解除してから再認証してください。位置情報は保存しません。', 'gaming-hub' ); ?>
 		</p>
-		<?php gaming_hub_render_tesla_oauth_button( true ); ?>
 	</div>
 	<?php
 }
@@ -761,6 +825,13 @@ function gaming_hub_render_tesla_link_status( array $status ) {
 	if ( '' !== $note ) {
 		echo '<p class="pw-flow-live-note" data-pw-field="tesla_link_note">' . esc_html( $note ) . '</p>';
 	}
+
+	echo '<div class="pw-flow-error-action pw-tesla-link-actions">';
+	if ( gaming_hub_tesla_needs_drive_scope( $status ) ) {
+		gaming_hub_render_tesla_oauth_button( true, true );
+	}
+	gaming_hub_render_tesla_revoke_button();
+	echo '</div>';
 
 	gaming_hub_render_tesla_asleep_notice( $status );
 
@@ -1533,11 +1604,12 @@ function gaming_hub_powerwall_recalc_flow_load( array $status ) {
 function gaming_hub_render_tesla_setup_instructions() {
 	?>
 	<ol class="pw-flow-setup-steps">
-		<li><?php esc_html_e( 'developer.tesla.com でアプリを作成し Client ID / Secret を取得。Vehicle Location（車両位置）スコープも有効にする', 'gaming-hub' ); ?></li>
+		<li><?php esc_html_e( 'developer.tesla.com でアプリを作成し Client ID / Secret を取得。Vehicle Location（車両位置）スコープも有効にする。既存連携では位置スコープは増えないので、不足スコープの追加か連携解除が必要', 'gaming-hub' ); ?></li>
 		<li><?php esc_html_e( '.env または 外観 → カスタマイズ → Tesla API に Client ID / Secret / VIN を設定', 'gaming-hub' ); ?></li>
 		<li>
 			<?php esc_html_e( 'Tesla アカウント連携:', 'gaming-hub' ); ?>
 			<?php gaming_hub_render_tesla_oauth_button(); ?>
+			<?php gaming_hub_render_tesla_revoke_button(); ?>
 		</li>
 		<li><?php esc_html_e( 'Redirect URI: /wp-json/gaming-hub/v1/tesla/oauth/callback', 'gaming-hub' ); ?></li>
 		<li>
@@ -1635,10 +1707,31 @@ add_action( 'rest_api_init', 'gaming_hub_register_tesla_rest_routes' );
  * Show admin notice after successful Tesla OAuth.
  */
 function gaming_hub_tesla_oauth_admin_notice() {
-	if ( ( ! is_front_page() && ! is_page( 'powerwall' ) ) || empty( $_GET['tesla_connected'] ) ) {
+	if ( ! is_front_page() && ! is_page( 'powerwall' ) ) {
+		return;
+	}
+
+	if ( ! empty( $_GET['tesla_revoked'] ) ) {
+		echo '<div class="pw-flow-oauth-notice">' . esc_html__( 'Tesla 連携を解除しました。位置スコープを付けるには、もう一度「不足スコープを追加」または「Tesla で認証」してください。', 'gaming-hub' ) . '</div>';
+		return;
+	}
+
+	if ( empty( $_GET['tesla_connected'] ) ) {
 		return;
 	}
 
 	echo '<div class="pw-flow-oauth-notice">' . esc_html__( 'Tesla アカウントを連携しました。Model 3 の実データを取得します。', 'gaming-hub' ) . '</div>';
 }
 add_action( 'wp_body_open', 'gaming_hub_tesla_oauth_admin_notice', 20 );
+
+/**
+ * Clear local Tesla tokens after the owner revokes the app at Tesla.
+ */
+function gaming_hub_tesla_maybe_disconnect() {
+	if ( empty( $_GET['tesla_revoked'] ) ) {
+		return;
+	}
+
+	gaming_hub_tesla_disconnect_local();
+}
+add_action( 'init', 'gaming_hub_tesla_maybe_disconnect', 20 );

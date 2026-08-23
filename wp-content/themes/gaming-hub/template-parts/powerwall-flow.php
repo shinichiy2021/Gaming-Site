@@ -89,6 +89,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 		<div class="pw-flow-error-action">
 			<p class="pw-flow-error"><?php echo esc_html( 'Model 3 API: ' . $status['model3_error'] ); ?></p>
 			<?php gaming_hub_render_tesla_oauth_button(); ?>
+			<?php gaming_hub_render_tesla_revoke_button(); ?>
 		</div>
 	<?php elseif ( 'tesla' === ( $status['model3_source'] ?? '' ) ) : ?>
 		<?php gaming_hub_render_tesla_link_status( $status ); ?>

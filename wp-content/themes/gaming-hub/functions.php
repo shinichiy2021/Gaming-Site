@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.10.31' );
+define( 'GAMING_HUB_VERSION', '1.10.32' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -153,6 +153,9 @@ function gaming_hub_redirect_legacy_section_pages() {
 	$query = array();
 	if ( ! empty( $_GET['tesla_connected'] ) ) {
 		$query['tesla_connected'] = '1';
+	}
+	if ( ! empty( $_GET['tesla_revoked'] ) ) {
+		$query['tesla_revoked'] = '1';
 	}
 
 	wp_safe_redirect( gaming_hub_hub_section_url( $section, $query ), 301 );
