@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.10.37' );
+define( 'GAMING_HUB_VERSION', '1.10.38' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -91,6 +91,7 @@ require get_template_directory() . '/inc/powerwall-home.php';
 require get_template_directory() . '/inc/powerwall-model3.php';
 require get_template_directory() . '/inc/powerwall-cost.php';
 require get_template_directory() . '/inc/tesla.php';
+require get_template_directory() . '/inc/tajimi-gasoline.php';
 require get_template_directory() . '/inc/tesla-flow.php';
 
 /**

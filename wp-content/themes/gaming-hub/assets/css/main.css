@@ -1598,6 +1598,11 @@ body.home .site-header.is-scrolled {
 	border-color: rgba(255, 179, 0, 0.7);
 }
 
+.tesla-gas-saved {
+	color: #69f0ae;
+	font-weight: 700;
+}
+
 .tesla-node-drive.is-regen.is-active {
 	border-color: rgba(100, 210, 255, 0.75);
 }

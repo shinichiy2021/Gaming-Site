@@ -12,7 +12,7 @@ if ( mountNode ) {
 		super: '急速充電',
 		superNote: 'Supercharger',
 		tesla: 'Tesla',
-		drive: '走行消費',
+		drive: 'ガソリン換算',
 		regen: '回生充電',
 		regenNote: '減速・ブレーキ',
 		cabin: '車内電力',
@@ -30,6 +30,9 @@ if ( mountNode ) {
 		neutral: 'ニュートラル',
 		driveGear: 'ドライブ',
 		shiftUnknown: 'シフト未取得',
+		saved: '節約',
+		gasToday: '本日',
+		gasCar: '普通車 15 km/L',
 	};
 
 	createRoot( mountNode ).render(
