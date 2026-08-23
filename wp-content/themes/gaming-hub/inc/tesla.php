@@ -201,6 +201,13 @@ function gaming_hub_tesla_user_facing_error( WP_Error $error ) {
 		);
 	}
 
+	if ( 'tesla_missing_charge_state' === $code || false !== stripos( $message, 'charge_state' ) ) {
+		return __(
+			'Tesla から充電データ（charge_state）が返りませんでした。車がスリープ中のことがあります。Tesla アプリで車両を起こしてから再読み込みしてください。',
+			'gaming-hub'
+		);
+	}
+
 	return $message;
 }
 
@@ -769,7 +776,7 @@ function gaming_hub_fetch_tesla_model3_status() {
 		return $api;
 	}
 
-	$data = $api->get_vehicle_data( $config['vehicle_vin'], 'charge_state,vehicle_state,drive_state,climate_state' );
+	$data = $api->get_vehicle_data( $config['vehicle_vin'], 'charge_state;vehicle_state;drive_state;climate_state' );
 
 	if ( is_wp_error( $data ) ) {
 		return $data;

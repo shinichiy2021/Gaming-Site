@@ -276,15 +276,84 @@ class Gaming_Hub_Tesla_Api {
 	}
 
 	/**
+	 * Fleet API vehicle_data endpoints must be semicolon-separated and URL-encoded as %3B.
+	 *
+	 * @param string $endpoints Comma or semicolon separated slices.
+	 */
+	private function normalize_vehicle_endpoints( $endpoints ) {
+		$parts = preg_split( '/[;,\s]+/', (string) $endpoints, -1, PREG_SPLIT_NO_EMPTY );
+		$parts = array_values( array_unique( array_filter( array_map( 'trim', $parts ) ) ) );
+
+		return implode( ';', $parts );
+	}
+
+	/**
+	 * Unwrap Tesla vehicle_data envelopes and JSON-string slices.
+	 *
+	 * @param mixed $data Raw Fleet API payload.
+	 * @param int   $depth Recursion guard.
+	 * @return array<string, mixed>
+	 */
+	private function unwrap_vehicle_data( $data, $depth = 0 ) {
+		if ( ! is_array( $data ) || $depth > 3 ) {
+			return is_array( $data ) ? $data : array();
+		}
+
+		if ( isset( $data['charge_state'] ) && is_string( $data['charge_state'] ) ) {
+			$decoded = json_decode( $data['charge_state'], true );
+			if ( is_array( $decoded ) ) {
+				$data['charge_state'] = $decoded;
+			}
+		}
+
+		if ( isset( $data['charge_state'] ) && is_array( $data['charge_state'] ) ) {
+			return $data;
+		}
+
+		foreach ( array( 'response', 'data', 'vehicle_data' ) as $key ) {
+			if ( isset( $data[ $key ] ) && is_array( $data[ $key ] ) ) {
+				$inner = $this->unwrap_vehicle_data( $data[ $key ], $depth + 1 );
+				if ( isset( $inner['charge_state'] ) && is_array( $inner['charge_state'] ) ) {
+					return $inner;
+				}
+			}
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Wake the vehicle and retry vehicle_data once.
+	 *
+	 * @param string               $vin   Vehicle VIN.
+	 * @param array<string, mixed> $query vehicle_data query.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	private function wake_and_fetch_vehicle_data( $vin, array $query ) {
+		$wake = $this->fleet_request( 'POST', '/api/1/vehicles/' . rawurlencode( $vin ) . '/wake_up' );
+		if ( is_wp_error( $wake ) ) {
+			return $wake;
+		}
+
+		sleep( 4 );
+
+		return $this->fleet_request(
+			'GET',
+			'/api/1/vehicles/' . rawurlencode( $vin ) . '/vehicle_data',
+			$query
+		);
+	}
+
+	/**
 	 * Fetch live vehicle_data slices (does not poll location).
 	 *
 	 * @param string $vin       Vehicle VIN.
-	 * @param string $endpoints Comma-separated endpoints, e.g. charge_state,vehicle_state.
+	 * @param string $endpoints Comma or semicolon separated endpoints.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public function get_vehicle_data( $vin, $endpoints = 'charge_state,vehicle_state' ) {
+	public function get_vehicle_data( $vin, $endpoints = 'charge_state;vehicle_state' ) {
 		$vin       = sanitize_text_field( $vin );
-		$endpoints = sanitize_text_field( $endpoints );
+		$endpoints = $this->normalize_vehicle_endpoints( sanitize_text_field( $endpoints ) );
 		$query     = array(
 			'endpoints' => $endpoints,
 		);
@@ -306,18 +375,7 @@ class Gaming_Hub_Tesla_Api {
 			}
 
 			if ( $asleep ) {
-				$wake = $this->fleet_request( 'POST', '/api/1/vehicles/' . rawurlencode( $vin ) . '/wake_up' );
-				if ( is_wp_error( $wake ) ) {
-					return $wake;
-				}
-
-				sleep( 3 );
-
-				$data = $this->fleet_request(
-					'GET',
-					'/api/1/vehicles/' . rawurlencode( $vin ) . '/vehicle_data',
-					$query
-				);
+				$data = $this->wake_and_fetch_vehicle_data( $vin, $query );
 			}
 		}
 
@@ -325,8 +383,22 @@ class Gaming_Hub_Tesla_Api {
 			return $data;
 		}
 
+		$data = $this->unwrap_vehicle_data( $data );
+
 		if ( empty( $data['charge_state'] ) || ! is_array( $data['charge_state'] ) ) {
-			return new WP_Error( 'tesla_missing_charge_state', __( 'Tesla API did not return charge_state.', 'gaming-hub' ) );
+			$retry = $this->wake_and_fetch_vehicle_data( $vin, $query );
+			if ( ! is_wp_error( $retry ) ) {
+				$data = $this->unwrap_vehicle_data( $retry );
+			} else {
+				return $retry;
+			}
+		}
+
+		if ( empty( $data['charge_state'] ) || ! is_array( $data['charge_state'] ) ) {
+			return new WP_Error(
+				'tesla_missing_charge_state',
+				__( 'Tesla から充電データ（charge_state）が返りませんでした。車がスリープ中のことがあります。Tesla アプリで車両を起こしてから再読み込みしてください。', 'gaming-hub' )
+			);
 		}
 
 		return $data;
@@ -375,7 +447,16 @@ class Gaming_Hub_Tesla_Api {
 		$url = $this->fleet_base_url . $path;
 
 		if ( 'GET' === $method && ! empty( $query ) ) {
-			$url = add_query_arg( $query, $url );
+			$endpoints = isset( $query['endpoints'] ) ? $this->normalize_vehicle_endpoints( (string) $query['endpoints'] ) : '';
+			unset( $query['endpoints'] );
+
+			if ( ! empty( $query ) ) {
+				$url = add_query_arg( $query, $url );
+			}
+
+			if ( '' !== $endpoints ) {
+				$url .= ( false === strpos( $url, '?' ) ? '?' : '&' ) . 'endpoints=' . rawurlencode( $endpoints );
+			}
 		}
 
 		$args = array(
