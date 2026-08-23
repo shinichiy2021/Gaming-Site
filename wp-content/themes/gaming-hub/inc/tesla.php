@@ -16,6 +16,13 @@ define( 'GAMING_HUB_TESLA_REFRESH_TOKEN_OPTION', 'gaming_hub_tesla_refresh_token
 define( 'GAMING_HUB_TESLA_SCOPES_OPTION', 'gaming_hub_tesla_token_scopes' );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
+define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status' );
+define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
+define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 5 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 2 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 30 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 2 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
 
 /**
  * Read Tesla-related environment variables (Docker / .env).
@@ -202,9 +209,9 @@ function gaming_hub_tesla_user_facing_error( WP_Error $error ) {
 		);
 	}
 
-	if ( 'tesla_missing_charge_state' === $code || false !== stripos( $message, 'charge_state' ) ) {
+	if ( 'tesla_vehicle_asleep' === $code || 'tesla_missing_charge_state' === $code || false !== stripos( $message, 'asleep' ) ) {
 		return __(
-			'Tesla から充電データ（charge_state）が返りませんでした。車がスリープ中のことがあります。Tesla アプリで車両を起こしてから再読み込みしてください。',
+			'車はスリープ中です。起こさず、起きたら自動で更新します。',
 			'gaming-hub'
 		);
 	}
@@ -632,6 +639,121 @@ function gaming_hub_render_tesla_drive_scope_notice() {
 		</p>
 		<?php gaming_hub_render_tesla_oauth_button(); ?>
 	</div>
+	<?php
+}
+
+/**
+ * Last successful Model 3 snapshot, if any.
+ *
+ * @param bool $asleep Mark the snapshot as sleep-mode.
+ * @return array<string, mixed>|null
+ */
+function gaming_hub_tesla_cached_model3( $asleep = false ) {
+	$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
+	if ( ! is_array( $cached ) ) {
+		return null;
+	}
+
+	$cached['asleep'] = (bool) $asleep;
+
+	return $cached;
+}
+
+/**
+ * Current Tesla Fleet skip reason, if any.
+ *
+ * @return string asleep|error|
+ */
+function gaming_hub_tesla_api_skip_reason() {
+	$reason = get_transient( GAMING_HUB_TESLA_SKIP_KEY );
+
+	return is_string( $reason ) ? $reason : '';
+}
+
+/**
+ * Whether Tesla Fleet vehicle_data should be skipped right now.
+ */
+function gaming_hub_tesla_is_api_skip() {
+	return '' !== gaming_hub_tesla_api_skip_reason();
+}
+
+/**
+ * Pause Tesla Fleet calls (sleep or error backoff).
+ *
+ * @param int    $ttl    Seconds to skip.
+ * @param string $reason asleep|error.
+ */
+function gaming_hub_tesla_mark_api_skip( $ttl, $reason = 'error' ) {
+	$reason = 'asleep' === $reason ? 'asleep' : 'error';
+	set_transient( GAMING_HUB_TESLA_SKIP_KEY, $reason, max( 30, (int) $ttl ) );
+}
+
+/**
+ * Clear the Tesla Fleet skip flag after a live response.
+ */
+function gaming_hub_tesla_clear_api_skip() {
+	delete_transient( GAMING_HUB_TESLA_SKIP_KEY );
+}
+
+/**
+ * Persist last live Model 3 snapshot.
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ */
+function gaming_hub_tesla_store_model3( array $model3 ) {
+	$model3['asleep']     = false;
+	$model3['fetched_at'] = time();
+	set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $model3, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
+}
+
+/**
+ * Charging or driving — poll more often while the car is already awake.
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ */
+function gaming_hub_tesla_snapshot_is_active( array $model3 ) {
+	if ( ! empty( $model3['is_charging'] ) ) {
+		return true;
+	}
+
+	if ( (int) ( $model3['drive_w'] ?? 0 ) >= 80 || (int) ( $model3['regen_w'] ?? 0 ) >= 80 ) {
+		return true;
+	}
+
+	$shift = strtoupper( (string) ( $model3['shift_state'] ?? '' ) );
+	if ( in_array( $shift, array( 'D', 'R' ), true ) ) {
+		return true;
+	}
+
+	return (int) ( $model3['speed_km'] ?? 0 ) >= 3;
+}
+
+/**
+ * Seconds to reuse a live snapshot before the next Fleet call.
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ */
+function gaming_hub_tesla_snapshot_ttl( array $model3 ) {
+	return gaming_hub_tesla_snapshot_is_active( $model3 )
+		? GAMING_HUB_TESLA_POLL_ACTIVE_TTL
+		: GAMING_HUB_TESLA_POLL_IDLE_TTL;
+}
+
+/**
+ * Sleep-mode note under the Tesla flow.
+ *
+ * @param array<string, mixed> $status Powerwall flow status.
+ */
+function gaming_hub_render_tesla_asleep_notice( array $status ) {
+	if ( 'tesla' !== (string) ( $status['model3_source'] ?? '' ) ) {
+		return;
+	}
+
+	$asleep = ! empty( $status['tesla_asleep'] ) || ! empty( $status['model3']['asleep'] );
+	?>
+	<p class="pw-flow-sleep-note" data-pw-field="tesla_asleep_note"<?php echo $asleep ? '' : ' hidden'; ?>>
+		<?php esc_html_e( '車はスリープ中です。API は送らず、前回のデータを表示しています。', 'gaming-hub' ); ?>
+	</p>
 	<?php
 }
 
@@ -1119,13 +1241,46 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 /**
  * Fetch live Model 3 status from Tesla Fleet API.
  *
+ * Never wakes the vehicle. Sleep / errors skip further Fleet calls.
+ *
  * @return array<string, mixed>|WP_Error
  */
 function gaming_hub_fetch_tesla_model3_status() {
+	$cached = gaming_hub_tesla_cached_model3();
+
+	$skip_reason = gaming_hub_tesla_api_skip_reason();
+	if ( '' !== $skip_reason ) {
+		if ( $cached ) {
+			$cached['asleep'] = ( 'asleep' === $skip_reason );
+
+			return $cached;
+		}
+
+		return new WP_Error(
+			'asleep' === $skip_reason ? 'tesla_vehicle_asleep' : 'tesla_request_failed',
+			'asleep' === $skip_reason
+				? __( '車はスリープ中です。起こさず、起きたら自動で更新します。', 'gaming-hub' )
+				: __( 'Tesla Fleet API request failed.', 'gaming-hub' )
+		);
+	}
+
+	if ( is_array( $cached ) ) {
+		$age = time() - (int) ( $cached['fetched_at'] ?? 0 );
+		if ( $age >= 0 && $age < gaming_hub_tesla_snapshot_ttl( $cached ) ) {
+			return $cached;
+		}
+	}
+
 	$config = gaming_hub_get_tesla_config();
 	$api    = gaming_hub_tesla_get_api();
 
 	if ( is_wp_error( $api ) ) {
+		gaming_hub_tesla_mark_api_skip( GAMING_HUB_TESLA_ERROR_SKIP_TTL, 'error' );
+
+		if ( $cached ) {
+			return $cached;
+		}
+
 		return $api;
 	}
 
@@ -1137,7 +1292,11 @@ function gaming_hub_fetch_tesla_model3_status() {
 
 	$data = $api->get_vehicle_data( $config['vehicle_vin'], $endpoints );
 
-	if ( is_wp_error( $data ) && $with_location ) {
+	if (
+		is_wp_error( $data )
+		&& $with_location
+		&& 'tesla_vehicle_asleep' !== $data->get_error_code()
+	) {
 		$data = $api->get_vehicle_data(
 			$config['vehicle_vin'],
 			'charge_state;vehicle_state;drive_state;climate_state'
@@ -1145,10 +1304,26 @@ function gaming_hub_fetch_tesla_model3_status() {
 	}
 
 	if ( is_wp_error( $data ) ) {
+		$asleep = 'tesla_vehicle_asleep' === $data->get_error_code();
+		gaming_hub_tesla_mark_api_skip(
+			$asleep ? GAMING_HUB_TESLA_SLEEP_SKIP_TTL : GAMING_HUB_TESLA_ERROR_SKIP_TTL,
+			$asleep ? 'asleep' : 'error'
+		);
+
+		if ( $cached ) {
+			$cached['asleep'] = $asleep;
+
+			return $cached;
+		}
+
 		return $data;
 	}
 
-	return gaming_hub_tesla_model3_from_vehicle_data( $data );
+	gaming_hub_tesla_clear_api_skip();
+	$model3 = gaming_hub_tesla_model3_from_vehicle_data( $data );
+	gaming_hub_tesla_store_model3( $model3 );
+
+	return $model3;
 }
 
 /**

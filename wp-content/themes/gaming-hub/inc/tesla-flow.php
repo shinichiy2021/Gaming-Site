@@ -57,6 +57,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'live'            => false,
 			'simulated'       => false,
 			'drive_ready'     => false,
+			'asleep'          => false,
 		);
 	}
 
@@ -117,6 +118,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'live'            => true,
 		'simulated'       => false,
 		'drive_ready'     => ! empty( $model3['drive_ready'] ),
+		'asleep'          => ! empty( $model3['asleep'] ),
 	);
 }
 
