@@ -12,6 +12,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'GAMING_HUB_POKEMON_GO_FEED', 'https://pokemongohub.net/feed/' );
 define( 'GAMING_HUB_POKEMON_GO_CACHE_KEY', 'gaming_hub_pokemon_go_news_v2' );
 define( 'GAMING_HUB_POKEMON_GO_CACHE_TTL', 30 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_POKEMON_GO_TAG_SLUG', 'pokemon-go' );
+
+/**
+ * Register the Pokémon GO tag used as the one-page screen.
+ */
+function gaming_hub_setup_pokemon_go_tag() {
+	if ( get_option( 'gaming_hub_pokemon_go_tag_created' ) ) {
+		if ( ! term_exists( GAMING_HUB_POKEMON_GO_TAG_SLUG, 'post_tag' ) ) {
+			delete_option( 'gaming_hub_pokemon_go_tag_created' );
+		} else {
+			return;
+		}
+	}
+
+	if ( ! term_exists( GAMING_HUB_POKEMON_GO_TAG_SLUG, 'post_tag' ) ) {
+		wp_insert_term(
+			'Pokémon GO',
+			'post_tag',
+			array(
+				'slug'        => GAMING_HUB_POKEMON_GO_TAG_SLUG,
+				'description' => __( 'Pokémon GO のイベント・レイド・ニュース', 'gaming-hub' ),
+			)
+		);
+	}
+
+	update_option( 'gaming_hub_pokemon_go_tag_created', 1 );
+}
+add_action( 'init', 'gaming_hub_setup_pokemon_go_tag' );
 
 /**
  * Fetch latest Pokémon GO news from RSS feed.
@@ -167,10 +195,14 @@ function gaming_hub_render_pokemon_go_image( $item, $class = 'pgo-card-image' ) 
 }
 
 /**
- * Get Pokémon GO page URL.
+ * Pokémon GO tag URL.
+ *
+ * @param array<string, mixed> $query Optional query args.
  */
-function gaming_hub_pokemon_go_url() {
-	return gaming_hub_hub_section_url( 'pokemon-go' );
+function gaming_hub_pokemon_go_url( $query = array() ) {
+	return function_exists( 'gaming_hub_tag_url' )
+		? gaming_hub_tag_url( GAMING_HUB_POKEMON_GO_TAG_SLUG, $query )
+		: home_url( '/tag/' . GAMING_HUB_POKEMON_GO_TAG_SLUG . '/' );
 }
 
 /**

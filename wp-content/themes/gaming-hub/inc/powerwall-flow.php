@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v20' );
+define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v21' );
 define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 30 );
 define( 'GAMING_HUB_POWERWALL_SOLAR_POLL_MS', HOUR_IN_SECONDS * 1000 );
 
@@ -233,7 +233,7 @@ function gaming_hub_rest_powerwall_flow() {
  * Enqueue Powerwall flow scripts on the Powerwall page.
  */
 function gaming_hub_powerwall_flow_scripts() {
-	if ( ! is_front_page() && ! is_page( 'powerwall' ) ) {
+	if ( ! is_tag( 'tesla' ) && ! is_page( 'powerwall' ) ) {
 		return;
 	}
 

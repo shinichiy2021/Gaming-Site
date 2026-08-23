@@ -90,16 +90,22 @@ function gaming_hub_ecoflow_is_configured() {
 
 /**
  * Get EcoFlow tag archive URL.
+ *
+ * @param array<string, mixed> $query Optional query args.
  */
-function gaming_hub_ecoflow_url() {
-	return gaming_hub_hub_section_url( 'ecoflow' );
+function gaming_hub_ecoflow_url( $query = array() ) {
+	return function_exists( 'gaming_hub_tag_url' )
+		? gaming_hub_tag_url( GAMING_HUB_ECOFLOW_TAG_SLUG, $query )
+		: home_url( '/tag/' . GAMING_HUB_ECOFLOW_TAG_SLUG . '/' );
 }
 
 /**
- * Get Energy tag archive URL.
+ * Generation log lives on the EcoFlow tag (in-page #energy).
+ *
+ * @param array<string, mixed> $query Optional query args.
  */
-function gaming_hub_energy_url() {
-	return gaming_hub_hub_section_url( 'energy' );
+function gaming_hub_energy_url( $query = array() ) {
+	return gaming_hub_ecoflow_url( $query ) . '#energy';
 }
 
 /**
@@ -2722,10 +2728,10 @@ function gaming_hub_rest_ecoflow_status() {
  * Enqueue EcoFlow dashboard script on EcoFlow pages.
  */
 function gaming_hub_ecoflow_scripts() {
-	$is_ecoflow = is_front_page() || is_tag( 'ecoflow' );
-	$is_energy  = is_front_page() || is_tag( 'energy' );
+	$is_ecoflow = is_tag( 'ecoflow' );
+	$is_energy  = $is_ecoflow;
 
-	if ( ! $is_ecoflow && ! $is_energy ) {
+	if ( ! $is_ecoflow ) {
 		return;
 	}
 

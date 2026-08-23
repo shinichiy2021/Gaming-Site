@@ -282,10 +282,14 @@ function gaming_hub_render_powerwall_image( $item, $class = 'pw-card-image' ) {
 }
 
 /**
- * Get Powerwall page URL.
+ * Powerwall page now lives on the Tesla tag.
+ *
+ * @param array<string, mixed> $query Optional query args.
  */
-function gaming_hub_powerwall_url() {
-	return gaming_hub_hub_section_url( 'powerwall' );
+function gaming_hub_powerwall_url( $query = array() ) {
+	return function_exists( 'gaming_hub_tesla_url' )
+		? gaming_hub_tesla_url( $query )
+		: ( function_exists( 'gaming_hub_tag_url' ) ? gaming_hub_tag_url( 'tesla', $query ) : home_url( '/tag/tesla/' ) );
 }
 
 /**
