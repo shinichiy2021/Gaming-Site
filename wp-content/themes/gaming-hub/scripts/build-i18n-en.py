@@ -176,6 +176,7 @@ EN = {
     "頃完了": " until full",
     "Tesla Fleet API: アプリのリージョン登録（partner_accounts）が未完了です。Fleet API を使うには本番ドメインで公開鍵を設置し、developer.tesla.com の Allowed Origins と同じドメインを Tesla に登録する必要があります（localhost のみでは取得できません）。": "Tesla Fleet API: partner_accounts registration is incomplete. Host the public key on the production domain and register that same Allowed Origins domain with Tesla (localhost alone cannot fetch vehicle data).",
     "Tesla の refresh token が無効です。Powerwall ページの「Tesla で認証」から本番ドメインで再連携してください。": "Tesla refresh token is invalid. Re-link from Tesla auth on the Powerwall page using the production domain.",
+    "Tesla から充電データ（charge_state）が返りませんでした。車がスリープ中のことがあります。Tesla アプリで車両を起こしてから再読み込みしてください。": "Tesla did not return charge_state. The car may be asleep. Wake it in the Tesla app and reload.",
     "充電中": "Charging",
     "充電完了": "Charged",
     "停止": "Stopped",
