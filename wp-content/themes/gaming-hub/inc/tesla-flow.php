@@ -151,6 +151,12 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'live'          => __( 'Tesla Fleet API 実データ', 'gaming-hub' ),
 			'asleep'        => __( 'スリープ中', 'gaming-hub' ),
 			'drivePending'  => __( '走行データ未取得', 'gaming-hub' ),
+			'shift'         => __( 'シフト', 'gaming-hub' ),
+			'park'          => __( 'パーキング', 'gaming-hub' ),
+			'reverse'       => __( 'リバース', 'gaming-hub' ),
+			'neutral'       => __( 'ニュートラル', 'gaming-hub' ),
+			'driveGear'     => __( 'ドライブ', 'gaming-hub' ),
+			'shiftUnknown'  => __( 'シフト未取得', 'gaming-hub' ),
 		),
 		'images' => array(
 			'wall'  => $base . 'tesla-wall-connector-gaming.jpg',
