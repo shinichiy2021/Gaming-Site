@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v11' );
+define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v12' );
 define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 30 );
 define( 'GAMING_HUB_POWERWALL_SOLAR_POLL_MS', HOUR_IN_SECONDS * 1000 );
 
@@ -132,6 +132,16 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 
 	if ( isset( $status['model3'] ) && is_array( $status['model3'] ) ) {
 		$status['model3'] = gaming_hub_powerwall_model3_with_combo( $status['model3'], $status );
+		if ( 'tesla' !== ( $status['model3_source'] ?? '' ) && function_exists( 'gaming_hub_tesla_vehicle_apply_demo' ) ) {
+			$status['model3'] = gaming_hub_tesla_vehicle_apply_demo( $status['model3'] );
+		}
+	}
+
+	if ( function_exists( 'gaming_hub_tesla_vehicle_flow_payload' ) ) {
+		$status['tesla_flow'] = gaming_hub_tesla_vehicle_flow_payload(
+			is_array( $status['model3'] ?? null ) ? $status['model3'] : array(),
+			(string) ( $status['model3_source'] ?? 'simulated' )
+		);
 	}
 
 	$status['updated_at'] = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) );
@@ -170,6 +180,12 @@ function gaming_hub_powerwall_flow_payload( array $status ) {
 		),
 		'model3_source' => $status['model3_source'] ?? 'simulated',
 		'simulated'     => ! empty( $status['simulated'] ),
+		'tesla'         => $status['tesla_flow'] ?? ( function_exists( 'gaming_hub_tesla_vehicle_flow_payload' )
+			? gaming_hub_tesla_vehicle_flow_payload(
+				is_array( $status['model3'] ?? null ) ? $status['model3'] : array(),
+				(string) ( $status['model3_source'] ?? 'simulated' )
+			)
+			: array() ),
 	);
 }
 
@@ -223,6 +239,24 @@ function gaming_hub_powerwall_flow_scripts() {
 		true
 	);
 
+	$tesla_assets = function_exists( 'gaming_hub_tesla_vehicle_flow_assets' )
+		? gaming_hub_tesla_vehicle_flow_assets()
+		: array( 'labels' => array(), 'images' => array() );
+
+	wp_enqueue_script(
+		'gaming-hub-tesla-flow',
+		get_template_directory_uri() . '/assets/js/tesla-flow.js',
+		array( 'gaming-hub-i18n' ),
+		GAMING_HUB_VERSION,
+		true
+	);
+
+	wp_localize_script(
+		'gaming-hub-tesla-flow',
+		'gamingHubTeslaFlow',
+		$tesla_assets
+	);
+
 	wp_localize_script(
 		'gaming-hub-powerwall-flow',
 		'gamingHubPowerwallFlow',
@@ -251,7 +285,7 @@ function gaming_hub_powerwall_flow_scripts() {
 	wp_enqueue_script(
 		'gaming-hub-powerwall-dashboard',
 		get_template_directory_uri() . '/assets/js/powerwall-dashboard.js',
-		array( 'gaming-hub-active-refresh', 'gaming-hub-i18n', 'gaming-hub-powerwall-flow' ),
+		array( 'gaming-hub-active-refresh', 'gaming-hub-i18n', 'gaming-hub-powerwall-flow', 'gaming-hub-tesla-flow' ),
 		GAMING_HUB_VERSION,
 		true
 	);

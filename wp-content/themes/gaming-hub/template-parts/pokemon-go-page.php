@@ -15,6 +15,17 @@
 				<?php esc_html_e( 'イベント、Community Day、レイド、新ポケモンなど最新ニュースをチェック', 'gaming-hub' ); ?>
 			</p>
 			<div class="pgo-hero-links">
+				<?php
+				$raid_open = function_exists( 'gaming_hub_pgo_raid_open_count' ) ? gaming_hub_pgo_raid_open_count() : 0;
+				if ( function_exists( 'gaming_hub_pgo_raid_url' ) ) :
+					?>
+					<a href="<?php echo esc_url( gaming_hub_pgo_raid_url() ); ?>" class="btn btn-primary">
+						<?php esc_html_e( 'レイド招待', 'gaming-hub' ); ?>
+						<?php if ( $raid_open ) : ?>
+							<span class="pgo-raid-hero-count"><?php echo esc_html( (string) $raid_open ); ?></span>
+						<?php endif; ?>
+					</a>
+				<?php endif; ?>
 				<?php if ( function_exists( 'gaming_hub_pgo_hub_events' ) && gaming_hub_pgo_hub_events() ) : ?>
 					<a href="<?php echo esc_url( gaming_hub_pgo_tokushuu_url() ); ?>" class="btn btn-primary">
 						<?php esc_html_e( '大型イベント特集', 'gaming-hub' ); ?>
@@ -48,6 +59,18 @@
 		<div class="container">
 			<h2 class="section-title"><?php esc_html_e( '便利リンク', 'gaming-hub' ); ?></h2>
 			<div class="pgo-links-grid">
+				<?php if ( function_exists( 'gaming_hub_pgo_raid_url' ) ) : ?>
+					<a href="<?php echo esc_url( gaming_hub_pgo_raid_url() ); ?>" class="pgo-link-card">
+						<span class="pgo-link-icon">📣</span>
+						<h3><?php esc_html_e( 'レイド招待掲示板', 'gaming-hub' ); ?></h3>
+						<p>
+							<?php
+							$count = function_exists( 'gaming_hub_pgo_raid_open_count' ) ? gaming_hub_pgo_raid_open_count() : 0;
+							echo esc_html( $count ? sprintf( __( '募集中 %s 件', 'gaming-hub' ), (string) $count ) : __( 'トレーナー同士の招待募集', 'gaming-hub' ) );
+							?>
+						</p>
+					</a>
+				<?php endif; ?>
 				<a href="https://pokemongolive.com/ja/post/community-day/" target="_blank" rel="noopener noreferrer" class="pgo-link-card">
 					<span class="pgo-link-icon">📅</span>
 					<h3><?php esc_html_e( 'Community Day', 'gaming-hub' ); ?></h3>

@@ -509,6 +509,12 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$vehicle_state = isset( $data['vehicle_state'] ) && is_array( $data['vehicle_state'] )
 		? $data['vehicle_state']
 		: array();
+	$drive_state = isset( $data['drive_state'] ) && is_array( $data['drive_state'] )
+		? $data['drive_state']
+		: array();
+	$climate_state = isset( $data['climate_state'] ) && is_array( $data['climate_state'] )
+		? $data['climate_state']
+		: array();
 
 	$state    = (string) ( $charge_state['charging_state'] ?? '' );
 	$charging = in_array( $state, array( 'Charging', 'Starting' ), true );
@@ -569,6 +575,32 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		$vehicle_name = 'Model 3';
 	}
 
+	$shift     = strtoupper( (string) ( $drive_state['shift_state'] ?? 'P' ) );
+	$speed_mph = isset( $drive_state['speed'] ) && is_numeric( $drive_state['speed'] )
+		? (float) $drive_state['speed']
+		: 0.0;
+	$speed_km  = (int) round( $speed_mph * 1.60934 );
+	$pack_kw   = isset( $drive_state['power'] ) && is_numeric( $drive_state['power'] )
+		? (float) $drive_state['power']
+		: 0.0;
+	$moving    = $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true );
+	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
+	$cabin_w   = function_exists( 'gaming_hub_tesla_estimate_cabin_w' )
+		? gaming_hub_tesla_estimate_cabin_w( $climate_state, $sentry )
+		: 0;
+	$drive_w   = 0;
+
+	if ( $moving && $pack_kw > 0.2 ) {
+		$total_out = (int) round( $pack_kw * 1000 );
+		$drive_w   = max( 0, $total_out - $cabin_w );
+	} elseif ( ! $charging && $pack_kw > 0.2 ) {
+		$cabin_w = max( $cabin_w, (int) round( $pack_kw * 1000 ) );
+	}
+
+	$climate_on = ! empty( $climate_state['is_climate_on'] )
+		|| ! empty( $climate_state['is_auto_conditioning_on'] )
+		|| ! empty( $climate_state['is_preconditioning'] );
+
 	return gaming_hub_powerwall_model3_present(
 		array(
 			'battery_percent'           => $soc,
@@ -593,9 +625,17 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'today_km'                  => $odo_stats['today_km'],
 			'today_target_km'           => GAMING_HUB_MODEL3_DAILY_KM,
 			'car_version'               => $car_version,
-			'sentry_mode'               => ! empty( $vehicle_state['sentry_mode'] ),
+			'sentry_mode'               => $sentry,
 			'locked'                    => ! empty( $vehicle_state['locked'] ),
 			'live'                      => true,
+			'drive_w'                   => $drive_w,
+			'cabin_w'                   => $cabin_w,
+			'shift_state'               => $shift ? $shift : 'P',
+			'speed_km'                  => $speed_km,
+			'climate_on'                => $climate_on,
+			'vehicle_mode'              => $charging
+				? ( 'supercharger' === $supply['kind'] ? 'supercharger' : 'wall' )
+				: ( $moving ? 'drive' : ( $cabin_w >= 80 ? 'cabin' : 'idle' ) ),
 		)
 	);
 }
@@ -613,7 +653,7 @@ function gaming_hub_fetch_tesla_model3_status() {
 		return $api;
 	}
 
-	$data = $api->get_vehicle_data( $config['vehicle_vin'], 'charge_state,vehicle_state' );
+	$data = $api->get_vehicle_data( $config['vehicle_vin'], 'charge_state,vehicle_state,drive_state,climate_state' );
 
 	if ( is_wp_error( $data ) ) {
 		return $data;

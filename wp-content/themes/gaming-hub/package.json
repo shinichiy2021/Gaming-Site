@@ -5,7 +5,8 @@
   "scripts": {
     "build:ecoflow": "FLOW_TARGET=ecoflow vite build",
     "build:powerwall": "FLOW_TARGET=powerwall vite build",
-    "build:flows": "npm run build:ecoflow && npm run build:powerwall",
+    "build:tesla": "FLOW_TARGET=tesla vite build",
+    "build:flows": "npm run build:ecoflow && npm run build:powerwall && npm run build:tesla",
     "dev:ecoflow": "FLOW_TARGET=ecoflow vite build --watch",
     "poll:ecoflow-app": "node scripts/ecoflow-app-quota.mjs",
     "bridge:ecoflow-app": "node scripts/ecoflow-bridge-daemon.mjs"

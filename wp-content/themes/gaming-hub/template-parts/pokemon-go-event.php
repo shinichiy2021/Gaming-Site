@@ -55,6 +55,11 @@ $line_of  = static function ( $item ) {
 					<a href="<?php echo esc_url( gaming_hub_pgo_tokushuu_url() ); ?>" class="btn btn-outline">
 						<?php esc_html_e( '特集一覧', 'gaming-hub' ); ?>
 					</a>
+					<?php if ( function_exists( 'gaming_hub_pgo_raid_url' ) ) : ?>
+						<a href="<?php echo esc_url( gaming_hub_pgo_raid_url() ); ?>" class="btn btn-outline">
+							<?php esc_html_e( 'レイド招待', 'gaming-hub' ); ?>
+						</a>
+					<?php endif; ?>
 				</div>
 			</div>
 			<?php if ( $art ) : ?>

@@ -1439,6 +1439,157 @@ body.home .site-header.is-scrolled {
 	padding-top: 8px;
 }
 
+.tesla-flow-section {
+	padding-top: 8px;
+}
+
+.tesla-flow-note {
+	margin: 0 0 12px;
+	color: var(--color-text-muted);
+	font-size: 0.92rem;
+}
+
+.tesla-flow-map {
+	position: relative;
+	min-height: 0;
+	margin-bottom: 8px;
+	padding: 28px 24px 20px;
+	background:
+		linear-gradient(rgba(232, 33, 39, 0.05) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(232, 33, 39, 0.05) 1px, transparent 1px),
+		radial-gradient(ellipse at 18% 0%, rgba(100, 210, 255, 0.16), transparent 48%),
+		radial-gradient(ellipse at 86% 100%, rgba(232, 33, 39, 0.12), transparent 46%),
+		#08070f;
+	background-size: 22px 22px, 22px 22px, auto, auto, auto;
+	border: 1px solid rgba(232, 33, 39, 0.35);
+	border-radius: var(--radius-lg);
+	overflow: visible;
+}
+
+.tesla-flow-canvas {
+	z-index: 1;
+}
+
+.tesla-flow-system {
+	position: relative;
+	z-index: 2;
+	grid-template-columns: minmax(150px, 1fr) auto minmax(180px, 1fr);
+	grid-template-areas:
+		"title title title"
+		"inputs device output";
+	border-color: rgba(232, 33, 39, 0.28);
+	background: rgba(12, 6, 8, 0.45);
+}
+
+.tesla-flow-title {
+	color: #ff8a80;
+}
+
+.tesla-flow-inputs {
+	grid-area: inputs;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: center;
+	gap: 12px;
+	width: 100%;
+	max-width: 176px;
+}
+
+.tesla-flow-outputs {
+	grid-area: output;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	justify-content: center;
+	gap: 12px;
+	width: 100%;
+	max-width: 240px;
+	justify-self: center;
+}
+
+.tesla-flow-system [data-flow-id="tesla"] {
+	grid-area: device;
+	width: max-content;
+	max-width: 100%;
+}
+
+.tesla-photo-wall {
+	width: 96px;
+	height: 96px;
+	object-fit: cover;
+	border-color: rgba(100, 210, 255, 0.55);
+	box-shadow: 0 0 18px rgba(100, 210, 255, 0.24);
+}
+
+.tesla-photo-super {
+	width: 96px;
+	height: 96px;
+	object-fit: cover;
+	border-color: rgba(232, 33, 39, 0.6);
+	box-shadow: 0 0 18px rgba(232, 33, 39, 0.28);
+}
+
+.tesla-photo-drive,
+.tesla-photo-cabin {
+	width: 96px;
+	height: 96px;
+	object-fit: cover;
+}
+
+.tesla-photo-drive {
+	border-color: rgba(255, 179, 0, 0.55);
+	box-shadow: 0 0 18px rgba(255, 179, 0, 0.22);
+}
+
+.tesla-photo-cabin {
+	border-color: rgba(105, 240, 174, 0.5);
+	box-shadow: 0 0 18px rgba(105, 240, 174, 0.2);
+}
+
+.tesla-photo-car {
+	border-color: var(--batt-tone, #e82127);
+}
+
+.tesla-node-wall.is-active {
+	border-color: rgba(100, 210, 255, 0.7);
+}
+
+.tesla-node-super.is-active {
+	border-color: rgba(232, 33, 39, 0.75);
+}
+
+.tesla-node-drive.is-active {
+	border-color: rgba(255, 179, 0, 0.7);
+}
+
+.tesla-node-cabin.is-active {
+	border-color: rgba(105, 240, 174, 0.7);
+}
+
+@media (max-width: 800px) {
+	.tesla-flow-system {
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			"title"
+			"inputs"
+			"device"
+			"output";
+	}
+
+	.tesla-flow-inputs,
+	.tesla-flow-outputs {
+		max-width: none;
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: center;
+	}
+
+	.tesla-flow-system [data-flow-id="tesla"] {
+		justify-self: center;
+	}
+}
+
 .pw-flow-dashboard-header {
 	display: flex;
 	align-items: baseline;
@@ -6627,5 +6778,294 @@ body.home .site-header.is-scrolled {
 
 	.pgo-today-ico {
 		display: none;
+	}
+}
+
+/* Pokémon GO raid invite board */
+.pgo-raid-hero-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.3em;
+	margin-left: 8px;
+	padding: 0 6px;
+	border-radius: 999px;
+	background: #1a1a2e;
+	color: var(--pgo-yellow);
+	font-size: 0.75rem;
+}
+
+.pgo-raid-live-count {
+	margin: 0 0 16px;
+	color: var(--pgo-yellow);
+	font-weight: 700;
+}
+
+.pgo-raid-howto-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 16px;
+}
+
+.pgo-raid-howto-card {
+	padding: 22px 20px;
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--color-border);
+	background: var(--color-bg-card);
+}
+
+.pgo-raid-howto-card .pgo-ico {
+	color: var(--pgo-yellow);
+	margin-bottom: 8px;
+}
+
+.pgo-raid-howto-card h2 {
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+	margin: 0 0 10px;
+}
+
+.pgo-raid-howto-card ol {
+	margin: 0 0 0 1.1em;
+	padding: 0;
+	color: var(--color-text-muted);
+	line-height: 1.6;
+}
+
+.pgo-raid-form,
+.pgo-raid-modal-card form {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.pgo-raid-hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+}
+
+.pgo-raid-bosses {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+	gap: 10px;
+}
+
+.pgo-raid-boss {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 10px 8px;
+	border-radius: var(--radius);
+	border: 1px solid var(--color-border);
+	background: var(--color-bg-card);
+	color: inherit;
+	cursor: pointer;
+	text-align: center;
+}
+
+.pgo-raid-boss img {
+	width: 56px;
+	height: 56px;
+	object-fit: contain;
+}
+
+.pgo-raid-boss strong {
+	font-size: 0.78rem;
+	line-height: 1.3;
+}
+
+.pgo-raid-boss span {
+	font-size: 0.72rem;
+	color: var(--color-text-muted);
+}
+
+.pgo-raid-boss.is-featured {
+	border-color: rgba(255, 203, 5, 0.35);
+}
+
+.pgo-raid-boss.is-selected {
+	border-color: var(--pgo-yellow);
+	box-shadow: 0 0 0 1px var(--pgo-yellow);
+}
+
+.pgo-raid-fields {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+}
+
+.pgo-raid-note-field,
+.pgo-raid-custom-boss {
+	grid-column: 1 / -1;
+}
+
+.pgo-raid-form label,
+.pgo-raid-modal-card label {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 0.85rem;
+	color: var(--color-text-muted);
+}
+
+.pgo-raid-form input,
+.pgo-raid-form select,
+.pgo-raid-modal-card input {
+	padding: 10px 12px;
+	border-radius: var(--radius);
+	border: 1px solid var(--color-border);
+	background: rgba(255, 255, 255, 0.03);
+	color: var(--color-text);
+}
+
+.pgo-raid-form .btn,
+.pgo-raid-modal-card .btn {
+	align-self: flex-start;
+}
+
+.pgo-raid-host-note,
+.pgo-raid-empty,
+.pgo-raid-join-msg,
+.pgo-raid-source {
+	color: var(--color-text-muted);
+	font-size: 0.9rem;
+}
+
+.pgo-raid-list {
+	display: grid;
+	gap: 14px;
+}
+
+.pgo-raid-card {
+	display: grid;
+	grid-template-columns: 96px 1fr;
+	gap: 16px;
+	padding: 16px;
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--color-border);
+	background: var(--color-bg-card);
+}
+
+.pgo-raid-card.is-host {
+	border-color: rgba(255, 203, 5, 0.4);
+}
+
+.pgo-raid-art {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.pgo-raid-art img,
+.pgo-raid-art-fallback {
+	width: 88px;
+	height: 88px;
+	object-fit: contain;
+}
+
+.pgo-raid-art-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 16px;
+	background: rgba(255, 203, 5, 0.08);
+	color: var(--pgo-yellow);
+	font-size: 1.6rem;
+}
+
+.pgo-raid-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	margin-bottom: 6px;
+	font-size: 0.8rem;
+	color: var(--color-text-muted);
+}
+
+.pgo-raid-body h3 {
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+	margin: 0 0 6px;
+}
+
+.pgo-raid-host,
+.pgo-raid-seats,
+.pgo-raid-note {
+	margin: 0 0 6px;
+	color: var(--color-text-muted);
+}
+
+.pgo-raid-copy {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--pgo-yellow);
+	cursor: pointer;
+	font: inherit;
+}
+
+.pgo-raid-joiners {
+	margin: 8px 0;
+	padding-left: 1.1em;
+	color: var(--color-text-muted);
+	font-size: 0.88rem;
+}
+
+.pgo-raid-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.pgo-raid-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: rgba(6, 6, 12, 0.72);
+}
+
+.pgo-raid-modal[hidden] {
+	display: none;
+}
+
+.pgo-raid-modal-card {
+	position: relative;
+	width: min(420px, 100%);
+	padding: 24px;
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--color-border);
+	background: var(--color-bg-card);
+}
+
+.pgo-raid-modal-close {
+	position: absolute;
+	top: 10px;
+	right: 12px;
+	border: 0;
+	background: none;
+	color: var(--color-text-muted);
+	font-size: 1.4rem;
+	cursor: pointer;
+}
+
+@media (max-width: 700px) {
+	.pgo-raid-howto-grid,
+	.pgo-raid-fields,
+	.pgo-raid-card {
+		grid-template-columns: 1fr;
+	}
+
+	.pgo-raid-art {
+		justify-content: flex-start;
 	}
 }
