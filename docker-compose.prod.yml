@@ -50,6 +50,7 @@ services:
       TESLA_FLEET_API_BASE_URL: ${TESLA_FLEET_API_BASE_URL:-https://fleet-api.prd.na.vn.cloud.tesla.com}
       TESLA_REDIRECT_URI: ${TESLA_REDIRECT_URI:-https://shinichiy-gaming-hub.com/wp-json/gaming-hub/v1/tesla/oauth/callback}
       TESLA_PARTNER_DOMAIN: ${TESLA_PARTNER_DOMAIN:-shinichiy-gaming-hub.com}
+      TESLA_COMMAND_PROXY_URL: ${TESLA_COMMAND_PROXY_URL:-}
       GAMING_HUB_ENERGY_ORIGIN: ${GAMING_HUB_ENERGY_ORIGIN:-}
     volumes:
       - wp_data:/var/www/html

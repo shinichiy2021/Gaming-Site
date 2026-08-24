@@ -47,6 +47,27 @@ $flow   = isset( $status['tesla_flow'] ) && is_array( $status['tesla_flow'] )
 		</div>
 	<?php endif; ?>
 
+	<div class="tesla-charge-controls" data-tesla-charge>
+		<p class="tesla-charge-note">
+			<?php esc_html_e( 'テスト用。ケーブル接続中の充電オン／オフを Tesla に送ります。', 'gaming-hub' ); ?>
+		</p>
+		<div class="tesla-charge-buttons">
+			<button type="button" class="tesla-charge-on" data-tesla-charge-action="start">
+				<?php esc_html_e( '充電オン', 'gaming-hub' ); ?>
+			</button>
+			<button type="button" class="tesla-charge-off" data-tesla-charge-action="stop">
+				<?php esc_html_e( '充電オフ', 'gaming-hub' ); ?>
+			</button>
+		</div>
+		<p class="tesla-charge-status" data-tesla-charge-status></p>
+		<?php if ( 'tesla' === $source && function_exists( 'gaming_hub_tesla_has_charging_scope' ) && ! gaming_hub_tesla_has_charging_scope() ) : ?>
+			<p class="tesla-charge-auth">
+				<?php esc_html_e( '充電操作には再認証が必要です。', 'gaming-hub' ); ?>
+				<?php gaming_hub_render_tesla_oauth_button( true, true ); ?>
+			</p>
+		<?php endif; ?>
+	</div>
+
 	<div
 		id="tesla-energy-flow-root"
 		class="tesla-flow-root"

@@ -157,6 +157,7 @@ function gaming_hub_get_tesla_config() {
 		'refresh_token'  => gaming_hub_tesla_get_refresh_token(),
 		'vehicle_vin'    => gaming_hub_tesla_env( 'TESLA_VEHICLE_VIN' ) ?: get_theme_mod( 'tesla_vehicle_vin', '' ),
 		'fleet_base_url' => gaming_hub_tesla_default_fleet_base_url(),
+		'command_proxy_url' => rtrim( (string) gaming_hub_tesla_env( 'TESLA_COMMAND_PROXY_URL' ), '/' ),
 		'redirect_uri'   => gaming_hub_tesla_oauth_redirect_uri(),
 	);
 }
@@ -467,6 +468,13 @@ function gaming_hub_tesla_oauth_state_is_valid( $state ) {
 }
 
 /**
+ * User OAuth scopes for Tesla Fleet (read + charge start/stop).
+ */
+function gaming_hub_tesla_user_oauth_scopes() {
+	return 'openid offline_access vehicle_device_data vehicle_location vehicle_charging_cmds';
+}
+
+/**
  * Build Tesla OAuth authorize URL.
  */
 function gaming_hub_tesla_oauth_authorize_url( $force_login = false, $require_all_scopes = false ) {
@@ -480,7 +488,7 @@ function gaming_hub_tesla_oauth_authorize_url( $force_login = false, $require_al
 		'client_id'              => $config['client_id'],
 		'redirect_uri'           => $config['redirect_uri'],
 		'response_type'          => 'code',
-		'scope'                  => 'openid offline_access vehicle_device_data vehicle_location',
+		'scope'                  => gaming_hub_tesla_user_oauth_scopes(),
 		'state'                  => gaming_hub_tesla_oauth_state(),
 		'locale'                 => 'ja-JP',
 		'prompt_missing_scopes'  => 'true',
@@ -719,6 +727,21 @@ function gaming_hub_tesla_has_location_scope() {
 	$scopes = gaming_hub_tesla_token_scopes();
 
 	foreach ( array( 'vehicle_location', 'vehicle_locs', 'location' ) as $name ) {
+		if ( in_array( $name, $scopes, true ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Whether the current Tesla token can start/stop charging.
+ */
+function gaming_hub_tesla_has_charging_scope() {
+	$scopes = gaming_hub_tesla_token_scopes();
+
+	foreach ( array( 'vehicle_charging_cmds', 'vehicle_cmds' ) as $name ) {
 		if ( in_array( $name, $scopes, true ) ) {
 			return true;
 		}
@@ -1058,12 +1081,125 @@ function gaming_hub_tesla_get_api() {
 
 	$api->set_access_token( $access_token );
 
+	$proxy = (string) ( $config['command_proxy_url'] ?? '' );
+	if ( '' !== $proxy ) {
+		$api->set_command_base_url( $proxy );
+	}
+
 	$fleet_ready = gaming_hub_tesla_ensure_fleet_base_url( $api );
 	if ( is_wp_error( $fleet_ready ) ) {
 		return $fleet_ready;
 	}
 
 	return $api;
+}
+
+/**
+ * Explain a Tesla charge-command failure in Japanese.
+ *
+ * @param WP_Error $error Tesla API error.
+ */
+function gaming_hub_tesla_charge_command_error_message( WP_Error $error ) {
+	$raw = $error->get_error_message();
+	$low = strtolower( $raw );
+
+	if ( false !== strpos( $low, 'unsigned' ) || false !== strpos( $low, 'command protocol' ) || false !== strpos( $low, 'virtual key' ) ) {
+		return __( '充電コマンドは署名が必要です。tesla-http-proxy を立てて TESLA_COMMAND_PROXY_URL を設定してください。', 'gaming-hub' );
+	}
+
+	if ( false !== strpos( $low, 'not_charging' ) ) {
+		return __( '充電していません。', 'gaming-hub' );
+	}
+
+	if ( false !== strpos( $low, 'complete' ) ) {
+		return __( 'すでに充電完了です。', 'gaming-hub' );
+	}
+
+	if ( false !== strpos( $low, 'disconnected' ) || false !== strpos( $low, 'unplugged' ) ) {
+		return __( '充電ケーブルがつながっていません。', 'gaming-hub' );
+	}
+
+	if ( 'tesla_vehicle_asleep' === $error->get_error_code() ) {
+		return __( '車はスリープ中です。起こしてからもう一度押してください。', 'gaming-hub' );
+	}
+
+	return $raw;
+}
+
+/**
+ * Start or stop Model 3 charging via Fleet API.
+ *
+ * @param string $action start|stop.
+ * @return array<string, mixed>|WP_Error
+ */
+function gaming_hub_tesla_run_charge_command( $action ) {
+	$action  = 'start' === $action ? 'start' : 'stop';
+	$command = 'start' === $action ? 'charge_start' : 'charge_stop';
+
+	if ( ! gaming_hub_tesla_model3_is_configured() ) {
+		return new WP_Error( 'tesla_not_configured', __( 'Tesla API is not configured.', 'gaming-hub' ) );
+	}
+
+	if ( ! gaming_hub_tesla_has_charging_scope() ) {
+		return new WP_Error(
+			'tesla_missing_charge_scope',
+			__( '充電操作の権限がありません。「Tesla で認証」で充電コマンドを許可してください。', 'gaming-hub' )
+		);
+	}
+
+	$api = gaming_hub_tesla_get_api();
+	if ( is_wp_error( $api ) ) {
+		return $api;
+	}
+
+	$config = gaming_hub_get_tesla_config();
+	$vin    = (string) ( $config['vehicle_vin'] ?? '' );
+	if ( '' === $vin ) {
+		return new WP_Error( 'tesla_missing_vin', __( 'Tesla VIN is not configured.', 'gaming-hub' ) );
+	}
+
+	$result = $api->send_vehicle_command( $vin, $command );
+	if ( is_wp_error( $result ) && 'tesla_vehicle_asleep' === $result->get_error_code() ) {
+		$wake = $api->wake_vehicle( $vin );
+		if ( is_wp_error( $wake ) ) {
+			return new WP_Error( $wake->get_error_code(), gaming_hub_tesla_charge_command_error_message( $wake ) );
+		}
+
+		return new WP_Error(
+			'tesla_waking',
+			__( '車を起こしています。数秒後にもう一度押してください。', 'gaming-hub' )
+		);
+	}
+
+	if ( is_wp_error( $result ) ) {
+		return new WP_Error( $result->get_error_code(), gaming_hub_tesla_charge_command_error_message( $result ) );
+	}
+
+	$reason = strtolower( (string) ( $result['reason'] ?? '' ) );
+	$ok     = ! isset( $result['result'] ) || ! empty( $result['result'] );
+	if ( ! $ok ) {
+		if ( 'not_charging' === $reason && 'stop' === $action ) {
+			$ok = true;
+		} else {
+			$err = new WP_Error( 'tesla_command_rejected', $reason ? $reason : __( 'Tesla が充電コマンドを拒否しました。', 'gaming-hub' ) );
+
+			return new WP_Error( $err->get_error_code(), gaming_hub_tesla_charge_command_error_message( $err ) );
+		}
+	}
+
+	gaming_hub_tesla_invalidate_status_caches();
+	$status = function_exists( 'gaming_hub_get_powerwall_flow_status' )
+		? gaming_hub_get_powerwall_flow_status( true )
+		: array();
+
+	return array(
+		'action'  => $action,
+		'message' => 'start' === $action
+			? __( '充電オンを送りました。', 'gaming-hub' )
+			: __( '充電オフを送りました。', 'gaming-hub' ),
+		'tesla'   => is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array(),
+		'status'  => $status,
+	);
 }
 
 /**
@@ -1948,6 +2084,83 @@ function gaming_hub_rest_tesla_oauth_callback( WP_REST_Request $request ) {
 }
 
 /**
+ * Whether this request may send Tesla charge start/stop.
+ *
+ * Admins always can. The Tesla page also sends a wp_rest nonce so the
+ * home dashboard can tap ON/OFF without a WordPress login.
+ *
+ * @param WP_REST_Request|null $request Request.
+ */
+function gaming_hub_tesla_can_control( $request = null ) {
+	if ( current_user_can( 'manage_options' ) ) {
+		return true;
+	}
+
+	$nonce = '';
+	if ( $request instanceof WP_REST_Request ) {
+		$nonce = (string) $request->get_header( 'X-WP-Nonce' );
+	}
+	if ( '' === $nonce && isset( $_SERVER['HTTP_X_WP_NONCE'] ) ) {
+		$nonce = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_WP_NONCE'] ) );
+	}
+
+	return '' !== $nonce && (bool) wp_verify_nonce( $nonce, 'wp_rest' );
+}
+
+/**
+ * REST: POST /gaming-hub/v1/tesla/charge
+ *
+ * @param WP_REST_Request $request Request.
+ */
+function gaming_hub_rest_tesla_charge( WP_REST_Request $request ) {
+	$lock_key = 'gaming_hub_tesla_charge_lock';
+	if ( get_transient( $lock_key ) ) {
+		return new WP_REST_Response(
+			array(
+				'success' => false,
+				'message' => __( '少し待ってからもう一度押してください。', 'gaming-hub' ),
+			),
+			429
+		);
+	}
+
+	set_transient( $lock_key, 1, 3 );
+
+	$action = sanitize_text_field( (string) $request->get_param( 'action' ) );
+	if ( ! in_array( $action, array( 'start', 'stop' ), true ) ) {
+		return new WP_REST_Response(
+			array(
+				'success' => false,
+				'message' => __( '充電オンかオフを指定してください。', 'gaming-hub' ),
+			),
+			400
+		);
+	}
+
+	$result = gaming_hub_tesla_run_charge_command( $action );
+	if ( is_wp_error( $result ) ) {
+		$code = 'tesla_missing_charge_scope' === $result->get_error_code() ? 403 : 400;
+
+		return new WP_REST_Response(
+			array(
+				'success'    => false,
+				'message'    => $result->get_error_message(),
+				'needs_auth' => 'tesla_missing_charge_scope' === $result->get_error_code(),
+			),
+			$code
+		);
+	}
+
+	return new WP_REST_Response(
+		array(
+			'success' => true,
+			'data'    => $result,
+		),
+		200
+	);
+}
+
+/**
  * Register Tesla REST routes.
  */
 function gaming_hub_register_tesla_rest_routes() {
@@ -1958,6 +2171,23 @@ function gaming_hub_register_tesla_rest_routes() {
 			'methods'             => 'GET',
 			'callback'            => 'gaming_hub_rest_tesla_oauth_callback',
 			'permission_callback' => '__return_true',
+		)
+	);
+
+	register_rest_route(
+		'gaming-hub/v1',
+		'/tesla/charge',
+		array(
+			'methods'             => 'POST',
+			'callback'            => 'gaming_hub_rest_tesla_charge',
+			'permission_callback' => 'gaming_hub_tesla_can_control',
+			'args'                => array(
+				'action' => array(
+					'required'          => true,
+					'type'              => 'string',
+					'sanitize_callback' => 'sanitize_text_field',
+				),
+			),
 		)
 	);
 }

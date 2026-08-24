@@ -1449,6 +1449,69 @@ body.home .site-header.is-scrolled {
 	font-size: 0.92rem;
 }
 
+.tesla-charge-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 14px;
+	margin: 0 0 16px;
+}
+
+.tesla-charge-note,
+.tesla-charge-status,
+.tesla-charge-auth {
+	margin: 0;
+	font-size: 0.85rem;
+	color: var(--color-text-muted);
+}
+
+.tesla-charge-status.is-error,
+.tesla-charge-auth {
+	color: #ff8a80;
+}
+
+.tesla-charge-buttons {
+	display: flex;
+	gap: 8px;
+}
+
+.tesla-charge-on,
+.tesla-charge-off {
+	font-family: var(--font-display);
+	font-size: 0.78rem;
+	letter-spacing: 0.04em;
+	padding: 10px 16px;
+	border-radius: 999px;
+	cursor: pointer;
+}
+
+.tesla-charge-on {
+	border: 1px solid rgba(100, 210, 255, 0.7);
+	background: rgba(100, 210, 255, 0.12);
+	color: #64d2ff;
+}
+
+.tesla-charge-off {
+	border: 1px solid rgba(232, 33, 39, 0.7);
+	background: rgba(232, 33, 39, 0.12);
+	color: #ff8a80;
+}
+
+.tesla-charge-on.is-current {
+	box-shadow: 0 0 14px rgba(100, 210, 255, 0.28);
+}
+
+.tesla-charge-off.is-current,
+.tesla-charge-controls.is-charging .tesla-charge-off {
+	box-shadow: 0 0 14px rgba(232, 33, 39, 0.32);
+}
+
+.tesla-charge-on:disabled,
+.tesla-charge-off:disabled {
+	opacity: 0.5;
+	cursor: wait;
+}
+
 .tesla-flow-map {
 	position: relative;
 	min-height: 0;
