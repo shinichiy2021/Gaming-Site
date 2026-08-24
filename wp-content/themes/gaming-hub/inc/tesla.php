@@ -310,6 +310,18 @@ function gaming_hub_tesla_public_key_url( $domain = '' ) {
 }
 
 /**
+ * Tesla app deep link to enroll this site's virtual key on the car.
+ */
+function gaming_hub_tesla_virtual_key_url() {
+	$domain = gaming_hub_tesla_partner_domain();
+	if ( '' === $domain ) {
+		return '';
+	}
+
+	return 'https://tesla.com/_ak/' . $domain;
+}
+
+/**
  * Check whether the public key is reachable over HTTPS.
  *
  * @return true|WP_Error
@@ -1102,8 +1114,22 @@ function gaming_hub_tesla_get_api() {
 function gaming_hub_tesla_charge_command_error_message( WP_Error $error ) {
 	$raw = $error->get_error_message();
 	$low = strtolower( $raw );
+	$config = function_exists( 'gaming_hub_get_tesla_config' ) ? gaming_hub_get_tesla_config() : array();
+	$has_proxy = '' !== (string) ( $config['command_proxy_url'] ?? '' );
 
-	if ( false !== strpos( $low, 'unsigned' ) || false !== strpos( $low, 'command protocol' ) || false !== strpos( $low, 'virtual key' ) ) {
+	if ( false !== strpos( $low, 'virtual key' ) || false !== strpos( $low, 'not been paired' ) || false !== strpos( $low, 'key_not_paired' ) || false !== strpos( $low, 'incorrect_key' ) ) {
+		return __( '車に仮想キーがありません。下の「仮想キーを追加」から Tesla アプリで許可してください。', 'gaming-hub' );
+	}
+
+	if ( false !== strpos( $low, 'connection refused' ) || false !== strpos( $low, 'could not resolve' ) || false !== strpos( $low, 'failed to connect' ) ) {
+		return __( '充電コマンド用の tesla-http-proxy に接続できません。', 'gaming-hub' );
+	}
+
+	if ( false !== strpos( $low, 'unsigned' ) || false !== strpos( $low, 'command protocol' ) ) {
+		if ( $has_proxy ) {
+			return $raw;
+		}
+
 		return __( '充電コマンドは署名が必要です。tesla-http-proxy を立てて TESLA_COMMAND_PROXY_URL を設定してください。', 'gaming-hub' );
 	}
 

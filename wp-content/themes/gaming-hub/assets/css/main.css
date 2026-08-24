@@ -1459,7 +1459,8 @@ body.home .site-header.is-scrolled {
 
 .tesla-charge-note,
 .tesla-charge-status,
-.tesla-charge-auth {
+.tesla-charge-auth,
+.tesla-charge-key {
 	margin: 0;
 	font-size: 0.85rem;
 	color: var(--color-text-muted);
@@ -1506,10 +1507,8 @@ body.home .site-header.is-scrolled {
 	box-shadow: 0 0 14px rgba(232, 33, 39, 0.32);
 }
 
-.tesla-charge-on:disabled,
-.tesla-charge-off:disabled {
-	opacity: 0.5;
-	cursor: wait;
+.tesla-charge-key a {
+	color: #64d2ff;
 }
 
 .tesla-flow-map {
