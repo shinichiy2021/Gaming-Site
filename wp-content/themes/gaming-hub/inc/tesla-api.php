@@ -20,6 +20,12 @@ class Gaming_Hub_Tesla_Api {
 	/** @var string */
 	private $fleet_base_url;
 
+	/** @var string Optional tesla-http-proxy base URL for signed commands. */
+	private $command_base_url = '';
+
+	/** @var int */
+	private $timeout = 25;
+
 	/** @var string */
 	private $access_token = '';
 
@@ -62,6 +68,79 @@ class Gaming_Hub_Tesla_Api {
 	 */
 	public function get_fleet_base_url() {
 		return $this->fleet_base_url;
+	}
+
+	/**
+	 * @param string $base_url tesla-http-proxy origin, or empty to use Fleet API.
+	 */
+	public function set_command_base_url( $base_url ) {
+		$this->command_base_url = rtrim( (string) $base_url, '/' );
+	}
+
+	/**
+	 * Wake a sleeping vehicle. Does not send a charge command.
+	 *
+	 * @param string $vin Vehicle VIN.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function wake_vehicle( $vin ) {
+		$vin = sanitize_text_field( $vin );
+		if ( '' === $vin ) {
+			return new WP_Error( 'tesla_missing_vin', __( 'Tesla VIN is not configured.', 'gaming-hub' ) );
+		}
+
+		$this->timeout = 40;
+
+		return $this->fleet_request(
+			'POST',
+			'/api/1/vehicles/' . rawurlencode( $vin ) . '/wake_up',
+			array(),
+			true,
+			(object) array()
+		);
+	}
+
+	/**
+	 * Send a Fleet vehicle command (charge_start / charge_stop).
+	 *
+	 * Uses TESLA_COMMAND_PROXY_URL when set so tesla-http-proxy can sign.
+	 *
+	 * @param string $vin     Vehicle VIN.
+	 * @param string $command charge_start or charge_stop.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function send_vehicle_command( $vin, $command ) {
+		$vin     = sanitize_text_field( $vin );
+		$command = preg_replace( '/[^a-z0-9_]/', '', strtolower( (string) $command ) );
+		$allowed = array( 'charge_start', 'charge_stop' );
+
+		if ( '' === $vin ) {
+			return new WP_Error( 'tesla_missing_vin', __( 'Tesla VIN is not configured.', 'gaming-hub' ) );
+		}
+
+		if ( ! in_array( $command, $allowed, true ) ) {
+			return new WP_Error( 'tesla_invalid_command', __( 'Unknown Tesla charge command.', 'gaming-hub' ) );
+		}
+
+		$saved_base     = $this->fleet_base_url;
+		$saved_timeout  = $this->timeout;
+		$this->timeout  = 40;
+		if ( '' !== $this->command_base_url ) {
+			$this->fleet_base_url = $this->command_base_url;
+		}
+
+		$result = $this->fleet_request(
+			'POST',
+			'/api/1/vehicles/' . rawurlencode( $vin ) . '/command/' . $command,
+			array(),
+			true,
+			(object) array()
+		);
+
+		$this->fleet_base_url = $saved_base;
+		$this->timeout        = $saved_timeout;
+
+		return $result;
 	}
 
 	/**
@@ -175,7 +254,9 @@ class Gaming_Hub_Tesla_Api {
 				'code'          => $code,
 				'redirect_uri'  => $redirect_uri,
 				'audience'      => $this->token_audience(),
-				'scope'         => 'openid offline_access vehicle_device_data vehicle_location',
+				'scope'         => function_exists( 'gaming_hub_tesla_user_oauth_scopes' )
+					? gaming_hub_tesla_user_oauth_scopes()
+					: 'openid offline_access vehicle_device_data vehicle_location vehicle_charging_cmds',
 			)
 		);
 	}
@@ -419,12 +500,20 @@ class Gaming_Hub_Tesla_Api {
 
 		$args = array(
 			'method'  => $method,
-			'timeout' => 25,
+			'timeout' => $this->timeout,
 			'headers' => array(
 				'Authorization' => 'Bearer ' . $this->access_token,
 				'Content-Type'    => 'application/json',
 			),
 		);
+
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if (
+			in_array( $host, array( 'localhost', '127.0.0.1', 'tesla-proxy' ), true )
+			|| (bool) preg_match( '/\.local$/', $host )
+		) {
+			$args['sslverify'] = false;
+		}
 
 		if ( 'POST' === $method ) {
 			$args['body'] = wp_json_encode( null !== $body ? $body : (object) array() );
@@ -503,7 +592,17 @@ class Gaming_Hub_Tesla_Api {
 			return new WP_Error( 'tesla_request_failed', $message );
 		}
 
-		if ( ! is_array( $body ) || empty( $body['response'] ) || ! is_array( $body['response'] ) ) {
+		if ( ! is_array( $body ) || ! array_key_exists( 'response', $body ) ) {
+			return new WP_Error( 'tesla_invalid_response', __( 'Invalid Tesla Fleet API response.', 'gaming-hub' ) );
+		}
+
+		if ( true === $body['response'] ) {
+			return array(
+				'result' => true,
+			);
+		}
+
+		if ( ! is_array( $body['response'] ) ) {
 			return new WP_Error( 'tesla_invalid_response', __( 'Invalid Tesla Fleet API response.', 'gaming-hub' ) );
 		}
 
