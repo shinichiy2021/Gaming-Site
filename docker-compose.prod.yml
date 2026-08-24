@@ -50,7 +50,7 @@ services:
       TESLA_FLEET_API_BASE_URL: ${TESLA_FLEET_API_BASE_URL:-https://fleet-api.prd.na.vn.cloud.tesla.com}
       TESLA_REDIRECT_URI: ${TESLA_REDIRECT_URI:-https://shinichiy-gaming-hub.com/wp-json/gaming-hub/v1/tesla/oauth/callback}
       TESLA_PARTNER_DOMAIN: ${TESLA_PARTNER_DOMAIN:-shinichiy-gaming-hub.com}
-      TESLA_COMMAND_PROXY_URL: ${TESLA_COMMAND_PROXY_URL:-}
+      TESLA_COMMAND_PROXY_URL: ${TESLA_COMMAND_PROXY_URL:-https://tesla-http-proxy:4443}
       GAMING_HUB_ENERGY_ORIGIN: ${GAMING_HUB_ENERGY_ORIGIN:-}
     volumes:
       - wp_data:/var/www/html
@@ -58,6 +58,35 @@ services:
       - ./wp-content/ecoflow-cache:/var/www/html/wp-content/ecoflow-cache
       - ./scripts:/var/www/html/scripts:ro
       - ./config/.htaccess:/var/www/html/.htaccess
+    networks:
+      - gaming-network
+
+  # Signs Fleet vehicle commands (charge_start / charge_stop). Not published to the host.
+  tesla-http-proxy:
+    image: tesla/vehicle-command:latest
+    container_name: gaming-site-tesla-proxy
+    restart: unless-stopped
+    user: "1000:1000"
+    working_dir: /config
+    environment:
+      TESLA_HTTP_PROXY_TLS_CERT: /config/tls-cert.pem
+      TESLA_HTTP_PROXY_TLS_KEY: /config/tls-key.pem
+      TESLA_HTTP_PROXY_HOST: 0.0.0.0
+      TESLA_HTTP_PROXY_PORT: "4443"
+      TESLA_HTTP_PROXY_TIMEOUT: 30s
+      TESLA_KEY_FILE: /config/fleet-key.pem
+      TESLA_CACHE_FILE: /config/session-cache.json
+      TESLA_VERBOSE: "true"
+    volumes:
+      - ./tesla:/config
+    command:
+      - -tls-key=/config/tls-key.pem
+      - -cert=/config/tls-cert.pem
+      - -key-file=/config/fleet-key.pem
+      - -host=0.0.0.0
+      - -port=4443
+    security_opt:
+      - no-new-privileges:true
     networks:
       - gaming-network
 

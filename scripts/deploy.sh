@@ -62,22 +62,45 @@ echo "==> Syncing to ${REMOTE}:${DEPLOY_PATH} ..."
   --exclude 'wp-content/ecoflow-cache/bridge-config.json' \
   --exclude 'wp-content/ecoflow-cache/*.json' \
   --exclude 'private-key.pem' \
+  --exclude 'tesla/fleet-key.pem' \
+  --exclude 'tesla/tls-key.pem' \
+  --exclude 'tesla/tls-cert.pem' \
+  --exclude 'tesla/session-cache.json' \
   --exclude '.DS_Store' \
   "$ROOT/" "${REMOTE}:${DEPLOY_PATH}/"
 
+"${SSH[@]}" "mkdir -p ${DEPLOY_PATH}/tesla"
+
 if [[ -f "$ROOT/public-key.pem" ]]; then
   echo "==> Installing Tesla public key..."
-  "${SSH[@]}" "mkdir -p ${DEPLOY_PATH}/tesla"
   "${RSYNC[@]}" "$ROOT/public-key.pem" "${REMOTE}:${DEPLOY_PATH}/tesla/public-key.pem"
 else
   echo "Warning: ${ROOT}/public-key.pem not found — Tesla Fleet API partner registration will fail."
 fi
 
-echo "==> Updating nginx site config..."
-"${SSH[@]}" "sudo cp ${DEPLOY_PATH}/config/nginx/${DEPLOY_HOST}.conf /etc/nginx/sites-available/${DEPLOY_HOST}.conf && sudo ln -sf /etc/nginx/sites-available/${DEPLOY_HOST}.conf /etc/nginx/sites-enabled/${DEPLOY_HOST}.conf && sudo nginx -t && sudo systemctl reload nginx"
+FLEET_KEY=""
+if [[ -f "$ROOT/tesla/fleet-key.pem" ]]; then
+  FLEET_KEY="$ROOT/tesla/fleet-key.pem"
+elif [[ -f "$ROOT/private-key.pem" && -f "$ROOT/public-key.pem" ]] \
+  && openssl pkey -in "$ROOT/private-key.pem" -pubout 2>/dev/null \
+    | cmp -s - <(openssl pkey -in "$ROOT/public-key.pem" -pubin 2>/dev/null); then
+  echo "==> Using Tesla EC private-key.pem as command-signing fleet-key"
+  FLEET_KEY="$ROOT/private-key.pem"
+fi
+
+if [[ -n "$FLEET_KEY" ]]; then
+  echo "==> Installing Tesla command-signing private key..."
+  "${RSYNC[@]}" "$FLEET_KEY" "${REMOTE}:${DEPLOY_PATH}/tesla/fleet-key.pem"
+fi
 
 echo "==> Making scripts executable on server..."
 "${SSH[@]}" "chmod +x ${DEPLOY_PATH}/scripts/*.sh 2>/dev/null || true"
+
+echo "==> Preparing tesla-http-proxy TLS..."
+"${SSH[@]}" "bash ${DEPLOY_PATH}/scripts/tesla-proxy-prepare.sh ${DEPLOY_PATH}/tesla"
+
+echo "==> Updating nginx site config..."
+"${SSH[@]}" "sudo cp ${DEPLOY_PATH}/config/nginx/${DEPLOY_HOST}.conf /etc/nginx/sites-available/${DEPLOY_HOST}.conf && sudo ln -sf /etc/nginx/sites-available/${DEPLOY_HOST}.conf /etc/nginx/sites-enabled/${DEPLOY_HOST}.conf && sudo nginx -t && sudo systemctl reload nginx"
 
 if ! "${SSH[@]}" "test -f ${DEPLOY_PATH}/.env"; then
   echo "==> Creating ${DEPLOY_PATH}/.env from template..."

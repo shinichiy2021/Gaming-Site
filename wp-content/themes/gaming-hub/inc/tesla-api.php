@@ -23,6 +23,9 @@ class Gaming_Hub_Tesla_Api {
 	/** @var string Optional tesla-http-proxy base URL for signed commands. */
 	private $command_base_url = '';
 
+	/** @var bool Verify TLS. Disabled for the internal tesla-http-proxy. */
+	private $sslverify = true;
+
 	/** @var int */
 	private $timeout = 25;
 
@@ -122,11 +125,13 @@ class Gaming_Hub_Tesla_Api {
 			return new WP_Error( 'tesla_invalid_command', __( 'Unknown Tesla charge command.', 'gaming-hub' ) );
 		}
 
-		$saved_base     = $this->fleet_base_url;
-		$saved_timeout  = $this->timeout;
-		$this->timeout  = 40;
+		$saved_base      = $this->fleet_base_url;
+		$saved_timeout   = $this->timeout;
+		$saved_sslverify = $this->sslverify;
+		$this->timeout   = 45;
 		if ( '' !== $this->command_base_url ) {
 			$this->fleet_base_url = $this->command_base_url;
+			$this->sslverify      = false;
 		}
 
 		$result = $this->fleet_request(
@@ -139,6 +144,7 @@ class Gaming_Hub_Tesla_Api {
 
 		$this->fleet_base_url = $saved_base;
 		$this->timeout        = $saved_timeout;
+		$this->sslverify      = $saved_sslverify;
 
 		return $result;
 	}
@@ -499,17 +505,18 @@ class Gaming_Hub_Tesla_Api {
 		}
 
 		$args = array(
-			'method'  => $method,
-			'timeout' => $this->timeout,
-			'headers' => array(
+			'method'     => $method,
+			'timeout'    => $this->timeout,
+			'sslverify'  => $this->sslverify,
+			'headers'    => array(
 				'Authorization' => 'Bearer ' . $this->access_token,
-				'Content-Type'    => 'application/json',
+				'Content-Type'  => 'application/json',
 			),
 		);
 
 		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
 		if (
-			in_array( $host, array( 'localhost', '127.0.0.1', 'tesla-proxy' ), true )
+			in_array( $host, array( 'localhost', '127.0.0.1', 'tesla-proxy', 'tesla-http-proxy' ), true )
 			|| (bool) preg_match( '/\.local$/', $host )
 		) {
 			$args['sslverify'] = false;

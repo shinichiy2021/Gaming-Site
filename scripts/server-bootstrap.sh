@@ -77,5 +77,5 @@ docker compose -f docker-compose.prod.yml up -d
 echo ""
 echo "Bootstrap complete."
 echo "  Site:    https://${DOMAIN}/"
-echo "  Tesla:   place public-key.pem at ${APP_DIR}/tesla/public-key.pem"
+echo "  Tesla:   public-key.pem + fleet-key.pem at ${APP_DIR}/tesla/"
 echo "  WP:      complete install at https://${DOMAIN}/ if first time"

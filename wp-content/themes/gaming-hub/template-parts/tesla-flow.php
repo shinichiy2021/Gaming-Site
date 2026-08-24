@@ -60,6 +60,18 @@ $flow   = isset( $status['tesla_flow'] ) && is_array( $status['tesla_flow'] )
 			</button>
 		</div>
 		<p class="tesla-charge-status" data-tesla-charge-status></p>
+		<?php
+		$virtual_key_url = function_exists( 'gaming_hub_tesla_virtual_key_url' )
+			? gaming_hub_tesla_virtual_key_url()
+			: '';
+		if ( '' !== $virtual_key_url ) :
+			?>
+			<p class="tesla-charge-key">
+				<a href="<?php echo esc_url( $virtual_key_url ); ?>" rel="noopener noreferrer">
+					<?php esc_html_e( '仮想キーを追加', 'gaming-hub' ); ?>
+				</a>
+			</p>
+		<?php endif; ?>
 		<?php if ( 'tesla' === $source && function_exists( 'gaming_hub_tesla_has_charging_scope' ) && ! gaming_hub_tesla_has_charging_scope() ) : ?>
 			<p class="tesla-charge-auth">
 				<?php esc_html_e( '充電操作には再認証が必要です。', 'gaming-hub' ); ?>
