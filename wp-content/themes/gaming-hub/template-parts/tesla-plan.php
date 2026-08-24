@@ -59,6 +59,11 @@ for ( $h = 0; $h < 24; $h++ ) {
 
 $now_slot = $by_hour[ $now_hour ] ?? array();
 $now_mode = (string) ( $now_slot['mode'] ?? 'idle' );
+$live_charging = $is_today && ! empty( $plan['live_charging'] );
+$live_charge_w = (int) ( $plan['live_charge_w'] ?? 0 );
+if ( $live_charging ) {
+	$now_mode = 'charge';
+}
 $mode_label = array(
 	'charge' => __( '充電', 'gaming-hub' ),
 	'drive'  => __( '走行', 'gaming-hub' ),
@@ -107,7 +112,9 @@ $next_note = $next_charge_labels
 			<strong data-tesla-plan-now-mode><?php echo esc_html( $mode_label[ $now_mode ] ?? $now_mode ); ?></strong>
 			<small data-tesla-plan-now-watts>
 				<?php
-				if ( 'drive' === $now_mode && isset( $now_slot['drive_km'] ) ) {
+				if ( $live_charging ) {
+					echo esc_html( number_format_i18n( max( 0, $live_charge_w ) ) . ' W' );
+				} elseif ( 'drive' === $now_mode && isset( $now_slot['drive_km'] ) ) {
 					echo esc_html( number_format_i18n( (float) $now_slot['drive_km'], 1 ) . ' km' );
 				} elseif ( isset( $now_slot['watts'] ) && null !== $now_slot['watts'] ) {
 					echo esc_html( number_format_i18n( (int) $now_slot['watts'] ) . ' W' );
@@ -158,12 +165,18 @@ $next_note = $next_charge_labels
 					$slot      = $by_hour[ $h ] ?? array();
 					$mode      = (string) ( $slot['mode'] ?? 'idle' );
 					$is_now    = $is_today && $h === $now_hour;
+					if ( $is_now && $live_charging ) {
+						$mode = 'charge';
+					}
 					$is_charge = 'charge' === $mode;
 					$soc_pct   = $soc_series[ $h ] ?? null;
 					$has_soc   = is_numeric( $soc_pct );
 					$soc_h     = $has_soc ? max( 0, min( 100, (float) $soc_pct ) ) : 0;
+					$col_watts = ( $is_now && $live_charging )
+						? max( $live_charge_w, (int) ( $slot['watts'] ?? $charge_w ) )
+						: (int) ( $slot['watts'] ?? $charge_w );
 					$charge_h  = $is_charge
-						? max( 8, min( 100, ( (int) ( $slot['watts'] ?? $charge_w ) / $charge_w ) * 100 ) )
+						? max( 8, min( 100, ( $col_watts / $charge_w ) * 100 ) )
 						: 0;
 					$col_class = 'ecoflow-rate-col ecoflow-plan-col is-' . sanitize_html_class( $mode );
 					if ( $is_now ) {
@@ -177,7 +190,7 @@ $next_note = $next_charge_labels
 						$tip[] = number_format_i18n( (float) $soc_pct, 0 ) . '%';
 					}
 					if ( $is_charge ) {
-						$tip[] = number_format_i18n( (int) ( $slot['watts'] ?? $charge_w ) ) . ' W';
+						$tip[] = number_format_i18n( $col_watts ) . ' W';
 					}
 					if ( isset( $slot['drive_km'] ) && null !== $slot['drive_km'] ) {
 						$tip[] = number_format_i18n( (float) $slot['drive_km'], 1 ) . ' km';

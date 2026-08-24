@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { batteryTone, formatWatts, isFlowActive, isRegenActive } from './constants';
+import { batteryTone, formatPack, formatWatts, isFlowActive, isRegenActive } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
+
+function PackEta( { status } ) {
+	if ( ! status || status.eta_mode === 'idle' || ! status.remain_time_label ) {
+		return null;
+	}
+
+	return (
+		<p className="ecoflow-node-eta">
+			<span>{ status.remain_time_label }</span>
+			<strong>{ status.remain_time_display || '—' }</strong>
+		</p>
+	);
+}
 
 function PhoneBattery( { percent, charging } ) {
 	if ( ! Number.isFinite( percent ) ) {
@@ -47,6 +60,51 @@ function formatCabinWatts( value, idle, live ) {
 	}
 
 	return `${ Math.round( Math.max( 0, watts ) ).toLocaleString() } W`;
+}
+
+function formatInputWatts( value, idle, active ) {
+	if ( ! active ) {
+		return idle;
+	}
+
+	const watts = Number( value );
+	if ( ! Number.isFinite( watts ) ) {
+		return idle;
+	}
+
+	return `${ Math.round( Math.max( 0, watts ) ).toLocaleString() } W`;
+}
+
+function wallExtras( status, labels ) {
+	if ( ! status.live || status.asleep ) {
+		return [];
+	}
+
+	const charging = !! status.is_charging && status.supply_kind !== 'supercharger';
+	const items = [];
+	const yenH = Number( status.wall_yen_per_h );
+	const todayYen = Number( status.wall_today_yen );
+	const todayKwh = Number( status.wall_today_kwh );
+	const sessionKwh = Number( status.wall_session_kwh );
+	const sessionYen = Number( status.wall_session_yen );
+	const buy = labels.buy || '買電';
+	const perHour = labels.yenPerHour || '円/時';
+	const todayBuy = labels.todayBuy || '今日 買電';
+	const session = labels.session || '今回';
+
+	if ( charging && Number.isFinite( yenH ) && yenH > 0 ) {
+		items.push( `${ buy } ${ Math.round( yenH ).toLocaleString() } ${ perHour }` );
+	}
+
+	if ( charging && Number.isFinite( sessionKwh ) && sessionKwh > 0 ) {
+		items.push( `${ session } ${ sessionKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( sessionYen ) }` );
+	}
+
+	if ( ( Number.isFinite( todayYen ) && todayYen > 0 ) || ( charging && Number.isFinite( todayKwh ) && todayKwh > 0 ) ) {
+		items.push( `${ todayBuy } ${ formatYen( todayYen ) }` );
+	}
+
+	return items;
 }
 
 function cabinExtras( status, labels ) {
@@ -192,7 +250,7 @@ function teslaStateLabel( status, labels ) {
 	}
 
 	if ( status.is_charging ) {
-		return status.supply_label || labels.charging;
+		return labels.charging;
 	}
 
 	if ( status.sentry ) {
@@ -232,10 +290,21 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const hasSoc = status.live && Number.isFinite( soc );
 	const tone = batteryTone( hasSoc ? soc : NaN );
 	const charging = ! asleep && !! status.live && !! status.is_charging;
+	const wallCharging = charging && status.supply_kind !== 'supercharger';
+	const superCharging = charging && status.supply_kind === 'supercharger';
 	const regenOn = ! asleep && isRegenActive( status );
 	const driveOn = ! asleep && isFlowActive( 'drive', status );
 	const cabinOn = ! asleep && isFlowActive( 'cabin', status );
+	const wallOn = ! asleep && ( wallCharging || isFlowActive( 'wall', status ) );
+	const superOn = ! asleep && ( superCharging || isFlowActive( 'super', status ) );
 	const teslaActive = ! asleep && ( charging || driveOn || cabinOn );
+	const fullWh = Number( status.capacity_wh );
+	const remainWh = Number.isFinite( Number( status.remain_capacity ) )
+		? Number( status.remain_capacity )
+		: ( hasSoc && Number.isFinite( fullWh ) ? fullWh * soc / 100 : null );
+	const packLabel = status.live && Number.isFinite( fullWh ) && fullWh > 0
+		? formatPack( remainWh, fullWh )
+		: '';
 	const teslaClasses = [
 		'ecoflow-node',
 		'ecoflow-node-battery',
@@ -267,8 +336,12 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							watts={ asleep ? 0 : status.wall_w }
 							photo={ images.wall }
 							photoClass="tesla-photo-wall"
-							active={ ! asleep && isFlowActive( 'wall', status ) }
+							active={ wallOn }
 							standbyLabel={ idle }
+							display={ wallOn ? formatInputWatts( status.wall_w, idle, true ) : null }
+							extra={ wallExtras( status, labels ).map( ( line ) => (
+								<small key={ line } className="tesla-gas-saved">{ line }</small>
+							) ) }
 						/>
 						<PhotoNode
 							flowId="super"
@@ -277,8 +350,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							watts={ asleep ? 0 : status.super_w }
 							photo={ images.super }
 							photoClass="tesla-photo-super"
-							active={ ! asleep && isFlowActive( 'super', status ) }
+							active={ superOn }
 							standbyLabel={ idle }
+							display={ superOn && ! isFlowActive( 'super', status ) ? labels.charging : null }
 						/>
 					</div>
 
@@ -294,7 +368,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							{ hasSoc ? <PhoneBattery percent={ soc } charging={ charging || regenOn } /> : null }
 						</div>
 						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
+						{ packLabel ? <small className="ecoflow-node-pack">{ packLabel }</small> : null }
 						<p className="ecoflow-node-state">{ teslaStateLabel( status, labels ) }</p>
+						{ ! asleep && status.live ? <PackEta status={ status } /> : null }
 						{ ! asleep && status.live && status.range_label ? <small>{ status.range_label }</small> : null }
 					</div>
 

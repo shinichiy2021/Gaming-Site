@@ -1514,6 +1514,10 @@ body.home .site-header.is-scrolled {
 	max-width: 100%;
 }
 
+.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-pack {
+	font-size: 1.05rem;
+}
+
 .tesla-photo-wall {
 	width: 96px;
 	height: 96px;

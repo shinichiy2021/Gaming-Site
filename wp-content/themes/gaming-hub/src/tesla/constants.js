@@ -78,11 +78,29 @@ export function wattsForFlow( flowId, status ) {
 	}
 
 	if ( flowId === 'wall' ) {
-		return Number( status.wall_w ) || 0;
+		const watts = Number( status.wall_w ) || 0;
+		if ( watts >= FLOW_THRESHOLD ) {
+			return watts;
+		}
+
+		if ( status.live && status.is_charging && status.supply_kind !== 'supercharger' ) {
+			return Math.max( watts, FLOW_THRESHOLD );
+		}
+
+		return watts;
 	}
 
 	if ( flowId === 'super' ) {
-		return Number( status.super_w ) || 0;
+		const watts = Number( status.super_w ) || 0;
+		if ( watts >= FLOW_THRESHOLD ) {
+			return watts;
+		}
+
+		if ( status.live && status.is_charging && status.supply_kind === 'supercharger' ) {
+			return Math.max( watts, FLOW_THRESHOLD );
+		}
+
+		return watts;
 	}
 
 	if ( flowId === 'drive' ) {
@@ -118,4 +136,30 @@ export function batteryTone( percent ) {
 	}
 
 	return { color: '#34c759', className: 'is-ok' };
+}
+
+export function formatWh( value ) {
+	if ( value === null || value === undefined || value === '' || ! Number.isFinite( Number( value ) ) ) {
+		return '—';
+	}
+
+	if ( Number( value ) > 1000 ) {
+		return `${ ( Number( value ) / 1000 ).toLocaleString( undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 } ) } kWh`;
+	}
+
+	return `${ Math.round( value ).toLocaleString() } Wh`;
+}
+
+export function formatPack( remain, full ) {
+	if ( remain === null || remain === undefined || ! Number.isFinite( Number( remain ) ) ) {
+		return ( typeof window !== 'undefined' && window.gamingHubT )
+			? window.gamingHubT( '未取得' )
+			: '未取得';
+	}
+
+	if ( ! Number.isFinite( Number( full ) ) || Number( full ) <= 0 ) {
+		return formatWh( remain );
+	}
+
+	return `${ formatWh( remain ) } / ${ formatWh( full ) }`;
 }

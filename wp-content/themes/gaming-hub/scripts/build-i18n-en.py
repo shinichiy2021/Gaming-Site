@@ -298,6 +298,7 @@ EN = {
     "0%まで": "Until 0%",
     "満タン": "Full",
     "満充電まで": "Until full",
+    "満充電": "Full",
     "残り使用時間": "Runtime left",
     "Pro とは独立。Low Volt ソーラーは 1500 へ入力。Extra Battery 1kW 接続。合算 2.5 kWh。ライブ計測は MQTT ブリッジ待ち。": "Independent from Pro. Low Volt solar feeds the 1500. Extra Battery 1 kWh attached. Combined 2.5 kWh. Live meters wait on the MQTT bridge.",
     "未取得": "n/a",

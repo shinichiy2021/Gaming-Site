@@ -31,6 +31,9 @@ define( 'GAMING_HUB_MODEL3_ODO_OPTION', 'gaming_hub_model3_odometer_v1' );
 define( 'GAMING_HUB_TESLA_CABIN_ENERGY_OPTION', 'gaming_hub_tesla_cabin_energy_v1' );
 define( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX', 8 * MINUTE_IN_SECONDS );
 
+/** Home AC (普通充電) watt-hours and yen accumulated for today. */
+define( 'GAMING_HUB_TESLA_WALL_ENERGY_OPTION', 'gaming_hub_tesla_wall_energy_v1' );
+
 /**
  * Daily energy to replenish after 30 km driving.
  */
@@ -288,6 +291,12 @@ function gaming_hub_powerwall_model3_present( array $model3 ) {
 	}
 
 	$usable_kwh = round( $battery_kwh * $soc / 100, 1 );
+	if ( isset( $model3['battery_kwh_estimate'] ) && is_numeric( $model3['battery_kwh_estimate'] ) ) {
+		$from_api = (float) $model3['battery_kwh_estimate'];
+		if ( $from_api > 0 && $from_api <= ( $battery_kwh * 1.25 ) ) {
+			$usable_kwh = round( $from_api, 1 );
+		}
+	}
 	$range_km   = isset( $model3['range_km'] ) && is_numeric( $model3['range_km'] )
 		? max( 0, (int) round( (float) $model3['range_km'] ) )
 		: null;
