@@ -118,7 +118,18 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 
 		if ( is_wp_error( $model3 ) ) {
 			$status['model3_error'] = gaming_hub_tesla_user_facing_error( $model3 );
-			$status['model3_source'] = 'simulated';
+			$cached                 = function_exists( 'gaming_hub_tesla_cached_model3' )
+				? gaming_hub_tesla_cached_model3()
+				: null;
+			if ( is_array( $cached ) ) {
+				$cached['asleep']        = ! empty( $cached['asleep'] ) && empty( $cached['is_charging'] );
+				$status['model3']        = $cached;
+				$status['model3_source'] = 'tesla';
+				$status                  = gaming_hub_powerwall_recalc_flow_load( $status );
+				$status['simulated']     = false;
+			} else {
+				$status['model3_source'] = 'simulated';
+			}
 		} else {
 			$status['model3']        = $model3;
 			$status['model3_source'] = 'tesla';
@@ -142,7 +153,7 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 	}
 
 	$status['tesla_drive_ready'] = ! empty( $status['model3']['drive_ready'] );
-	$status['tesla_asleep']      = ! empty( $status['model3']['asleep'] );
+	$status['tesla_asleep']      = ! empty( $status['model3']['asleep'] ) && empty( $status['model3']['is_charging'] );
 	$status['tesla_needs_location_scope'] = function_exists( 'gaming_hub_tesla_has_location_scope' )
 		&& 'tesla' === (string) ( $status['model3_source'] ?? '' )
 		&& ! gaming_hub_tesla_has_location_scope();

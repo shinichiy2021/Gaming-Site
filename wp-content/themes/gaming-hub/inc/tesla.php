@@ -21,7 +21,7 @@ define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v5'
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
 define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 5 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 2 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 30 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 2 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 2 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_TAG_SLUG', 'tesla' );
@@ -544,18 +544,10 @@ function gaming_hub_render_tesla_oauth_button( $force_login = false, $require_al
 
 /**
  * Render the Tesla revoke-consent button.
+ *
+ * Hidden: owners should not unlink from the public Tesla tag.
  */
 function gaming_hub_render_tesla_revoke_button() {
-	$revoke = gaming_hub_tesla_revoke_consent_url();
-
-	if ( ! $revoke ) {
-		return;
-	}
-	?>
-	<a href="<?php echo esc_url( $revoke ); ?>" class="btn btn-outline btn-sm pw-tesla-oauth-btn pw-tesla-revoke-btn">
-		<?php esc_html_e( '連携を解除', 'gaming-hub' ); ?>
-	</a>
-	<?php
 }
 
 /**
@@ -891,12 +883,11 @@ function gaming_hub_render_tesla_link_status( array $status ) {
 		echo '<p class="pw-flow-live-note" data-pw-field="tesla_link_note">' . esc_html( $note ) . '</p>';
 	}
 
-	echo '<div class="pw-tesla-link-actions">';
 	if ( gaming_hub_tesla_needs_drive_scope( $status ) ) {
+		echo '<div class="pw-tesla-link-actions">';
 		gaming_hub_render_tesla_oauth_button( true, true );
+		echo '</div>';
 	}
-	gaming_hub_render_tesla_revoke_button();
-	echo '</div>';
 
 	gaming_hub_render_tesla_asleep_notice( $status );
 
@@ -1276,6 +1267,78 @@ function gaming_hub_tesla_record_cabin_energy( $watts, $accumulate ) {
 }
 
 /**
+ * Today's home AC charging energy from the last live snapshots.
+ *
+ * @return array{today_kwh: float, today_yen: int}
+ */
+function gaming_hub_tesla_wall_energy_today() {
+	$today = wp_date( 'Y-m-d' );
+	$saved = get_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, array() );
+	if ( ! is_array( $saved ) || (string) ( $saved['date'] ?? '' ) !== $today ) {
+		return array(
+			'today_kwh' => 0.0,
+			'today_yen' => 0,
+		);
+	}
+
+	return array(
+		'today_kwh' => round( max( 0, (float) ( $saved['wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'today_yen' => (int) round( max( 0, (float) ( $saved['yen'] ?? 0 ) ) ),
+	);
+}
+
+/**
+ * Integrate home AC charge watts between Tesla polls.
+ *
+ * @param int  $watts      Latest wall watts.
+ * @param bool $accumulate Whether this snapshot is home AC charging.
+ * @return array{today_kwh: float, today_yen: int}
+ */
+function gaming_hub_tesla_record_wall_energy( $watts, $accumulate ) {
+	$today = wp_date( 'Y-m-d' );
+	$now   = time();
+	$watts = max( 0, (int) round( (float) $watts ) );
+	$saved = get_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, array() );
+	$saved = is_array( $saved ) ? $saved : array();
+
+	if ( (string) ( $saved['date'] ?? '' ) !== $today ) {
+		$saved = array(
+			'date' => $today,
+			'wh'   => 0.0,
+			'yen'  => 0.0,
+		);
+	}
+
+	$last_ts = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
+	$last_w  = isset( $saved['last_w'] ) ? max( 0, (int) $saved['last_w'] ) : 0;
+	$max_gap = defined( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX' ) ? GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX : ( 8 * MINUTE_IN_SECONDS );
+
+	if ( ! empty( $saved['last_on'] ) && $last_ts > 0 ) {
+		$delta = $now - $last_ts;
+		if ( $delta > 0 && $delta <= $max_gap ) {
+			$hours = $delta / HOUR_IN_SECONDS;
+			$saved['wh'] = (float) ( $saved['wh'] ?? 0 ) + ( $last_w * $hours );
+			$yen_per_kwh = function_exists( 'gaming_hub_tesla_electricity_yen_per_kwh' )
+				? gaming_hub_tesla_electricity_yen_per_kwh()
+				: 30.0;
+			$saved['yen'] = (float) ( $saved['yen'] ?? 0 ) + ( $last_w / 1000.0 ) * $hours * $yen_per_kwh;
+		}
+	}
+
+	$saved['last_ts']    = $now;
+	$saved['last_w']     = $accumulate ? $watts : 0;
+	$saved['last_on']    = $accumulate;
+	$saved['updated_at'] = $now;
+
+	update_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, $saved, false );
+
+	return array(
+		'today_kwh' => round( max( 0, (float) $saved['wh'] ) / 1000.0, 2 ),
+		'today_yen' => (int) round( max( 0, (float) $saved['yen'] ) ),
+	);
+}
+
+/**
  * Live pack power from drive_state (or charge_state fallbacks).
  *
  * Tesla Fleet `drive_state.power` is usually a whole-number kW. Parked HVAC
@@ -1407,6 +1470,78 @@ function gaming_hub_tesla_drive_watts_from_speed( $speed_km ) {
 }
 
 /**
+ * Live AC/DC charge watts from Tesla charge_state.
+ *
+ * charger_power is kW when small, W when already > 50.
+ *
+ * @param array<string, mixed> $charge_state Tesla charge_state.
+ */
+function gaming_hub_tesla_charge_watts( array $charge_state ) {
+	$power_raw = (float) ( $charge_state['charger_power'] ?? 0 );
+	$from_kw   = $power_raw > 50
+		? (int) round( $power_raw )
+		: (int) round( $power_raw * 1000 );
+
+	$voltage = (float) ( $charge_state['charger_voltage'] ?? 0 );
+	$amps    = (float) ( $charge_state['charger_actual_current'] ?? 0 );
+	$from_va = ( $voltage >= 80 && $amps >= 1 )
+		? (int) round( $voltage * $amps )
+		: 0;
+
+	return max( 0, $from_kw, $from_va );
+}
+
+/**
+ * Usable pack kWh from Tesla charge_state, with Model 3 fallback.
+ *
+ * @param array<string, mixed> $charge_state Tesla charge_state.
+ * @param int|float            $soc          Battery percent.
+ * @return array{full_kwh: float, remain_kwh: float}
+ */
+function gaming_hub_tesla_pack_kwh( array $charge_state, $soc ) {
+	$full = null;
+	foreach ( array( 'nominal_full_pack_energy', 'pack_full_kwh' ) as $key ) {
+		if ( ! isset( $charge_state[ $key ] ) || ! is_numeric( $charge_state[ $key ] ) ) {
+			continue;
+		}
+		$val = (float) $charge_state[ $key ];
+		if ( $val > 200 && $val < 200000 ) {
+			$val = $val / 1000;
+		}
+		if ( $val > 20 && $val < 200 ) {
+			$full = $val;
+			break;
+		}
+	}
+	if ( null === $full ) {
+		$full = defined( 'GAMING_HUB_MODEL3_BATTERY_KWH' ) ? (float) GAMING_HUB_MODEL3_BATTERY_KWH : 60.0;
+	}
+
+	$remain = null;
+	foreach ( array( 'energy_remaining', 'expected_energy_remaining' ) as $key ) {
+		if ( ! isset( $charge_state[ $key ] ) || ! is_numeric( $charge_state[ $key ] ) ) {
+			continue;
+		}
+		$val = (float) $charge_state[ $key ];
+		if ( $val > 200 && $val < 200000 ) {
+			$val = $val / 1000;
+		}
+		if ( $val >= 0 && $val <= ( $full * 1.25 ) ) {
+			$remain = $val;
+			break;
+		}
+	}
+	if ( null === $remain ) {
+		$remain = $full * ( max( 0, min( 100, (float) $soc ) ) / 100.0 );
+	}
+
+	return array(
+		'full_kwh'   => round( $full, 1 ),
+		'remain_kwh' => round( max( 0, $remain ), 1 ),
+	);
+}
+
+/**
  * Map Tesla vehicle_data to dashboard model3 payload.
  *
  * @param array<string, mixed> $data Tesla vehicle_data response.
@@ -1435,24 +1570,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 
 	$state    = (string) ( $charge_state['charging_state'] ?? '' );
 	$charging = in_array( $state, array( 'Charging', 'Starting' ), true );
-
-	if ( false === ( $charge_state['charge_enable_request'] ?? null ) ) {
-		$charging = false;
-	}
-
-	if ( false === ( $charge_state['user_charge_enable_request'] ?? null ) ) {
-		$charging = false;
-	}
-
-	$power_raw = (float) ( $charge_state['charger_power'] ?? 0 );
-	$power_w   = $power_raw > 50
-		? (int) round( $power_raw )
-		: (int) round( $power_raw * 1000 );
-
-	if ( ! $charging || $power_w < 50 ) {
-		$charging = false;
-		$power_w  = 0;
-	}
+	$power_w  = $charging ? gaming_hub_tesla_charge_watts( $charge_state ) : 0;
 
 	$battery_level = $charge_state['battery_level'] ?? $charge_state['usable_battery_level'] ?? null;
 	$range_km      = gaming_hub_tesla_miles_to_km( $charge_state['est_battery_range'] ?? null );
@@ -1460,6 +1578,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$soc           = null !== $battery_level && is_numeric( $battery_level )
 		? max( 0, min( 100, (int) round( (float) $battery_level ) ) )
 		: 0;
+	$pack_kwh      = gaming_hub_tesla_pack_kwh( $charge_state, $soc );
 	$range_full_km = ( $soc > 0 && null !== $range_km )
 		? (int) round( $range_km / ( $soc / 100 ) )
 		: ( null !== $ideal_km ? (int) round( $ideal_km ) : 450 );
@@ -1543,6 +1662,8 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	return gaming_hub_powerwall_model3_present(
 		array(
 			'battery_percent'           => $soc,
+			'battery_kwh_nominal'       => $pack_kwh['full_kwh'],
+			'battery_kwh_estimate'      => $pack_kwh['remain_kwh'],
 			'is_charging'               => $charging,
 			'charge_state'              => gaming_hub_tesla_model3_hud_state( $state, $charging ),
 			'watts'                     => $power_w,
@@ -1597,18 +1718,21 @@ function gaming_hub_fetch_tesla_model3_status() {
 
 	$skip_reason = gaming_hub_tesla_api_skip_reason();
 	if ( '' !== $skip_reason ) {
-		if ( $cached ) {
-			$cached['asleep'] = ( 'asleep' === $skip_reason );
+		$keep_charging = is_array( $cached ) && ! empty( $cached['is_charging'] );
+		if ( $cached && ( ! $keep_charging || 'error' === $skip_reason ) ) {
+			$cached['asleep'] = ( 'asleep' === $skip_reason ) && ! $keep_charging;
 
 			return $cached;
 		}
 
-		return new WP_Error(
-			'asleep' === $skip_reason ? 'tesla_vehicle_asleep' : 'tesla_request_failed',
-			'asleep' === $skip_reason
-				? __( '車はスリープ中です。起こさず、起きたら自動で更新します。', 'gaming-hub' )
-				: __( 'Tesla Fleet API request failed.', 'gaming-hub' )
-		);
+		if ( ! $cached ) {
+			return new WP_Error(
+				'asleep' === $skip_reason ? 'tesla_vehicle_asleep' : 'tesla_request_failed',
+				'asleep' === $skip_reason
+					? __( '車はスリープ中です。起こさず、起きたら自動で更新します。', 'gaming-hub' )
+					: __( 'Tesla Fleet API request failed.', 'gaming-hub' )
+			);
+		}
 	}
 
 	if ( is_array( $cached ) ) {
@@ -1663,7 +1787,7 @@ function gaming_hub_fetch_tesla_model3_status() {
 		);
 
 		if ( $cached ) {
-			$cached['asleep'] = $asleep;
+			$cached['asleep'] = $asleep && empty( $cached['is_charging'] );
 
 			return $cached;
 		}
@@ -1746,7 +1870,6 @@ function gaming_hub_render_tesla_setup_instructions() {
 		<li>
 			<?php esc_html_e( 'Tesla アカウント連携:', 'gaming-hub' ); ?>
 			<?php gaming_hub_render_tesla_oauth_button(); ?>
-			<?php gaming_hub_render_tesla_revoke_button(); ?>
 		</li>
 		<li><?php esc_html_e( 'Redirect URI: /wp-json/gaming-hub/v1/tesla/oauth/callback', 'gaming-hub' ); ?></li>
 		<li>

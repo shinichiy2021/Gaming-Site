@@ -677,6 +677,29 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 }
 
 /**
+ * Overlay live Tesla charging onto a cached plan (NOW / current hour).
+ *
+ * @param array<string, mixed>      $plan   Plan payload.
+ * @param array<string, mixed>|null $status Live status.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
+	$flow     = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$model3   = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$charging = ( ! empty( $flow['live'] ) && ! empty( $flow['is_charging'] ) && empty( $flow['asleep'] ) )
+		|| ( 'tesla' === (string) ( $status['model3_source'] ?? '' ) && ! empty( $model3['is_charging'] ) && empty( $model3['asleep'] ) );
+	$wall_w   = (int) ( $flow['wall_w'] ?? 0 );
+	$super_w  = (int) ( $flow['super_w'] ?? 0 );
+	$watts    = $charging ? max( $wall_w, $super_w, (int) ( $model3['watts'] ?? 0 ) ) : 0;
+
+	$plan['live_charging'] = $charging;
+	$plan['live_charge_w'] = $watts;
+	$plan['live_supply']   = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+
+	return $plan;
+}
+
+/**
  * Build today + neighbor days.
  *
  * @param array<string, mixed>|null $status Live status.
@@ -705,7 +728,7 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 	$cache_key = GAMING_HUB_TESLA_PLAN_CACHE_PREFIX . wp_date( 'Y-m-d' ) . '_' . $now_hour . '_' . (int) floor( $soc / 5 ) . '_' . (int) round( $today_km ) . '_' . $limit . '_' . ( $live ? '1' : '0' );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) && ! empty( $cached['plan_id'] ) ) {
-		return $cached;
+		return gaming_hub_tesla_plan_apply_live( $cached, $status );
 	}
 
 	$ctx = array(
@@ -730,7 +753,7 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 
 	set_transient( $cache_key, $today, GAMING_HUB_TESLA_PLAN_CACHE_TTL );
 
-	return $today;
+	return gaming_hub_tesla_plan_apply_live( $today, $status );
 }
 
 /**
@@ -742,6 +765,7 @@ function gaming_hub_render_tesla_plan( $status = null ) {
 	$plan = is_array( $status['tesla_plan'] ?? null )
 		? $status['tesla_plan']
 		: gaming_hub_tesla_get_charge_plan( $status );
+	$plan = gaming_hub_tesla_plan_apply_live( is_array( $plan ) ? $plan : array(), $status );
 
 	get_template_part(
 		'template-parts/tesla',
@@ -779,9 +803,12 @@ function gaming_hub_rest_tesla_plan() {
 	return new WP_REST_Response(
 		array(
 			'success' => true,
-			'data'    => isset( $status['tesla_plan'] ) && is_array( $status['tesla_plan'] )
-				? $status['tesla_plan']
-				: gaming_hub_tesla_get_charge_plan( $status ),
+			'data'    => gaming_hub_tesla_plan_apply_live(
+				isset( $status['tesla_plan'] ) && is_array( $status['tesla_plan'] )
+					? $status['tesla_plan']
+					: gaming_hub_tesla_get_charge_plan( $status ),
+				$status
+			),
 		),
 		200
 	);

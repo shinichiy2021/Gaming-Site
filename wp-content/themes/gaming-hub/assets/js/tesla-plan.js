@@ -16,6 +16,17 @@
 		tomorrow: null,
 	};
 	let selectedDay = 'today';
+	let liveCharge = { charging: false, watts: 0 };
+
+	function rememberLiveCharge(status) {
+		if (!status) {
+			return;
+		}
+		liveCharge = {
+			charging: !!status.live && !!status.is_charging && !status.asleep,
+			watts: Math.max(0, Number(status.wall_w || 0), Number(status.super_w || 0)),
+		};
+	}
 
 	function modeLabel(mode) {
 		if (mode === 'charge') {
@@ -160,7 +171,9 @@
 		});
 
 		const nowSlot = byHour[hour] || {};
-		const nowMode = isLiveDay ? (nowSlot.mode || 'idle') : 'idle';
+		const liveCharging = isLiveDay && !!(liveCharge.charging || plan.live_charging);
+		const liveWatts = Number(liveCharge.watts || plan.live_charge_w || 0);
+		const nowMode = liveCharging ? 'charge' : (isLiveDay ? (nowSlot.mode || 'idle') : 'idle');
 		const nowEl = root.querySelector('[data-tesla-plan-now-mode]');
 		const nowWrap = root.querySelector('.ecoflow-plan-stat-now');
 		if (nowEl) {
@@ -169,7 +182,9 @@
 		if (nowWrap) {
 			nowWrap.className = 'ecoflow-rates-stat ecoflow-plan-stat-now is-' + nowMode;
 		}
-		if (nowMode === 'drive' && nowSlot.drive_km != null) {
+		if (liveCharging) {
+			setText('[data-tesla-plan-now-watts]', Math.round(Math.max(0, liveWatts)).toLocaleString() + ' W');
+		} else if (nowMode === 'drive' && nowSlot.drive_km != null) {
 			setText('[data-tesla-plan-now-watts]', Number(nowSlot.drive_km).toFixed(1) + ' km');
 		} else if (nowSlot.watts != null) {
 			setText('[data-tesla-plan-now-watts]', Math.round(Number(nowSlot.watts)).toLocaleString() + ' W');
@@ -193,13 +208,16 @@
 		if (track) {
 			for (let h = 0; h < 24; h += 1) {
 				const slot = byHour[h] || {};
-				const mode = slot.mode || 'idle';
 				const isNow = isLiveDay && h === hour;
+				const liveHere = isNow && (liveCharge.charging || !!plan.live_charging);
+				const mode = liveHere ? 'charge' : (slot.mode || 'idle');
 				const isCharge = mode === 'charge';
 				const soc = socSeries[h];
 				const hasSoc = soc !== null && soc !== undefined && !Number.isNaN(Number(soc));
 				const height = hasSoc ? Math.max(0, Math.min(100, Number(soc))) : 0;
-				const watts = isCharge ? Number(slot.watts != null ? slot.watts : chargeW) : 0;
+				const watts = liveHere
+					? Math.max(Number(liveCharge.watts || plan.live_charge_w || 0), Number(slot.watts != null ? slot.watts : chargeW) || 0)
+					: (isCharge ? Number(slot.watts != null ? slot.watts : chargeW) : 0);
 				const chargeH = isCharge ? Math.max(8, Math.min(100, (watts / chargeW) * 100)) : 0;
 				const col = track.querySelector('[data-tesla-plan-col][data-hour="' + h + '"]');
 				if (!col) {
@@ -269,6 +287,12 @@
 		if (!plan) {
 			return;
 		}
+		if (plan.live_charging) {
+			liveCharge = {
+				charging: true,
+				watts: Number(plan.live_charge_w || liveCharge.watts || 0),
+			};
+		}
 		views.today = plan;
 		if (plan.view_days && plan.view_days.yesterday) {
 			views.yesterday = plan.view_days.yesterday;
@@ -299,6 +323,14 @@
 		}
 	});
 
+	document.addEventListener('gamingHubTeslaFlow', function (event) {
+		if (!event || !event.detail) {
+			return;
+		}
+		rememberLiveCharge(event.detail);
+		paintPlan(views[selectedDay] || views.today);
+	});
+
 	function loadPlan() {
 		if (!window.gamingHubTeslaPlan || !gamingHubTeslaPlan.url) {
 			return;
@@ -315,6 +347,15 @@
 			.catch(function () {
 				// Keep painted plan.
 			});
+	}
+
+	try {
+		const flowRoot = document.getElementById('tesla-energy-flow-root');
+		if (flowRoot && flowRoot.dataset.initial) {
+			rememberLiveCharge(JSON.parse(flowRoot.dataset.initial));
+		}
+	} catch (err) {
+		// Keep idle until the live poll arrives.
 	}
 
 	try {
