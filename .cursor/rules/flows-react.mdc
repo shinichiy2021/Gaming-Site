@@ -1,0 +1,20 @@
+---
+description: React canvas flow diagrams (EcoFlow / Powerwall / Tesla)
+globs: wp-content/themes/gaming-hub/src/**/*
+alwaysApply: false
+---
+
+# React Flow Bundles
+
+Three independent Vite bundles share the same structure.
+
+| Flow | Source | Output | Mount node | Update event |
+|------|--------|--------|-----------|--------------|
+| EcoFlow | `src/ecoflow/` | `assets/js/ecoflow-flow.js` | `#ecoflow-energy-flow-root` | `gamingHubEcoflowStatus` |
+| Powerwall | `src/powerwall/` | `assets/js/powerwall-flow.js` | `#powerwall-energy-flow-root` | `gamingHubPowerwallFlow` |
+| Tesla | `src/tesla/` | `assets/js/tesla-flow.js` | `#tesla-energy-flow-root` | `gamingHubTeslaFlow` |
+
+- Outputs are IIFE bundles — never edit `assets/js/*-flow.js` by hand
+- After changing a source: `npm run build:<flow>`, or `npm run build:flows` for all three
+- Initial state comes from PHP via `data-initial` on the mount node; live updates arrive as a `document` CustomEvent
+- Canvas animation lives in each `useFlowCanvas.js`; pause when `document.hidden`
