@@ -107,7 +107,7 @@ function wallExtras( status, labels ) {
 }
 
 function cabinExtras( status, labels ) {
-	if ( ! status.live || status.asleep ) {
+	if ( ! status.live ) {
 		return [];
 	}
 
@@ -121,10 +121,6 @@ function cabinExtras( status, labels ) {
 }
 
 function formatGasValue( status, labels, idle ) {
-	if ( status.asleep ) {
-		return idle;
-	}
-
 	const gas = status.gas || {};
 	if ( ( status.regen_w || 0 ) >= 80 ) {
 		return null;
@@ -142,13 +138,9 @@ function formatGasValue( status, labels, idle ) {
 }
 
 function gasExtras( status, labels ) {
-	if ( status.asleep ) {
-		return [];
-	}
-
 	const gas = status.gas || {};
 	const items = [];
-	const driving = ( gas.gas_l_per_h || 0 ) > 0;
+	const driving = ! status.asleep && ( gas.gas_l_per_h || 0 ) > 0;
 
 	if ( driving && ( gas.saved_yen_per_h || 0 ) > 0 ) {
 		items.push( `${ labels.saved || '節約' } ${ formatYen( gas.saved_yen_per_h ) }/h` );
