@@ -76,11 +76,11 @@ function formatInputWatts( value, idle, active ) {
 }
 
 function wallExtras( status, labels ) {
-	if ( ! status.live || status.asleep ) {
+	if ( ! status.live ) {
 		return [];
 	}
 
-	const charging = !! status.is_charging && status.supply_kind !== 'supercharger';
+	const charging = ! status.asleep && !! status.is_charging && status.supply_kind !== 'supercharger';
 	const items = [];
 	const yenH = Number( status.wall_yen_per_h );
 	const todayYen = Number( status.wall_today_yen );
@@ -100,9 +100,8 @@ function wallExtras( status, labels ) {
 		items.push( `${ session } ${ sessionKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( sessionYen ) }` );
 	}
 
-	if ( ( Number.isFinite( todayYen ) && todayYen > 0 ) || ( charging && Number.isFinite( todayKwh ) && todayKwh > 0 ) ) {
-		items.push( `${ todayBuy } ${ formatYen( todayYen ) }` );
-	}
+	// Today's home charging total stays visible while standby so the node is never blank.
+	items.push( `${ todayBuy } ${ ( Number.isFinite( todayKwh ) ? todayKwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( Number.isFinite( todayYen ) ? todayYen : 0 ) }` );
 
 	return items;
 }
