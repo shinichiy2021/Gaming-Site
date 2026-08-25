@@ -464,6 +464,8 @@ EN = {
     "今日 差引": "Net today",
     "今日 節約": "Saved today",
     "今日 買電": "Import today",
+    "今回": "Session",
+    "合計": "Total",
     "今日 発電": "Generated today",
     "今日 使用": "Used today",
     "月計 入力": "Month in",
