@@ -87,9 +87,7 @@ function wallExtras( status, labels ) {
 	const todayKwh = Number( status.wall_today_kwh );
 	const sessionKwh = Number( status.wall_session_kwh );
 	const sessionYen = Number( status.wall_session_yen );
-	const totalKwh = Number( status.wall_total_kwh );
-	const totalYen = Number( status.wall_total_yen );
-	const spansDays = !! status.wall_total_span;
+	const spansDays = !! status.wall_span_days;
 	const buy = labels.buy || '買電';
 	const perHour = labels.yenPerHour || '円/時';
 	const todayBuy = labels.todayBuy || '今日 買電';
@@ -100,13 +98,11 @@ function wallExtras( status, labels ) {
 		items.push( `${ buy } ${ Math.round( yenH ).toLocaleString() } ${ perHour }` );
 	}
 
-	if ( spansDays && Number.isFinite( totalKwh ) && totalKwh > 0 ) {
-		// A charge that ran past midnight is split across two daily counters, so report
-		// the start-to-end total instead of just this session's slice.
-		const range = status.wall_total_label ? ` (${ status.wall_total_label })` : '';
-		items.push( `${ total } ${ totalKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( totalYen ) }${ range }` );
-	} else if ( charging && Number.isFinite( sessionKwh ) && sessionKwh > 0 ) {
-		items.push( `${ session } ${ sessionKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( sessionYen ) }` );
+	if ( ( charging || spansDays ) && Number.isFinite( sessionKwh ) && sessionKwh > 0 ) {
+		// A charge that ran past midnight is split across two daily counters, so label
+		// it as the start-to-end total and name the dates it covers.
+		const range = spansDays && status.wall_span_label ? ` (${ status.wall_span_label })` : '';
+		items.push( `${ spansDays ? total : session } ${ sessionKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( sessionYen ) }${ range }` );
 	}
 
 	// Today's home charging total stays visible while standby so the node is never blank.

@@ -185,10 +185,8 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'wall_today_yen'  => 0,
 			'wall_session_kwh'=> 0,
 			'wall_session_yen'=> 0,
-			'wall_total_kwh'  => 0,
-			'wall_total_yen'  => 0,
-			'wall_total_span' => false,
-			'wall_total_label'=> '',
+			'wall_span_days'  => false,
+			'wall_span_label' => '',
 			'elec_yen_per_kwh'=> 0,
 			'capacity_wh'     => null,
 			'remain_capacity' => null,
@@ -269,15 +267,15 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		? gaming_hub_tesla_electricity_yen_per_kwh()
 		: 30.0;
 	$wall_w_num = max( 0, (int) ( $wall_w ?? 0 ) );
-	$wall_energy = function_exists( 'gaming_hub_tesla_record_wall_energy' )
-		? gaming_hub_tesla_record_wall_energy( $wall_w_num, $wall_home )
+	$energy_added = isset( $model3['charge_energy_added'] ) && is_numeric( $model3['charge_energy_added'] )
+		? max( 0, (float) $model3['charge_energy_added'] )
+		: null;
+	$wall_energy  = function_exists( 'gaming_hub_tesla_record_wall_energy' )
+		? gaming_hub_tesla_record_wall_energy( $wall_w_num, $wall_home, $energy_added )
 		: gaming_hub_tesla_wall_energy_empty();
 	$wall_yen_h = $wall_home
 		? (int) round( ( $wall_w_num / 1000.0 ) * $yen_kwh )
 		: 0;
-	$session_kwh = $wall_home && isset( $model3['charge_energy_added'] ) && is_numeric( $model3['charge_energy_added'] )
-		? max( 0, (float) $model3['charge_energy_added'] )
-		: 0.0;
 	$span_days  = ! empty( $wall_energy['session_spans_days'] );
 	$span_label = $span_days
 		? gaming_hub_tesla_date_span_label( $wall_energy['session_start_date'], $wall_energy['session_end_date'] )
@@ -321,12 +319,10 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'wall_yen_per_h'  => $wall_yen_h,
 		'wall_today_kwh'  => $wall_energy['today_kwh'],
 		'wall_today_yen'  => $wall_energy['today_yen'],
-		'wall_session_kwh'=> round( $session_kwh, 2 ),
-		'wall_session_yen'=> (int) round( $session_kwh * $yen_kwh ),
-		'wall_total_kwh'  => $wall_energy['session_kwh'],
-		'wall_total_yen'  => $wall_energy['session_yen'],
-		'wall_total_span' => $span_days,
-		'wall_total_label'=> $span_label,
+		'wall_session_kwh'=> $wall_energy['session_kwh'],
+		'wall_session_yen'=> $wall_energy['session_yen'],
+		'wall_span_days'  => $span_days,
+		'wall_span_label' => $span_label,
 		'elec_yen_per_kwh'=> round( $yen_kwh, 1 ),
 		'capacity_wh'     => $capacity_wh,
 		'remain_capacity' => $remain_wh,

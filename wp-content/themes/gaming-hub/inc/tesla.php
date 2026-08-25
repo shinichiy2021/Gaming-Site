@@ -1488,16 +1488,45 @@ function gaming_hub_tesla_wall_energy_today() {
 }
 
 /**
- * Integrate home AC charge watts between Tesla polls.
+ * Fraction of a window that falls on today, so energy metered across midnight
+ * only credits the daily counter with the part that belongs to it.
  *
- * @param int  $watts      Latest wall watts.
- * @param bool $accumulate Whether this snapshot is home AC charging.
- * @return array{today_kwh: float, today_yen: int}
+ * @param int $from Window start (unix).
+ * @param int $to   Window end (unix).
+ * @return float 0..1
  */
-function gaming_hub_tesla_record_wall_energy( $watts, $accumulate ) {
+function gaming_hub_tesla_today_share( $from, $to ) {
+	$midnight = (int) get_gmt_from_date( wp_date( 'Y-m-d 00:00:00' ), 'U' );
+
+	if ( $to <= $from || $midnight <= 0 || $from >= $midnight ) {
+		return 1.0;
+	}
+	if ( $to <= $midnight ) {
+		return 0.0;
+	}
+
+	return ( $to - $midnight ) / ( $to - $from );
+}
+
+/**
+ * Track home AC charge energy and cost between Tesla polls.
+ *
+ * Nothing polls Tesla on a schedule, so watt-integration silently loses every
+ * kWh added while no one has the dashboard open — an overnight charge would
+ * report almost nothing. The car's own `charge_energy_added` counter is
+ * cumulative, so diffing it recovers the full amount regardless of poll gaps,
+ * and each chunk is priced at the LOOOP rates that were in effect over it.
+ *
+ * @param int        $watts        Latest wall watts.
+ * @param bool       $accumulate   Whether this snapshot is home AC charging.
+ * @param float|null $energy_added Car-reported kWh added this charge session.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added = null ) {
 	$today = wp_date( 'Y-m-d' );
 	$now   = time();
 	$watts = max( 0, (int) round( (float) $watts ) );
+	$added = is_numeric( $energy_added ) ? max( 0.0, (float) $energy_added ) : null;
 	$saved = get_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, array() );
 	$saved = is_array( $saved ) ? $saved : array();
 
@@ -1509,39 +1538,53 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate ) {
 		$saved['yen']  = 0.0;
 	}
 
-	$last_ts = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
-	$last_w  = isset( $saved['last_w'] ) ? max( 0, (int) $saved['last_w'] ) : 0;
-	$max_gap = defined( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX' ) ? GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX : ( 8 * MINUTE_IN_SECONDS );
-	$was_on  = ! empty( $saved['last_on'] );
+	$last_ts    = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
+	$last_w     = isset( $saved['last_w'] ) ? max( 0, (int) $saved['last_w'] ) : 0;
+	$last_added = isset( $saved['added_kwh'] ) && is_numeric( $saved['added_kwh'] ) ? (float) $saved['added_kwh'] : null;
+	$max_gap    = defined( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX' ) ? GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX : ( 8 * MINUTE_IN_SECONDS );
+	$was_on     = ! empty( $saved['last_on'] );
 
 	if ( $accumulate && ! $was_on ) {
 		$saved['session_wh']       = 0.0;
 		$saved['session_yen']      = 0.0;
 		$saved['session_date']     = $today;
 		$saved['session_end_date'] = $today;
+		$last_added                = null;
 	}
 
-	if ( $was_on && $last_ts > 0 ) {
-		$delta = $now - $last_ts;
-		if ( $delta > 0 && $delta <= $max_gap ) {
-			$hours       = $delta / HOUR_IN_SECONDS;
-			$wh          = $last_w * $hours;
-			$yen_per_kwh = function_exists( 'gaming_hub_tesla_electricity_yen_per_kwh' )
-				? gaming_hub_tesla_electricity_yen_per_kwh()
-				: 30.0;
-			$yen = ( $last_w / 1000.0 ) * $hours * $yen_per_kwh;
-
-			$saved['wh']               = (float) ( $saved['wh'] ?? 0 ) + $wh;
-			$saved['yen']              = (float) ( $saved['yen'] ?? 0 ) + $yen;
-			$saved['session_wh']       = (float) ( $saved['session_wh'] ?? 0 ) + $wh;
-			$saved['session_yen']      = (float) ( $saved['session_yen'] ?? 0 ) + $yen;
-			$saved['session_end_date'] = $today;
+	$delta_kwh = 0.0;
+	if ( null !== $added && ( $accumulate || $was_on ) ) {
+		// A counter that went backwards means the car began a new charge between
+		// polls, so everything it reports now is new energy.
+		$delta_kwh = ( null !== $last_added && $added >= $last_added )
+			? $added - $last_added
+			: $added;
+	} elseif ( $was_on && $last_ts > 0 && $last_w > 0 ) {
+		$gap = $now - $last_ts;
+		if ( $gap > 0 && $gap <= $max_gap ) {
+			$delta_kwh = ( $last_w / 1000.0 ) * ( $gap / HOUR_IN_SECONDS );
 		}
+	}
+
+	if ( $delta_kwh > 0 ) {
+		$from  = ( $last_ts > 0 && $last_ts < $now ) ? $last_ts : $now - MINUTE_IN_SECONDS;
+		$rate  = function_exists( 'gaming_hub_looop_average_rate_between' )
+			? gaming_hub_looop_average_rate_between( $from, $now )
+			: 30.0;
+		$yen   = $delta_kwh * $rate;
+		$share = gaming_hub_tesla_today_share( $from, $now );
+
+		$saved['wh']               = (float) ( $saved['wh'] ?? 0 ) + ( $delta_kwh * 1000 * $share );
+		$saved['yen']              = (float) ( $saved['yen'] ?? 0 ) + ( $yen * $share );
+		$saved['session_wh']       = (float) ( $saved['session_wh'] ?? 0 ) + ( $delta_kwh * 1000 );
+		$saved['session_yen']      = (float) ( $saved['session_yen'] ?? 0 ) + $yen;
+		$saved['session_end_date'] = $today;
 	}
 
 	$saved['last_ts']    = $now;
 	$saved['last_w']     = $accumulate ? $watts : 0;
 	$saved['last_on']    = $accumulate;
+	$saved['added_kwh']  = $accumulate ? $added : null;
 	$saved['updated_at'] = $now;
 
 	update_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, $saved, false );
