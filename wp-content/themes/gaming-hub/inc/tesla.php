@@ -1429,24 +1429,62 @@ function gaming_hub_tesla_record_cabin_energy( $watts, $accumulate ) {
 }
 
 /**
+ * Empty home AC charging totals.
+ *
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_wall_energy_empty() {
+	return array(
+		'today_kwh'          => 0.0,
+		'today_yen'          => 0,
+		'session_kwh'        => 0.0,
+		'session_yen'        => 0,
+		'session_start_date' => '',
+		'session_end_date'   => '',
+		'session_spans_days' => false,
+	);
+}
+
+/**
+ * Shape stored wall-energy counters for the flow payload.
+ *
+ * @param array<string, mixed> $saved    Stored counters.
+ * @param string               $today    Y-m-d.
+ * @param bool                 $charging Whether home AC charging is running now.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_wall_energy_shape( array $saved, $today, $charging ) {
+	$start_date = (string) ( $saved['session_date'] ?? '' );
+	$end_date   = (string) ( $saved['session_end_date'] ?? '' );
+	$spans      = '' !== $start_date && '' !== $end_date && $start_date !== $end_date;
+
+	// A multi-day total is only worth showing while the charge runs or on the day it ended.
+	$relevant = $charging || $end_date === $today;
+
+	return array(
+		'today_kwh'          => round( max( 0, (float) ( $saved['wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'today_yen'          => (int) round( max( 0, (float) ( $saved['yen'] ?? 0 ) ) ),
+		'session_kwh'        => round( max( 0, (float) ( $saved['session_wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'session_yen'        => (int) round( max( 0, (float) ( $saved['session_yen'] ?? 0 ) ) ),
+		'session_start_date' => $start_date,
+		'session_end_date'   => $end_date,
+		'session_spans_days' => $spans && $relevant,
+	);
+}
+
+/**
  * Today's home AC charging energy from the last live snapshots.
  *
- * @return array{today_kwh: float, today_yen: int}
+ * @return array<string, mixed>
  */
 function gaming_hub_tesla_wall_energy_today() {
 	$today = wp_date( 'Y-m-d' );
 	$saved = get_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, array() );
 	if ( ! is_array( $saved ) || (string) ( $saved['date'] ?? '' ) !== $today ) {
-		return array(
-			'today_kwh' => 0.0,
-			'today_yen' => 0,
-		);
+		return gaming_hub_tesla_wall_energy_empty();
 	}
 
-	return array(
-		'today_kwh' => round( max( 0, (float) ( $saved['wh'] ?? 0 ) ) / 1000.0, 2 ),
-		'today_yen' => (int) round( max( 0, (float) ( $saved['yen'] ?? 0 ) ) ),
-	);
+	return gaming_hub_tesla_wall_energy_shape( $saved, $today, ! empty( $saved['last_on'] ) );
 }
 
 /**
@@ -1463,27 +1501,41 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate ) {
 	$saved = get_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, array() );
 	$saved = is_array( $saved ) ? $saved : array();
 
+	// Today's counters restart at midnight. Session counters deliberately do not,
+	// so a charge running past midnight still reports one start-to-end total.
 	if ( (string) ( $saved['date'] ?? '' ) !== $today ) {
-		$saved = array(
-			'date' => $today,
-			'wh'   => 0.0,
-			'yen'  => 0.0,
-		);
+		$saved['date'] = $today;
+		$saved['wh']   = 0.0;
+		$saved['yen']  = 0.0;
 	}
 
 	$last_ts = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
 	$last_w  = isset( $saved['last_w'] ) ? max( 0, (int) $saved['last_w'] ) : 0;
 	$max_gap = defined( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX' ) ? GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX : ( 8 * MINUTE_IN_SECONDS );
+	$was_on  = ! empty( $saved['last_on'] );
 
-	if ( ! empty( $saved['last_on'] ) && $last_ts > 0 ) {
+	if ( $accumulate && ! $was_on ) {
+		$saved['session_wh']       = 0.0;
+		$saved['session_yen']      = 0.0;
+		$saved['session_date']     = $today;
+		$saved['session_end_date'] = $today;
+	}
+
+	if ( $was_on && $last_ts > 0 ) {
 		$delta = $now - $last_ts;
 		if ( $delta > 0 && $delta <= $max_gap ) {
-			$hours = $delta / HOUR_IN_SECONDS;
-			$saved['wh'] = (float) ( $saved['wh'] ?? 0 ) + ( $last_w * $hours );
+			$hours       = $delta / HOUR_IN_SECONDS;
+			$wh          = $last_w * $hours;
 			$yen_per_kwh = function_exists( 'gaming_hub_tesla_electricity_yen_per_kwh' )
 				? gaming_hub_tesla_electricity_yen_per_kwh()
 				: 30.0;
-			$saved['yen'] = (float) ( $saved['yen'] ?? 0 ) + ( $last_w / 1000.0 ) * $hours * $yen_per_kwh;
+			$yen = ( $last_w / 1000.0 ) * $hours * $yen_per_kwh;
+
+			$saved['wh']               = (float) ( $saved['wh'] ?? 0 ) + $wh;
+			$saved['yen']              = (float) ( $saved['yen'] ?? 0 ) + $yen;
+			$saved['session_wh']       = (float) ( $saved['session_wh'] ?? 0 ) + $wh;
+			$saved['session_yen']      = (float) ( $saved['session_yen'] ?? 0 ) + $yen;
+			$saved['session_end_date'] = $today;
 		}
 	}
 
@@ -1494,10 +1546,7 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate ) {
 
 	update_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, $saved, false );
 
-	return array(
-		'today_kwh' => round( max( 0, (float) $saved['wh'] ) / 1000.0, 2 ),
-		'today_yen' => (int) round( max( 0, (float) $saved['yen'] ) ),
-	);
+	return gaming_hub_tesla_wall_energy_shape( $saved, $today, $accumulate );
 }
 
 /**

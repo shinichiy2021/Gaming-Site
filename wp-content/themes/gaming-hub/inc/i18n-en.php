@@ -684,6 +684,7 @@ return array(
 	'%1$s %2$s 円/L' => '%1$s %2$s yen/L',
 	'今日 電気代' => "Today’s bill",
 	'今回' => 'Session',
+	'合計' => 'Total',
 	'充電オン' => 'Charge on',
 	'テスト用。ケーブル接続中の充電オン／オフを Tesla に送ります。' => 'Test control. Sends charge on/off to Tesla while the cable is plugged in.',
 	'充電操作には再認証が必要です。' => 'Charge control needs a new Tesla authorization.',
