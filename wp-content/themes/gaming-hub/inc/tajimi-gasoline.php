@@ -120,6 +120,104 @@ function gaming_hub_tesla_electricity_yen_per_kwh() {
 }
 
 /**
+ * Date + hour → LOOOP billed yen/kWh, covering yesterday through tomorrow.
+ *
+ * @return array{days: array<string, array<int, float>>, fallback: float}
+ */
+function gaming_hub_looop_rate_lookup() {
+	static $lookup = null;
+	if ( null !== $lookup ) {
+		return $lookup;
+	}
+
+	$lookup = array(
+		'days'     => array(),
+		'fallback' => 30.0,
+	);
+
+	if ( ! function_exists( 'gaming_hub_looop_hourly_price_map_today' ) ) {
+		return $lookup;
+	}
+
+	$prices = gaming_hub_looop_hourly_price_map_today();
+	if ( is_wp_error( $prices ) ) {
+		return $lookup;
+	}
+
+	$fallback = (float) ( $prices['fallback'] ?? 0 );
+	if ( $fallback > 0 ) {
+		$lookup['fallback'] = $fallback;
+	}
+
+	$today = wp_date( 'Y-m-d' );
+	foreach ( (array) ( $prices['map'] ?? array() ) as $hour => $yen ) {
+		if ( (float) $yen > 0 ) {
+			$lookup['days'][ $today ][ (int) $hour ] = (float) $yen;
+		}
+	}
+
+	foreach ( (array) ( $prices['forecast']['days'] ?? array() ) as $day ) {
+		foreach ( (array) ( $day['hourly'] ?? array() ) as $row ) {
+			$date = (string) ( $row['date'] ?? '' );
+			$hour = (int) ( $row['hour'] ?? -1 );
+			$yen  = (float) ( $row['total_price'] ?? 0 );
+			if ( '' !== $date && $hour >= 0 && $yen > 0 && ! isset( $lookup['days'][ $date ][ $hour ] ) ) {
+				$lookup['days'][ $date ][ $hour ] = $yen;
+			}
+		}
+	}
+
+	return $lookup;
+}
+
+/**
+ * LOOOP billed yen/kWh in effect at a given moment.
+ *
+ * @param int $timestamp Unix time.
+ * @return float
+ */
+function gaming_hub_looop_rate_at( $timestamp ) {
+	$lookup = gaming_hub_looop_rate_lookup();
+	$yen    = $lookup['days'][ wp_date( 'Y-m-d', $timestamp ) ][ (int) wp_date( 'G', $timestamp ) ] ?? 0;
+
+	return ( (float) $yen > 0 ) ? (float) $yen : $lookup['fallback'];
+}
+
+/**
+ * Time-weighted average yen/kWh across a window.
+ *
+ * Energy metered between two polls may straddle several pricing hours, so bill it
+ * at the average of the rates that were actually in effect rather than the spot
+ * rate at whichever moment we happened to read the meter.
+ *
+ * @param int $from Window start (unix).
+ * @param int $to   Window end (unix).
+ * @return float
+ */
+function gaming_hub_looop_average_rate_between( $from, $to ) {
+	$from = (int) $from;
+	$to   = (int) $to;
+
+	if ( $to <= $from ) {
+		return gaming_hub_looop_rate_at( $to );
+	}
+
+	// Rates are only known for a few days, so never average over a longer window.
+	$from = max( $from, $to - ( 2 * DAY_IN_SECONDS ) );
+
+	$weighted = 0.0;
+	$cursor   = $from;
+	while ( $cursor < $to ) {
+		$into_hour = ( (int) wp_date( 'i', $cursor ) * MINUTE_IN_SECONDS ) + (int) wp_date( 's', $cursor );
+		$next      = min( $to, $cursor + max( 1, HOUR_IN_SECONDS - $into_hour ) );
+		$weighted += gaming_hub_looop_rate_at( $cursor ) * ( $next - $cursor );
+		$cursor    = $next;
+	}
+
+	return $weighted / ( $to - $from );
+}
+
+/**
  * Gasoline-equivalent liters and yen saved vs a 15 km/L car in Tajimi.
  *
  * @param array<string, mixed> $model3  Model 3 HUD.
