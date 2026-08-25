@@ -107,6 +107,8 @@ services:
       ECOFLOW_API_REGION: ${ECOFLOW_API_REGION:-us}
     volumes:
       - ./wp-content/themes/gaming-hub:/app
+      # Keep the bridge's --omit=dev install off the deployed tree, or it prunes vite.
+      - bridge_node_modules:/app/node_modules
       - ./wp-content/ecoflow-cache:/cache
     command: sh -c "npm install --omit=dev && node scripts/ecoflow-bridge-daemon.mjs"
     networks:
@@ -115,6 +117,7 @@ services:
 volumes:
   db_data:
   wp_data:
+  bridge_node_modules:
 
 networks:
   gaming-network:
