@@ -104,18 +104,19 @@ class Gaming_Hub_Tesla_Api {
 	}
 
 	/**
-	 * Send a Fleet vehicle command (charge_start / charge_stop).
+	 * Send a Fleet vehicle command (charge_start / charge_stop / set_charge_limit).
 	 *
 	 * Uses TESLA_COMMAND_PROXY_URL when set so tesla-http-proxy can sign.
 	 *
-	 * @param string $vin     Vehicle VIN.
-	 * @param string $command charge_start or charge_stop.
+	 * @param string               $vin     Vehicle VIN.
+	 * @param string               $command Command name.
+	 * @param array<string, mixed> $payload JSON body for commands that need it.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public function send_vehicle_command( $vin, $command ) {
+	public function send_vehicle_command( $vin, $command, $payload = array() ) {
 		$vin     = sanitize_text_field( $vin );
 		$command = preg_replace( '/[^a-z0-9_]/', '', strtolower( (string) $command ) );
-		$allowed = array( 'charge_start', 'charge_stop' );
+		$allowed = array( 'charge_start', 'charge_stop', 'set_charge_limit' );
 
 		if ( '' === $vin ) {
 			return new WP_Error( 'tesla_missing_vin', __( 'Tesla VIN is not configured.', 'gaming-hub' ) );
@@ -134,12 +135,14 @@ class Gaming_Hub_Tesla_Api {
 			$this->sslverify      = false;
 		}
 
+		$body = ! empty( $payload ) ? $payload : (object) array();
+
 		$result = $this->fleet_request(
 			'POST',
 			'/api/1/vehicles/' . rawurlencode( $vin ) . '/command/' . $command,
 			array(),
 			true,
-			(object) array()
+			$body
 		);
 
 		$this->fleet_base_url = $saved_base;

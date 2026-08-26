@@ -23,7 +23,9 @@ define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR', 6 );
 /** Friday hour when the overnight boost window opens. */
 define( 'GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR', 22 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v6_' );
+define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v7_' );
+define( 'GAMING_HUB_TESLA_PLAN_AUTO_OPTION', 'gaming_hub_tesla_plan_auto_v1' );
+define( 'GAMING_HUB_TESLA_PLAN_AUTO_LOCK', 'gaming_hub_tesla_plan_auto_lock' );
 
 /** Measured hourly SOC, so the plan chart can show today's past hours. */
 define( 'GAMING_HUB_TESLA_SOC_LOG_OPTION', 'gaming_hub_tesla_soc_log_v1' );
@@ -976,14 +978,6 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		: __( 'グリッド充電不要', 'gaming-hub' );
 
 	$cap_note = '';
-	if ( $needs_grid && $car_limit > 0 && $car_limit < $target ) {
-		$cap_note = ' ' . sprintf(
-			/* translators: 1: car charge limit, 2: plan target */
-			__( 'Tesla アプリのチャージキャップはいま %1$s%% です。%2$s%% にするには上限を上げてください。', 'gaming-hub' ),
-			number_format_i18n( $car_limit ),
-			number_format_i18n( $target )
-		);
-	}
 
 	if ( 'yesterday' === $day ) {
 		$note = $needs_grid
@@ -1037,7 +1031,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} elseif ( $is_sat_am ) {
 			$note = sprintf(
 				/* translators: 1: kW, 2: Saturday hour, 3: window */
-				__( '土曜朝 %2$s 時までに 100%% になるよう、残っている最安時間（%3$s）に 200V 普通充電（%1$s kW）します。Tesla アプリの予約充電と合わせて使ってください。', 'gaming-hub' ),
+				__( '土曜朝 %2$s 時までに 100%% になるよう、残っている最安時間（%3$s）に 200V 普通充電（%1$s kW）します。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR ),
 				$window
@@ -1045,7 +1039,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} elseif ( $is_friday ) {
 			$note = sprintf(
 				/* translators: 1: kW, 2: remaining km, 3: window, 4: Saturday hour */
-				__( '残りの走行 %2$s km。平日は約 80%% まで、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）に 100%% へ上げます（200V 普通充電 %1$s kW）。Tesla アプリの予約充電と合わせて使ってください。', 'gaming-hub' ),
+				__( '残りの走行 %2$s km。平日は約 80%% まで、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）に 100%% へ上げます（200V 普通充電 %1$s kW）。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
 				number_format_i18n( $drive['remaining_km'], 1 ),
 				$window,
@@ -1054,7 +1048,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} else {
 			$note = sprintf(
 				/* translators: 1: charge kW, 2: remaining km, 3: Saturday hour */
-				__( '残りの走行 %2$s km を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。土曜 %3$s 時までに 100%% になります。Tesla アプリの予約充電と合わせて使ってください。', 'gaming-hub' ),
+				__( '残りの走行 %2$s km を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。土曜 %3$s 時までに 100%% になります。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
 				number_format_i18n( $drive['remaining_km'], 1 ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
@@ -1162,7 +1156,286 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$plan['live_charge_w'] = $watts;
 	$plan['live_supply']   = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
 
+	$auto = gaming_hub_tesla_plan_auto_state();
+	$plan['auto_note']         = gaming_hub_tesla_plan_auto_note( $plan, $auto );
+	$plan['auto_error']        = (string) ( $auto['error'] ?? '' );
+	$plan['auto_action']       = (string) ( $auto['action'] ?? '' );
+	$plan['auto_applied_at']   = (string) ( $auto['applied_at'] ?? '' );
+	$plan['virtual_key_url']   = function_exists( 'gaming_hub_tesla_virtual_key_url' )
+		? gaming_hub_tesla_virtual_key_url()
+		: '';
+	$plan['needs_charge_auth'] = function_exists( 'gaming_hub_tesla_has_charging_scope' )
+		&& ! gaming_hub_tesla_has_charging_scope();
+
 	return $plan;
+}
+
+/**
+ * Last auto-apply snapshot.
+ *
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_plan_auto_state() {
+	$saved = get_option( GAMING_HUB_TESLA_PLAN_AUTO_OPTION, array() );
+
+	return is_array( $saved ) ? $saved : array();
+}
+
+/**
+ * Status line for AI PLAN auto charge control.
+ *
+ * @param array<string, mixed> $plan Plan.
+ * @param array<string, mixed> $auto Saved auto state.
+ */
+function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
+	$error = (string) ( $auto['error'] ?? '' );
+	if ( '' !== $error ) {
+		return sprintf(
+			/* translators: %s: error */
+			__( '自動制御エラー: %s', 'gaming-hub' ),
+			$error
+		);
+	}
+
+	$action = (string) ( $auto['action'] ?? '' );
+	$at     = (string) ( $auto['applied_at'] ?? '' );
+	$when   = '';
+	if ( '' !== $at ) {
+		$ts = strtotime( $at );
+		if ( $ts ) {
+			$when = wp_date( get_option( 'time_format' ), $ts );
+		}
+	}
+
+	if ( 'start' === $action ) {
+		return $when
+			? sprintf(
+				/* translators: %s: time */
+				__( 'AI PLAN に合わせて充電を自動制御中。直近は %s に充電オンです。', 'gaming-hub' ),
+				$when
+			)
+			: __( 'AI PLAN に合わせて充電を自動制御中。いまは充電オンです。', 'gaming-hub' );
+	}
+
+	if ( 'stop' === $action ) {
+		return $when
+			? sprintf(
+				/* translators: %s: time */
+				__( 'AI PLAN に合わせて充電を自動制御中。直近は %s に充電オフです。', 'gaming-hub' ),
+				$when
+			)
+			: __( 'AI PLAN に合わせて充電を自動制御中。計画時間外は充電しません。', 'gaming-hub' );
+	}
+
+	return __( 'AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。', 'gaming-hub' );
+}
+
+/**
+ * Current-hour slot on the live plan date.
+ *
+ * @param array<string, mixed> $plan Plan.
+ * @return array<string, mixed>|null
+ */
+function gaming_hub_tesla_plan_current_slot( array $plan ) {
+	$date  = wp_date( 'Y-m-d' );
+	$hour  = (int) wp_date( 'G' );
+	$slots = is_array( $plan['slots'] ?? null ) ? $plan['slots'] : array();
+
+	foreach ( $slots as $slot ) {
+		if ( ! is_array( $slot ) ) {
+			continue;
+		}
+		if ( (string) ( $slot['date'] ?? '' ) === $date && (int) ( $slot['hour'] ?? -1 ) === $hour ) {
+			return $slot;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Whether this hour's AI PLAN wants home charging.
+ *
+ * @param array<string, mixed>      $plan   Plan.
+ * @param array<string, mixed>|null $status Live status.
+ * @return array{want: bool, limit: int, hold: bool, reason: string}
+ */
+function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
+	$status  = is_array( $status ) ? $status : array();
+	$model3  = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$flow    = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$kind    = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+	$limit   = (int) ( $plan['target_soc'] ?? GAMING_HUB_TESLA_PLAN_TARGET_SOC );
+	$limit   = max( GAMING_HUB_TESLA_PLAN_TARGET_SOC, min( 100, $limit ) );
+	$soc     = isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] )
+		? (float) $model3['battery_percent']
+		: null;
+	$slot    = gaming_hub_tesla_plan_current_slot( $plan );
+	$mode    = (string) ( $slot['mode'] ?? 'idle' );
+	$want    = 'charge' === $mode && empty( $slot['past'] );
+
+	if ( $want && null !== $soc && $soc >= $limit - 0.4 ) {
+		$want = false;
+	}
+
+	if ( function_exists( 'gaming_hub_tesla_is_driving_now' ) && gaming_hub_tesla_is_driving_now() ) {
+		return array(
+			'want'   => false,
+			'limit'  => $limit,
+			'hold'   => true,
+			'reason' => 'drive',
+		);
+	}
+
+	if ( 'supercharger' === $kind ) {
+		return array(
+			'want'   => false,
+			'limit'  => $limit,
+			'hold'   => true,
+			'reason' => 'supercharger',
+		);
+	}
+
+	return array(
+		'want'   => $want,
+		'limit'  => $limit,
+		'hold'   => false,
+		'reason' => $want ? 'charge' : 'idle',
+	);
+}
+
+/**
+ * Apply this hour's AI PLAN: home charge on/off and charge-limit SOC.
+ *
+ * @param array<string, mixed>|null $status Live status.
+ * @return true|WP_Error
+ */
+function gaming_hub_tesla_plan_auto_apply( $status = null ) {
+	if ( ! function_exists( 'gaming_hub_tesla_model3_is_configured' ) || ! gaming_hub_tesla_model3_is_configured() ) {
+		return true;
+	}
+
+	$status = is_array( $status ) ? $status : array();
+	if ( 'tesla' !== (string) ( $status['model3_source'] ?? '' ) ) {
+		return true;
+	}
+
+	$plan = is_array( $status['tesla_plan'] ?? null )
+		? $status['tesla_plan']
+		: gaming_hub_tesla_get_charge_plan( $status );
+	$plan = is_array( $plan ) ? $plan : array();
+
+	$desired = gaming_hub_tesla_plan_auto_desired( $plan, $status );
+	if ( ! empty( $desired['hold'] ) ) {
+		return true;
+	}
+
+	$model3   = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$flow     = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$asleep   = ! empty( $flow['asleep'] ) || ! empty( $model3['asleep'] );
+	$charging = ( ! empty( $flow['is_charging'] ) || ! empty( $model3['is_charging'] ) ) && ! $asleep;
+	$kind     = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+	$plugged  = 'home' === $kind || ! empty( $model3['plugged'] );
+	$car_limit = isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
+		? (int) $model3['charge_limit_percent']
+		: 0;
+	$hour_key = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
+	$want     = ! empty( $desired['want'] );
+	$limit    = (int) $desired['limit'];
+	$action   = $want ? 'start' : 'stop';
+
+	$saved = gaming_hub_tesla_plan_auto_state();
+	$same  = ( $saved['action'] ?? '' ) === $action
+		&& (int) ( $saved['limit'] ?? 0 ) === $limit
+		&& (string) ( $saved['hour_key'] ?? '' ) === $hour_key
+		&& '' === (string) ( $saved['error'] ?? '' );
+
+	if ( $same ) {
+		if ( $want && $charging ) {
+			return true;
+		}
+		if ( ! $want && ! $charging ) {
+			return true;
+		}
+	}
+
+	if ( $want && ! $plugged ) {
+		$saved['error']     = __( '充電ケーブルがつながっていません。', 'gaming-hub' );
+		$saved['hour_key']  = $hour_key;
+		$saved['action']    = $action;
+		$saved['limit']     = $limit;
+		update_option( GAMING_HUB_TESLA_PLAN_AUTO_OPTION, $saved, false );
+
+		return true;
+	}
+
+	if ( ! $want && ( $asleep || ! $charging || 'home' !== $kind ) ) {
+		$saved['error']      = '';
+		$saved['action']     = 'stop';
+		$saved['limit']      = $limit;
+		$saved['hour_key']   = $hour_key;
+		$saved['applied_at'] = wp_date( 'c' );
+		update_option( GAMING_HUB_TESLA_PLAN_AUTO_OPTION, $saved, false );
+
+		return true;
+	}
+
+	if ( get_transient( GAMING_HUB_TESLA_PLAN_AUTO_LOCK ) ) {
+		return true;
+	}
+	set_transient( GAMING_HUB_TESLA_PLAN_AUTO_LOCK, 1, 40 );
+
+	if ( ! function_exists( 'gaming_hub_tesla_send_signed_command' ) ) {
+		return true;
+	}
+
+	if ( $want && $car_limit > 0 && $car_limit !== $limit ) {
+		$set = gaming_hub_tesla_send_signed_command(
+			'set_charge_limit',
+			array( 'percent' => $limit ),
+			false,
+			true
+		);
+		if ( is_wp_error( $set ) ) {
+			$saved['error']    = $set->get_error_message();
+			$saved['hour_key'] = $hour_key;
+			$saved['action']   = $action;
+			$saved['limit']    = $limit;
+			update_option( GAMING_HUB_TESLA_PLAN_AUTO_OPTION, $saved, false );
+
+			return $set;
+		}
+	}
+
+	$need_start = $want && ! $charging;
+	$need_stop  = ! $want && $charging && 'home' === $kind;
+
+	if ( $need_start || $need_stop ) {
+		$sent = gaming_hub_tesla_send_signed_command(
+			$need_start ? 'charge_start' : 'charge_stop',
+			array(),
+			true,
+			true
+		);
+		if ( is_wp_error( $sent ) ) {
+			$saved['error']    = $sent->get_error_message();
+			$saved['hour_key'] = $hour_key;
+			$saved['action']   = $action;
+			$saved['limit']    = $limit;
+			update_option( GAMING_HUB_TESLA_PLAN_AUTO_OPTION, $saved, false );
+
+			return $sent;
+		}
+	}
+
+	$saved['error']      = '';
+	$saved['action']     = $action;
+	$saved['limit']      = $limit;
+	$saved['hour_key']   = $hour_key;
+	$saved['applied_at'] = wp_date( 'c' );
+	update_option( GAMING_HUB_TESLA_PLAN_AUTO_OPTION, $saved, false );
+
+	return true;
 }
 
 /**

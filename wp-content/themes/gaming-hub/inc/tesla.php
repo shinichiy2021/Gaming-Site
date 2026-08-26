@@ -1153,14 +1153,20 @@ function gaming_hub_tesla_charge_command_error_message( WP_Error $error ) {
 }
 
 /**
- * Start or stop Model 3 charging via Fleet API.
+ * Send a signed Tesla vehicle command, waking the car once if it is asleep.
  *
- * @param string $action start|stop.
+ * @param string               $command  charge_start|charge_stop|set_charge_limit.
+ * @param array<string, mixed> $payload  Command body.
+ * @param bool                 $refresh  Refresh live status after success.
+ * @param bool                 $wait_wake Sleep after wake so cron can retry immediately.
  * @return array<string, mixed>|WP_Error
  */
-function gaming_hub_tesla_run_charge_command( $action ) {
-	$action  = 'start' === $action ? 'start' : 'stop';
-	$command = 'start' === $action ? 'charge_start' : 'charge_stop';
+function gaming_hub_tesla_send_signed_command( $command, $payload = array(), $refresh = true, $wait_wake = false ) {
+	$command = preg_replace( '/[^a-z0-9_]/', '', strtolower( (string) $command ) );
+	$allowed = array( 'charge_start', 'charge_stop', 'set_charge_limit' );
+	if ( ! in_array( $command, $allowed, true ) ) {
+		return new WP_Error( 'tesla_invalid_command', __( 'Unknown Tesla charge command.', 'gaming-hub' ) );
+	}
 
 	if ( ! gaming_hub_tesla_model3_is_configured() ) {
 		return new WP_Error( 'tesla_not_configured', __( 'Tesla API is not configured.', 'gaming-hub' ) );
@@ -1184,17 +1190,22 @@ function gaming_hub_tesla_run_charge_command( $action ) {
 		return new WP_Error( 'tesla_missing_vin', __( 'Tesla VIN is not configured.', 'gaming-hub' ) );
 	}
 
-	$result = $api->send_vehicle_command( $vin, $command );
+	$result = $api->send_vehicle_command( $vin, $command, $payload );
 	if ( is_wp_error( $result ) && 'tesla_vehicle_asleep' === $result->get_error_code() ) {
 		$wake = $api->wake_vehicle( $vin );
 		if ( is_wp_error( $wake ) ) {
 			return new WP_Error( $wake->get_error_code(), gaming_hub_tesla_charge_command_error_message( $wake ) );
 		}
 
-		return new WP_Error(
-			'tesla_waking',
-			__( '車を起こしています。数秒後にもう一度押してください。', 'gaming-hub' )
-		);
+		if ( $wait_wake ) {
+			sleep( 12 );
+			$result = $api->send_vehicle_command( $vin, $command, $payload );
+		} else {
+			return new WP_Error(
+				'tesla_waking',
+				__( '車を起こしています。数秒後にもう一度押してください。', 'gaming-hub' )
+			);
+		}
 	}
 
 	if ( is_wp_error( $result ) ) {
@@ -1204,7 +1215,7 @@ function gaming_hub_tesla_run_charge_command( $action ) {
 	$reason = strtolower( (string) ( $result['reason'] ?? '' ) );
 	$ok     = ! isset( $result['result'] ) || ! empty( $result['result'] );
 	if ( ! $ok ) {
-		if ( 'not_charging' === $reason && 'stop' === $action ) {
+		if ( 'not_charging' === $reason && 'charge_stop' === $command ) {
 			$ok = true;
 		} else {
 			$err = new WP_Error( 'tesla_command_rejected', $reason ? $reason : __( 'Tesla が充電コマンドを拒否しました。', 'gaming-hub' ) );
@@ -1213,19 +1224,40 @@ function gaming_hub_tesla_run_charge_command( $action ) {
 		}
 	}
 
-	gaming_hub_tesla_invalidate_status_caches();
-	$status = function_exists( 'gaming_hub_get_powerwall_flow_status' )
-		? gaming_hub_get_powerwall_flow_status( true )
-		: array();
+	if ( $refresh ) {
+		gaming_hub_tesla_invalidate_status_caches();
+		$status = function_exists( 'gaming_hub_get_powerwall_flow_status' )
+			? gaming_hub_get_powerwall_flow_status( true )
+			: array();
+	} else {
+		$status = array();
+	}
+
+	$action = 'charge_start' === $command ? 'start' : ( 'charge_stop' === $command ? 'stop' : $command );
 
 	return array(
 		'action'  => $action,
-		'message' => 'start' === $action
+		'command' => $command,
+		'message' => 'charge_start' === $command
 			? __( '充電オンを送りました。', 'gaming-hub' )
-			: __( '充電オフを送りました。', 'gaming-hub' ),
+			: ( 'charge_stop' === $command
+				? __( '充電オフを送りました。', 'gaming-hub' )
+				: __( 'チャージキャップを送りました。', 'gaming-hub' ) ),
 		'tesla'   => is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array(),
 		'status'  => $status,
 	);
+}
+
+/**
+ * Start or stop Model 3 charging via Fleet API.
+ *
+ * @param string $action start|stop.
+ * @return array<string, mixed>|WP_Error
+ */
+function gaming_hub_tesla_run_charge_command( $action ) {
+	$command = 'start' === $action ? 'charge_start' : 'charge_stop';
+
+	return gaming_hub_tesla_send_signed_command( $command );
 }
 
 /**
@@ -2409,8 +2441,8 @@ add_action( 'init', 'gaming_hub_tesla_maybe_disconnect', 20 );
  *
  * Those totals are integrated from the watts seen between two polls, so without
  * this they only advance while somebody has the dashboard open — an hour of
- * cabin load with nobody watching used to record nothing. Fetching never wakes
- * the car and honours the asleep/error backoff, so an idle vehicle costs nothing.
+ * cabin load with nobody watching used to record nothing. Fetching itself never
+ * wakes the car, but AI PLAN auto-apply may wake it in a planned charge hour.
  */
 function gaming_hub_tesla_sampler_cron() {
 	if ( ! function_exists( 'gaming_hub_get_powerwall_flow_status' ) ) {
@@ -2423,7 +2455,10 @@ function gaming_hub_tesla_sampler_cron() {
 
 	// Not forced: the 30s flow transient has long expired at this cadence, so this
 	// still takes a fresh sample without also re-fetching weather and cost data.
-	gaming_hub_get_powerwall_flow_status();
+	$status = gaming_hub_get_powerwall_flow_status();
+	if ( function_exists( 'gaming_hub_tesla_plan_auto_apply' ) ) {
+		gaming_hub_tesla_plan_auto_apply( is_array( $status ) ? $status : array() );
+	}
 }
 add_action( GAMING_HUB_TESLA_SAMPLER_CRON, 'gaming_hub_tesla_sampler_cron' );
 

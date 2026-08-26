@@ -99,6 +99,12 @@
 
 		setText('[data-tesla-plan-title]', plan.title || '');
 		setText('[data-tesla-plan-note]', plan.note || '');
+		const autoEl = root.querySelector('[data-tesla-plan-auto]');
+		if (autoEl) {
+			const autoPlan = views.today || plan;
+			autoEl.textContent = autoPlan.auto_note || t('AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。');
+			autoEl.classList.toggle('is-error', !!autoPlan.auto_error);
+		}
 		setText('[data-tesla-plan-window]', plan.window_label || '—');
 		setText('[data-tesla-plan-window-card]', plan.window_label || '—');
 		setText('[data-tesla-plan-window-price]', formatYenPerKwh(plan.window_avg_yen));
