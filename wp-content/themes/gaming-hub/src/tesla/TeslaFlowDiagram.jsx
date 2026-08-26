@@ -125,47 +125,19 @@ function cabinExtras( status, labels ) {
 	];
 }
 
-function formatGasValue( status, labels, idle ) {
-	const gas = status.gas || {};
-	if ( ( status.regen_w || 0 ) >= 80 ) {
-		return null;
-	}
-
-	if ( ( gas.gas_l_per_h || 0 ) > 0 ) {
-		return `${ Number( gas.gas_l_per_h ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } L/h`;
-	}
-
-	if ( ( gas.gas_l || 0 ) > 0 ) {
-		return `${ Number( gas.gas_l ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } L`;
-	}
-
-	return idle;
-}
-
 function gasExtras( status, labels ) {
+	if ( ! status.live ) {
+		return [];
+	}
+
 	const gas = status.gas || {};
-	const items = [];
-	const driving = ! status.asleep && ( gas.gas_l_per_h || 0 ) > 0;
+	const kwh = Number( gas.today_kwh );
 
-	if ( driving && ( gas.saved_yen_per_h || 0 ) > 0 ) {
-		items.push( `${ labels.saved || '節約' } ${ formatYen( gas.saved_yen_per_h ) }/h` );
-	} else if ( ( gas.saved_yen || 0 ) > 0 ) {
-		items.push( `${ labels.saved || '節約' } ${ formatYen( gas.saved_yen ) }` );
-	}
-
-	if ( driving && ( gas.saved_yen || 0 ) > 0 ) {
-		items.push( `${ labels.gasToday || '本日' } ${ formatYen( gas.saved_yen ) }` );
-	}
-
-	if ( gas.price_label ) {
-		items.push( gas.price_label );
-	}
-
-	if ( status.speed_km > 0 && driving ) {
-		items.push( `${ status.speed_km } km/h` );
-	}
-
-	return items;
+	return [
+		`${ labels.todayUse || '今日 使用' } ${ ( Number.isFinite( kwh ) ? kwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh`,
+		`${ labels.saved || '節約' } ${ formatYen( gas.saved_yen ) }`,
+		`${ labels.todayBill || '今日 電気代' } ${ formatYen( gas.ev_yen ) }`,
+	];
 }
 
 function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, extra, overlay, standbyLabel, className, display } ) {
@@ -374,15 +346,14 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 						<PhotoNode
 							flowId="drive"
 							label={ regenOn ? ( labels.regen || labels.drive ) : labels.drive }
-							note={ regenOn ? labels.regenNote : ( labels.gasCar || null ) }
+							note={ regenOn ? labels.regenNote : null }
 							watts={ regenOn ? status.regen_w : status.drive_w }
 							className={ regenOn ? 'is-regen' : '' }
 							active={ ! asleep && ( driveOn || ( status.gas?.saved_yen || 0 ) > 0 ) }
 							standbyLabel={ idle }
 							overlay={ <ShiftIcon status={ status } labels={ labels } /> }
-							display={ regenOn ? null : formatGasValue( status, labels, idle ) }
 							extra={ gasExtras( status, labels ).map( ( line ) => (
-								<small key={ line } className={ line.indexOf( labels.saved || '節約' ) === 0 || line.indexOf( labels.gasToday || '本日' ) === 0 ? 'tesla-gas-saved' : '' }>{ line }</small>
+								<small key={ line } className={ line.indexOf( labels.saved || '節約' ) === 0 || line.indexOf( labels.todayBill || '今日 電気代' ) === 0 ? 'tesla-gas-saved' : '' }>{ line }</small>
 							) ) }
 						/>
 						<PhotoNode

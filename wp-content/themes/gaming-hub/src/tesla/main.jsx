@@ -31,14 +31,13 @@ if ( mountNode ) {
 		driveGear: 'ドライブ',
 		shiftUnknown: 'シフト未取得',
 		saved: '節約',
-		gasToday: '本日',
-		gasCar: '普通車 15 km/L',
 		todayUse: '今日 使用',
 		todayBill: '今日 電気代',
 		buy: '買電',
 		todayBuy: '今日 買電',
 		yenPerHour: '円/時',
 		session: '今回',
+		total: '合計',
 	};
 
 	createRoot( mountNode ).render(
