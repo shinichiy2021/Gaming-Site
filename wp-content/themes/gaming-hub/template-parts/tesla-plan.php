@@ -15,7 +15,7 @@ $now_hour   = (int) wp_date( 'G' );
 $is_today   = ( $plan['plan_day'] ?? 'today' ) === 'today';
 
 $by_hour            = array();
-$next_charge_labels = array();
+$next_hours         = array();
 foreach ( $slots as $slot ) {
 	if ( ! is_array( $slot ) ) {
 		continue;
@@ -24,9 +24,24 @@ foreach ( $slots as $slot ) {
 	$slot_hour = (int) ( $slot['hour'] ?? -1 );
 	if ( $slot_date === $view_date && $slot_hour >= 0 && $slot_hour <= 23 ) {
 		$by_hour[ $slot_hour ] = $slot;
-	} elseif ( $slot_date !== $view_date && 'charge' === ( $slot['mode'] ?? '' ) ) {
-		$next_charge_labels[] = (string) ( $slot['label'] ?? '' );
+	} elseif ( $slot_date !== $view_date && 'charge' === ( $slot['mode'] ?? '' ) && $slot_hour >= 0 ) {
+		$next_hours[] = $slot_hour;
 	}
+}
+sort( $next_hours );
+$next_charge_labels = array();
+if ( $next_hours ) {
+	$start = $prev = (int) $next_hours[0];
+	for ( $i = 1, $n = count( $next_hours ); $i < $n; $i++ ) {
+		$hour = (int) $next_hours[ $i ];
+		if ( $hour === $prev + 1 ) {
+			$prev = $hour;
+			continue;
+		}
+		$next_charge_labels[] = gaming_hub_tesla_plan_hour_range_label( $start, $prev );
+		$start = $prev = $hour;
+	}
+	$next_charge_labels[] = gaming_hub_tesla_plan_hour_range_label( $start, $prev );
 }
 
 $charge_w  = max( 1, (int) ( $plan['charge_w'] ?? GAMING_HUB_TESLA_PLAN_CHARGE_W ) );
@@ -251,12 +266,15 @@ $next_note = $next_charge_labels
 		<p class="ecoflow-plan-limits">
 			<?php
 			printf(
-				/* translators: 1: amps, 2: kW, 3: daily km, 4: Wh/km */
-				esc_html__( '200V 普通充電 %1$sA · %2$s kW · 1日 %3$s km · %4$s Wh/km', 'gaming-hub' ),
+				/* translators: 1: amps, 2: kW, 3: daily km, 4: Wh/km, 5: min SOC, 6: daily target, 7: Saturday hour */
+				esc_html__( '200V 普通充電 %1$sA · %2$s kW · 1日 %3$s km · %4$s Wh/km · 残量 %5$s–%6$s%% · 土曜 %7$s 時までに 100%%', 'gaming-hub' ),
 				esc_html( number_format_i18n( (int) ( $plan['charge_a'] ?? GAMING_HUB_TESLA_PLAN_AMPS ) ) ),
 				esc_html( number_format_i18n( $charge_w / 1000, 1 ) ),
 				esc_html( number_format_i18n( gaming_hub_tesla_plan_daily_km(), 0 ) ),
-				esc_html( number_format_i18n( gaming_hub_tesla_plan_wh_per_km(), 0 ) )
+				esc_html( number_format_i18n( gaming_hub_tesla_plan_wh_per_km(), 0 ) ),
+				esc_html( number_format_i18n( GAMING_HUB_TESLA_PLAN_MIN_SOC ) ),
+				esc_html( number_format_i18n( GAMING_HUB_TESLA_PLAN_TARGET_SOC ) ),
+				esc_html( number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR ) )
 			);
 			?>
 			<span data-tesla-plan-provider>
@@ -286,7 +304,7 @@ $next_note = $next_charge_labels
 			<div class="ecoflow-plan-card">
 				<span class="ecoflow-stat-label"><?php esc_html_e( '目標残量', 'gaming-hub' ); ?></span>
 				<strong data-tesla-plan-target><?php echo esc_html( isset( $plan['target_soc'] ) ? number_format_i18n( (int) $plan['target_soc'] ) . '%' : '—' ); ?></strong>
-				<small><?php esc_html_e( 'チャージキャップ', 'gaming-hub' ); ?></small>
+				<small data-tesla-plan-target-note><?php echo esc_html( (string) ( $plan['target_note'] ?? __( '電池ケア 20–80%', 'gaming-hub' ) ) ); ?></small>
 			</div>
 			<div class="ecoflow-plan-card">
 				<span class="ecoflow-stat-label"><?php esc_html_e( '推奨充電ウィンドウ', 'gaming-hub' ); ?></span>

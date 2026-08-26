@@ -12,10 +12,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'GAMING_HUB_TESLA_PLAN_VOLTS', 200 );
 define( 'GAMING_HUB_TESLA_PLAN_AMPS', 15 );
 define( 'GAMING_HUB_TESLA_PLAN_CHARGE_W', GAMING_HUB_TESLA_PLAN_VOLTS * GAMING_HUB_TESLA_PLAN_AMPS );
+/** Daily charge cap: lithium-ion health band (do not sit at 100%). */
 define( 'GAMING_HUB_TESLA_PLAN_TARGET_SOC', 80 );
-define( 'GAMING_HUB_TESLA_PLAN_MIN_SOC', 10 );
+/** Avoid regular deep discharge. */
+define( 'GAMING_HUB_TESLA_PLAN_MIN_SOC', 20 );
+/** Weekly calibration / weekend full charge. */
+define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_SOC', 100 );
+/** Hit 100% by this hour on Saturday (charge during 00:00–06:00). */
+define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR', 6 );
+/** Friday hour when the overnight boost window opens. */
+define( 'GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR', 22 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v3_' );
+define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v6_' );
 
 /** Measured hourly SOC, so the plan chart can show today's past hours. */
 define( 'GAMING_HUB_TESLA_SOC_LOG_OPTION', 'gaming_hub_tesla_soc_log_v1' );
@@ -135,6 +143,106 @@ function gaming_hub_tesla_plan_dates() {
 		'today'     => $today,
 		'tomorrow'  => wp_date( 'Y-m-d', $ts + DAY_IN_SECONDS ),
 	);
+}
+
+/**
+ * Next calendar date in the site timezone.
+ *
+ * @param string $date Y-m-d.
+ */
+function gaming_hub_tesla_plan_next_date( $date ) {
+	try {
+		$dt = new DateTimeImmutable( $date . ' 12:00:00', wp_timezone() );
+
+		return $dt->modify( '+1 day' )->format( 'Y-m-d' );
+	} catch ( Exception $e ) {
+		return $date;
+	}
+}
+
+/**
+ * Weekday number for a date in the site timezone (0 = Sunday … 6 = Saturday).
+ *
+ * @param string $date Y-m-d.
+ */
+function gaming_hub_tesla_plan_date_w( $date ) {
+	try {
+		$dt = new DateTimeImmutable( $date . ' 12:00:00', wp_timezone() );
+
+		return (int) $dt->format( 'w' );
+	} catch ( Exception $e ) {
+		return (int) wp_date( 'w' );
+	}
+}
+
+/**
+ * Friday (overnight boost into Saturday).
+ *
+ * @param string $date Y-m-d.
+ */
+function gaming_hub_tesla_plan_is_friday( $date ) {
+	return 5 === gaming_hub_tesla_plan_date_w( $date );
+}
+
+/**
+ * Saturday.
+ *
+ * @param string $date Y-m-d.
+ */
+function gaming_hub_tesla_plan_is_saturday( $date ) {
+	return 6 === gaming_hub_tesla_plan_date_w( $date );
+}
+
+/**
+ * Operating charge cap for a date/hour.
+ *
+ * Weekdays stay in the 20–80% health band. Saturday before 07:00 aims at 100%.
+ *
+ * @param string $date      Y-m-d.
+ * @param int    $from_hour First hour still in play.
+ */
+function gaming_hub_tesla_plan_target_soc_for_date( $date, $from_hour = 0 ) {
+	if ( gaming_hub_tesla_plan_is_saturday( $date ) && (int) $from_hour < GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR ) {
+		return GAMING_HUB_TESLA_PLAN_SATURDAY_SOC;
+	}
+
+	return GAMING_HUB_TESLA_PLAN_TARGET_SOC;
+}
+
+/**
+ * Whether this date still needs the Friday-night → Saturday-morning 100% boost.
+ *
+ * @param string $date      Y-m-d.
+ * @param int    $from_hour First hour still in play.
+ */
+function gaming_hub_tesla_plan_needs_saturday_boost( $date, $from_hour = 0 ) {
+	if ( gaming_hub_tesla_plan_is_friday( $date ) ) {
+		return true;
+	}
+
+	return gaming_hub_tesla_plan_is_saturday( $date ) && (int) $from_hour < GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR;
+}
+
+/**
+ * Yen/kWh for one hour on a calendar date.
+ *
+ * @param string $date Y-m-d.
+ * @param int    $hour 0–23.
+ */
+function gaming_hub_tesla_plan_yen_for_date( $date, $hour ) {
+	$dates = gaming_hub_tesla_plan_dates();
+	$which = 'today';
+	if ( $date === ( $dates['yesterday'] ?? '' ) ) {
+		$which = 'yesterday';
+	} elseif ( $date === ( $dates['tomorrow'] ?? '' ) ) {
+		$which = 'tomorrow';
+	} elseif ( $date !== ( $dates['today'] ?? '' ) ) {
+		$which = 'tomorrow';
+	}
+
+	$map = gaming_hub_tesla_plan_price_map( $which );
+
+	return (float) ( $map[ (int) $hour ] ?? 30 );
 }
 
 /**
@@ -386,22 +494,103 @@ function gaming_hub_tesla_plan_drive_profile( $day, $date, $today_km ) {
 }
 
 /**
- * Pick cheapest parked hours.
+ * Charge-hour candidates for daily 80% fill or the Saturday 100% boost.
  *
- * @param int    $from_hour   Current hour for today, else 0.
- * @param float  $deficit_kwh Energy to buy.
- * @param string $day         yesterday|today|tomorrow.
+ * Daily fill stays in the health band. Boost hours are Friday 22:00–Saturday 07:00
+ * only, so the pack does not sit at 100% all Friday.
+ *
+ * @param string             $date      Y-m-d.
+ * @param string             $day       yesterday|today|tomorrow.
+ * @param int                $from_hour First hour still in play (today).
+ * @param string             $mode      daily|boost.
+ * @param array<string,bool> $exclude   Keys "Y-m-d-H" already picked.
+ * @return array<int, array<string, mixed>>
+ */
+function gaming_hub_tesla_plan_charge_candidates( $date, $day, $from_hour, $mode, array $exclude = array() ) {
+	$dates      = gaming_hub_tesla_plan_dates();
+	$from_hour  = (int) $from_hour;
+	$candidates = array();
+	$add        = static function ( $slot_date, $hour, $index ) use ( &$candidates, $exclude ) {
+		$key = (string) $slot_date . '-' . (int) $hour;
+		if ( isset( $exclude[ $key ] ) ) {
+			return;
+		}
+		$candidates[] = array(
+			'hour'  => (int) $hour,
+			'index' => (int) $index,
+			'yen'   => gaming_hub_tesla_plan_yen_for_date( $slot_date, $hour ),
+			'date'  => (string) $slot_date,
+		);
+	};
+
+	if ( 'boost' === $mode ) {
+		if ( gaming_hub_tesla_plan_is_friday( $date ) ) {
+			$sat   = gaming_hub_tesla_plan_next_date( $date );
+			$index = 0;
+			for ( $h = GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR; $h < 24; $h++ ) {
+				if ( 'today' === $day && $h < $from_hour ) {
+					continue;
+				}
+				$add( $date, $h, $index );
+				$index++;
+			}
+			for ( $h = 0; $h < GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR; $h++ ) {
+				$add( $sat, $h, $index );
+				$index++;
+			}
+		} elseif ( gaming_hub_tesla_plan_is_saturday( $date ) ) {
+			$start = ( 'today' === $day ) ? $from_hour : 0;
+			$index = 0;
+			for ( $h = $start; $h < GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR; $h++ ) {
+				$add( $date, $h, $index );
+				$index++;
+			}
+		}
+
+		return $candidates;
+	}
+
+	if ( gaming_hub_tesla_plan_is_saturday( $date ) && ( 'today' !== $day || $from_hour < GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR ) ) {
+		return array();
+	}
+
+	if ( 'today' === $day ) {
+		if ( gaming_hub_tesla_plan_is_friday( $date ) ) {
+			$index = 0;
+			for ( $h = $from_hour; $h < 24; $h++ ) {
+				$add( $date, $h, $index );
+				$index++;
+			}
+
+			return $candidates;
+		}
+
+		for ( $i = 0; $i < 18; $i++ ) {
+			$abs        = $from_hour + $i;
+			$h          = $abs % 24;
+			$tomorrow_h = $abs >= 24;
+			$slot_date  = $tomorrow_h ? ( $dates['tomorrow'] ?? $date ) : $date;
+			$add( $slot_date, $h, $i );
+		}
+
+		return $candidates;
+	}
+
+	for ( $h = 0; $h < 24; $h++ ) {
+		$add( $date, $h, $h );
+	}
+
+	return $candidates;
+}
+
+/**
+ * Sort picked hours and group consecutive windows (including overnight).
+ *
+ * @param array<int, array<string, mixed>> $picked Charge hours.
  * @return array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array<string, mixed>>}
  */
-function gaming_hub_tesla_plan_pick_hours( $from_hour, $deficit_kwh, $day ) {
-	$dates     = gaming_hub_tesla_plan_dates();
-	$today_map = gaming_hub_tesla_plan_price_map( 'today' );
-	$day_map   = gaming_hub_tesla_plan_price_map( $day );
-	$tom_map   = gaming_hub_tesla_plan_price_map( 'tomorrow' );
-	$kwh_per_h = GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000.0;
-	$needed    = (int) ceil( max( 0, (float) $deficit_kwh ) / max( $kwh_per_h, 0.1 ) );
-
-	if ( $needed < 1 ) {
+function gaming_hub_tesla_plan_finalize_picks( array $picked ) {
+	if ( empty( $picked ) ) {
 		return array(
 			'windows' => array(),
 			'avg_yen' => null,
@@ -409,31 +598,69 @@ function gaming_hub_tesla_plan_pick_hours( $from_hour, $deficit_kwh, $day ) {
 		);
 	}
 
-	$candidates = array();
-	if ( 'today' === $day ) {
-		for ( $i = 0; $i < 18; $i++ ) {
-			$abs        = $from_hour + $i;
-			$h          = $abs % 24;
-			$tomorrow_h = $abs >= 24;
-			$yen        = $tomorrow_h
-				? ( $tom_map[ $h ] ?? $today_map[ $h ] ?? 30 )
-				: ( $today_map[ $h ] ?? 30 );
-			$candidates[] = array(
-				'hour'  => $h,
-				'index' => $i,
-				'yen'   => (float) $yen,
-				'date'  => $tomorrow_h ? $dates['tomorrow'] : $dates['today'],
-			);
+	usort(
+		$picked,
+		static function ( $a, $b ) {
+			$cmp = strcmp( (string) ( $a['date'] ?? '' ), (string) ( $b['date'] ?? '' ) );
+			if ( 0 !== $cmp ) {
+				return $cmp;
+			}
+
+			return (int) $a['hour'] <=> (int) $b['hour'];
 		}
-	} else {
-		for ( $h = 0; $h < 24; $h++ ) {
-			$candidates[] = array(
-				'hour'  => $h,
-				'index' => $h,
-				'yen'   => (float) ( $day_map[ $h ] ?? 30 ),
-				'date'  => $dates[ $day ] ?? $dates['today'],
-			);
+	);
+
+	$ranges = array();
+	$start  = $picked[0];
+	$prev   = $picked[0];
+	$n      = count( $picked );
+	for ( $i = 1; $i < $n; $i++ ) {
+		$row       = $picked[ $i ];
+		$same_day  = (string) ( $row['date'] ?? '' ) === (string) ( $prev['date'] ?? '' );
+		$next_hour = $same_day && (int) $row['hour'] === (int) $prev['hour'] + 1;
+		$overnight = 23 === (int) $prev['hour']
+			&& 0 === (int) $row['hour']
+			&& (string) ( $row['date'] ?? '' ) === gaming_hub_tesla_plan_next_date( (string) ( $prev['date'] ?? '' ) );
+		if ( $next_hour || $overnight ) {
+			$prev = $row;
+			continue;
 		}
+		$ranges[] = gaming_hub_tesla_plan_hour_range_label( (int) $start['hour'], (int) $prev['hour'] );
+		$start    = $row;
+		$prev     = $row;
+	}
+	$ranges[] = gaming_hub_tesla_plan_hour_range_label( (int) $start['hour'], (int) $prev['hour'] );
+
+	foreach ( $picked as $i => $row ) {
+		$picked[ $i ]['index'] = $i;
+	}
+
+	$avg = array_sum( array_column( $picked, 'yen' ) ) / count( $picked );
+
+	return array(
+		'windows' => $ranges,
+		'avg_yen' => round( $avg, 1 ),
+		'picked'  => $picked,
+	);
+}
+
+/**
+ * Pick cheapest parked hours from a candidate list.
+ *
+ * @param array<int, array<string, mixed>> $candidates Hours to consider.
+ * @param float                            $deficit_kwh Energy to buy.
+ * @return array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array<string, mixed>>}
+ */
+function gaming_hub_tesla_plan_pick_from_candidates( array $candidates, $deficit_kwh ) {
+	$kwh_per_h = GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000.0;
+	$needed    = (int) ceil( max( 0, (float) $deficit_kwh ) / max( $kwh_per_h, 0.1 ) );
+
+	if ( $needed < 1 || empty( $candidates ) ) {
+		return array(
+			'windows' => array(),
+			'avg_yen' => null,
+			'picked'  => array(),
+		);
 	}
 
 	usort(
@@ -452,19 +679,79 @@ function gaming_hub_tesla_plan_pick_hours( $from_hour, $deficit_kwh, $day ) {
 		}
 	);
 
-	$picked = array_slice( $candidates, 0, $needed );
-	usort(
-		$picked,
-		static function ( $a, $b ) {
-			return $a['index'] <=> $b['index'];
-		}
-	);
-	$avg = $picked ? array_sum( array_column( $picked, 'yen' ) ) / count( $picked ) : null;
+	return gaming_hub_tesla_plan_finalize_picks( array_slice( $candidates, 0, $needed ) );
+}
 
-	return array(
-		'windows' => gaming_hub_tesla_plan_group_windows( $picked ),
-		'avg_yen' => null === $avg ? null : round( $avg, 1 ),
-		'picked'  => $picked,
+/**
+ * Pick cheapest parked hours.
+ *
+ * @param int                $from_hour   Current hour for today, else 0.
+ * @param float              $deficit_kwh Energy to buy.
+ * @param string             $day         yesterday|today|tomorrow.
+ * @param string             $date        Y-m-d.
+ * @param string             $mode        daily|boost.
+ * @param array<string,bool> $exclude     Already picked keys.
+ * @return array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array<string, mixed>>}
+ */
+/**
+ * Drop the dearest hours if simulated SOC would climb past the health cap.
+ *
+ * @param float                            $start_soc Start %.
+ * @param array<int, float>                $drive_km  Hourly km.
+ * @param array<int, array<string, mixed>> $picked    Charge hours.
+ * @param string                           $date      Y-m-d.
+ * @param int                              $from_hour First hour to simulate.
+ * @param int                              $cap       Max SOC %.
+ * @return array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array<string, mixed>>}
+ */
+function gaming_hub_tesla_plan_trim_picked_to_soc( $start_soc, array $drive_km, array $picked, $date, $from_hour, $cap ) {
+	$picked   = array_values( $picked );
+	$measured = gaming_hub_tesla_soc_log_for_date( $date );
+	$cap      = (float) $cap;
+
+	while ( $picked ) {
+		$charge_w = array_fill( 0, 24, 0 );
+		foreach ( $picked as $row ) {
+			if ( (string) ( $row['date'] ?? $date ) === $date ) {
+				$charge_w[ (int) $row['hour'] ] = GAMING_HUB_TESLA_PLAN_CHARGE_W;
+			}
+		}
+		$series = gaming_hub_tesla_plan_soc_series( $start_soc, $drive_km, $charge_w, $from_hour, $measured );
+		$vals   = array_values( array_filter( $series, 'is_numeric' ) );
+		$peak   = $vals ? max( $vals ) : 0.0;
+		if ( $peak <= $cap + 0.5 ) {
+			break;
+		}
+
+		$drop_i   = null;
+		$drop_yen = -1.0;
+		foreach ( $picked as $i => $row ) {
+			if ( (string) ( $row['date'] ?? $date ) !== $date ) {
+				continue;
+			}
+			if ( (float) $row['yen'] >= $drop_yen ) {
+				$drop_yen = (float) $row['yen'];
+				$drop_i   = $i;
+			}
+		}
+		if ( null === $drop_i ) {
+			break;
+		}
+		array_splice( $picked, $drop_i, 1 );
+	}
+
+	return gaming_hub_tesla_plan_finalize_picks( $picked );
+}
+
+function gaming_hub_tesla_plan_pick_hours( $from_hour, $deficit_kwh, $day, $date = '', $mode = 'daily', array $exclude = array() ) {
+	if ( '' === $date ) {
+		$dates = gaming_hub_tesla_plan_dates();
+		$date  = $dates[ $day ] ?? $dates['today'];
+	}
+
+	return gaming_hub_tesla_plan_pick_from_candidates(
+		gaming_hub_tesla_plan_charge_candidates( $date, $day, $from_hour, $mode, $exclude ),
+		$deficit_kwh
 	);
 }
 
@@ -579,12 +866,17 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 	$dates      = $ctx['dates'];
 	$date       = $dates[ $day ];
 	$now_hour   = (int) $ctx['now_hour'];
-	$target     = (int) $ctx['target_soc'];
 	$battery    = gaming_hub_tesla_plan_battery_kwh();
 	$wh_km      = gaming_hub_tesla_plan_wh_per_km();
 	$drive      = gaming_hub_tesla_plan_drive_profile( $day, $date, (float) $ctx['today_km'] );
 	$from_hour  = 'today' === $day ? $now_hour : 0;
 	$yen_map    = gaming_hub_tesla_plan_price_map( $day );
+	$daily_soc  = GAMING_HUB_TESLA_PLAN_TARGET_SOC;
+	$sat_soc    = GAMING_HUB_TESLA_PLAN_SATURDAY_SOC;
+	$is_friday  = gaming_hub_tesla_plan_is_friday( $date );
+	$is_sat_am  = gaming_hub_tesla_plan_is_saturday( $date ) && $from_hour < GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR;
+	$boost      = gaming_hub_tesla_plan_needs_saturday_boost( $date, $from_hour );
+	$car_limit  = isset( $ctx['car_limit'] ) ? (int) $ctx['car_limit'] : 0;
 
 	$future_km = 0.0;
 	for ( $h = $from_hour; $h < 24; $h++ ) {
@@ -594,16 +886,63 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		$future_km = max( $future_km, (float) $drive['remaining_km'] );
 	}
 
-	$start_kwh    = max( 0, ( (float) $start_soc / 100.0 ) * $battery );
-	$target_kwh   = ( $target / 100.0 ) * $battery;
-	$drive_kwh    = $future_km * $wh_km / 1000.0;
-	$projected    = $start_kwh - $drive_kwh;
-	$deficit_kwh  = max( 0, $target_kwh - $projected );
-	if ( $deficit_kwh < 0.05 ) {
-		$deficit_kwh = 0.0;
+	$start_kwh   = max( 0, ( (float) $start_soc / 100.0 ) * $battery );
+	$daily_kwh   = ( $daily_soc / 100.0 ) * $battery;
+	$sat_kwh     = ( $sat_soc / 100.0 ) * $battery;
+	$drive_kwh   = $future_km * $wh_km / 1000.0;
+	$projected   = $start_kwh - $drive_kwh;
+	$deficit_daily = 0.0;
+	$deficit_boost = 0.0;
+
+	if ( $is_sat_am ) {
+		$deficit_boost = max( 0, $sat_kwh - $projected );
+		$target        = $sat_soc;
+	} elseif ( $is_friday ) {
+		$deficit_daily = max( 0, $daily_kwh - $projected );
+		$after_daily   = max( $projected, $daily_kwh );
+		$deficit_boost = max( 0, $sat_kwh - $after_daily );
+		$target        = $sat_soc;
+	} else {
+		$deficit_daily = max( 0, $daily_kwh - $projected );
+		$target        = $daily_soc;
 	}
 
-	$pick     = gaming_hub_tesla_plan_pick_hours( $from_hour, $deficit_kwh, $day );
+	if ( $deficit_daily < 0.05 ) {
+		$deficit_daily = 0.0;
+	}
+	if ( $deficit_boost < 0.05 ) {
+		$deficit_boost = 0.0;
+	}
+
+	$daily_pick = gaming_hub_tesla_plan_pick_hours( $from_hour, $deficit_daily, $day, $date, 'daily' );
+	$exclude    = array();
+	foreach ( $daily_pick['picked'] as $row ) {
+		$exclude[ (string) ( $row['date'] ?? $date ) . '-' . (int) $row['hour'] ] = true;
+	}
+	$boost_pick = $boost
+		? gaming_hub_tesla_plan_pick_hours( $from_hour, $deficit_boost, $day, $date, 'boost', $exclude )
+		: array(
+			'windows' => array(),
+			'avg_yen' => null,
+			'picked'  => array(),
+		);
+	$pick         = gaming_hub_tesla_plan_finalize_picks(
+		array_merge( $daily_pick['picked'], $boost_pick['picked'] )
+	);
+	$soc_cap      = ( $is_friday || $is_sat_am )
+		? GAMING_HUB_TESLA_PLAN_SATURDAY_SOC
+		: GAMING_HUB_TESLA_PLAN_TARGET_SOC;
+	$pick         = gaming_hub_tesla_plan_trim_picked_to_soc(
+		$start_soc,
+		$drive['hours'],
+		$pick['picked'],
+		$date,
+		$from_hour,
+		$soc_cap
+	);
+	$kwh_per_h    = GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000.0;
+	$deficit_kwh  = round( count( $pick['picked'] ) * $kwh_per_h, 1 );
+
 	$charge_w = array_fill( 0, 24, 0 );
 	foreach ( $pick['picked'] as $row ) {
 		if ( (string) ( $row['date'] ?? $date ) === $date ) {
@@ -636,6 +975,16 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		? ( $pick['windows'] ? implode( '、', $pick['windows'] ) : '—' )
 		: __( 'グリッド充電不要', 'gaming-hub' );
 
+	$cap_note = '';
+	if ( $needs_grid && $car_limit > 0 && $car_limit < $target ) {
+		$cap_note = ' ' . sprintf(
+			/* translators: 1: car charge limit, 2: plan target */
+			__( 'Tesla アプリのチャージキャップはいま %1$s%% です。%2$s%% にするには上限を上げてください。', 'gaming-hub' ),
+			number_format_i18n( $car_limit ),
+			number_format_i18n( $target )
+		);
+	}
+
 	if ( 'yesterday' === $day ) {
 		$note = $needs_grid
 			? sprintf(
@@ -648,14 +997,32 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		$km_label      = __( '走行実績', 'gaming-hub' );
 		$deficit_label = __( '推奨だった充電', 'gaming-hub' );
 	} elseif ( 'tomorrow' === $day ) {
-		$note = $needs_grid
-			? sprintf(
-				/* translators: 1: watts, 2: window */
-				__( '明日の %1$s km 走行と目標残量を踏まえ、スマートタイムONEの最安時間（%2$s）に 200V 普通充電します。', 'gaming-hub' ),
+		if ( ! $needs_grid ) {
+			$note = __( '明日の走行見込みでは追加のグリッド充電は不要です。残量は 20–80% を目安にしています。', 'gaming-hub' );
+		} elseif ( $is_sat_am ) {
+			$note = sprintf(
+				/* translators: 1: km, 2: window, 3: Saturday hour */
+				__( '明日は土曜です。%1$s km 走行を踏まえ、朝 %3$s 時までに 100%% になるよう最安時間（%2$s）に 200V 普通充電します。', 'gaming-hub' ),
+				number_format_i18n( $drive['km'], 0 ),
+				$window,
+				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
+			);
+		} elseif ( $is_friday ) {
+			$note = sprintf(
+				/* translators: 1: km, 2: window */
+				__( '明日（金曜）は電池に負担をかけないよう約 80%% まで。金曜夜〜土曜朝の最安時間（%2$s）に 100%% へ上げます。予想走行 %1$s km。', 'gaming-hub' ),
 				number_format_i18n( $drive['km'], 0 ),
 				$window
-			)
-			: __( '明日の走行見込みでは追加のグリッド充電は不要です。', 'gaming-hub' );
+			);
+		} else {
+			$note = sprintf(
+				/* translators: 1: km, 2: window */
+				__( '明日の %1$s km 走行を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間（%2$s）に 200V 普通充電します。', 'gaming-hub' ),
+				number_format_i18n( $drive['km'], 0 ),
+				$window
+			);
+		}
+		$note         .= $cap_note;
 		$km_label      = __( '予想走行', 'gaming-hub' );
 		$deficit_label = sprintf(
 			/* translators: %s: target SOC */
@@ -663,14 +1030,37 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 			number_format_i18n( $target )
 		);
 	} else {
-		$note = $needs_grid
-			? sprintf(
-				/* translators: 1: charge watts, 2: remaining km */
-				__( '残りの走行 %2$s km と目標残量を踏まえ、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。Tesla アプリの予約充電と合わせて使ってください。', 'gaming-hub' ),
+		if ( ! $needs_grid ) {
+			$note = $is_sat_am
+				? __( 'いまの残量で土曜朝 100% に届く見込みです。追加のグリッド充電は不要です。', 'gaming-hub' )
+				: __( 'いまの残量と残りの走行では、追加のグリッド充電は不要です。残量は 20–80% を目安にしています。', 'gaming-hub' );
+		} elseif ( $is_sat_am ) {
+			$note = sprintf(
+				/* translators: 1: kW, 2: Saturday hour, 3: window */
+				__( '土曜朝 %2$s 時までに 100%% になるよう、残っている最安時間（%3$s）に 200V 普通充電（%1$s kW）します。Tesla アプリの予約充電と合わせて使ってください。', 'gaming-hub' ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
-				number_format_i18n( $drive['remaining_km'], 1 )
-			)
-			: __( 'いまの残量と残りの走行では、追加のグリッド充電は不要です。', 'gaming-hub' );
+				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR ),
+				$window
+			);
+		} elseif ( $is_friday ) {
+			$note = sprintf(
+				/* translators: 1: kW, 2: remaining km, 3: window, 4: Saturday hour */
+				__( '残りの走行 %2$s km。平日は約 80%% まで、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）に 100%% へ上げます（200V 普通充電 %1$s kW）。Tesla アプリの予約充電と合わせて使ってください。', 'gaming-hub' ),
+				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
+				number_format_i18n( $drive['remaining_km'], 1 ),
+				$window,
+				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
+			);
+		} else {
+			$note = sprintf(
+				/* translators: 1: charge kW, 2: remaining km, 3: Saturday hour */
+				__( '残りの走行 %2$s km を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。土曜 %3$s 時までに 100%% になります。Tesla アプリの予約充電と合わせて使ってください。', 'gaming-hub' ),
+				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
+				number_format_i18n( $drive['remaining_km'], 1 ),
+				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
+			);
+		}
+		$note         .= $cap_note;
 		$km_label      = __( '残り走行', 'gaming-hub' );
 		$deficit_label = sprintf(
 			/* translators: %s: target SOC */
@@ -679,10 +1069,18 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		);
 	}
 
-	$charge_keys = array();
-	foreach ( $pick['picked'] as $row ) {
-		$charge_keys[ (string) $row['date'] . '-' . (int) $row['hour'] ] = true;
-	}
+	$target_note = $is_sat_am || $is_friday
+		? sprintf(
+			/* translators: %s: Saturday hour */
+			__( '土曜朝 %s 時までに 100%%', 'gaming-hub' ),
+			number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
+		)
+		: sprintf(
+			/* translators: 1: min SOC, 2: daily target */
+			__( '電池ケア %1$s–%2$s%%', 'gaming-hub' ),
+			number_format_i18n( GAMING_HUB_TESLA_PLAN_MIN_SOC ),
+			number_format_i18n( $daily_soc )
+		);
 
 	$drive_w = array();
 	for ( $h = 0; $h < 24; $h++ ) {
@@ -714,6 +1112,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		'needs_grid'        => $needs_grid,
 		'deficit_kwh'       => round( $deficit_kwh, 1 ),
 		'target_soc'        => $target,
+		'target_note'       => $target_note,
 		'start_soc'         => round( (float) $start_soc, 1 ),
 		'projected_soc'     => null !== $soc_end ? round( $soc_end, 1 ) : null,
 		'window_label'      => $window,
@@ -780,9 +1179,9 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 	$soc     = isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] )
 		? max( 0, min( 100, (float) $model3['battery_percent'] ) )
 		: ( $live ? 50.0 : 55.0 );
-	$limit   = isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
+	$car_limit = isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
 		? max( 50, min( 100, (int) $model3['charge_limit_percent'] ) )
-		: GAMING_HUB_TESLA_PLAN_TARGET_SOC;
+		: 0;
 	$today_km = isset( $model3['today_km'] ) && is_numeric( $model3['today_km'] )
 		? max( 0, (float) $model3['today_km'] )
 		: 0.0;
@@ -791,17 +1190,20 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 		$today_km = $logged['km'];
 	}
 
-	$now_hour = (int) wp_date( 'G' );
-	$cache_key = GAMING_HUB_TESLA_PLAN_CACHE_PREFIX . wp_date( 'Y-m-d' ) . '_' . $now_hour . '_' . (int) floor( $soc / 5 ) . '_' . (int) round( $today_km ) . '_' . $limit . '_' . ( $live ? '1' : '0' );
+	$now_hour  = (int) wp_date( 'G' );
+	$dates     = gaming_hub_tesla_plan_dates();
+	$target    = gaming_hub_tesla_plan_target_soc_for_date( $dates['today'], $now_hour );
+	$cache_key = GAMING_HUB_TESLA_PLAN_CACHE_PREFIX . $dates['today'] . '_' . $now_hour . '_' . (int) floor( $soc / 5 ) . '_' . (int) round( $today_km ) . '_' . $target . '_' . $car_limit . '_' . ( $live ? '1' : '0' );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) && ! empty( $cached['plan_id'] ) ) {
 		return gaming_hub_tesla_plan_apply_live( $cached, $status );
 	}
 
 	$ctx = array(
-		'dates'      => gaming_hub_tesla_plan_dates(),
+		'dates'      => $dates,
 		'now_hour'   => $now_hour,
-		'target_soc' => $limit,
+		'target_soc' => $target,
+		'car_limit'  => $car_limit,
 		'today_km'   => $today_km,
 		'live'       => $live,
 		'price_meta' => gaming_hub_tesla_plan_price_meta(),
@@ -809,7 +1211,7 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 
 	$today     = gaming_hub_tesla_plan_build_day( 'today', $ctx, $soc );
 	$end_soc   = isset( $today['soc_end'] ) && is_numeric( $today['soc_end'] ) ? (float) $today['soc_end'] : $soc;
-	$yesterday = gaming_hub_tesla_plan_build_day( 'yesterday', $ctx, (float) $limit );
+	$yesterday = gaming_hub_tesla_plan_build_day( 'yesterday', $ctx, (float) GAMING_HUB_TESLA_PLAN_TARGET_SOC );
 	$tomorrow  = gaming_hub_tesla_plan_build_day( 'tomorrow', $ctx, $end_soc );
 
 	$today['view_days'] = array(
