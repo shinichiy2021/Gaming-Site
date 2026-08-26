@@ -29,7 +29,12 @@ define( 'GAMING_HUB_MODEL3_ODO_OPTION', 'gaming_hub_model3_odometer_v1' );
 
 /** Parked cabin watt-hours and yen accumulated for today. */
 define( 'GAMING_HUB_TESLA_CABIN_ENERGY_OPTION', 'gaming_hub_tesla_cabin_energy_v1' );
-define( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX', 8 * MINUTE_IN_SECONDS );
+
+/** Widest poll gap still treated as continuous load: one missed 5-minute sample. */
+define( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX', 12 * MINUTE_IN_SECONDS );
+
+/** Five-minute sampler that keeps the energy counters advancing. */
+define( 'GAMING_HUB_TESLA_SAMPLER_CRON', 'gaming_hub_tesla_sampler' );
 
 /** Home AC (普通充電) watt-hours and yen accumulated for today. */
 define( 'GAMING_HUB_TESLA_WALL_ENERGY_OPTION', 'gaming_hub_tesla_wall_energy_v1' );
