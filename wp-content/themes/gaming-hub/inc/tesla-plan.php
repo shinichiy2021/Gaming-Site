@@ -17,6 +17,65 @@ define( 'GAMING_HUB_TESLA_PLAN_MIN_SOC', 10 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v3_' );
 
+/** Measured hourly SOC, so the plan chart can show today's past hours. */
+define( 'GAMING_HUB_TESLA_SOC_LOG_OPTION', 'gaming_hub_tesla_soc_log_v1' );
+define( 'GAMING_HUB_TESLA_SOC_LOG_DAYS', 4 );
+
+/**
+ * Record the vehicle SOC against the hour it was measured in.
+ *
+ * The plan simulates forward from the SOC we can see right now, so it has no way
+ * to work out what the battery was at 08:00. Logging each reading gives those
+ * past hours a real value instead of a hole in the chart.
+ *
+ * @param int|float $soc Battery percent.
+ */
+function gaming_hub_tesla_soc_log_record( $soc ) {
+	if ( ! is_numeric( $soc ) ) {
+		return;
+	}
+
+	$soc = max( 0, min( 100, (float) $soc ) );
+	if ( $soc <= 0 ) {
+		return;
+	}
+
+	$today = wp_date( 'Y-m-d' );
+	$hour  = (int) wp_date( 'G' );
+	$log   = get_option( GAMING_HUB_TESLA_SOC_LOG_OPTION, array() );
+	$log   = is_array( $log ) ? $log : array();
+
+	// Latest reading in the hour wins, matching the simulation's end-of-hour SOC.
+	$log[ $today ][ $hour ] = round( $soc, 1 );
+
+	krsort( $log );
+	$log = array_slice( $log, 0, GAMING_HUB_TESLA_SOC_LOG_DAYS, true );
+
+	update_option( GAMING_HUB_TESLA_SOC_LOG_OPTION, $log, false );
+}
+
+/**
+ * Measured hourly SOC for a date.
+ *
+ * @param string $date Y-m-d.
+ * @return array<int, float>
+ */
+function gaming_hub_tesla_soc_log_for_date( $date ) {
+	$log = get_option( GAMING_HUB_TESLA_SOC_LOG_OPTION, array() );
+	if ( ! is_array( $log ) || ! is_array( $log[ $date ] ?? null ) ) {
+		return array();
+	}
+
+	$hours = array();
+	foreach ( $log[ $date ] as $hour => $soc ) {
+		if ( is_numeric( $soc ) ) {
+			$hours[ (int) $hour ] = (float) $soc;
+		}
+	}
+
+	return $hours;
+}
+
 /**
  * Short label for home AC charging (200V 普通充電).
  */
@@ -416,9 +475,10 @@ function gaming_hub_tesla_plan_pick_hours( $from_hour, $deficit_kwh, $day ) {
  * @param array<int, float>    $drive_km  Hourly km.
  * @param array<int, int>      $charge_w  Hourly charge watts.
  * @param int                  $from_hour First hour to simulate (today).
+ * @param array<int, float>    $measured  Logged SOC for hours before $from_hour.
  * @return array<int, float|null>
  */
-function gaming_hub_tesla_plan_soc_series( $start_soc, array $drive_km, array $charge_w, $from_hour = 0 ) {
+function gaming_hub_tesla_plan_soc_series( $start_soc, array $drive_km, array $charge_w, $from_hour = 0, array $measured = array() ) {
 	$battery = max( 1, gaming_hub_tesla_plan_battery_kwh() );
 	$wh_km   = gaming_hub_tesla_plan_wh_per_km();
 	$soc     = max( 0, min( 100, (float) $start_soc ) );
@@ -426,7 +486,8 @@ function gaming_hub_tesla_plan_soc_series( $start_soc, array $drive_km, array $c
 
 	for ( $h = 0; $h < 24; $h++ ) {
 		if ( $h < $from_hour ) {
-			$series[ $h ] = null;
+			// Hours already gone cannot be simulated, but they may have been logged.
+			$series[ $h ] = isset( $measured[ $h ] ) ? round( (float) $measured[ $h ], 1 ) : null;
 			continue;
 		}
 		$net_kwh      = ( (int) ( $charge_w[ $h ] ?? 0 ) / 1000.0 ) - ( ( (float) ( $drive_km[ $h ] ?? 0 ) ) * $wh_km / 1000.0 );
@@ -550,7 +611,13 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		}
 	}
 
-	$soc_series = gaming_hub_tesla_plan_soc_series( $start_soc, $drive['hours'], $charge_w, $from_hour );
+	$soc_series = gaming_hub_tesla_plan_soc_series(
+		$start_soc,
+		$drive['hours'],
+		$charge_w,
+		$from_hour,
+		gaming_hub_tesla_soc_log_for_date( $date )
+	);
 	$soc_end    = null;
 	for ( $h = 23; $h >= 0; $h-- ) {
 		if ( null !== $soc_series[ $h ] ) {

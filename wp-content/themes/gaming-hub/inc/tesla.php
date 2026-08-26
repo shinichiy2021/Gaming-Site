@@ -1311,6 +1311,7 @@ function gaming_hub_tesla_model3_supply( array $charge_state, $charging ) {
 function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 	$odometer_km = max( 0, (float) $odometer_km );
 	$today       = wp_date( 'Y-m-d' );
+	$now         = time();
 	$saved       = get_option( GAMING_HUB_MODEL3_ODO_OPTION, array() );
 	$saved       = is_array( $saved ) ? $saved : array();
 	$saved_date  = (string) ( $saved['date'] ?? '' );
@@ -1318,7 +1319,9 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 		? (float) $saved['odometer_km']
 		: null;
 
-	if ( $today !== $saved_date ) {
+	$new_day = $today !== $saved_date;
+
+	if ( $new_day ) {
 		$start_km = null !== $last_km ? $last_km : $odometer_km;
 	} else {
 		$start_km = isset( $saved['today_start_km'] ) && is_numeric( $saved['today_start_km'] )
@@ -1326,11 +1329,32 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 			: ( null !== $last_km ? $last_km : $odometer_km );
 	}
 
+	$wh  = $new_day ? 0.0 : max( 0, (float) ( $saved['wh'] ?? 0 ) );
+	$yen = $new_day ? 0.0 : max( 0, (float) ( $saved['yen'] ?? 0 ) );
+
 	if ( $odometer_km + 1 < $start_km ) {
+		// Odometer went backwards, so today's figures are not trustworthy anymore.
 		$start_km = $odometer_km;
+		$wh       = 0.0;
+		$yen      = 0.0;
 	}
 
 	$today_km = max( 0, round( $odometer_km - $start_km, 1 ) );
+
+	// Bill each leg at the rates in effect while it was driven. Reading the day's
+	// total against the current rate made the cost swing with the time of day.
+	$delta_km = ( null !== $last_km && $odometer_km > $last_km ) ? $odometer_km - $last_km : 0.0;
+	if ( $delta_km > 0 ) {
+		$wh_per_km = defined( 'GAMING_HUB_MODEL3_WH_PER_KM' ) ? (float) GAMING_HUB_MODEL3_WH_PER_KM : 150.0;
+		$last_ts   = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
+		$from      = ( $last_ts > 0 && $last_ts < $now ) ? $last_ts : $now - MINUTE_IN_SECONDS;
+		$rate      = function_exists( 'gaming_hub_looop_average_rate_between' )
+			? gaming_hub_looop_average_rate_between( $from, $now )
+			: 30.0;
+
+		$wh  += $delta_km * $wh_per_km;
+		$yen += ( $delta_km * $wh_per_km / 1000.0 ) * $rate;
+	}
 
 	update_option(
 		GAMING_HUB_MODEL3_ODO_OPTION,
@@ -1339,19 +1363,44 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 			'odometer_km'    => $odometer_km,
 			'today_start_km' => $start_km,
 			'today_km'       => $today_km,
-			'updated_at'     => time(),
+			'wh'             => $wh,
+			'yen'            => $yen,
+			'last_ts'        => $now,
+			'updated_at'     => $now,
 		),
 		false
 	);
 
 	if ( function_exists( 'gaming_hub_tesla_gas_log_record_today' ) ) {
-		gaming_hub_tesla_gas_log_record_today( $today_km );
+		gaming_hub_tesla_gas_log_record_today( $today_km, $yen );
 	}
 
 	return array(
 		'today_km'       => $today_km,
 		'today_start_km' => $start_km,
 		'odometer_km'    => $odometer_km,
+		'today_kwh'      => round( $wh / 1000.0, 2 ),
+		'today_yen'      => (int) round( $yen ),
+	);
+}
+
+/**
+ * Today's driving energy and cost from the odometer log.
+ *
+ * @return array{today_kwh: float, today_yen: int}
+ */
+function gaming_hub_tesla_drive_energy_today() {
+	$saved = get_option( GAMING_HUB_MODEL3_ODO_OPTION, array() );
+	if ( ! is_array( $saved ) || (string) ( $saved['date'] ?? '' ) !== wp_date( 'Y-m-d' ) ) {
+		return array(
+			'today_kwh' => 0.0,
+			'today_yen' => 0,
+		);
+	}
+
+	return array(
+		'today_kwh' => round( max( 0, (float) ( $saved['wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'today_yen' => (int) round( max( 0, (float) ( $saved['yen'] ?? 0 ) ) ),
 	);
 }
 
@@ -1839,12 +1888,19 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		? (int) round( $range_km / ( $soc / 100 ) )
 		: ( null !== $ideal_km ? (int) round( $ideal_km ) : 450 );
 
+	if ( function_exists( 'gaming_hub_tesla_soc_log_record' ) ) {
+		gaming_hub_tesla_soc_log_record( $soc );
+	}
+
 	$odometer_km = gaming_hub_tesla_miles_to_km( $vehicle_state['odometer'] ?? null );
 	$odo_stats   = null !== $odometer_km
 		? gaming_hub_tesla_model3_record_odometer( $odometer_km )
-		: array(
-			'today_km'    => null,
-			'odometer_km' => null,
+		: array_merge(
+			array(
+				'today_km'    => null,
+				'odometer_km' => null,
+			),
+			gaming_hub_tesla_drive_energy_today()
 		);
 
 	$scheduled_ts = 0;
@@ -1939,6 +1995,8 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'scheduled_charging_ts'     => $scheduled_ts,
 			'odometer_km'               => $odo_stats['odometer_km'],
 			'today_km'                  => $odo_stats['today_km'],
+			'drive_kwh'                 => $odo_stats['today_kwh'],
+			'drive_yen'                 => $odo_stats['today_yen'],
 			'today_target_km'           => GAMING_HUB_MODEL3_DAILY_KM,
 			'car_version'               => $car_version,
 			'sentry_mode'               => $sentry,
