@@ -4727,6 +4727,27 @@ body.home .site-header.is-scrolled {
 	color: #ffe600;
 }
 
+.tesla-plan-auto {
+	margin: 8px 0 0;
+	font-size: 0.82rem;
+	color: var(--color-text-muted);
+}
+
+.tesla-plan-auto.is-error,
+.tesla-plan-auto-auth {
+	color: #ff8a80;
+}
+
+.tesla-plan-auto-auth,
+.tesla-plan-auto-key {
+	margin: 6px 0 0;
+	font-size: 0.82rem;
+}
+
+.tesla-plan-auto-key a {
+	color: #00f5d4;
+}
+
 .ecoflow-plan-approve,
 .ecoflow-plan-cancel {
 	font-family: var(--font-display);

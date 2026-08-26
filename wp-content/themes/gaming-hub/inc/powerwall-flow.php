@@ -278,23 +278,6 @@ function gaming_hub_powerwall_flow_scripts() {
 		$tesla_assets
 	);
 
-	wp_enqueue_script(
-		'gaming-hub-tesla-charge',
-		get_template_directory_uri() . '/assets/js/tesla-charge.js',
-		array( 'gaming-hub-i18n' ),
-		GAMING_HUB_VERSION,
-		true
-	);
-
-	wp_localize_script(
-		'gaming-hub-tesla-charge',
-		'gamingHubTeslaCharge',
-		array(
-			'url'       => rest_url( 'gaming-hub/v1/tesla/charge' ),
-			'restNonce' => wp_create_nonce( 'wp_rest' ),
-		)
-	);
-
 	wp_localize_script(
 		'gaming-hub-powerwall-flow',
 		'gamingHubPowerwallFlow',

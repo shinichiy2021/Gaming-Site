@@ -118,6 +118,25 @@ $next_note = $next_charge_labels
 			<p class="ecoflow-plan-kicker"><?php esc_html_e( 'AI PLAN', 'gaming-hub' ); ?></p>
 			<h3 data-tesla-plan-title><?php echo esc_html( $plan['title'] ?? __( '今日の充電計画', 'gaming-hub' ) ); ?></h3>
 			<p class="ecoflow-plan-note" data-tesla-plan-note><?php echo esc_html( $plan['note'] ?? '' ); ?></p>
+			<p class="tesla-plan-auto<?php echo ! empty( $plan['auto_error'] ) ? ' is-error' : ''; ?>" data-tesla-plan-auto>
+				<?php echo esc_html( (string) ( $plan['auto_note'] ?? __( 'AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。', 'gaming-hub' ) ) ); ?>
+			</p>
+			<?php if ( ! empty( $plan['needs_charge_auth'] ) ) : ?>
+				<p class="tesla-plan-auto-auth">
+					<?php esc_html_e( '充電操作には再認証が必要です。', 'gaming-hub' ); ?>
+					<?php
+					if ( function_exists( 'gaming_hub_render_tesla_oauth_button' ) ) {
+						gaming_hub_render_tesla_oauth_button( true, true );
+					}
+					?>
+				</p>
+			<?php elseif ( ! empty( $plan['virtual_key_url'] ) && ! empty( $plan['auto_error'] ) ) : ?>
+				<p class="tesla-plan-auto-key">
+					<a href="<?php echo esc_url( (string) $plan['virtual_key_url'] ); ?>" rel="noopener noreferrer">
+						<?php esc_html_e( '仮想キーを追加', 'gaming-hub' ); ?>
+					</a>
+				</p>
+			<?php endif; ?>
 		</div>
 	</div>
 

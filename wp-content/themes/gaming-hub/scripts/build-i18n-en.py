@@ -574,9 +574,16 @@ EN = {
     "明日は土曜です。%1$s km 走行を踏まえ、朝 %3$s 時までに 100%% になるよう最安時間（%2$s）に 200V 普通充電します。": "Tomorrow is Saturday. For %1$s km of driving, use 200V AC charging in the cheapest window (%2$s) so the pack is at 100%% by %3$s:00.",
     "明日（金曜）は電池に負担をかけないよう約 80%% まで。金曜夜〜土曜朝の最安時間（%2$s）に 100%% へ上げます。予想走行 %1$s km。": "Tomorrow (Friday) stays near 80%% for battery health, then charges to 100%% in the cheapest Friday-night to Saturday-morning window (%2$s). Expected drive %1$s km.",
     "明日の %1$s km 走行を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間（%2$s）に 200V 普通充電します。": "For tomorrow’s %1$s km, use 200V AC charging in the cheapest Smart Time ONE window (%2$s) up to about 80%% so the battery is not stressed.",
-    "土曜朝 %2$s 時までに 100%% になるよう、残っている最安時間（%3$s）に 200V 普通充電（%1$s kW）します。Tesla アプリの予約充電と合わせて使ってください。": "To hit 100%% by Saturday %2$s:00, use remaining cheapest hours (%3$s) at %1$s kW 200V AC. Pair this with scheduled charging in the Tesla app.",
-    "残りの走行 %2$s km。平日は約 80%% まで、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）に 100%% へ上げます（200V 普通充電 %1$s kW）。Tesla アプリの予約充電と合わせて使ってください。": "%2$s km still to drive. Weekdays stay near 80%%; the cheapest window from Friday night to Saturday %4$s:00 (%3$s) raises the pack to 100%% (200V AC at %1$s kW). Pair this with scheduled charging in the Tesla app.",
-    "残りの走行 %2$s km を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。土曜 %3$s 時までに 100%% になります。Tesla アプリの予約充電と合わせて使ってください。": "With %2$s km still to drive, use 200V AC charging at %1$s kW in the cheapest Smart Time ONE hours up to about 80%% so the battery is not stressed. It reaches 100%% by Saturday %3$s:00. Pair this with scheduled charging in the Tesla app.",
+    "チャージキャップを送りました。": "Charge cap sent.",
+    "AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。": "Home charging on/off and the charge cap are sent automatically to match the AI PLAN. Turn off scheduled charging in the Tesla app.",
+    "自動制御エラー: %s": "Auto control error: %s",
+    "AI PLAN に合わせて充電を自動制御中。直近は %s に充電オンです。": "Auto-controlling charging to the AI PLAN. Last charge-on was at %s.",
+    "AI PLAN に合わせて充電を自動制御中。いまは充電オンです。": "Auto-controlling charging to the AI PLAN. Charging is on now.",
+    "AI PLAN に合わせて充電を自動制御中。直近は %s に充電オフです。": "Auto-controlling charging to the AI PLAN. Last charge-off was at %s.",
+    "AI PLAN に合わせて充電を自動制御中。計画時間外は充電しません。": "Auto-controlling charging to the AI PLAN. Outside planned hours, charging stays off.",
+    "土曜朝 %2$s 時までに 100%% になるよう、残っている最安時間（%3$s）に 200V 普通充電（%1$s kW）します。この時間だけ自宅充電を自動で開始します。": "To hit 100%% by Saturday %2$s:00, remaining cheapest hours (%3$s) use %1$s kW 200V AC. Home charging starts automatically in those hours only.",
+    "残りの走行 %2$s km。平日は約 80%% まで、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）に 100%% へ上げます（200V 普通充電 %1$s kW）。この時間だけ自宅充電を自動で開始します。": "%2$s km still to drive. Weekdays stay near 80%%; the cheapest window from Friday night to Saturday %4$s:00 (%3$s) raises the pack to 100%% (200V AC at %1$s kW). Home charging starts automatically in those hours only.",
+    "残りの走行 %2$s km を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。土曜 %3$s 時までに 100%% になります。この時間だけ自宅充電を自動で開始します。": "With %2$s km still to drive, use 200V AC charging at %1$s kW in the cheapest Smart Time ONE hours up to about 80%% so the battery is not stressed. It reaches 100%% by Saturday %3$s:00. Home charging starts automatically in those hours only.",
 }
 
 
