@@ -23,10 +23,11 @@ function gaming_hub_tesla_gas_log_key( $ym ) {
 /**
  * Convert today's km into gasoline liters and yen saved vs a 15 km/L car.
  *
- * @param float $km Distance.
+ * @param float      $km          Distance.
+ * @param float|null $metered_yen Already-metered electricity cost, if known.
  * @return array<string, float|int|string>
  */
-function gaming_hub_tesla_gas_metrics_from_km( $km ) {
+function gaming_hub_tesla_gas_metrics_from_km( $km, $metered_yen = null ) {
 	$km         = max( 0, (float) $km );
 	$yen_per_l  = 171.7;
 	$as_of      = '';
@@ -47,7 +48,7 @@ function gaming_hub_tesla_gas_metrics_from_km( $km ) {
 	$gas_l   = $km >= 0.1 ? $km / $km_per_l : 0.0;
 	$ev_kwh  = $km >= 0.1 ? ( $km * $wh_per_km ) / 1000.0 : 0.0;
 	$gas_yen = $gas_l * $yen_per_l;
-	$ev_yen  = $ev_kwh * $elec_yen;
+	$ev_yen  = is_numeric( $metered_yen ) ? max( 0, (float) $metered_yen ) : $ev_kwh * $elec_yen;
 	$saved   = max( 0, $gas_yen - $ev_yen );
 
 	if ( function_exists( 'gaming_hub_tesla_gasoline_compare' ) ) {
@@ -94,9 +95,10 @@ function gaming_hub_tesla_gas_log_save_month( $ym, array $days ) {
 /**
  * Write today's km into the monthly log (hourly delta when km grows).
  *
- * @param float $today_km Today's driving km.
+ * @param float      $today_km    Today's driving km.
+ * @param float|null $metered_yen Today's already-metered electricity cost.
  */
-function gaming_hub_tesla_gas_log_record_today( $today_km ) {
+function gaming_hub_tesla_gas_log_record_today( $today_km, $metered_yen = null ) {
 	$today_km = max( 0, (float) $today_km );
 	$today    = wp_date( 'Y-m-d' );
 	$ym       = substr( $today, 0, 7 );
@@ -104,7 +106,7 @@ function gaming_hub_tesla_gas_log_record_today( $today_km ) {
 	$days     = gaming_hub_tesla_gas_log_month_days( $ym );
 	$prev     = isset( $days[ $today ] ) && is_array( $days[ $today ] ) ? $days[ $today ] : array();
 	$prev_km  = isset( $prev['km'] ) && is_numeric( $prev['km'] ) ? (float) $prev['km'] : null;
-	$metrics  = gaming_hub_tesla_gas_metrics_from_km( $today_km );
+	$metrics  = gaming_hub_tesla_gas_metrics_from_km( $today_km, $metered_yen );
 	$hours    = isset( $prev['hours'] ) && is_array( $prev['hours'] ) ? $prev['hours'] : array();
 
 	if ( null !== $prev_km ) {

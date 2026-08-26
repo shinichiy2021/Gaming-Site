@@ -238,10 +238,18 @@ function gaming_hub_tesla_gasoline_compare( array $model3, $drive_w, $speed_km )
 		? max( 0, (float) $model3['today_km'] )
 		: 0.0;
 
-	$today_l   = $today_km >= 0.1 ? $today_km / $km_per_l : 0.0;
-	$today_kwh = $today_km >= 0.1 ? ( $today_km * $wh_per_km ) / 1000.0 : 0.0;
-	$gas_yen   = $today_l * $yen_per_l;
-	$ev_yen    = $today_kwh * $elec_yen;
+	$today_l = $today_km >= 0.1 ? $today_km / $km_per_l : 0.0;
+	$gas_yen = $today_l * $yen_per_l;
+
+	// Prefer the odometer log: it meters each leg at the rate that was in effect,
+	// where deriving the whole day from the current rate made the cost drift with
+	// the time of day.
+	$today_kwh = isset( $model3['drive_kwh'] ) && is_numeric( $model3['drive_kwh'] )
+		? max( 0, (float) $model3['drive_kwh'] )
+		: ( $today_km >= 0.1 ? ( $today_km * $wh_per_km ) / 1000.0 : 0.0 );
+	$ev_yen    = isset( $model3['drive_yen'] ) && is_numeric( $model3['drive_yen'] )
+		? max( 0, (float) $model3['drive_yen'] )
+		: $today_kwh * $elec_yen;
 	$saved     = max( 0, $gas_yen - $ev_yen );
 
 	$l_per_h        = 0.0;
