@@ -256,6 +256,7 @@ function gaming_hub_tesla_gasoline_compare( array $model3, $drive_w, $speed_km )
 
 	return array(
 		'today_km'        => round( $today_km, 1 ),
+		'today_kwh'       => round( $today_kwh, 2 ),
 		'gas_l'           => round( $today_l, 2 ),
 		'gas_l_per_h'     => round( $l_per_h, 2 ),
 		'gas_yen'         => (int) round( $gas_yen ),

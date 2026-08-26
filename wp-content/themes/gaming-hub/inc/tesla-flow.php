@@ -377,8 +377,6 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'driveGear'     => __( 'ドライブ', 'gaming-hub' ),
 			'shiftUnknown'  => __( 'シフト未取得', 'gaming-hub' ),
 			'saved'         => __( '節約', 'gaming-hub' ),
-			'gasToday'      => __( '本日', 'gaming-hub' ),
-			'gasCar'        => __( '普通車 15 km/L', 'gaming-hub' ),
 			'todayUse'      => __( '今日 使用', 'gaming-hub' ),
 			'todayBill'     => __( '今日 電気代', 'gaming-hub' ),
 			'buy'           => __( '買電', 'gaming-hub' ),
