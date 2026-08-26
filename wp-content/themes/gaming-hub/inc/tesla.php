@@ -1379,7 +1379,8 @@ function gaming_hub_tesla_cabin_energy_today() {
 /**
  * Integrate parked cabin watts between Tesla polls.
  *
- * Gaps longer than 8 minutes (sleep / errors) are skipped so we do not invent load.
+ * Gaps wider than one missed sample (sleep / errors) are skipped so we do not
+ * invent load. A 5-minute cron takes the samples; see the Tesla sampler below.
  *
  * @param int  $watts      Latest cabin watts.
  * @param bool $accumulate Whether this snapshot is parked cabin load.
@@ -1406,11 +1407,12 @@ function gaming_hub_tesla_record_cabin_energy( $watts, $accumulate ) {
 	if ( ! empty( $saved['last_on'] ) && $last_ts > 0 ) {
 		$delta = $now - $last_ts;
 		if ( $delta > 0 && $delta <= GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX ) {
-			$hours = $delta / HOUR_IN_SECONDS;
-			$saved['wh'] = (float) ( $saved['wh'] ?? 0 ) + ( $last_w * $hours );
-			$yen_per_kwh = function_exists( 'gaming_hub_tesla_electricity_yen_per_kwh' )
-				? gaming_hub_tesla_electricity_yen_per_kwh()
+			$hours       = $delta / HOUR_IN_SECONDS;
+			$yen_per_kwh = function_exists( 'gaming_hub_looop_average_rate_between' )
+				? gaming_hub_looop_average_rate_between( $last_ts, $now )
 				: 30.0;
+
+			$saved['wh']  = (float) ( $saved['wh'] ?? 0 ) + ( $last_w * $hours );
 			$saved['yen'] = (float) ( $saved['yen'] ?? 0 ) + ( $last_w / 1000.0 ) * $hours * $yen_per_kwh;
 		}
 	}
@@ -2343,3 +2345,36 @@ function gaming_hub_tesla_maybe_disconnect() {
 	gaming_hub_tesla_disconnect_local();
 }
 add_action( 'init', 'gaming_hub_tesla_maybe_disconnect', 20 );
+
+/**
+ * Sample Tesla on a schedule so the cabin and drive energy counters keep running.
+ *
+ * Those totals are integrated from the watts seen between two polls, so without
+ * this they only advance while somebody has the dashboard open — an hour of
+ * cabin load with nobody watching used to record nothing. Fetching never wakes
+ * the car and honours the asleep/error backoff, so an idle vehicle costs nothing.
+ */
+function gaming_hub_tesla_sampler_cron() {
+	if ( ! function_exists( 'gaming_hub_get_powerwall_flow_status' ) ) {
+		return;
+	}
+
+	if ( ! function_exists( 'gaming_hub_tesla_model3_is_configured' ) || ! gaming_hub_tesla_model3_is_configured() ) {
+		return;
+	}
+
+	// Not forced: the 30s flow transient has long expired at this cadence, so this
+	// still takes a fresh sample without also re-fetching weather and cost data.
+	gaming_hub_get_powerwall_flow_status();
+}
+add_action( GAMING_HUB_TESLA_SAMPLER_CRON, 'gaming_hub_tesla_sampler_cron' );
+
+/**
+ * Ensure the Tesla sampler is scheduled.
+ */
+function gaming_hub_tesla_schedule_sampler_cron() {
+	if ( ! wp_next_scheduled( GAMING_HUB_TESLA_SAMPLER_CRON ) ) {
+		wp_schedule_event( time() + 60, 'five_minutes', GAMING_HUB_TESLA_SAMPLER_CRON );
+	}
+}
+add_action( 'init', 'gaming_hub_tesla_schedule_sampler_cron' );
