@@ -131,6 +131,7 @@
 			'[data-tesla-plan-target]',
 			plan.target_soc == null ? '—' : String(Math.round(Number(plan.target_soc))) + '%'
 		);
+		setText('[data-tesla-plan-target-note]', plan.target_note || '');
 		setText(
 			'[data-tesla-plan-drive]',
 			plan.km == null ? '—' : Number(plan.km).toLocaleString(undefined, {
@@ -156,7 +157,7 @@
 		const hour = new Date().getHours();
 		const chargeW = Math.max(1, Number(plan.charge_w) || 6000);
 		const byHour = {};
-		const nextLabels = [];
+		const nextHours = [];
 		const yenByHour = [];
 
 		slots.forEach(function (slot) {
@@ -165,10 +166,26 @@
 			}
 			if (slot.date === viewDate && slot.hour != null) {
 				byHour[Number(slot.hour)] = slot;
-			} else if (slot.date && slot.date !== viewDate && slot.mode === 'charge' && slot.label) {
-				nextLabels.push(slot.label);
+			} else if (slot.date && slot.date !== viewDate && slot.mode === 'charge' && slot.hour != null) {
+				nextHours.push(Number(slot.hour));
 			}
 		});
+		nextHours.sort(function (a, b) { return a - b; });
+		const nextLabels = [];
+		if (nextHours.length) {
+			let start = nextHours[0];
+			let prev = nextHours[0];
+			for (let i = 1; i < nextHours.length; i += 1) {
+				if (nextHours[i] === prev + 1) {
+					prev = nextHours[i];
+					continue;
+				}
+				nextLabels.push(start + ':00–' + ((prev + 1) % 24 === 0 && prev === 23 ? '24' : String(prev + 1)) + ':00');
+				start = nextHours[i];
+				prev = nextHours[i];
+			}
+			nextLabels.push(start + ':00–' + ((prev + 1) % 24 === 0 && prev === 23 ? '24' : String(prev + 1)) + ':00');
+		}
 
 		const nowSlot = byHour[hour] || {};
 		const liveCharging = isLiveDay && !!(liveCharge.charging || plan.live_charging);
