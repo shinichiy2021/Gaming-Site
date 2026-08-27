@@ -1888,7 +1888,7 @@ body.home .site-header.is-scrolled {
 	object-fit: cover;
 	border-radius: 10px;
 	border: 1px solid rgba(232, 238, 246, 0.18);
-	filter: saturate(0.95);
+	filter: brightness(1.18) saturate(1.02);
 }
 
 .pw-model3-unit-photo.is-charging {
@@ -4096,6 +4096,14 @@ body.home .site-header.is-scrolled {
 .ecoflow-node.is-standby .ecoflow-node-photo {
 	filter: brightness(0.38) saturate(0.48) contrast(0.95);
 	box-shadow: none;
+}
+
+.ecoflow-node-photo-pro.tesla-photo-car {
+	filter: brightness(1.32) contrast(1.02) saturate(1.06);
+}
+
+.ecoflow-node.is-standby .ecoflow-node-photo.tesla-photo-car {
+	filter: brightness(1.32) contrast(1.02) saturate(1.06);
 }
 
 .ecoflow-node.is-standby:not(.ecoflow-node-device):not(.ecoflow-node-extra) .ecoflow-node-photo {
