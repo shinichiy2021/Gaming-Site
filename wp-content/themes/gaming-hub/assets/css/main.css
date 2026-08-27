@@ -1606,6 +1606,7 @@ body.home .site-header.is-scrolled {
 
 .tesla-photo-car {
 	border-color: var(--batt-tone, #e82127);
+	object-position: 58% 72%;
 }
 
 .tesla-shift {
