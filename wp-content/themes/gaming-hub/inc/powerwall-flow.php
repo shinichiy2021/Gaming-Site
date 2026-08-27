@@ -296,7 +296,7 @@ function gaming_hub_powerwall_flow_scripts() {
 			'images' => array(
 				'solar'     => get_template_directory_uri() . '/assets/images/tesla-solar-gaming.jpg',
 				'powerwall' => get_template_directory_uri() . '/assets/images/tesla-powerwall-gaming.jpg',
-				'model3'    => get_template_directory_uri() . '/assets/images/tesla-model3-gaming.jpg',
+				'model3'    => get_template_directory_uri() . '/assets/images/tesla-model3-gaming.jpg?ver=' . rawurlencode( (string) GAMING_HUB_VERSION ),
 				'grid'      => get_template_directory_uri() . '/assets/images/tesla-grid-gaming.jpg',
 				'home'      => get_template_directory_uri() . '/assets/images/ecoflow-room-gaming.jpg',
 			),

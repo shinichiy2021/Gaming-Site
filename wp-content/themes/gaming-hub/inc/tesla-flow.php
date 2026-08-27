@@ -348,6 +348,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
  */
 function gaming_hub_tesla_vehicle_flow_assets() {
 	$base = get_template_directory_uri() . '/assets/images/';
+	$ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) GAMING_HUB_VERSION ) : '';
 
 	return array(
 		'labels' => array(
@@ -386,11 +387,11 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'total'         => __( '合計', 'gaming-hub' ),
 		),
 		'images' => array(
-			'wall'  => $base . 'tesla-wall-connector-gaming.jpg',
-			'super' => $base . 'tesla-supercharger-gaming.jpg',
-			'tesla' => $base . 'tesla-model3-gaming.jpg',
-			'drive' => $base . 'tesla-drive-gaming.jpg',
-			'cabin' => $base . 'tesla-cabin-gaming.jpg',
+			'wall'  => $base . 'tesla-wall-connector-gaming.jpg' . $ver,
+			'super' => $base . 'tesla-supercharger-gaming.jpg' . $ver,
+			'tesla' => $base . 'tesla-model3-gaming.jpg' . $ver,
+			'drive' => $base . 'tesla-drive-gaming.jpg' . $ver,
+			'cabin' => $base . 'tesla-cabin-gaming.jpg' . $ver,
 		),
 	);
 }

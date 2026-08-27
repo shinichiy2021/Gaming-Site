@@ -105,7 +105,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 	<div class="pw-model3-unit" data-pw-model3-unit data-status="<?php echo esc_attr( (string) ( $model3['status_key'] ?? 'idle' ) ); ?>" aria-label="<?php esc_attr_e( 'Model 3 ユニット', 'gaming-hub' ); ?>">
 		<div class="pw-model3-unit-header">
 			<img
-				src="<?php echo esc_url( get_template_directory_uri() . '/assets/images/tesla-model3-gaming.jpg' ); ?>"
+				src="<?php echo esc_url( get_template_directory_uri() . '/assets/images/tesla-model3-gaming.jpg?ver=' . rawurlencode( (string) GAMING_HUB_VERSION ) ); ?>"
 				alt=""
 				class="pw-model3-unit-photo<?php echo $model3_charging ? ' is-charging' : ''; ?>"
 				data-pw-model3-photo
