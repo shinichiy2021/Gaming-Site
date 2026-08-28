@@ -1601,16 +1601,24 @@ function gaming_hub_tesla_today_share( $from, $to ) {
  * cumulative, so diffing it recovers the full amount regardless of poll gaps,
  * and each chunk is priced at the LOOOP rates that were in effect over it.
  *
- * @param int        $watts        Latest wall watts.
- * @param bool       $accumulate   Whether this snapshot is home AC charging.
- * @param float|null $energy_added Car-reported kWh added this charge session.
+ * @param int                  $watts        Latest wall watts.
+ * @param bool                 $accumulate   Whether this snapshot is home AC charging.
+ * @param float|null           $energy_added Car-reported kWh added this charge session.
+ * @param array<string, mixed> $meta         Optional soc / limit_soc for session history.
  * @return array<string, mixed>
  */
-function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added = null ) {
+function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added = null, $meta = array() ) {
 	$today = wp_date( 'Y-m-d' );
 	$now   = time();
 	$watts = max( 0, (int) round( (float) $watts ) );
 	$added = is_numeric( $energy_added ) ? max( 0.0, (float) $energy_added ) : null;
+	$meta  = is_array( $meta ) ? $meta : array();
+	$soc   = isset( $meta['soc'] ) && is_numeric( $meta['soc'] )
+		? max( 0, min( 100, (int) round( (float) $meta['soc'] ) ) )
+		: null;
+	$limit = isset( $meta['limit_soc'] ) && is_numeric( $meta['limit_soc'] )
+		? max( 0, min( 100, (int) round( (float) $meta['limit_soc'] ) ) )
+		: null;
 	$saved = get_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, array() );
 	$saved = is_array( $saved ) ? $saved : array();
 
@@ -1629,11 +1637,15 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 	$was_on     = ! empty( $saved['last_on'] );
 
 	if ( $accumulate && ! $was_on ) {
-		$saved['session_wh']       = 0.0;
-		$saved['session_yen']      = 0.0;
-		$saved['session_date']     = $today;
-		$saved['session_end_date'] = $today;
-		$last_added                = null;
+		$saved['session_wh']         = 0.0;
+		$saved['session_yen']        = 0.0;
+		$saved['session_date']       = $today;
+		$saved['session_end_date']   = $today;
+		$saved['session_start_ts']   = $now;
+		$saved['session_start_soc']  = $soc;
+		$saved['session_end_soc']    = $soc;
+		$saved['session_limit_soc']  = $limit;
+		$last_added                  = null;
 	}
 
 	$delta_kwh = 0.0;
@@ -1665,11 +1677,34 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 		$saved['session_end_date'] = $today;
 	}
 
+	if ( $accumulate ) {
+		if ( null !== $soc ) {
+			$saved['session_end_soc'] = $soc;
+		}
+		if ( null !== $limit ) {
+			$saved['session_limit_soc'] = $limit;
+		}
+		if ( empty( $saved['session_start_ts'] ) ) {
+			$saved['session_start_ts'] = $last_ts > 0 ? $last_ts : $now;
+		}
+	}
+
+	if ( $was_on && ! $accumulate && function_exists( 'gaming_hub_tesla_charge_log_archive_from_wall' ) ) {
+		gaming_hub_tesla_charge_log_archive_from_wall( $saved, $meta );
+	}
+
 	$saved['last_ts']    = $now;
 	$saved['last_w']     = $accumulate ? $watts : 0;
 	$saved['last_on']    = $accumulate;
 	$saved['added_kwh']  = $accumulate ? $added : null;
 	$saved['updated_at'] = $now;
+
+	if ( ! $accumulate ) {
+		$saved['session_start_ts']  = 0;
+		$saved['session_start_soc'] = null;
+		$saved['session_end_soc']   = null;
+		$saved['session_limit_soc'] = null;
+	}
 
 	update_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, $saved, false );
 
