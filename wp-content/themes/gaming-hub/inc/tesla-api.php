@@ -453,6 +453,125 @@ class Gaming_Hub_Tesla_Api {
 	}
 
 	/**
+	 * Paginated public charging history (Supercharger etc.).
+	 *
+	 * GET /api/1/dx/charging/history — requires vehicle_charging_cmds.
+	 * Home Wall Connector sessions are usually not included.
+	 *
+	 * @param array<string, mixed> $query Query params (vin, pageSize, pageNo, …).
+	 * @return array{data: array<int, array<string, mixed>>, raw: array<string, mixed>}|WP_Error
+	 */
+	public function get_charging_history( $query = array() ) {
+		$query = is_array( $query ) ? $query : array();
+		if ( ! isset( $query['pageSize'] ) ) {
+			$query['pageSize'] = 50;
+		}
+
+		$result = $this->fleet_request_charging(
+			'/api/1/dx/charging/history',
+			$query
+		);
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$data = array();
+		if ( isset( $result['data'] ) && is_array( $result['data'] ) ) {
+			$data = $result['data'];
+		} elseif ( isset( $result['response']['data'] ) && is_array( $result['response']['data'] ) ) {
+			$data = $result['response']['data'];
+		} elseif ( $this->is_list_array( $result ) ) {
+			$data = $result;
+		}
+
+		$out = array();
+		foreach ( $data as $row ) {
+			if ( is_array( $row ) ) {
+				$out[] = $row;
+			}
+		}
+
+		return array(
+			'data' => $out,
+			'raw'  => $result,
+		);
+	}
+
+	/**
+	 * Whether an array is a 0-indexed list.
+	 *
+	 * @param mixed $value Value.
+	 */
+	private function is_list_array( $value ) {
+		if ( ! is_array( $value ) || array() === $value ) {
+			return is_array( $value );
+		}
+
+		return array_keys( $value ) === range( 0, count( $value ) - 1 );
+	}
+
+	/**
+	 * Fleet GET that accepts either `{response:…}` or `{data:…}` bodies.
+	 *
+	 * @param string               $path  API path.
+	 * @param array<string, mixed> $query Query params.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	private function fleet_request_charging( $path, $query = array() ) {
+		if ( '' === $this->access_token ) {
+			return new WP_Error( 'tesla_missing_token', __( 'Tesla access token is not set.', 'gaming-hub' ) );
+		}
+
+		if ( '' === $this->fleet_base_url ) {
+			return new WP_Error( 'tesla_missing_fleet_url', __( 'Tesla Fleet API base URL is not configured.', 'gaming-hub' ) );
+		}
+
+		$url = $this->fleet_base_url . $path;
+		if ( ! empty( $query ) ) {
+			$url = add_query_arg( $query, $url );
+		}
+
+		$response = wp_remote_request(
+			$url,
+			array(
+				'method'    => 'GET',
+				'timeout'   => $this->timeout,
+				'sslverify' => $this->sslverify,
+				'headers'   => array(
+					'Authorization' => 'Bearer ' . $this->access_token,
+					'Content-Type'  => 'application/json',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error( 'tesla_request_failed', $response->get_error_message() );
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( $code >= 400 ) {
+			$message = is_array( $body ) && ! empty( $body['error'] )
+				? (string) $body['error']
+				: __( 'Tesla charging history request failed.', 'gaming-hub' );
+
+			return new WP_Error( 'tesla_charging_history_failed', $message, array( 'status' => $code ) );
+		}
+
+		if ( ! is_array( $body ) ) {
+			return new WP_Error( 'tesla_invalid_response', __( 'Invalid Tesla Fleet API response.', 'gaming-hub' ) );
+		}
+
+		if ( isset( $body['response'] ) && is_array( $body['response'] ) ) {
+			return $body['response'];
+		}
+
+		return $body;
+	}
+
+	/**
 	 * @param array<string, mixed>|WP_Error $response Token HTTP response.
 	 * @return array<string, mixed>|WP_Error
 	 */

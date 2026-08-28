@@ -285,6 +285,11 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	$wall_energy  = function_exists( 'gaming_hub_tesla_record_wall_energy' )
 		? gaming_hub_tesla_record_wall_energy( $wall_w_num, $wall_home, $energy_added, $wall_meta )
 		: gaming_hub_tesla_wall_energy_empty();
+	$super_on = $charging && 'supercharger' === $kind && ! $asleep;
+	$super_w_num = max( 0, (int) ( $super_w ?? 0 ) );
+	if ( function_exists( 'gaming_hub_tesla_record_super_energy' ) ) {
+		gaming_hub_tesla_record_super_energy( $super_w_num, $super_on, $energy_added, $wall_meta );
+	}
 	$wall_yen_h = $wall_home
 		? (int) round( ( $wall_w_num / 1000.0 ) * $yen_kwh )
 		: 0;

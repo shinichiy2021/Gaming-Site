@@ -26,6 +26,9 @@ define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v7_' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_OPTION', 'gaming_hub_tesla_plan_auto_v1' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_LOCK', 'gaming_hub_tesla_plan_auto_lock' );
+/** Max automatic wakes per day (AI PLAN cron). Manual ON/OFF is not limited. */
+define( 'GAMING_HUB_TESLA_WAKE_BUDGET_KEY', 'gaming_hub_tesla_wake_budget_v1' );
+define( 'GAMING_HUB_TESLA_WAKE_BUDGET_MAX', 4 );
 
 /** Measured hourly SOC, so the plan chart can show today's past hours. */
 define( 'GAMING_HUB_TESLA_SOC_LOG_OPTION', 'gaming_hub_tesla_soc_log_v1' );

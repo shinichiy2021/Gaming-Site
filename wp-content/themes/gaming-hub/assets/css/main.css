@@ -5638,6 +5638,29 @@ body.home .site-header.is-scrolled {
 	color: #00f5d4;
 }
 
+.tesla-charge-supply {
+	font-size: 0.72rem;
+	letter-spacing: 0.04em;
+	padding: 0.12rem 0.45rem;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	color: rgba(244, 241, 234, 0.82);
+}
+
+.tesla-charge-row.is-super {
+	border-color: rgba(232, 33, 39, 0.28);
+}
+
+.tesla-charge-row.is-super .tesla-charge-supply {
+	border-color: rgba(232, 33, 39, 0.4);
+	color: #ff8a8a;
+}
+
+.tesla-charge-site {
+	font-size: 0.75rem;
+	color: rgba(244, 241, 234, 0.62);
+}
+
 .tesla-charge-meta {
 	display: grid;
 	grid-template-columns: repeat(5, minmax(0, 1fr));

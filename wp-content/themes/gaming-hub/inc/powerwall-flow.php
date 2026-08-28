@@ -12,8 +12,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v21' );
-define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 30 );
+define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 2 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_POWERWALL_SOLAR_POLL_MS', HOUR_IN_SECONDS * 1000 );
+/** Browser refresh cadence for Tesla tag (keep ≥ Tesla poll TTLs to limit Fleet Data spend). */
+define( 'GAMING_HUB_TESLA_BROWSER_POLL_MS', 5 * MINUTE_IN_SECONDS * 1000 );
 
 /**
  * Build a time-of-day demo profile for the flow diagram.
@@ -237,7 +239,9 @@ add_action( 'rest_api_init', 'gaming_hub_register_powerwall_flow_rest_route' );
  * REST callback for Powerwall flow refresh.
  */
 function gaming_hub_rest_powerwall_flow() {
-	$status = gaming_hub_get_powerwall_flow_status( true );
+	// Do not force-refresh: reuse the short flow cache and Tesla snapshot TTLs
+	// so an open dashboard does not burn Fleet Data every few seconds.
+	$status = gaming_hub_get_powerwall_flow_status( false );
 
 	return new WP_REST_Response(
 		array(
@@ -323,7 +327,9 @@ function gaming_hub_powerwall_flow_scripts() {
 		'gamingHubPowerwall',
 		array(
 			'refreshUrl'   => rest_url( 'gaming-hub/v1/powerwall/flow' ),
-			'interval'     => GAMING_HUB_POWERWALL_FLOW_CACHE_TTL * 1000,
+			'interval'     => defined( 'GAMING_HUB_TESLA_BROWSER_POLL_MS' )
+				? (int) GAMING_HUB_TESLA_BROWSER_POLL_MS
+				: ( GAMING_HUB_POWERWALL_FLOW_CACHE_TTL * 1000 ),
 			'solarInterval'=> GAMING_HUB_POWERWALL_SOLAR_POLL_MS,
 		)
 	);
