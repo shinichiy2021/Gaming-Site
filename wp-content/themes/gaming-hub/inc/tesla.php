@@ -24,6 +24,7 @@ define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 2 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 2 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 2 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_STALE_CHARGE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_TAG_SLUG', 'tesla' );
 
 /**
@@ -1897,6 +1898,10 @@ function gaming_hub_tesla_charge_session_finished( $state, $power_w, $soc, $limi
 	$limit = max( 0, min( 100, (int) $limit ) );
 	$power_w = max( 0, (int) $power_w );
 
+	if ( $power_w < 80 && $soc >= $limit - 2 ) {
+		return true;
+	}
+
 	if ( $power_w < 80 && $soc >= max( 97, $limit - 1 ) ) {
 		return true;
 	}
@@ -1955,6 +1960,15 @@ function gaming_hub_tesla_reconcile_cached_charging( array $model3, $asleep = fa
 	$time_to_full = isset( $model3['time_to_full_charge_hours'] ) && is_numeric( $model3['time_to_full_charge_hours'] )
 		? (float) $model3['time_to_full_charge_hours']
 		: null;
+	$age = time() - (int) ( $model3['fetched_at'] ?? 0 );
+	$ttl = gaming_hub_tesla_snapshot_ttl( $model3 );
+	$stale = $age > max( $ttl, GAMING_HUB_TESLA_STALE_CHARGE_TTL );
+
+	// Old snapshots still marked charging keep stale watts/ETA from the live session.
+	if ( $stale ) {
+		$watts        = 0;
+		$time_to_full = 0.0;
+	}
 
 	if ( ! gaming_hub_tesla_charge_session_finished( $state, $watts, $soc, $limit, $time_to_full ) ) {
 		if ( $asleep ) {
@@ -1990,6 +2004,9 @@ function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false )
 
 	if ( $cleared ) {
 		gaming_hub_tesla_store_model3( $cached );
+		if ( defined( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY' ) ) {
+			delete_transient( GAMING_HUB_POWERWALL_FLOW_CACHE_KEY );
+		}
 	}
 
 	return $cached;

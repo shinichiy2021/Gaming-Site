@@ -196,7 +196,13 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		);
 	}
 
-	$model3   = gaming_hub_powerwall_model3_present( $model3 );
+	$model3 = gaming_hub_powerwall_model3_present( $model3 );
+	if ( 'tesla' === $source && function_exists( 'gaming_hub_tesla_finish_cached_model3' ) ) {
+		$model3 = gaming_hub_tesla_finish_cached_model3(
+			$model3,
+			! empty( $model3['asleep'] )
+		);
+	}
 	$charging = ! empty( $model3['is_charging'] );
 	$asleep   = ! $charging && ! empty( $model3['asleep'] );
 	$kind     = (string) ( $model3['supply_kind'] ?? ( $charging ? 'home' : 'none' ) );
