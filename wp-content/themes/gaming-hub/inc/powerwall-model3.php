@@ -39,6 +39,9 @@ define( 'GAMING_HUB_TESLA_SAMPLER_CRON', 'gaming_hub_tesla_sampler' );
 /** Home AC (普通充電) watt-hours and yen accumulated for today. */
 define( 'GAMING_HUB_TESLA_WALL_ENERGY_OPTION', 'gaming_hub_tesla_wall_energy_v1' );
 
+/** Supercharger session watt-hours (no LOOOP pricing). */
+define( 'GAMING_HUB_TESLA_SUPER_ENERGY_OPTION', 'gaming_hub_tesla_super_energy_v1' );
+
 /**
  * Daily energy to replenish after 30 km driving.
  */

@@ -19,10 +19,10 @@ define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' )
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
 define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v5' );
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
-define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 5 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 2 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 2 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 2 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 15 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 10 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 30 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STALE_CHARGE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_TAG_SLUG', 'tesla' );
@@ -1154,6 +1154,35 @@ function gaming_hub_tesla_charge_command_error_message( WP_Error $error ) {
 }
 
 /**
+ * Consume one slot from the daily automatic wake budget.
+ *
+ * @return bool False when the daily cap is exhausted.
+ */
+function gaming_hub_tesla_consume_wake_budget() {
+	$max = defined( 'GAMING_HUB_TESLA_WAKE_BUDGET_MAX' ) ? (int) GAMING_HUB_TESLA_WAKE_BUDGET_MAX : 4;
+	$key = defined( 'GAMING_HUB_TESLA_WAKE_BUDGET_KEY' ) ? GAMING_HUB_TESLA_WAKE_BUDGET_KEY : 'gaming_hub_tesla_wake_budget_v1';
+	$today = wp_date( 'Y-m-d' );
+	$saved = get_option( $key, array() );
+	$saved = is_array( $saved ) ? $saved : array();
+
+	if ( (string) ( $saved['date'] ?? '' ) !== $today ) {
+		$saved = array(
+			'date'  => $today,
+			'count' => 0,
+		);
+	}
+
+	if ( (int) ( $saved['count'] ?? 0 ) >= $max ) {
+		return false;
+	}
+
+	$saved['count'] = (int) ( $saved['count'] ?? 0 ) + 1;
+	update_option( $key, $saved, false );
+
+	return true;
+}
+
+/**
  * Send a signed Tesla vehicle command, waking the car once if it is asleep.
  *
  * @param string               $command  charge_start|charge_stop|set_charge_limit.
@@ -1193,6 +1222,14 @@ function gaming_hub_tesla_send_signed_command( $command, $payload = array(), $re
 
 	$result = $api->send_vehicle_command( $vin, $command, $payload );
 	if ( is_wp_error( $result ) && 'tesla_vehicle_asleep' === $result->get_error_code() ) {
+		// Cron auto-apply uses wait_wake=true; cap daily wakes to limit Fleet Wake spend.
+		if ( $wait_wake && function_exists( 'gaming_hub_tesla_consume_wake_budget' ) && ! gaming_hub_tesla_consume_wake_budget() ) {
+			return new WP_Error(
+				'tesla_wake_budget',
+				__( '本日の自動ウェイク上限に達しました。車はスリープのままです。', 'gaming-hub' )
+			);
+		}
+
 		$wake = $api->wake_vehicle( $vin );
 		if ( is_wp_error( $wake ) ) {
 			return new WP_Error( $wake->get_error_code(), gaming_hub_tesla_charge_command_error_message( $wake ) );
@@ -1645,6 +1682,7 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 		$saved['session_start_soc']  = $soc;
 		$saved['session_end_soc']    = $soc;
 		$saved['session_limit_soc']  = $limit;
+		$saved['session_peak_w']     = $watts;
 		$last_added                  = null;
 	}
 
@@ -1687,6 +1725,7 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 		if ( empty( $saved['session_start_ts'] ) ) {
 			$saved['session_start_ts'] = $last_ts > 0 ? $last_ts : $now;
 		}
+		$saved['session_peak_w'] = max( (int) ( $saved['session_peak_w'] ?? 0 ), $watts );
 	}
 
 	if ( $was_on && ! $accumulate && function_exists( 'gaming_hub_tesla_charge_log_archive_from_wall' ) ) {
@@ -1704,11 +1743,126 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 		$saved['session_start_soc'] = null;
 		$saved['session_end_soc']   = null;
 		$saved['session_limit_soc'] = null;
+		$saved['session_peak_w']    = 0;
 	}
 
 	update_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, $saved, false );
 
 	return gaming_hub_tesla_wall_energy_shape( $saved, $today, $accumulate );
+}
+
+/**
+ * Track Supercharger energy between Tesla polls (kWh only — no LOOOP pricing).
+ *
+ * @param int                  $watts        Latest Supercharger watts.
+ * @param bool                 $accumulate   Whether this snapshot is Supercharging.
+ * @param float|null           $energy_added Car-reported kWh added this charge session.
+ * @param array<string, mixed> $meta         Optional soc / limit_soc for session history.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_record_super_energy( $watts, $accumulate, $energy_added = null, $meta = array() ) {
+	if ( ! defined( 'GAMING_HUB_TESLA_SUPER_ENERGY_OPTION' ) ) {
+		return array();
+	}
+
+	$today = wp_date( 'Y-m-d' );
+	$now   = time();
+	$watts = max( 0, (int) round( (float) $watts ) );
+	$added = is_numeric( $energy_added ) ? max( 0.0, (float) $energy_added ) : null;
+	$meta  = is_array( $meta ) ? $meta : array();
+	$soc   = isset( $meta['soc'] ) && is_numeric( $meta['soc'] )
+		? max( 0, min( 100, (int) round( (float) $meta['soc'] ) ) )
+		: null;
+	$limit = isset( $meta['limit_soc'] ) && is_numeric( $meta['limit_soc'] )
+		? max( 0, min( 100, (int) round( (float) $meta['limit_soc'] ) ) )
+		: null;
+	$saved = get_option( GAMING_HUB_TESLA_SUPER_ENERGY_OPTION, array() );
+	$saved = is_array( $saved ) ? $saved : array();
+
+	if ( (string) ( $saved['date'] ?? '' ) !== $today ) {
+		$saved['date'] = $today;
+		$saved['wh']   = 0.0;
+	}
+
+	$last_ts    = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
+	$last_w     = isset( $saved['last_w'] ) ? max( 0, (int) $saved['last_w'] ) : 0;
+	$last_added = isset( $saved['added_kwh'] ) && is_numeric( $saved['added_kwh'] ) ? (float) $saved['added_kwh'] : null;
+	$max_gap    = defined( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX' ) ? GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX : ( 8 * MINUTE_IN_SECONDS );
+	$was_on     = ! empty( $saved['last_on'] );
+
+	if ( $accumulate && ! $was_on ) {
+		$saved['session_wh']        = 0.0;
+		$saved['session_yen']       = 0.0;
+		$saved['session_date']      = $today;
+		$saved['session_end_date']  = $today;
+		$saved['session_start_ts']  = $now;
+		$saved['session_start_soc'] = $soc;
+		$saved['session_end_soc']   = $soc;
+		$saved['session_limit_soc'] = $limit;
+		$saved['session_peak_w']    = $watts;
+		$last_added                 = null;
+	}
+
+	$delta_kwh = 0.0;
+	if ( null !== $added && ( $accumulate || $was_on ) ) {
+		$delta_kwh = ( null !== $last_added && $added >= $last_added )
+			? $added - $last_added
+			: $added;
+	} elseif ( $was_on && $last_ts > 0 && $last_w > 0 ) {
+		$gap = $now - $last_ts;
+		if ( $gap > 0 && $gap <= $max_gap ) {
+			$delta_kwh = ( $last_w / 1000.0 ) * ( $gap / HOUR_IN_SECONDS );
+		}
+	}
+
+	if ( $delta_kwh > 0 ) {
+		$share = gaming_hub_tesla_today_share(
+			( $last_ts > 0 && $last_ts < $now ) ? $last_ts : $now - MINUTE_IN_SECONDS,
+			$now
+		);
+		$saved['wh']               = (float) ( $saved['wh'] ?? 0 ) + ( $delta_kwh * 1000 * $share );
+		$saved['session_wh']       = (float) ( $saved['session_wh'] ?? 0 ) + ( $delta_kwh * 1000 );
+		$saved['session_end_date'] = $today;
+	}
+
+	if ( $accumulate ) {
+		if ( null !== $soc ) {
+			$saved['session_end_soc'] = $soc;
+		}
+		if ( null !== $limit ) {
+			$saved['session_limit_soc'] = $limit;
+		}
+		if ( empty( $saved['session_start_ts'] ) ) {
+			$saved['session_start_ts'] = $last_ts > 0 ? $last_ts : $now;
+		}
+		$saved['session_peak_w'] = max( (int) ( $saved['session_peak_w'] ?? 0 ), $watts );
+	}
+
+	if ( $was_on && ! $accumulate && function_exists( 'gaming_hub_tesla_charge_log_archive_session' ) ) {
+		gaming_hub_tesla_charge_log_archive_session( $saved, $meta, 'supercharger' );
+	}
+
+	$saved['last_ts']    = $now;
+	$saved['last_w']     = $accumulate ? $watts : 0;
+	$saved['last_on']    = $accumulate;
+	$saved['added_kwh']  = $accumulate ? $added : null;
+	$saved['updated_at'] = $now;
+
+	if ( ! $accumulate ) {
+		$saved['session_start_ts']  = 0;
+		$saved['session_start_soc'] = null;
+		$saved['session_end_soc']   = null;
+		$saved['session_limit_soc'] = null;
+		$saved['session_peak_w']    = 0;
+	}
+
+	update_option( GAMING_HUB_TESLA_SUPER_ENERGY_OPTION, $saved, false );
+
+	return array(
+		'session_kwh' => round( max( 0, (float) ( $saved['session_wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'today_kwh'   => round( max( 0, (float) ( $saved['wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'active'      => (bool) $accumulate,
+	);
 }
 
 /**
@@ -2628,15 +2782,43 @@ function gaming_hub_tesla_sampler_cron() {
 	if ( function_exists( 'gaming_hub_tesla_plan_auto_apply' ) ) {
 		gaming_hub_tesla_plan_auto_apply( is_array( $status ) ? $status : array() );
 	}
+	if ( function_exists( 'gaming_hub_tesla_charge_log_sync_from_fleet' ) ) {
+		gaming_hub_tesla_charge_log_sync_from_fleet();
+	}
 }
 add_action( GAMING_HUB_TESLA_SAMPLER_CRON, 'gaming_hub_tesla_sampler_cron' );
 
 /**
- * Ensure the Tesla sampler is scheduled.
+ * Ensure the Tesla sampler is scheduled (15 minutes — Fleet Data thrift).
  */
 function gaming_hub_tesla_schedule_sampler_cron() {
-	if ( ! wp_next_scheduled( GAMING_HUB_TESLA_SAMPLER_CRON ) ) {
-		wp_schedule_event( time() + 60, 'five_minutes', GAMING_HUB_TESLA_SAMPLER_CRON );
+	$hook = GAMING_HUB_TESLA_SAMPLER_CRON;
+	$next = wp_next_scheduled( $hook );
+	if ( $next ) {
+		$schedule = wp_get_schedule( $hook );
+		if ( 'fifteen_minutes' === $schedule ) {
+			return;
+		}
+		wp_unschedule_event( $next, $hook );
 	}
+	wp_schedule_event( time() + 90, 'fifteen_minutes', $hook );
 }
 add_action( 'init', 'gaming_hub_tesla_schedule_sampler_cron' );
+
+/**
+ * Register a 15-minute cron cadence for Tesla sampling.
+ *
+ * @param array<string, array<string, mixed>> $schedules Schedules.
+ * @return array<string, array<string, mixed>>
+ */
+function gaming_hub_tesla_cron_schedules( $schedules ) {
+	if ( ! isset( $schedules['fifteen_minutes'] ) ) {
+		$schedules['fifteen_minutes'] = array(
+			'interval' => 15 * MINUTE_IN_SECONDS,
+			'display'  => 'Every 15 minutes',
+		);
+	}
+
+	return $schedules;
+}
+add_filter( 'cron_schedules', 'gaming_hub_tesla_cron_schedules' );

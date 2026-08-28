@@ -21,8 +21,8 @@
 		return Number(value).toFixed(2) + ' kWh';
 	}
 
-	function formatYen(value) {
-		if (value == null || value === '') {
+	function formatYen(value, known) {
+		if (!known || value == null || value === '') {
 			return '—';
 		}
 		return Math.round(Number(value)).toLocaleString() + ' 円';
@@ -42,26 +42,48 @@
 		}
 	}
 
+	function lastMeta(session) {
+		if (session.yen_known) {
+			return formatRate(session.yen_per_kwh);
+		}
+		if (session.supply === 'supercharger' && session.peak_w) {
+			return Math.round(Number(session.peak_w)).toLocaleString() + ' W';
+		}
+		return formatRate(session.yen_per_kwh);
+	}
+
 	function rowHtml(session, active) {
+		const isSuper = session.supply === 'supercharger';
 		const limit = session.limit_soc
 			? '<span class="tesla-charge-limit">' + esc('上限 ' + session.limit_soc + '%') + '</span>'
 			: '';
 		const badge = active
 			? '<span class="tesla-charge-badge">' + esc('進行中') + '</span>'
 			: '';
+		const supply = '<span class="tesla-charge-supply">' + esc(session.supply_label || (isSuper ? '急速充電' : '自宅充電')) + '</span>';
+		const site = session.site_name
+			? '<span class="tesla-charge-site">' + esc(session.site_name) + '</span>'
+			: '';
 		return (
-			'<li class="tesla-charge-row' + (active ? ' is-active' : '') + '"' +
-			(active ? ' data-tesla-charge-current' : '') + '>' +
+			'<li class="tesla-charge-row' +
+			(active ? ' is-active' : '') +
+			(isSuper ? ' is-super' : '') +
+			'"' +
+			(active ? ' data-tesla-charge-current' : '') +
+			'>' +
 			'<div class="tesla-charge-when">' +
 			'<strong>' + esc(session.when_label || (active ? '充電中' : '—')) + '</strong>' +
-			badge + limit +
+			badge +
+			supply +
+			site +
+			limit +
 			'</div>' +
 			'<div class="tesla-charge-meta">' +
 			'<span>' + esc(session.range_label || '—') + '</span>' +
 			'<span>' + esc(session.duration_label || '—') + '</span>' +
 			'<span>' + esc(formatKwh(session.kwh)) + '</span>' +
-			'<span>' + esc(formatYen(session.yen)) + '</span>' +
-			'<span>' + esc(formatRate(session.yen_per_kwh)) + '</span>' +
+			'<span>' + esc(formatYen(session.yen, !!session.yen_known)) + '</span>' +
+			'<span>' + esc(lastMeta(session)) + '</span>' +
 			'</div>' +
 			'</li>'
 		);
@@ -88,9 +110,13 @@
 		const current = data.current || null;
 		const sessions = Array.isArray(data.sessions) ? data.sessions : [];
 
-		setText('[data-tesla-charge-now]', current ? '充電中' : '待機');
+		let nowLabel = '待機';
 		if (current) {
-			const detail = [current.range_label || '', current.kwh != null ? Number(current.kwh).toFixed(2) + ' kWh' : '']
+			nowLabel = current.supply === 'supercharger' ? '急速充電中' : '充電中';
+		}
+		setText('[data-tesla-charge-now]', nowLabel);
+		if (current) {
+			const detail = [current.supply_label || '', current.range_label || '', current.kwh != null ? Number(current.kwh).toFixed(2) + ' kWh' : '']
 				.filter(Boolean)
 				.join(' · ');
 			setText('[data-tesla-charge-now-detail]', detail || '—');
@@ -99,8 +125,21 @@
 		}
 
 		setText('[data-tesla-charge-count]', String(totals.count || 0));
+		setText(
+			'[data-tesla-charge-count-detail]',
+			'自宅 ' + (totals.home_count || 0) + ' · 急速 ' + (totals.super_count || 0)
+		);
 		setText('[data-tesla-charge-kwh]', formatKwh(totals.kwh || 0));
-		setText('[data-tesla-charge-yen]', formatYen(totals.yen || 0));
+		setText(
+			'[data-tesla-charge-kwh-detail]',
+			'自宅 ' + Number(totals.home_kwh || 0).toFixed(2) + ' · 急速 ' + Number(totals.super_kwh || 0).toFixed(2)
+		);
+		setText('[data-tesla-charge-yen]', formatYen(totals.yen || 0, true));
+		setText(
+			'[data-tesla-charge-yen-detail]',
+			'自宅 ' + Math.round(Number(totals.home_yen || 0)).toLocaleString() +
+			' · 急速 ' + Math.round(Number(totals.super_yen || 0)).toLocaleString()
+		);
 
 		const list = root.querySelector('[data-tesla-charge-list]');
 		if (!list) {
@@ -114,7 +153,7 @@
 		if (!sessions.length && !current) {
 			html +=
 				'<li class="tesla-charge-empty" data-tesla-charge-empty>' +
-				esc('この月の充電セッションはまだありません。次回の自宅充電から記録されます。') +
+				esc('この月の充電セッションはまだありません。次回の自宅／急速充電、または Fleet 履歴の同期から記録されます。') +
 				'</li>';
 		}
 		sessions.forEach(function (session) {
