@@ -1879,6 +1879,123 @@ function gaming_hub_tesla_pack_kwh( array $charge_state, $soc ) {
 }
 
 /**
+ * Whether a Tesla charge session has finished (plugged at limit, Complete, etc.).
+ *
+ * @param string     $state              Tesla charging_state.
+ * @param int        $power_w            Live charge watts.
+ * @param int        $soc                Battery percent.
+ * @param int        $limit              charge_limit_soc.
+ * @param float|null $time_to_full_hours time_to_full_charge from Tesla, if known.
+ */
+function gaming_hub_tesla_charge_session_finished( $state, $power_w, $soc, $limit, $time_to_full_hours = null ) {
+	$state = (string) $state;
+	if ( in_array( $state, array( 'Complete', 'Stopped', 'Disconnected', 'NoPower' ), true ) ) {
+		return true;
+	}
+
+	$soc   = max( 0, min( 100, (int) $soc ) );
+	$limit = max( 0, min( 100, (int) $limit ) );
+	$power_w = max( 0, (int) $power_w );
+
+	if ( $power_w < 80 && $soc >= max( 97, $limit - 1 ) ) {
+		return true;
+	}
+
+	if ( $power_w < 80 && null !== $time_to_full_hours && $time_to_full_hours <= 0 && $soc >= $limit - 2 ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Live charge power from Tesla charge_state.
+ *
+ * @param array<string, mixed> $charge_state Tesla charge_state.
+ */
+function gaming_hub_tesla_is_actively_charging( array $charge_state ) {
+	$state = (string) ( $charge_state['charging_state'] ?? '' );
+	if ( ! in_array( $state, array( 'Charging', 'Starting' ), true ) ) {
+		return false;
+	}
+
+	$power_w = gaming_hub_tesla_charge_watts( $charge_state );
+	$battery_level = $charge_state['battery_level'] ?? $charge_state['usable_battery_level'] ?? null;
+	$soc = null !== $battery_level && is_numeric( $battery_level )
+		? max( 0, min( 100, (int) round( (float) $battery_level ) ) )
+		: 0;
+	$limit = max( 0, min( 100, (int) round( $charge_state['charge_limit_soc'] ?? 100 ) ) );
+	$time_to_full = isset( $charge_state['time_to_full_charge'] ) && is_numeric( $charge_state['time_to_full_charge'] )
+		? (float) $charge_state['time_to_full_charge']
+		: null;
+
+	return ! gaming_hub_tesla_charge_session_finished( $state, $power_w, $soc, $limit, $time_to_full );
+}
+
+/**
+ * Drop stale is_charging on cached snapshots (e.g. asleep after taper finished).
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ * @param bool                 $asleep Vehicle is asleep right now.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_reconcile_cached_charging( array $model3, $asleep = false ) {
+	if ( empty( $model3['is_charging'] ) ) {
+		if ( $asleep ) {
+			$model3['asleep'] = true;
+		}
+
+		return $model3;
+	}
+
+	$state = (string) ( $model3['charging_state_raw'] ?? '' );
+	$watts = max( 0, (int) ( $model3['watts'] ?? 0 ) );
+	$soc   = max( 0, min( 100, (int) ( $model3['battery_percent'] ?? 0 ) ) );
+	$limit = max( 0, min( 100, (int) ( $model3['charge_limit_percent'] ?? 100 ) ) );
+	$time_to_full = isset( $model3['time_to_full_charge_hours'] ) && is_numeric( $model3['time_to_full_charge_hours'] )
+		? (float) $model3['time_to_full_charge_hours']
+		: null;
+
+	if ( ! gaming_hub_tesla_charge_session_finished( $state, $watts, $soc, $limit, $time_to_full ) ) {
+		if ( $asleep ) {
+			$model3['asleep'] = false;
+		}
+
+		return $model3;
+	}
+
+	$model3['is_charging']               = false;
+	$model3['watts']                     = 0;
+	$model3['charge_rate_kw']            = 0;
+	$model3['time_to_full_charge_hours'] = 0;
+	$model3['minutes_to_full']           = 0;
+	$model3['vehicle_mode']              = 'idle';
+	$model3['charge_state']              = gaming_hub_tesla_model3_hud_state( $state ? $state : 'Complete', false );
+	$model3['asleep']                    = (bool) $asleep;
+
+	return $model3;
+}
+
+/**
+ * Reconcile then optionally persist a corrected cached snapshot.
+ *
+ * @param array<string, mixed> $cached Cached Model 3 payload.
+ * @param bool                 $asleep Vehicle is asleep right now.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false ) {
+	$before  = $cached;
+	$cached  = gaming_hub_tesla_reconcile_cached_charging( $cached, $asleep );
+	$cleared = ! empty( $before['is_charging'] ) && empty( $cached['is_charging'] );
+
+	if ( $cleared ) {
+		gaming_hub_tesla_store_model3( $cached );
+	}
+
+	return $cached;
+}
+
+/**
  * Map Tesla vehicle_data to dashboard model3 payload.
  *
  * @param array<string, mixed> $data Tesla vehicle_data response.
@@ -1906,7 +2023,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		|| array_key_exists( 'shift_state', $drive_state );
 
 	$state    = (string) ( $charge_state['charging_state'] ?? '' );
-	$charging = in_array( $state, array( 'Charging', 'Starting' ), true );
+	$charging = gaming_hub_tesla_is_actively_charging( $charge_state );
 	$power_w  = $charging ? gaming_hub_tesla_charge_watts( $charge_state ) : 0;
 
 	$battery_level = $charge_state['battery_level'] ?? $charge_state['usable_battery_level'] ?? null;
@@ -2009,6 +2126,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'battery_kwh_nominal'       => $pack_kwh['full_kwh'],
 			'battery_kwh_estimate'      => $pack_kwh['remain_kwh'],
 			'is_charging'               => $charging,
+			'charging_state_raw'        => $state,
 			'charge_state'              => gaming_hub_tesla_model3_hud_state( $state, $charging ),
 			'watts'                     => $power_w,
 			'charge_rate_kw'            => $charging ? round( $power_w / 1000, 1 ) : 0,
@@ -2066,9 +2184,10 @@ function gaming_hub_fetch_tesla_model3_status() {
 	if ( '' !== $skip_reason ) {
 		$keep_charging = is_array( $cached ) && ! empty( $cached['is_charging'] );
 		if ( $cached && ( ! $keep_charging || 'error' === $skip_reason ) ) {
-			$cached['asleep'] = ( 'asleep' === $skip_reason ) && ! $keep_charging;
-
-			return $cached;
+			return gaming_hub_tesla_finish_cached_model3(
+				$cached,
+				'asleep' === $skip_reason && ! $keep_charging
+			);
 		}
 
 		if ( ! $cached ) {
@@ -2084,7 +2203,7 @@ function gaming_hub_fetch_tesla_model3_status() {
 	if ( is_array( $cached ) ) {
 		$age = time() - (int) ( $cached['fetched_at'] ?? 0 );
 		if ( $age >= 0 && $age < gaming_hub_tesla_snapshot_ttl( $cached ) ) {
-			return $cached;
+			return gaming_hub_tesla_finish_cached_model3( $cached );
 		}
 	}
 
@@ -2095,7 +2214,7 @@ function gaming_hub_fetch_tesla_model3_status() {
 		gaming_hub_tesla_mark_api_skip( GAMING_HUB_TESLA_ERROR_SKIP_TTL, 'error' );
 
 		if ( $cached ) {
-			return $cached;
+			return gaming_hub_tesla_finish_cached_model3( $cached );
 		}
 
 		return $api;
@@ -2133,9 +2252,7 @@ function gaming_hub_fetch_tesla_model3_status() {
 		);
 
 		if ( $cached ) {
-			$cached['asleep'] = $asleep && empty( $cached['is_charging'] );
-
-			return $cached;
+			return gaming_hub_tesla_finish_cached_model3( $cached, $asleep );
 		}
 
 		return $data;
