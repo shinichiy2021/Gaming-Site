@@ -278,7 +278,6 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 		'ecoflow-node-battery',
 		'ecoflow-node-device',
 		'is-hero',
-		driveOn || regenOn ? 'is-driving' : '',
 		charging || regenOn ? 'is-charging' : '',
 		! charging && ! regenOn && driveOn ? 'is-discharging' : '',
 		teslaActive ? 'is-active' : 'is-standby',
@@ -332,16 +331,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 					>
 						<div className="ecoflow-node-art" style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }>
 							{ images.tesla ? (
-								<div className="tesla-car-stage">
-									<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
-									<span className="tesla-car-fx" aria-hidden="true">
-										<span className="tesla-car-headlight tesla-car-headlight-left" />
-										<span className="tesla-car-headlight tesla-car-headlight-right" />
-										<span className="tesla-car-wheel">
-											<span className="tesla-car-wheel-spokes" />
-										</span>
-									</span>
-								</div>
+								<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
 							) : null }
 							{ hasSoc ? <PhoneBattery percent={ soc } charging={ charging || regenOn } /> : null }
 						</div>
