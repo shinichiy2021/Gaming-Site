@@ -276,8 +276,14 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	$energy_added = isset( $model3['charge_energy_added'] ) && is_numeric( $model3['charge_energy_added'] )
 		? max( 0, (float) $model3['charge_energy_added'] )
 		: null;
+	$wall_meta = array(
+		'soc'       => $soc,
+		'limit_soc' => isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
+			? (int) $model3['charge_limit_percent']
+			: null,
+	);
 	$wall_energy  = function_exists( 'gaming_hub_tesla_record_wall_energy' )
-		? gaming_hub_tesla_record_wall_energy( $wall_w_num, $wall_home, $energy_added )
+		? gaming_hub_tesla_record_wall_energy( $wall_w_num, $wall_home, $energy_added, $wall_meta )
 		: gaming_hub_tesla_wall_energy_empty();
 	$wall_yen_h = $wall_home
 		? (int) round( ( $wall_w_num / 1000.0 ) * $yen_kwh )

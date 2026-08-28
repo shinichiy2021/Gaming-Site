@@ -5588,6 +5588,82 @@ body.home .site-header.is-scrolled {
 	grid-template-columns: 34px minmax(0, 1fr) 42px;
 }
 
+.tesla-charge-list {
+	list-style: none;
+	margin: 0.85rem 0 0;
+	padding: 0;
+	display: grid;
+	gap: 0.55rem;
+}
+
+.tesla-charge-row {
+	display: grid;
+	gap: 0.45rem;
+	padding: 0.75rem 0.9rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: var(--radius);
+	background: rgba(10, 8, 18, 0.72);
+}
+
+.tesla-charge-row.is-active {
+	border-color: rgba(0, 245, 212, 0.35);
+	box-shadow: inset 0 0 0 1px rgba(0, 245, 212, 0.12);
+}
+
+.tesla-charge-when {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.45rem 0.65rem;
+}
+
+.tesla-charge-when strong {
+	font-family: var(--font-display);
+	font-size: 0.98rem;
+	color: #f4f1ea;
+}
+
+.tesla-charge-badge,
+.tesla-charge-limit {
+	font-size: 0.72rem;
+	letter-spacing: 0.04em;
+	padding: 0.12rem 0.45rem;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	color: rgba(244, 241, 234, 0.78);
+}
+
+.tesla-charge-badge {
+	border-color: rgba(0, 245, 212, 0.35);
+	color: #00f5d4;
+}
+
+.tesla-charge-meta {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 0.35rem;
+	font-size: 0.82rem;
+	color: rgba(244, 241, 234, 0.78);
+}
+
+.tesla-charge-meta span {
+	min-width: 0;
+}
+
+.tesla-charge-empty {
+	padding: 1rem 0.9rem;
+	border: 1px dashed rgba(255, 255, 255, 0.14);
+	border-radius: var(--radius);
+	color: rgba(244, 241, 234, 0.62);
+	font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+	.tesla-charge-meta {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
 .ecoflow-plan-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
