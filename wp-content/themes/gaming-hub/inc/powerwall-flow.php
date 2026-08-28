@@ -122,7 +122,14 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 				? gaming_hub_tesla_cached_model3()
 				: null;
 			if ( is_array( $cached ) ) {
-				$cached['asleep']        = ! empty( $cached['asleep'] ) && empty( $cached['is_charging'] );
+				if ( function_exists( 'gaming_hub_tesla_finish_cached_model3' ) ) {
+					$cached = gaming_hub_tesla_finish_cached_model3(
+						$cached,
+						! empty( $cached['asleep'] )
+					);
+				} else {
+					$cached['asleep'] = ! empty( $cached['asleep'] ) && empty( $cached['is_charging'] );
+				}
 				$status['model3']        = $cached;
 				$status['model3_source'] = 'tesla';
 				$status                  = gaming_hub_powerwall_recalc_flow_load( $status );
