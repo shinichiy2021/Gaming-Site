@@ -1614,6 +1614,8 @@ body.home .site-header.is-scrolled {
 	position: relative;
 	display: block;
 	line-height: 0;
+	width: 188px;
+	height: 188px;
 }
 
 .tesla-car-fx {
@@ -1639,6 +1641,7 @@ body.home .site-header.is-scrolled {
 .tesla-car-headlight {
 	position: absolute;
 	border-radius: 50%;
+	transform: translate(-50%, -50%);
 	background: radial-gradient(
 		circle,
 		rgba(255, 252, 235, 0.98) 0%,
@@ -1647,52 +1650,49 @@ body.home .site-header.is-scrolled {
 		transparent 78%
 	);
 	box-shadow:
-		0 0 10px rgba(255, 244, 190, 0.95),
-		0 0 22px rgba(255, 220, 120, 0.55);
+		0 0 8px rgba(255, 244, 190, 0.95),
+		0 0 16px rgba(255, 220, 120, 0.45);
 	animation: tesla-headlight-pulse 2.2s ease-in-out infinite;
 }
 
 .tesla-car-headlight::after {
 	content: '';
 	position: absolute;
-	top: 42%;
-	left: 18%;
-	width: 180%;
-	height: 120%;
+	top: 54%;
+	left: 62%;
+	width: 130%;
+	height: 70%;
 	background: linear-gradient(
-		118deg,
-		rgba(255, 248, 210, 0.55) 0%,
-		rgba(255, 236, 170, 0.22) 38%,
-		transparent 72%
+		108deg,
+		rgba(255, 248, 210, 0.42) 0%,
+		rgba(255, 236, 170, 0.16) 42%,
+		transparent 74%
 	);
 	transform-origin: left center;
 	filter: blur(1px);
 }
 
 .tesla-car-headlight-left {
-	left: 33%;
-	top: 40%;
-	width: 15%;
-	height: 10%;
+	left: 41.5%;
+	top: 51.5%;
+	width: 10.5%;
+	height: 7%;
 }
 
 .tesla-car-headlight-right {
-	left: 45%;
-	top: 38%;
-	width: 13%;
-	height: 9%;
-	opacity: 0.82;
+	display: none;
 }
 
 .tesla-car-wheel {
 	position: absolute;
-	left: 10%;
-	bottom: 21%;
-	width: 27%;
+	left: 24.5%;
+	bottom: 29%;
+	width: 20%;
 	aspect-ratio: 1;
 	border-radius: 50%;
 	overflow: hidden;
-	mask-image: radial-gradient(circle, #000 58%, transparent 72%);
+	transform: translate(-50%, 50%);
+	mask-image: radial-gradient(circle, #000 50%, transparent 64%);
 }
 
 .tesla-car-wheel-spokes {
@@ -6437,6 +6437,11 @@ body.home .site-header.is-scrolled {
 	}
 
 	.ecoflow-node-photo-pro {
+		width: min(176px, 58vw);
+		height: min(176px, 58vw);
+	}
+
+	.tesla-car-stage {
 		width: min(176px, 58vw);
 		height: min(176px, 58vw);
 	}
