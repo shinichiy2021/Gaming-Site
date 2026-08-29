@@ -128,3 +128,74 @@ function gaming_hub_ensure_rank_math_google_verify() {
 	update_option( 'gaming_hub_google_verify_v1', 1 );
 }
 add_action( 'init', 'gaming_hub_ensure_rank_math_google_verify', 6 );
+
+/**
+ * Flush Rank Math sitemap rewrites after the plugin has registered them.
+ */
+function gaming_hub_flush_rank_math_sitemap_rewrites() {
+	if ( get_option( 'gaming_hub_rank_math_sitemap_flush_v3' ) ) {
+		return;
+	}
+	if ( ! class_exists( '\RankMath\Helper' ) ) {
+		return;
+	}
+
+	\RankMath\Helper::update_modules( array( 'sitemap' => 'on' ) );
+	flush_rewrite_rules( false );
+	update_option( 'gaming_hub_rank_math_sitemap_flush_v3', 1 );
+}
+add_action( 'wp_loaded', 'gaming_hub_flush_rank_math_sitemap_rewrites', 99 );
+
+/**
+ * Fallback: serve Rank Math sitemaps when rewrite rules are missing (production 404).
+ */
+function gaming_hub_rank_math_sitemap_fallback() {
+	if ( empty( $_SERVER['REQUEST_URI'] ) || ! class_exists( '\RankMath\Sitemap\Sitemap_XML' ) ) {
+		return;
+	}
+
+	$path = (string) wp_parse_url( (string) wp_unslash( $_SERVER['REQUEST_URI'] ), PHP_URL_PATH );
+	$path = untrailingslashit( $path );
+	if ( '' === $path ) {
+		return;
+	}
+
+	$type = '';
+	$page = '';
+
+	if ( '/sitemap_index.xml' === $path || '/sitemap.xml' === $path ) {
+		$type = '1';
+	} elseif ( preg_match( '#^/([a-z0-9_-]+)-sitemap([0-9]*)\.xml$#', $path, $matches ) ) {
+		$type = $matches[1];
+		$page = isset( $matches[2] ) ? $matches[2] : '';
+	} elseif ( preg_match( '#^/([a-z]+)?-?sitemap\.xsl$#', $path, $matches ) ) {
+		if ( class_exists( '\RankMath\Sitemap\Stylesheet' ) ) {
+			$xsl = class_exists( '\RankMath\Sitemap\Router' )
+				? \RankMath\Sitemap\Router::get_sitemap_slug( $matches[1] ?? '' )
+				: ( $matches[1] ?? 'main' );
+			$stylesheet = new \RankMath\Sitemap\Stylesheet();
+			$stylesheet->output( $xsl ? $xsl : 'main' );
+			exit;
+		}
+		return;
+	} else {
+		return;
+	}
+
+	if ( '' !== $page ) {
+		set_query_var( 'sitemap_n', $page );
+	}
+	set_query_var( 'sitemap', $type );
+
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sitemap route, no form.
+	$_GET['sitemap'] = $type;
+	if ( '' !== $page ) {
+		$_GET['sitemap_n'] = $page;
+	}
+
+	status_header( 200 );
+	// Constructor outputs XML and exits.
+	new \RankMath\Sitemap\Sitemap_XML( $type );
+	exit;
+}
+add_action( 'template_redirect', 'gaming_hub_rank_math_sitemap_fallback', 0 );
