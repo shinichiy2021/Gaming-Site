@@ -90,5 +90,41 @@ function gaming_hub_configure_rank_math_defaults() {
 	}
 	update_option( 'rank-math-options-titles', $titles );
 
+	$general = get_option( 'rank-math-options-general', array() );
+	if ( ! is_array( $general ) ) {
+		$general = array();
+	}
+	$general['google_verify'] = 'kBdmp1szFKqha1zPV34NzHC38k-U08kf8jZ1BDGIm1k';
+	update_option( 'rank-math-options-general', $general );
+
 	flush_rewrite_rules( false );
 }
+
+/**
+ * Output Google Search Console meta on every page.
+ *
+ * Rank Math only prints webmaster tags on is_front_page(), but this site
+ * redirects the front page to /tag/ecoflow/, so a theme-wide tag is required.
+ */
+function gaming_hub_google_site_verification_meta() {
+	echo '<meta name="google-site-verification" content="kBdmp1szFKqha1zPV34NzHC38k-U08kf8jZ1BDGIm1k" />' . "\n";
+}
+add_action( 'wp_head', 'gaming_hub_google_site_verification_meta', 1 );
+
+/**
+ * Keep Rank Math google_verify in sync (including already-activated installs).
+ */
+function gaming_hub_ensure_rank_math_google_verify() {
+	if ( get_option( 'gaming_hub_google_verify_v1' ) ) {
+		return;
+	}
+
+	$general = get_option( 'rank-math-options-general', array() );
+	if ( ! is_array( $general ) ) {
+		$general = array();
+	}
+	$general['google_verify'] = 'kBdmp1szFKqha1zPV34NzHC38k-U08kf8jZ1BDGIm1k';
+	update_option( 'rank-math-options-general', $general );
+	update_option( 'gaming_hub_google_verify_v1', 1 );
+}
+add_action( 'init', 'gaming_hub_ensure_rank_math_google_verify', 6 );
