@@ -5669,6 +5669,10 @@ body.home .site-header.is-scrolled {
 	color: rgba(244, 241, 234, 0.78);
 }
 
+.tesla-gas-list .tesla-charge-meta {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .tesla-charge-meta span {
 	min-width: 0;
 }
@@ -5683,6 +5687,10 @@ body.home .site-header.is-scrolled {
 
 @media (max-width: 720px) {
 	.tesla-charge-meta {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.tesla-gas-list .tesla-charge-meta {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }

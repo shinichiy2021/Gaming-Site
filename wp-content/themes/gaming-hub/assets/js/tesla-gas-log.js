@@ -6,35 +6,50 @@
 		return;
 	}
 
+	const endpoint = gamingHubTeslaGas.url || '';
+	const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+
 	function t(text) {
 		return window.gamingHubT ? window.gamingHubT(text) : text;
 	}
 
-	function formatKm(value, digits) {
-		if (value === null || value === undefined) {
+	function esc(text) {
+		const d = document.createElement('div');
+		d.textContent = text == null ? '' : String(text);
+		return d.innerHTML;
+	}
+
+	function formatKm(value) {
+		if (value === null || value === undefined || value === '') {
 			return '—';
 		}
-		return Number(value).toLocaleString(undefined, {
-			minimumFractionDigits: digits === undefined ? 1 : digits,
-			maximumFractionDigits: digits === undefined ? 1 : digits,
-		}) + ' km';
+		return Number(value).toFixed(1) + ' km';
 	}
 
 	function formatL(value) {
-		if (value === null || value === undefined) {
+		if (value === null || value === undefined || value === '') {
 			return '—';
 		}
-		return Number(value).toLocaleString(undefined, {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		}) + ' L';
+		return Number(value).toFixed(2) + ' L';
 	}
 
 	function formatYen(value) {
-		if (value === null || value === undefined) {
+		if (value === null || value === undefined || value === '') {
 			return '—';
 		}
 		return Math.round(Number(value)).toLocaleString() + ' 円';
+	}
+
+	function formatWhen(ymd) {
+		const parts = String(ymd || '').split('-');
+		if (parts.length !== 3) {
+			return String(ymd || '—');
+		}
+		const dt = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+		if (Number.isNaN(dt.getTime())) {
+			return String(ymd);
+		}
+		return (dt.getMonth() + 1) + '/' + dt.getDate() + '（' + weekdays[dt.getDay()] + '）';
 	}
 
 	function formatNow(now) {
@@ -45,440 +60,117 @@
 		return Math.round(yenH).toLocaleString() + ' 円/時';
 	}
 
-	function energyNiceMax(value) {
-		const v = Math.max(0, Number(value) || 0);
-		if (v <= 0) {
-			return 1;
-		}
-		const exp = Math.pow(10, Math.floor(Math.log10(v)));
-		const n = v / exp;
-		const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-		return nice * exp;
-	}
-
-	function energyTicks(max, steps) {
-		const top = energyNiceMax(max);
-		const ticks = [];
-		const count = steps || 4;
-		for (let i = 0; i <= count; i += 1) {
-			ticks.push(top - (top * i / count));
-		}
-		return { max: top, ticks: ticks };
-	}
-
-	function formatTick(value, yen) {
-		const n = Number(value) || 0;
-		if (yen) {
-			return n >= 10 ? String(Math.round(n)) : n.toFixed(1);
-		}
-		if (n >= 10) {
-			return String(Math.round(n));
-		}
-		return n.toFixed(n >= 1 ? 1 : 2);
-	}
-
-	function polylineFromValues(values, max) {
-		const n = Math.max(1, values.length);
-		const top = Math.max(1, Number(max) || 1);
-		return values.map(function (value, i) {
-			const x = ((i + 0.5) / n) * 100;
-			const y = Math.max(0, Math.min(100, 100 - (Math.max(0, Number(value) || 0) / top) * 100));
-			return x.toFixed(2) + ',' + y.toFixed(1);
-		}).join(' ');
-	}
-
-	function setTickTexts(nodes, ticks, yen) {
-		nodes.forEach(function (el, i) {
-			if (ticks[i] !== undefined) {
-				el.textContent = formatTick(ticks[i], yen);
-			}
-		});
-	}
-
-	function applyNow(now) {
-		if (!now) {
-			return;
-		}
-		const nowEl = root.querySelector('[data-tesla-gas-now]');
-		const speedEl = root.querySelector('[data-tesla-gas-now-speed]');
-		const priceEl = root.querySelector('[data-tesla-gas-price]');
-		if (nowEl) {
-			nowEl.textContent = formatNow(now);
-		}
-		if (speedEl) {
-			speedEl.textContent = t('%s km/h').replace('%s', String(Math.round(Number(now.speed_km) || 0)));
-		}
-		if (priceEl && now.price_label) {
-			priceEl.textContent = now.price_label;
+	function setText(sel, text) {
+		const el = root.querySelector(sel);
+		if (el) {
+			el.textContent = text == null ? '' : String(text);
 		}
 	}
 
-	function applyTodayStats(stats) {
-		if (!stats) {
-			return;
-		}
-		const kmEl = root.querySelector('[data-tesla-gas-today-km]');
-		const lEl = root.querySelector('[data-tesla-gas-today-l]');
-		const evEl = root.querySelector('[data-tesla-gas-today-ev]');
-		const saveEl = root.querySelector('[data-tesla-gas-today-save]');
-		if (kmEl) {
-			kmEl.textContent = formatKm(stats.km);
-		}
-		if (lEl) {
-			lEl.textContent = formatL(stats.gas_l);
-		}
-		if (evEl) {
-			evEl.textContent = formatYen(stats.ev_yen);
-		}
-		if (saveEl) {
-			saveEl.textContent = formatYen(stats.saved_yen);
-		}
+	function rowHtml(cell, today) {
+		const date = String(cell.date || '');
+		const isToday = !!cell.is_today || date === today;
+		return (
+			'<li class="tesla-charge-row' + (isToday ? ' is-active' : '') + '" data-tesla-gas-day="' + esc(date) + '">' +
+			'<div class="tesla-charge-when">' +
+			'<strong>' + esc(formatWhen(date)) + '</strong>' +
+			(isToday ? '<span class="tesla-charge-badge">' + esc(t('今日')) + '</span>' : '') +
+			'</div>' +
+			'<div class="tesla-charge-meta">' +
+			'<span>' + esc(formatKm(cell.km)) + '</span>' +
+			'<span>' + esc(formatL(cell.gas_l)) + '</span>' +
+			'<span>' + esc(formatYen(cell.ev_yen)) + '</span>' +
+			'<span>' + esc(formatYen(cell.saved_yen)) + '</span>' +
+			'</div>' +
+			'</li>'
+		);
 	}
 
-	function applyTotals(totals) {
-		if (!totals) {
-			return;
-		}
-		const kmEl = root.querySelector('[data-tesla-gas-month-km]');
-		const saveEl = root.querySelector('[data-tesla-gas-month-save]');
-		const lEl = root.querySelector('[data-tesla-gas-month-l]');
-		if (kmEl) {
-			kmEl.textContent = formatKm(totals.km);
-		}
-		if (saveEl) {
-			saveEl.textContent = formatYen(totals.saved_yen);
-		}
-		if (lEl) {
-			lEl.textContent = formatL(totals.gas_l);
-		}
-	}
-
-	function renderTodayChart(data) {
-		const wrap = root.querySelector('[data-tesla-gas-today-chart]');
-		const hours = data.today_hours;
-		if (!wrap) {
-			return;
-		}
-		if (!Array.isArray(hours) || !hours.length) {
-			wrap.hidden = true;
-			return;
-		}
-		wrap.hidden = false;
-
-		let maxKm = 0;
-		let maxYen = 0;
-		hours.forEach(function (row) {
-			maxKm = Math.max(maxKm, Number(row.km) || 0);
-			maxYen = Math.max(maxYen, Number(row.saved_yen) || 0);
-		});
-		const kmAxis = energyTicks(data.today_km_max || maxKm);
-		const yenAxis = energyTicks(data.today_yen_max || maxYen);
-		setTickTexts(root.querySelectorAll('[data-tesla-gas-today-km-tick]'), kmAxis.ticks, false);
-		setTickTexts(root.querySelectorAll('[data-tesla-gas-today-yen-tick]'), yenAxis.ticks, true);
-
-		const yenLine = root.querySelector('[data-tesla-gas-today-yen-line]');
-		if (yenLine) {
-			yenLine.setAttribute('points', polylineFromValues(hours.map(function (row) {
-				return row.saved_yen;
-			}), yenAxis.max));
-		}
-
-		const track = root.querySelector('[data-tesla-gas-today-track]');
-		if (!track) {
-			return;
-		}
-		const nowHour = new Date().getHours();
-		track.querySelectorAll('[data-tesla-gas-today-col]').forEach(function (col) {
-			col.remove();
-		});
-		const yenSvg = track.querySelector('.ecoflow-price-line');
-		hours.forEach(function (row) {
-			const hour = Number(row.hour);
-			const isNow = hour === nowHour;
-			const hasData = !!row.has_data;
-			const km = row.km;
-			const height = km === null || km === undefined
-				? 0
-				: Math.max(0, Math.min(100, (Number(km) / kmAxis.max) * 100));
-			const col = document.createElement('div');
-			col.className = 'ecoflow-rate-col ecoflow-cal-col'
-				+ (isNow ? ' is-now' : '')
-				+ (!hasData ? ' is-empty' : '');
-			col.setAttribute('data-tesla-gas-today-col', '');
-			col.setAttribute('data-hour', String(hour));
-			if (isNow) {
-				const pip = document.createElement('span');
-				pip.className = 'ecoflow-rate-now-pip';
-				pip.textContent = t('NOW');
-				col.appendChild(pip);
-			}
-			const bar = document.createElement('span');
-			bar.className = 'ecoflow-rate-bar ecoflow-cal-pv-bar';
-			bar.style.height = height.toFixed(1) + '%';
-			const tip = [hour + ':00'];
-			if (km !== null && km !== undefined) {
-				tip.push(formatKm(km));
-			}
-			if (row.saved_yen !== null && row.saved_yen !== undefined) {
-				tip.push(formatYen(row.saved_yen));
-			}
-			bar.setAttribute('title', tip.join(' · '));
-			col.appendChild(bar);
-			if (yenSvg) {
-				track.insertBefore(col, yenSvg);
-			} else {
-				track.appendChild(col);
-			}
-		});
-	}
-
-	function renderMonthChart(data) {
-		const days = data.days || [];
-		if (!days.length) {
-			return;
-		}
-
-		let maxKm = 0;
-		let maxYen = 0;
-		days.forEach(function (day) {
-			maxKm = Math.max(maxKm, Number(day.km) || 0);
-			maxYen = Math.max(maxYen, Number(day.saved_yen) || 0);
-		});
-		const kmAxis = energyTicks(data.km_max || maxKm);
-		const yenAxis = energyTicks(data.yen_max || maxYen);
-		setTickTexts(root.querySelectorAll('[data-tesla-gas-km-tick]'), kmAxis.ticks, false);
-		setTickTexts(root.querySelectorAll('[data-tesla-gas-yen-tick]'), yenAxis.ticks, true);
-
-		const yenLine = root.querySelector('[data-tesla-gas-yen-line]');
-		if (yenLine) {
-			yenLine.setAttribute('points', polylineFromValues(days.map(function (day) {
-				return day.saved_yen;
-			}), yenAxis.max));
-		}
-
-		const track = root.querySelector('[data-tesla-gas-track]');
-		const hoursRow = root.querySelector('[data-tesla-gas-hours]');
-		if (!track) {
-			return;
-		}
-		track.querySelectorAll('[data-tesla-gas-col]').forEach(function (col) {
-			col.remove();
-		});
-		const yenSvg = track.querySelector('.ecoflow-price-line');
-		const today = data.today || '';
-		days.forEach(function (day) {
-			const isToday = !!day.is_today;
-			const hasData = !!day.has_data;
-			const isFuture = today && day.date > today;
-			const km = day.km;
-			const height = km === null || km === undefined
-				? 0
-				: Math.max(0, Math.min(100, (Number(km) / kmAxis.max) * 100));
-			const col = document.createElement('div');
-			col.className = 'ecoflow-rate-col ecoflow-cal-col'
-				+ (isToday ? ' is-now' : '')
-				+ (!hasData || isFuture ? ' is-empty' : '');
-			col.setAttribute('data-tesla-gas-col', '');
-			col.setAttribute('data-date', day.date || '');
-			if (isToday) {
-				const pip = document.createElement('span');
-				pip.className = 'ecoflow-rate-now-pip';
-				pip.textContent = t('NOW');
-				col.appendChild(pip);
-			}
-			const bar = document.createElement('span');
-			bar.className = 'ecoflow-rate-bar ecoflow-cal-pv-bar';
-			bar.style.height = height.toFixed(1) + '%';
-			const tip = [day.date || ''];
-			if (hasData) {
-				tip.push(formatKm(day.km));
-				tip.push(formatL(day.gas_l));
-				tip.push(formatYen(day.saved_yen));
-			}
-			bar.setAttribute('title', tip.join(' · '));
-			col.appendChild(bar);
-			if (yenSvg) {
-				track.insertBefore(col, yenSvg);
-			} else {
-				track.appendChild(col);
-			}
-		});
-
-		if (hoursRow) {
-			hoursRow.innerHTML = '';
-			days.forEach(function (day) {
-				const d = Number(day.day) || 0;
-				const isToday = !!day.is_today;
-				const show = d === 1 || d % 5 === 0 || isToday;
-				const el = document.createElement('span');
-				el.className = 'ecoflow-rate-hour' + (isToday ? ' is-now' : '');
-				el.textContent = show ? String(d) : '';
-				hoursRow.appendChild(el);
-			});
-		}
-	}
-
-	function paintDayCell(cellEl, day) {
-		if (!cellEl || !day) {
-			return;
-		}
-		cellEl.classList.toggle('is-now', !!day.is_today);
-		cellEl.classList.toggle('is-solar', !!day.has_data);
-		cellEl.classList.toggle('is-charge', !!day.has_data && Number(day.saved_yen) > 0);
-		cellEl.classList.toggle('is-past', !day.is_today && !day.has_data);
-		const map = {
-			km: formatKm(day.km),
-			l: formatL(day.gas_l),
-			save: formatYen(day.saved_yen),
-		};
-		Object.keys(map).forEach(function (key) {
-			const el = cellEl.querySelector('[data-k="' + key + '"]');
-			if (el) {
-				el.textContent = map[key];
-			}
-		});
-	}
-
-	function renderCalendar(data) {
+	function paint(data) {
 		if (!data) {
 			return;
 		}
 
 		root.setAttribute('data-month', data.month || '');
-		const label = root.querySelector('[data-tesla-gas-label]');
-		if (label && data.label) {
-			label.textContent = data.label;
+		setText('[data-tesla-gas-label]', data.label || '');
+
+		const prev = root.querySelector('[data-tesla-gas-prev]');
+		const next = root.querySelector('[data-tesla-gas-next]');
+		if (prev) {
+			prev.setAttribute('data-month', data.prev || '');
 		}
-		const prevBtn = root.querySelector('[data-tesla-gas-prev]');
-		const nextBtn = root.querySelector('[data-tesla-gas-next]');
-		if (prevBtn && data.prev) {
-			prevBtn.setAttribute('data-month', data.prev);
-		}
-		if (nextBtn && data.next) {
-			nextBtn.setAttribute('data-month', data.next);
+		if (next) {
+			next.setAttribute('data-month', data.next || '');
 		}
 
-		const isCurrentMonth = !!data.today && data.month === String(data.today).slice(0, 7);
-		const todayHud = root.querySelector('[data-tesla-gas-today]');
-		if (todayHud) {
-			todayHud.hidden = !isCurrentMonth;
+		const now = data.now || {};
+		const totals = data.totals || {};
+		const todaySt = data.today_stats || {};
+		const today = String(data.today || '');
+
+		setText('[data-tesla-gas-now]', formatNow(now));
+		setText('[data-tesla-gas-now-speed]', t('%s km/h').replace('%s', String(Math.round(Number(now.speed_km) || 0))));
+		if (now.price_label) {
+			setText('[data-tesla-gas-price]', now.price_label);
 		}
 
-		applyNow(data.now);
-		applyTotals(data.totals);
-		if (isCurrentMonth) {
-			applyTodayStats(data.today_stats);
-		}
-		renderTodayChart(data);
-		renderMonthChart(data);
+		setText('[data-tesla-gas-month-km]', formatKm(totals.km || 0));
+		setText('[data-tesla-gas-month-save]', formatYen(totals.saved_yen));
+		setText('[data-tesla-gas-month-l]', formatL(totals.gas_l || 0));
+		setText('[data-tesla-gas-today-km]', t('今日 %s').replace('%s', formatKm(todaySt.km || 0)));
+		setText('[data-tesla-gas-today-save]', t('今日 %s').replace('%s', formatYen(todaySt.saved_yen || 0)));
+		setText('[data-tesla-gas-today-l]', t('今日 %s').replace('%s', formatL(todaySt.gas_l || 0)));
 
-		const grid = root.querySelector('[data-tesla-gas-grid]');
-		if (!grid || !Array.isArray(data.days)) {
+		const days = Array.isArray(data.days) ? data.days.slice() : [];
+		const rows = days.filter(function (cell) {
+			return !!cell && !!cell.has_data;
+		}).reverse();
+
+		const list = root.querySelector('[data-tesla-gas-list]');
+		if (!list) {
 			return;
 		}
 
-		grid.innerHTML = '';
-		const startW = Number(data.start_wday) || 0;
-		const today = data.today || '';
-		for (let i = 0; i < startW; i += 1) {
-			const blank = document.createElement('li');
-			blank.className = 'ecoflow-plan-slot is-blank';
-			grid.appendChild(blank);
+		if (!rows.length) {
+			list.innerHTML =
+				'<li class="tesla-charge-empty" data-tesla-gas-empty>' +
+				esc(t('この月の走行ログはまだありません。')) +
+				'</li>';
+			return;
 		}
 
-		data.days.forEach(function (day) {
-			const isPast = !day.is_today && today && day.date < today;
-			const cell = document.createElement('li');
-			cell.className = 'ecoflow-plan-slot'
-				+ (day.is_today ? ' is-now' : '')
-				+ (day.has_data ? ' is-solar' : '')
-				+ (day.has_data && Number(day.saved_yen) > 0 ? ' is-charge' : '')
-				+ (isPast && !day.has_data ? ' is-past' : '');
-			cell.setAttribute('data-tesla-gas-day', day.date);
-
-			const hourEl = document.createElement('span');
-			hourEl.className = 'ecoflow-plan-slot-hour';
-			hourEl.textContent = String(day.day);
-			cell.appendChild(hourEl);
-
-			[
-				['ecoflow-plan-slot-watts', 'KM ', 'km', formatKm(day.km)],
-				['ecoflow-plan-slot-mode', 'GAS ', 'l', formatL(day.gas_l)],
-				['ecoflow-plan-slot-yen', 'SAVE ', 'save', formatYen(day.saved_yen)],
-			].forEach(function (row) {
-				const line = document.createElement('span');
-				line.className = row[0];
-				line.appendChild(document.createTextNode(row[1]));
-				const b = document.createElement('b');
-				b.setAttribute('data-k', row[2]);
-				b.textContent = row[3];
-				line.appendChild(b);
-				cell.appendChild(line);
-			});
-
-			grid.appendChild(cell);
-		});
+		list.innerHTML = rows.map(function (cell) {
+			return rowHtml(cell, today);
+		}).join('');
 	}
 
-	function applyLive(data) {
-		if (!data) {
+	function load(month) {
+		if (!endpoint) {
 			return;
 		}
-
-		applyNow(data.now);
-		applyTodayStats(data.today_stats);
-
-		const viewing = root.getAttribute('data-month') || data.month;
-		if (viewing !== data.month) {
-			return;
-		}
-
-		applyTotals(data.totals);
-		renderTodayChart(data);
-		renderMonthChart(data);
-
-		const today = (data.days || []).find(function (day) {
-			return day.is_today;
-		});
-		if (today) {
-			paintDayCell(root.querySelector('[data-tesla-gas-day="' + today.date + '"]'), today);
-		}
-	}
-
-	function loadMonth(month, full) {
-		if (!month || !gamingHubTeslaGas.url) {
-			return;
-		}
-		fetch(gamingHubTeslaGas.url + '?month=' + encodeURIComponent(month), { credentials: 'same-origin' })
-			.then(function (response) {
-				return response.json();
+		const url = endpoint + (month ? '?month=' + encodeURIComponent(month) : '');
+		fetch(url, { credentials: 'same-origin' })
+			.then(function (res) {
+				return res.json();
 			})
-			.then(function (payload) {
-				if (payload && payload.success && payload.data) {
-					if (full) {
-						renderCalendar(payload.data);
-					} else {
-						applyLive(payload.data);
-					}
+			.then(function (json) {
+				if (json && json.success && json.data) {
+					paint(json.data);
 				}
 			})
 			.catch(function () {
-				// Keep painted month.
+				/* keep painted month */
 			});
 	}
 
-	const prevBtn = root.querySelector('[data-tesla-gas-prev]');
-	const nextBtn = root.querySelector('[data-tesla-gas-next]');
-	if (prevBtn) {
-		prevBtn.addEventListener('click', function () {
-			loadMonth(prevBtn.getAttribute('data-month'), true);
+	root.querySelectorAll('[data-tesla-gas-prev], [data-tesla-gas-next]').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			const month = btn.getAttribute('data-month') || '';
+			if (month) {
+				load(month);
+			}
 		});
-	}
-	if (nextBtn) {
-		nextBtn.addEventListener('click', function () {
-			loadMonth(nextBtn.getAttribute('data-month'), true);
-		});
-	}
+	});
 
 	document.addEventListener('gamingHubTeslaFlow', function (event) {
 		const tesla = event && event.detail ? event.detail : null;
@@ -486,26 +178,22 @@
 		if (!gas) {
 			return;
 		}
-		applyNow({
+		setText('[data-tesla-gas-now]', formatNow({
+			saved_yen_per_h: gas.saved_yen_per_h,
 			asleep: !!tesla.asleep,
-			speed_km: tesla.live ? tesla.speed_km : 0,
-			saved_yen_per_h: tesla.live ? gas.saved_yen_per_h : 0,
+			speed_km: tesla.speed_km,
 			price_label: gas.price_label,
-		});
-		if (tesla.live) {
-			applyTodayStats({
-				km: gas.today_km,
-				gas_l: gas.gas_l,
-				ev_yen: gas.ev_yen,
-				saved_yen: gas.saved_yen,
-			});
+		}));
+		setText(
+			'[data-tesla-gas-now-speed]',
+			t('%s km/h').replace('%s', String(Math.round(Number(tesla.speed_km) || 0)))
+		);
+		if (gas.price_label) {
+			setText('[data-tesla-gas-price]', gas.price_label);
 		}
 	});
 
-	setInterval(function () {
-		const month = root.getAttribute('data-month');
-		if (month) {
-			loadMonth(month, false);
-		}
-	}, 30000);
+	document.addEventListener('gamingHubPowerwallFlow', function () {
+		load(root.getAttribute('data-month') || '');
+	});
 })();
