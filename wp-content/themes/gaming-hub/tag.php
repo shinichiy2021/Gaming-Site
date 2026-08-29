@@ -13,18 +13,7 @@ $is_pgo     = is_tag( 'pokemon-go' );
 $is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
 ?>
 
-<?php if ( $is_ecoflow ) : ?>
-	<div class="archive-header ecoflow-archive-header">
-		<div class="container">
-			<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">EcoFlow</span>
-			<p class="ecoflow-archive-desc"><?php esc_html_e( 'ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事', 'gaming-hub' ); ?></p>
-			<div class="ecoflow-official-links">
-				<a href="#energy" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
-				<a href="#kit" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
-			</div>
-		</div>
-	</div>
-<?php elseif ( ! $is_dash ) : ?>
+<?php if ( ! $is_dash ) : ?>
 	<div class="archive-header">
 		<div class="container">
 			<?php the_archive_title( '<h1 class="archive-title">', '</h1>' ); ?>
@@ -68,15 +57,17 @@ $is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
 	</div>
 <?php endif; ?>
 
-<?php if ( $is_tesla ) : ?>
-	<section class="hub-section hub-tesla">
-		<?php get_template_part( 'template-parts/powerwall', 'page' ); ?>
-	</section>
-<?php elseif ( $is_pgo ) : ?>
-	<section class="hub-section hub-pokemon-go">
-		<?php get_template_part( 'template-parts/pokemon-go', 'page' ); ?>
-	</section>
-<?php elseif ( $is_ecoflow ) : ?>
+<?php if ( $is_ecoflow ) : ?>
+	<div class="archive-header ecoflow-archive-header ecoflow-archive-header--below-posts">
+		<div class="container">
+			<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">EcoFlow</span>
+			<p class="ecoflow-archive-desc"><?php esc_html_e( 'ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事', 'gaming-hub' ); ?></p>
+			<div class="ecoflow-official-links">
+				<a href="#energy" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
+				<a href="#kit" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
+			</div>
+		</div>
+	</div>
 	<div class="container ecoflow-dashboard-wrap">
 		<?php gaming_hub_render_ecoflow_dashboard(); ?>
 	</div>
@@ -86,6 +77,14 @@ $is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
 	<div class="container ecoflow-dashboard-wrap">
 		<?php get_template_part( 'template-parts/ecoflow', 'kit' ); ?>
 	</div>
+<?php elseif ( $is_tesla ) : ?>
+	<section class="hub-section hub-tesla">
+		<?php get_template_part( 'template-parts/powerwall', 'page' ); ?>
+	</section>
+<?php elseif ( $is_pgo ) : ?>
+	<section class="hub-section hub-pokemon-go">
+		<?php get_template_part( 'template-parts/pokemon-go', 'page' ); ?>
+	</section>
 <?php endif; ?>
 
 <?php
