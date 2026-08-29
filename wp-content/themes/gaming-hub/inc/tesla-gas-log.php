@@ -152,62 +152,13 @@ function gaming_hub_tesla_reverse_geocode( $lat, $lon ) {
 /**
  * Remember today's first / last driving places from a live GPS sample.
  *
+ * Disabled — driving log no longer records or shows addresses.
+ *
  * @param array{lat: float, lon: float} $coords Coordinates.
  * @param bool                          $moving Car is driving.
  */
 function gaming_hub_tesla_gas_log_record_place( array $coords, $moving ) {
-	$lat = isset( $coords['lat'] ) ? (float) $coords['lat'] : 0.0;
-	$lon = isset( $coords['lon'] ) ? (float) $coords['lon'] : 0.0;
-	if ( abs( $lat ) < 0.01 && abs( $lon ) < 0.01 ) {
-		return;
-	}
-
-	$today = wp_date( 'Y-m-d' );
-	$ym    = substr( $today, 0, 7 );
-	$days  = gaming_hub_tesla_gas_log_month_days( $ym );
-	$prev  = isset( $days[ $today ] ) && is_array( $days[ $today ] ) ? $days[ $today ] : array();
-	$was_moving = ! empty( $prev['_moving'] );
-	$start      = (string) ( $prev['start_address'] ?? '' );
-	$end        = (string) ( $prev['end_address'] ?? '' );
-
-	$need_start = ( '' === $start && $moving );
-	$need_end   = $moving || ( $was_moving && ! $moving ) || ( '' !== $start && '' === $end );
-
-	if ( ! $need_start && ! $need_end && (bool) $moving === $was_moving ) {
-		return;
-	}
-
-	$label = '';
-	if ( $need_start || $need_end ) {
-		$label = gaming_hub_tesla_reverse_geocode( $lat, $lon );
-	}
-
-	$changed = (bool) $moving !== $was_moving;
-	if ( $need_start && $label ) {
-		$start   = $label;
-		$changed = true;
-	}
-	if ( $need_end && $label && $label !== $end ) {
-		$end     = $label;
-		$changed = true;
-	}
-
-	if ( ! $changed ) {
-		return;
-	}
-
-	$days[ $today ] = array_merge(
-		$prev,
-		array(
-			'date'          => $today,
-			'start_address' => $start,
-			'end_address'   => $end,
-			'_moving'       => (bool) $moving,
-			'updated_at'    => time(),
-		)
-	);
-
-	gaming_hub_tesla_gas_log_save_month( $ym, $days );
+	unset( $coords, $moving );
 }
 
 /**
@@ -287,7 +238,7 @@ function gaming_hub_tesla_gas_log_save_month( $ym, array $days ) {
  *
  * @param float                $today_km    Today's driving km.
  * @param float|null           $metered_yen Today's already-metered electricity cost.
- * @param array<string, mixed> $meta        Optional ev_kwh / addresses.
+ * @param array<string, mixed> $meta        Optional ev_kwh.
  */
 function gaming_hub_tesla_gas_log_record_today( $today_km, $metered_yen = null, array $meta = array() ) {
 	$today_km = max( 0, (float) $today_km );
@@ -317,24 +268,16 @@ function gaming_hub_tesla_gas_log_record_today( $today_km, $metered_yen = null, 
 		}
 	}
 
-	$start = (string) ( $prev['start_address'] ?? '' );
-	$end   = (string) ( $prev['end_address'] ?? '' );
-	if ( ! empty( $meta['start_address'] ) && '' === $start ) {
-		$start = sanitize_text_field( (string) $meta['start_address'] );
-	}
-	if ( ! empty( $meta['end_address'] ) ) {
-		$end = sanitize_text_field( (string) $meta['end_address'] );
-	}
+	// Drop place labels — driving log no longer shows or records addresses.
+	unset( $prev['start_address'], $prev['end_address'], $prev['_moving'] );
 
 	$days[ $today ] = array_merge(
 		$prev,
 		$metrics,
 		array(
-			'date'          => $today,
-			'hours'         => $hours,
-			'start_address' => $start,
-			'end_address'   => $end,
-			'updated_at'    => time(),
+			'date'       => $today,
+			'hours'      => $hours,
+			'updated_at' => time(),
 		)
 	);
 
@@ -644,8 +587,6 @@ function gaming_hub_tesla_gas_month_payload( $ym, $status = null ) {
 			'gas_yen'       => $row ? (int) ( $row['gas_yen'] ?? 0 ) : null,
 			'ev_yen'        => $row ? (int) ( $row['ev_yen'] ?? 0 ) : null,
 			'saved_yen'     => $row ? (int) ( $row['saved_yen'] ?? 0 ) : null,
-			'start_address' => $row ? (string) ( $row['start_address'] ?? '' ) : '',
-			'end_address'   => $row ? (string) ( $row['end_address'] ?? '' ) : '',
 			'has_data'      => (bool) $row,
 			'is_today'      => $date === $today,
 		);

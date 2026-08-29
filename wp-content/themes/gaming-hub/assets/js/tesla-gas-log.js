@@ -68,21 +68,6 @@
 		return Number(value).toFixed(1) + ' 円/km';
 	}
 
-	function formatRoute(start, end) {
-		start = String(start || '').trim();
-		end = String(end || '').trim();
-		if (!start && !end) {
-			return '';
-		}
-		if (!start) {
-			return end;
-		}
-		if (!end || start === end) {
-			return start;
-		}
-		return start + ' → ' + end;
-	}
-
 	function formatWhen(ymd) {
 		const parts = String(ymd || '').split('-');
 		if (parts.length !== 3) {
@@ -139,13 +124,11 @@
 	function rowHtml(cell, today) {
 		const date = String(cell.date || '');
 		const isToday = !!cell.is_today || date === today;
-		const route = formatRoute(cell.start_address, cell.end_address);
 		return (
 			'<li class="tesla-charge-row' + (isToday ? ' is-active' : '') + '" data-tesla-gas-day="' + esc(date) + '">' +
 			'<div class="tesla-charge-when">' +
 			'<strong>' + esc(formatWhen(date)) + '</strong>' +
 			(isToday ? '<span class="tesla-charge-badge">' + esc(t('今日')) + '</span>' : '') +
-			(route ? '<span class="tesla-drive-route">' + esc(route) + '</span>' : '') +
 			'</div>' +
 			'<div class="tesla-charge-meta">' +
 			'<span>' + esc(formatKm(cell.km)) + '</span>' +

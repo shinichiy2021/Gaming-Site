@@ -52,21 +52,6 @@ $format_avg = static function ( $value ) {
 	return number_format( (float) $value, 1 ) . ' 円/km';
 };
 
-$format_route = static function ( $start, $end ) {
-	$start = trim( (string) $start );
-	$end   = trim( (string) $end );
-	if ( '' === $start && '' === $end ) {
-		return '';
-	}
-	if ( '' === $start ) {
-		return $end;
-	}
-	if ( '' === $end || $start === $end ) {
-		return $start;
-	}
-	return $start . ' → ' . $end;
-};
-
 $weekday_labels = array(
 	0 => __( '日', 'gaming-hub' ),
 	1 => __( '月', 'gaming-hub' ),
@@ -115,7 +100,7 @@ $price_label = (string) ( $now['price_label'] ?? '' );
 			<p class="ecoflow-plan-kicker"><?php esc_html_e( 'DRIVING LOG', 'gaming-hub' ); ?></p>
 			<h3><?php esc_html_e( '走行ログ', 'gaming-hub' ); ?></h3>
 			<p class="ecoflow-plan-note">
-				<?php esc_html_e( '走行距離・消費電力・発着地を記録し、普通車 15 km/L 換算との差を節約額にしています。発着地は位置スコープがあるときだけ短い地名として保存します（座標は保存しません）。', 'gaming-hub' ); ?>
+				<?php esc_html_e( '走行距離と消費電力を記録し、普通車 15 km/L 換算との差を節約額にしています。', 'gaming-hub' ); ?>
 				<?php if ( $price_label ) : ?>
 					<span data-tesla-gas-price><?php echo esc_html( $price_label ); ?></span>
 				<?php endif; ?>
@@ -255,16 +240,12 @@ $price_label = (string) ( $now['price_label'] ?? '' );
 		<?php foreach ( $rows as $cell ) : ?>
 			<?php
 			$is_today = ! empty( $cell['is_today'] ) || ( (string) ( $cell['date'] ?? '' ) === $today );
-			$route    = $format_route( $cell['start_address'] ?? '', $cell['end_address'] ?? '' );
 			?>
 			<li class="tesla-charge-row<?php echo $is_today ? ' is-active' : ''; ?>" data-tesla-gas-day="<?php echo esc_attr( (string) ( $cell['date'] ?? '' ) ); ?>">
 				<div class="tesla-charge-when">
 					<strong><?php echo esc_html( $format_when( $cell['date'] ?? '' ) ); ?></strong>
 					<?php if ( $is_today ) : ?>
 						<span class="tesla-charge-badge"><?php esc_html_e( '今日', 'gaming-hub' ); ?></span>
-					<?php endif; ?>
-					<?php if ( $route ) : ?>
-						<span class="tesla-drive-route"><?php echo esc_html( $route ); ?></span>
 					<?php endif; ?>
 				</div>
 				<div class="tesla-charge-meta">
