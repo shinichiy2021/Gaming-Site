@@ -764,17 +764,12 @@ function gaming_hub_tesla_has_charging_scope() {
 }
 
 /**
- * Whether this poll should ask Tesla for location_data (unlocks drive_state).
+ * Whether this poll should ask Tesla for location_data.
+ *
+ * Needed for drive_state unlock and driving-log start/end place labels.
  */
 function gaming_hub_tesla_should_request_location_data() {
 	if ( gaming_hub_tesla_has_location_scope() ) {
-		$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
-
-		// Scope already unlocked drive_state — do not keep polling GPS.
-		if ( is_array( $cached ) && ! empty( $cached['drive_ready'] ) ) {
-			return false;
-		}
-
 		return true;
 	}
 
@@ -854,7 +849,7 @@ function gaming_hub_render_tesla_drive_scope_notice() {
 	?>
 	<div class="pw-flow-error-action" data-pw-field="tesla_drive_scope">
 		<p class="pw-flow-error">
-			<?php esc_html_e( 'Tesla は前回の許可内容を使い回すため、同じ認証を繰り返しても位置スコープは増えません。developer.tesla.com のアプリで Vehicle Location を有効にしたうえで、「不足スコープを追加」を押してください。Tesla の画面で車両位置を許可する必要があります。まだ付かないときは一度連携を解除してから再認証してください。位置情報は保存しません。', 'gaming-hub' ); ?>
+			<?php esc_html_e( 'Tesla は前回の許可内容を使い回すため、同じ認証を繰り返しても位置スコープは増えません。developer.tesla.com のアプリで Vehicle Location を有効にしたうえで、「不足スコープを追加」を押してください。Tesla の画面で車両位置を許可する必要があります。まだ付かないときは一度連携を解除してから再認証してください。走行ログの発着地名だけ保存し、座標は保存しません。', 'gaming-hub' ); ?>
 		</p>
 	</div>
 	<?php
@@ -1442,7 +1437,13 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 	);
 
 	if ( function_exists( 'gaming_hub_tesla_gas_log_record_today' ) ) {
-		gaming_hub_tesla_gas_log_record_today( $today_km, $yen );
+		gaming_hub_tesla_gas_log_record_today(
+			$today_km,
+			$yen,
+			array(
+				'ev_kwh' => round( $wh / 1000.0, 2 ),
+			)
+		);
 	}
 
 	return array(
@@ -2208,7 +2209,10 @@ function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false )
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
-	$data = gaming_hub_tesla_strip_location( $data );
+	$coords = function_exists( 'gaming_hub_tesla_extract_coords' )
+		? gaming_hub_tesla_extract_coords( $data )
+		: null;
+	$data   = gaming_hub_tesla_strip_location( $data );
 
 	$charge_state = isset( $data['charge_state'] ) && is_array( $data['charge_state'] )
 		? $data['charge_state']
@@ -2289,6 +2293,10 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$moving    = $has_drive_slice && ( $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true ) );
 	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
 	$climate_on = gaming_hub_tesla_climate_is_on( $climate_state );
+
+	if ( $coords && function_exists( 'gaming_hub_tesla_gas_log_record_place' ) ) {
+		gaming_hub_tesla_gas_log_record_place( $coords, $moving );
+	}
 
 	if ( $has_drive_slice && '' === $shift ) {
 		$shift = 'P';

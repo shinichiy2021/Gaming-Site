@@ -5661,6 +5661,13 @@ body.home .site-header.is-scrolled {
 	color: rgba(244, 241, 234, 0.62);
 }
 
+.tesla-drive-route {
+	flex: 1 1 100%;
+	font-size: 0.78rem;
+	line-height: 1.35;
+	color: rgba(244, 241, 234, 0.68);
+}
+
 .tesla-charge-meta {
 	display: grid;
 	grid-template-columns: repeat(5, minmax(0, 1fr));

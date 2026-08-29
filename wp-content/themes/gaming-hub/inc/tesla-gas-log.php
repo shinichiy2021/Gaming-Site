@@ -12,12 +12,202 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'GAMING_HUB_TESLA_GAS_LOG_PREFIX', 'gaming_hub_tesla_gas_v1_' );
 
 /**
- * Option key for one month of Tesla gas-savings days.
+ * Option key for one month of Tesla driving / gas-savings days.
  *
  * @param string $ym Y-m.
  */
 function gaming_hub_tesla_gas_log_key( $ym ) {
 	return GAMING_HUB_TESLA_GAS_LOG_PREFIX . $ym;
+}
+
+/**
+ * Pull lat/lon from Tesla vehicle_data (before GPS is stripped).
+ *
+ * @param array<string, mixed> $data Vehicle data.
+ * @return array{lat: float, lon: float}|null
+ */
+function gaming_hub_tesla_extract_coords( array $data ) {
+	$sources = array();
+	if ( isset( $data['drive_state'] ) && is_array( $data['drive_state'] ) ) {
+		$sources[] = $data['drive_state'];
+	}
+	if ( isset( $data['location_data'] ) && is_array( $data['location_data'] ) ) {
+		$sources[] = $data['location_data'];
+	}
+
+	foreach ( $sources as $slice ) {
+		$pairs = array(
+			array( 'latitude', 'longitude' ),
+			array( 'native_latitude', 'native_longitude' ),
+			array( 'corrected_latitude', 'corrected_longitude' ),
+		);
+		foreach ( $pairs as $pair ) {
+			$lat = $slice[ $pair[0] ] ?? null;
+			$lon = $slice[ $pair[1] ] ?? null;
+			if ( is_numeric( $lat ) && is_numeric( $lon ) ) {
+				$lat = (float) $lat;
+				$lon = (float) $lon;
+				if ( abs( $lat ) > 0.01 || abs( $lon ) > 0.01 ) {
+					return array(
+						'lat' => $lat,
+						'lon' => $lon,
+					);
+				}
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Short Japanese-friendly label from Nominatim address parts.
+ *
+ * @param array<string, mixed> $addr Address map.
+ * @return string
+ */
+function gaming_hub_tesla_format_place_label( array $addr ) {
+	$city = (string) ( $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? $addr['municipality'] ?? $addr['county'] ?? '' );
+	$ward = (string) ( $addr['suburb'] ?? $addr['city_district'] ?? $addr['quarter'] ?? $addr['neighbourhood'] ?? '' );
+	$road = (string) ( $addr['road'] ?? $addr['pedestrian'] ?? '' );
+
+	$bits = array_filter( array( $city, $ward ) );
+	if ( $road && count( $bits ) < 2 ) {
+		$bits[] = $road;
+	}
+
+	$label = implode( ' ', $bits );
+	if ( '' === $label ) {
+		$label = (string) ( $addr['state'] ?? '' );
+	}
+
+	$label = preg_replace( '/\s+/u', ' ', trim( $label ) );
+
+	return is_string( $label ) ? $label : '';
+}
+
+/**
+ * Reverse-geocode coordinates to a short place label (cached).
+ *
+ * Stores only the label — raw GPS is not kept in the driving log.
+ *
+ * @param float $lat Latitude.
+ * @param float $lon Longitude.
+ * @return string
+ */
+function gaming_hub_tesla_reverse_geocode( $lat, $lon ) {
+	$lat = (float) $lat;
+	$lon = (float) $lon;
+	if ( abs( $lat ) < 0.01 && abs( $lon ) < 0.01 ) {
+		return '';
+	}
+
+	$key = 'gh_tesla_geo_' . md5( sprintf( '%.3f,%.3f', $lat, $lon ) );
+	$hit = get_transient( $key );
+	if ( is_string( $hit ) ) {
+		return $hit;
+	}
+
+	$url = add_query_arg(
+		array(
+			'format'         => 'json',
+			'lat'            => sprintf( '%.6f', $lat ),
+			'lon'            => sprintf( '%.6f', $lon ),
+			'zoom'           => 16,
+			'addressdetails' => 1,
+			'accept-language'=> 'ja',
+		),
+		'https://nominatim.openstreetmap.org/reverse'
+	);
+
+	$response = wp_remote_get(
+		$url,
+		array(
+			'timeout' => 3,
+			'headers' => array(
+				'User-Agent' => 'GamingHubTeslaDriveLog/1.0 (https://shinichiy-gaming-hub.com; personal use)',
+			),
+		)
+	);
+
+	$label = '';
+	if ( ! is_wp_error( $response ) && 200 === (int) wp_remote_retrieve_response_code( $response ) ) {
+		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		if ( is_array( $body ) ) {
+			$addr = isset( $body['address'] ) && is_array( $body['address'] ) ? $body['address'] : array();
+			$label = gaming_hub_tesla_format_place_label( $addr );
+			if ( '' === $label && ! empty( $body['display_name'] ) ) {
+				$parts = array_map( 'trim', explode( ',', (string) $body['display_name'] ) );
+				$label = implode( ' ', array_slice( $parts, 0, 2 ) );
+			}
+		}
+	}
+
+	$label = sanitize_text_field( $label );
+	set_transient( $key, $label, WEEK_IN_SECONDS );
+
+	return $label;
+}
+
+/**
+ * Remember today's first / last driving places from a live GPS sample.
+ *
+ * @param array{lat: float, lon: float} $coords Coordinates.
+ * @param bool                          $moving Car is driving.
+ */
+function gaming_hub_tesla_gas_log_record_place( array $coords, $moving ) {
+	$lat = isset( $coords['lat'] ) ? (float) $coords['lat'] : 0.0;
+	$lon = isset( $coords['lon'] ) ? (float) $coords['lon'] : 0.0;
+	if ( abs( $lat ) < 0.01 && abs( $lon ) < 0.01 ) {
+		return;
+	}
+
+	$today = wp_date( 'Y-m-d' );
+	$ym    = substr( $today, 0, 7 );
+	$days  = gaming_hub_tesla_gas_log_month_days( $ym );
+	$prev  = isset( $days[ $today ] ) && is_array( $days[ $today ] ) ? $days[ $today ] : array();
+	$was_moving = ! empty( $prev['_moving'] );
+	$start      = (string) ( $prev['start_address'] ?? '' );
+	$end        = (string) ( $prev['end_address'] ?? '' );
+
+	$need_start = ( '' === $start && $moving );
+	$need_end   = $moving || ( $was_moving && ! $moving ) || ( '' !== $start && '' === $end );
+
+	if ( ! $need_start && ! $need_end && (bool) $moving === $was_moving ) {
+		return;
+	}
+
+	$label = '';
+	if ( $need_start || $need_end ) {
+		$label = gaming_hub_tesla_reverse_geocode( $lat, $lon );
+	}
+
+	$changed = (bool) $moving !== $was_moving;
+	if ( $need_start && $label ) {
+		$start   = $label;
+		$changed = true;
+	}
+	if ( $need_end && $label && $label !== $end ) {
+		$end     = $label;
+		$changed = true;
+	}
+
+	if ( ! $changed ) {
+		return;
+	}
+
+	$days[ $today ] = array_merge(
+		$prev,
+		array(
+			'date'          => $today,
+			'start_address' => $start,
+			'end_address'   => $end,
+			'_moving'       => (bool) $moving,
+			'updated_at'    => time(),
+		)
+	);
+
+	gaming_hub_tesla_gas_log_save_month( $ym, $days );
 }
 
 /**
@@ -95,10 +285,11 @@ function gaming_hub_tesla_gas_log_save_month( $ym, array $days ) {
 /**
  * Write today's km into the monthly log (hourly delta when km grows).
  *
- * @param float      $today_km    Today's driving km.
- * @param float|null $metered_yen Today's already-metered electricity cost.
+ * @param float                $today_km    Today's driving km.
+ * @param float|null           $metered_yen Today's already-metered electricity cost.
+ * @param array<string, mixed> $meta        Optional ev_kwh / addresses.
  */
-function gaming_hub_tesla_gas_log_record_today( $today_km, $metered_yen = null ) {
+function gaming_hub_tesla_gas_log_record_today( $today_km, $metered_yen = null, array $meta = array() ) {
 	$today_km = max( 0, (float) $today_km );
 	$today    = wp_date( 'Y-m-d' );
 	$ym       = substr( $today, 0, 7 );
@@ -109,6 +300,10 @@ function gaming_hub_tesla_gas_log_record_today( $today_km, $metered_yen = null )
 	$metrics  = gaming_hub_tesla_gas_metrics_from_km( $today_km, $metered_yen );
 	$hours    = isset( $prev['hours'] ) && is_array( $prev['hours'] ) ? $prev['hours'] : array();
 
+	if ( isset( $meta['ev_kwh'] ) && is_numeric( $meta['ev_kwh'] ) ) {
+		$metrics['ev_kwh'] = round( max( 0, (float) $meta['ev_kwh'] ), 2 );
+	}
+
 	if ( null !== $prev_km ) {
 		$delta = $today_km - $prev_km;
 		if ( $delta >= 0.05 ) {
@@ -116,17 +311,30 @@ function gaming_hub_tesla_gas_log_record_today( $today_km, $metered_yen = null )
 			$slice         = gaming_hub_tesla_gas_metrics_from_km( $delta );
 			$slot['km']    = round( (float) ( $slot['km'] ?? 0 ) + $delta, 1 );
 			$slot['gas_l'] = round( (float) ( $slot['gas_l'] ?? 0 ) + (float) $slice['gas_l'], 2 );
+			$slot['ev_kwh'] = round( (float) ( $slot['ev_kwh'] ?? 0 ) + (float) $slice['ev_kwh'], 2 );
 			$slot['saved_yen'] = (int) round( (float) ( $slot['saved_yen'] ?? 0 ) + (float) $slice['saved_yen'] );
 			$hours[ $hour ] = $slot;
 		}
 	}
 
+	$start = (string) ( $prev['start_address'] ?? '' );
+	$end   = (string) ( $prev['end_address'] ?? '' );
+	if ( ! empty( $meta['start_address'] ) && '' === $start ) {
+		$start = sanitize_text_field( (string) $meta['start_address'] );
+	}
+	if ( ! empty( $meta['end_address'] ) ) {
+		$end = sanitize_text_field( (string) $meta['end_address'] );
+	}
+
 	$days[ $today ] = array_merge(
+		$prev,
 		$metrics,
 		array(
-			'date'       => $today,
-			'hours'      => $hours,
-			'updated_at' => time(),
+			'date'          => $today,
+			'hours'         => $hours,
+			'start_address' => $start,
+			'end_address'   => $end,
+			'updated_at'    => time(),
 		)
 	);
 
@@ -150,7 +358,13 @@ function gaming_hub_tesla_gas_log_sync_from_odo() {
 		return;
 	}
 
-	gaming_hub_tesla_gas_log_record_today( (float) $odo['today_km'] );
+	$meta = array();
+	if ( isset( $odo['wh'] ) && is_numeric( $odo['wh'] ) ) {
+		$meta['ev_kwh'] = round( max( 0, (float) $odo['wh'] ) / 1000.0, 2 );
+	}
+	$yen = isset( $odo['yen'] ) && is_numeric( $odo['yen'] ) ? (float) $odo['yen'] : null;
+
+	gaming_hub_tesla_gas_log_record_today( (float) $odo['today_km'], $yen, $meta );
 }
 
 /**
@@ -422,16 +636,18 @@ function gaming_hub_tesla_gas_month_payload( $ym, $status = null ) {
 		$date = $ym . '-' . sprintf( '%02d', $d );
 		$row  = isset( $log[ $date ] ) && is_array( $log[ $date ] ) ? $log[ $date ] : null;
 		$cell = array(
-			'date'      => $date,
-			'day'       => $d,
-			'km'        => $row ? (float) ( $row['km'] ?? 0 ) : null,
-			'gas_l'     => $row ? (float) ( $row['gas_l'] ?? 0 ) : null,
-			'ev_kwh'    => $row ? (float) ( $row['ev_kwh'] ?? 0 ) : null,
-			'gas_yen'   => $row ? (int) ( $row['gas_yen'] ?? 0 ) : null,
-			'ev_yen'    => $row ? (int) ( $row['ev_yen'] ?? 0 ) : null,
-			'saved_yen' => $row ? (int) ( $row['saved_yen'] ?? 0 ) : null,
-			'has_data'  => (bool) $row,
-			'is_today'  => $date === $today,
+			'date'          => $date,
+			'day'           => $d,
+			'km'            => $row ? (float) ( $row['km'] ?? 0 ) : null,
+			'gas_l'         => $row ? (float) ( $row['gas_l'] ?? 0 ) : null,
+			'ev_kwh'        => $row ? (float) ( $row['ev_kwh'] ?? 0 ) : null,
+			'gas_yen'       => $row ? (int) ( $row['gas_yen'] ?? 0 ) : null,
+			'ev_yen'        => $row ? (int) ( $row['ev_yen'] ?? 0 ) : null,
+			'saved_yen'     => $row ? (int) ( $row['saved_yen'] ?? 0 ) : null,
+			'start_address' => $row ? (string) ( $row['start_address'] ?? '' ) : '',
+			'end_address'   => $row ? (string) ( $row['end_address'] ?? '' ) : '',
+			'has_data'      => (bool) $row,
+			'is_today'      => $date === $today,
 		);
 		$cells[] = $cell;
 
