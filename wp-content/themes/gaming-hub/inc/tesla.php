@@ -2186,6 +2186,69 @@ function gaming_hub_tesla_cabin_watts_from_climate( array $climate ) {
 }
 
 /**
+ * Cabin / outside temperatures from climate_state (°C).
+ *
+ * @param array<string, mixed> $climate Climate state.
+ * @return array{inside_c: float|null, outside_c: float|null}
+ */
+function gaming_hub_tesla_climate_temps( array $climate ) {
+	$inside  = isset( $climate['inside_temp'] ) && is_numeric( $climate['inside_temp'] )
+		? (float) $climate['inside_temp']
+		: null;
+	$outside = isset( $climate['outside_temp'] ) && is_numeric( $climate['outside_temp'] )
+		? (float) $climate['outside_temp']
+		: null;
+
+	return array(
+		'inside_c'  => null !== $inside ? round( $inside, 1 ) : null,
+		'outside_c' => null !== $outside ? round( $outside, 1 ) : null,
+	);
+}
+
+/**
+ * TPMS pressures from vehicle_state (bar).
+ *
+ * @param array<string, mixed> $vehicle Vehicle state.
+ * @return array{fl: float|null, fr: float|null, rl: float|null, rr: float|null, avg_bar: float|null}
+ */
+function gaming_hub_tesla_tire_pressures( array $vehicle ) {
+	$keys = array(
+		'fl' => 'tpms_pressure_fl',
+		'fr' => 'tpms_pressure_fr',
+		'rl' => 'tpms_pressure_rl',
+		'rr' => 'tpms_pressure_rr',
+	);
+	$out  = array(
+		'fl'      => null,
+		'fr'      => null,
+		'rl'      => null,
+		'rr'      => null,
+		'avg_bar' => null,
+	);
+	$sum   = 0.0;
+	$count = 0;
+
+	foreach ( $keys as $corner => $key ) {
+		if ( ! isset( $vehicle[ $key ] ) || ! is_numeric( $vehicle[ $key ] ) ) {
+			continue;
+		}
+		$bar = (float) $vehicle[ $key ];
+		if ( $bar <= 0.1 || $bar > 6.0 ) {
+			continue;
+		}
+		$out[ $corner ] = round( $bar, 2 );
+		$sum           += $bar;
+		$count++;
+	}
+
+	if ( $count > 0 ) {
+		$out['avg_bar'] = round( $sum / $count, 2 );
+	}
+
+	return $out;
+}
+
+/**
  * Propulsion watts from live speed when pack power is missing.
  *
  * @param mixed $speed_km Speed in km/h.
@@ -2498,6 +2561,8 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$moving    = $has_drive_slice && ( $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true ) );
 	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
 	$climate_on = gaming_hub_tesla_climate_is_on( $climate_state );
+	$temps      = gaming_hub_tesla_climate_temps( $climate_state );
+	$tires      = gaming_hub_tesla_tire_pressures( $vehicle_state );
 
 	if ( $coords && function_exists( 'gaming_hub_tesla_gas_log_record_place' ) ) {
 		gaming_hub_tesla_gas_log_record_place( $coords, $moving );
@@ -2594,6 +2659,9 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'shift_state'               => $has_drive_slice ? ( $shift ? $shift : 'P' ) : '',
 			'speed_km'                  => $speed_km,
 			'climate_on'                => $climate_on,
+			'inside_temp_c'             => $temps['inside_c'],
+			'outside_temp_c'            => $temps['outside_c'],
+			'tire_pressure'             => $tires,
 			'drive_ready'               => $has_drive_slice,
 			'efficiency'                => $efficiency,
 			'vehicle_mode'              => $charging

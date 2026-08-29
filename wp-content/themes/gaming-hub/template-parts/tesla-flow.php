@@ -82,6 +82,16 @@ $efficiency = isset( $flow['efficiency'] ) && is_array( $flow['efficiency'] )
 		class="tesla-flow-root"
 		data-initial="<?php echo esc_attr( wp_json_encode( $flow ) ); ?>"
 	></div>
+
+	<?php
+	get_template_part(
+		'template-parts/tesla',
+		'model3-unit',
+		array(
+			'status' => $status,
+		)
+	);
+	?>
 </section>
 <?php
 if ( function_exists( 'gaming_hub_render_tesla_plan' ) ) {
