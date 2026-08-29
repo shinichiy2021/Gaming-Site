@@ -8,6 +8,8 @@
 
 	const endpoint = gamingHubTeslaGas.url || '';
 	const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+	let summaryData = parseSummary(root.getAttribute('data-summary'));
+	let summaryPeriod = 'day';
 
 	function t(text) {
 		return window.gamingHubT ? window.gamingHubT(text) : text;
@@ -17,6 +19,18 @@
 		const d = document.createElement('div');
 		d.textContent = text == null ? '' : String(text);
 		return d.innerHTML;
+	}
+
+	function parseSummary(raw) {
+		if (!raw) {
+			return { day: null, week: null };
+		}
+		try {
+			const parsed = JSON.parse(raw);
+			return parsed && typeof parsed === 'object' ? parsed : { day: null, week: null };
+		} catch (err) {
+			return { day: null, week: null };
+		}
 	}
 
 	function formatKm(value) {
@@ -38,6 +52,13 @@
 			return '—';
 		}
 		return Math.round(Number(value)).toLocaleString() + ' 円';
+	}
+
+	function formatAvg(value) {
+		if (value === null || value === undefined || value === '') {
+			return '—';
+		}
+		return Number(value).toFixed(1) + ' 円/km';
 	}
 
 	function formatWhen(ymd) {
@@ -65,6 +86,32 @@
 		if (el) {
 			el.textContent = text == null ? '' : String(text);
 		}
+	}
+
+	function paintSummary(period) {
+		summaryPeriod = period === 'week' ? 'week' : 'day';
+		const slice = summaryData && summaryData[summaryPeriod] ? summaryData[summaryPeriod] : null;
+
+		root.querySelectorAll('[data-tesla-gas-summary-tab]').forEach(function (btn) {
+			const active = btn.getAttribute('data-tesla-gas-summary-tab') === summaryPeriod;
+			btn.classList.toggle('is-active', active);
+			btn.setAttribute('aria-selected', active ? 'true' : 'false');
+		});
+
+		if (!slice) {
+			setText('[data-tesla-gas-summary-label]', summaryPeriod === 'week' ? t('今週') : t('今日'));
+			setText('[data-tesla-gas-summary-km]', '—');
+			setText('[data-tesla-gas-summary-ev]', '—');
+			setText('[data-tesla-gas-summary-save]', '—');
+			setText('[data-tesla-gas-summary-avg]', '—');
+			return;
+		}
+
+		setText('[data-tesla-gas-summary-label]', slice.label || (summaryPeriod === 'week' ? t('今週') : t('今日')));
+		setText('[data-tesla-gas-summary-km]', formatKm(slice.km || 0));
+		setText('[data-tesla-gas-summary-ev]', formatYen(slice.ev_yen));
+		setText('[data-tesla-gas-summary-save]', formatYen(slice.saved_yen));
+		setText('[data-tesla-gas-summary-avg]', formatAvg(slice.avg_yen_per_km));
 	}
 
 	function rowHtml(cell, today) {
@@ -107,6 +154,12 @@
 		const totals = data.totals || {};
 		const todaySt = data.today_stats || {};
 		const today = String(data.today || '');
+
+		if (data.summary) {
+			summaryData = data.summary;
+			root.setAttribute('data-summary', JSON.stringify(data.summary));
+			paintSummary(summaryPeriod);
+		}
 
 		setText('[data-tesla-gas-now]', formatNow(now));
 		setText('[data-tesla-gas-now-speed]', t('%s km/h').replace('%s', String(Math.round(Number(now.speed_km) || 0))));
@@ -169,6 +222,12 @@
 			if (month) {
 				load(month);
 			}
+		});
+	});
+
+	root.querySelectorAll('[data-tesla-gas-summary-tab]').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			paintSummary(btn.getAttribute('data-tesla-gas-summary-tab') || 'day');
 		});
 	});
 

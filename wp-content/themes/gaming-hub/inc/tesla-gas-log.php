@@ -226,6 +226,168 @@ function gaming_hub_tesla_gas_hour_rows( $hours ) {
 }
 
 /**
+ * Empty aggregate for a gas-log date range.
+ *
+ * @return array<string, float|int|null>
+ */
+function gaming_hub_tesla_gas_empty_aggregate() {
+	return array(
+		'km'             => 0.0,
+		'gas_l'          => 0.0,
+		'ev_kwh'         => 0.0,
+		'gas_yen'        => 0,
+		'ev_yen'         => 0,
+		'saved_yen'      => 0,
+		'avg_yen_per_km' => null,
+		'days_with_data' => 0,
+	);
+}
+
+/**
+ * Sum gas-log rows between two inclusive Y-m-d dates.
+ *
+ * @param string $from Start date.
+ * @param string $to   End date.
+ * @return array<string, float|int|null>
+ */
+function gaming_hub_tesla_gas_aggregate_range( $from, $to ) {
+	$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) ? (string) $from : '';
+	$to   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ? (string) $to : '';
+	$out  = gaming_hub_tesla_gas_empty_aggregate();
+
+	if ( ! $from || ! $to || $from > $to ) {
+		return $out;
+	}
+
+	$cursor = strtotime( $from . ' 12:00:00' );
+	$end    = strtotime( $to . ' 12:00:00' );
+	if ( ! $cursor || ! $end ) {
+		return $out;
+	}
+
+	$month_cache = array();
+
+	while ( $cursor <= $end ) {
+		$date = wp_date( 'Y-m-d', $cursor );
+		$ym   = substr( $date, 0, 7 );
+
+		if ( ! isset( $month_cache[ $ym ] ) ) {
+			$month_cache[ $ym ] = gaming_hub_tesla_gas_log_month_days( $ym );
+		}
+
+		$row = isset( $month_cache[ $ym ][ $date ] ) && is_array( $month_cache[ $ym ][ $date ] )
+			? $month_cache[ $ym ][ $date ]
+			: null;
+
+		if ( $row ) {
+			$out['km']        += (float) ( $row['km'] ?? 0 );
+			$out['gas_l']     += (float) ( $row['gas_l'] ?? 0 );
+			$out['ev_kwh']    += (float) ( $row['ev_kwh'] ?? 0 );
+			$out['gas_yen']   += (int) ( $row['gas_yen'] ?? 0 );
+			$out['ev_yen']    += (int) ( $row['ev_yen'] ?? 0 );
+			$out['saved_yen'] += (int) ( $row['saved_yen'] ?? 0 );
+			$out['days_with_data']++;
+		}
+
+		$cursor = strtotime( '+1 day', $cursor );
+	}
+
+	$out['km']     = round( $out['km'], 1 );
+	$out['gas_l']  = round( $out['gas_l'], 2 );
+	$out['ev_kwh'] = round( $out['ev_kwh'], 2 );
+	$out['avg_yen_per_km'] = $out['km'] >= 0.1
+		? round( $out['ev_yen'] / $out['km'], 1 )
+		: null;
+
+	return $out;
+}
+
+/**
+ * Monday–Sunday bounds for the week containing a date (site timezone).
+ *
+ * @param string|null $ref Y-m-d.
+ * @return array{0: string, 1: string}
+ */
+function gaming_hub_tesla_gas_week_bounds( $ref = null ) {
+	$ref = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $ref ) ? (string) $ref : wp_date( 'Y-m-d' );
+	$ts  = strtotime( $ref . ' 12:00:00' );
+	if ( ! $ts ) {
+		$ref = wp_date( 'Y-m-d' );
+		$ts  = strtotime( $ref . ' 12:00:00' );
+	}
+
+	$iso_dow = (int) wp_date( 'N', $ts ); // 1=Mon … 7=Sun.
+	$monday  = wp_date( 'Y-m-d', strtotime( $ref . ' -' . ( $iso_dow - 1 ) . ' days' ) );
+	$sunday  = wp_date( 'Y-m-d', strtotime( $monday . ' +6 days' ) );
+
+	return array( $monday, $sunday );
+}
+
+/**
+ * Day / week summary card payload (gas-log digest).
+ *
+ * @param array<string, mixed>|null $status Live status.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_gas_summary_payload( $status = null ) {
+	gaming_hub_tesla_gas_log_sync_from_odo();
+
+	$today           = wp_date( 'Y-m-d' );
+	list( $week_from, $week_to ) = gaming_hub_tesla_gas_week_bounds( $today );
+	$day             = gaming_hub_tesla_gas_aggregate_range( $today, $today );
+	$week            = gaming_hub_tesla_gas_aggregate_range( $week_from, $week_to );
+	$now             = gaming_hub_tesla_gas_now_slice( $status );
+
+	// Prefer live odometer when today's row is still empty.
+	if ( $day['days_with_data'] <= 0 && (float) ( $now['today_km'] ?? 0 ) > 0 ) {
+		$metrics = gaming_hub_tesla_gas_metrics_from_km( (float) $now['today_km'] );
+		$day     = array(
+			'km'             => (float) $metrics['km'],
+			'gas_l'          => (float) $metrics['gas_l'],
+			'ev_kwh'         => (float) $metrics['ev_kwh'],
+			'gas_yen'        => (int) $metrics['gas_yen'],
+			'ev_yen'         => (int) $metrics['ev_yen'],
+			'saved_yen'      => (int) ( $now['saved_yen'] ?? $metrics['saved_yen'] ),
+			'avg_yen_per_km' => (float) $metrics['km'] >= 0.1
+				? round( (int) $metrics['ev_yen'] / (float) $metrics['km'], 1 )
+				: null,
+			'days_with_data' => 1,
+		);
+	}
+
+	$week_from_ts = strtotime( $week_from . ' 12:00:00' );
+	$week_to_ts   = strtotime( $week_to . ' 12:00:00' );
+
+	return array(
+		'day'  => array_merge(
+			$day,
+			array(
+				'period' => 'day',
+				'from'   => $today,
+				'to'     => $today,
+				'label'  => __( '今日', 'gaming-hub' ),
+			)
+		),
+		'week' => array_merge(
+			$week,
+			array(
+				'period' => 'week',
+				'from'   => $week_from,
+				'to'     => $week_to,
+				'label'  => $week_from_ts && $week_to_ts
+					? sprintf(
+						/* translators: 1: week start n/j, 2: week end n/j */
+						__( '%1$s〜%2$s', 'gaming-hub' ),
+						wp_date( 'n/j', $week_from_ts ),
+						wp_date( 'n/j', $week_to_ts )
+					)
+					: __( '今週', 'gaming-hub' ),
+			)
+		),
+	);
+}
+
+/**
  * Month payload for the Tesla savings calendar.
  *
  * @param string                    $ym     Y-m.
@@ -333,6 +495,7 @@ function gaming_hub_tesla_gas_month_payload( $ym, $status = null ) {
 			'ev_yen'    => $today_row ? (int) ( $today_row['ev_yen'] ?? 0 ) : 0,
 			'saved_yen' => $today_row ? (int) ( $today_row['saved_yen'] ?? 0 ) : (int) ( $now['saved_yen'] ?? 0 ),
 		),
+		'summary'         => gaming_hub_tesla_gas_summary_payload( $status ),
 		'prev'            => $prev,
 		'next'            => $next,
 		'weekdays'        => array( '日', '月', '火', '水', '木', '金', '土' ),
