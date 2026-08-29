@@ -1,6 +1,6 @@
 <?php
 /**
- * Tesla gasoline-savings log (month list, charge-log style).
+ * Tesla driving log (month list, charge-log style).
  *
  * @package Gaming_Hub
  *
@@ -15,7 +15,6 @@ $today_st = is_array( $calendar['today_stats'] ?? null ) ? $calendar['today_stat
 $summary  = is_array( $calendar['summary'] ?? null ) ? $calendar['summary'] : array();
 $today    = (string) ( $calendar['today'] ?? '' );
 $sum_day  = is_array( $summary['day'] ?? null ) ? $summary['day'] : array();
-$sum_week = is_array( $summary['week'] ?? null ) ? $summary['week'] : array();
 $sum_view = $sum_day;
 
 $format_km = static function ( $value, $digits = 1 ) {
@@ -32,6 +31,13 @@ $format_l = static function ( $value ) {
 	return number_format( (float) $value, 2 ) . ' L';
 };
 
+$format_kwh = static function ( $value ) {
+	if ( null === $value || '' === $value ) {
+		return '—';
+	}
+	return number_format( (float) $value, 2 ) . ' kWh';
+};
+
 $format_yen = static function ( $value ) {
 	if ( null === $value || '' === $value ) {
 		return '—';
@@ -44,6 +50,21 @@ $format_avg = static function ( $value ) {
 		return '—';
 	}
 	return number_format( (float) $value, 1 ) . ' 円/km';
+};
+
+$format_route = static function ( $start, $end ) {
+	$start = trim( (string) $start );
+	$end   = trim( (string) $end );
+	if ( '' === $start && '' === $end ) {
+		return '';
+	}
+	if ( '' === $start ) {
+		return $end;
+	}
+	if ( '' === $end || $start === $end ) {
+		return $start;
+	}
+	return $start . ' → ' . $end;
 };
 
 $weekday_labels = array(
@@ -80,20 +101,21 @@ $now_text  = $now_idle ? __( '待機', 'gaming-hub' ) : ( number_format( $now_ye
 $price_label = (string) ( $now['price_label'] ?? '' );
 ?>
 
+<span id="gas" hidden></span>
 <section
-	id="gas"
+	id="drive"
 	class="ecoflow-plan ecoflow-cal tesla-cal tesla-gas-log"
-	aria-label="<?php esc_attr_e( 'ガソリン節約ログ', 'gaming-hub' ); ?>"
+	aria-label="<?php esc_attr_e( '走行ログ', 'gaming-hub' ); ?>"
 	data-tesla-gas
 	data-month="<?php echo esc_attr( $calendar['month'] ?? '' ); ?>"
 	data-summary="<?php echo esc_attr( wp_json_encode( $summary ) ); ?>"
 >
 	<div class="ecoflow-plan-header ecoflow-plan-head">
 		<div>
-			<p class="ecoflow-plan-kicker"><?php esc_html_e( 'GAS LOG', 'gaming-hub' ); ?></p>
-			<h3><?php esc_html_e( 'ガソリン節約ログ', 'gaming-hub' ); ?></h3>
+			<p class="ecoflow-plan-kicker"><?php esc_html_e( 'DRIVING LOG', 'gaming-hub' ); ?></p>
+			<h3><?php esc_html_e( '走行ログ', 'gaming-hub' ); ?></h3>
 			<p class="ecoflow-plan-note">
-				<?php esc_html_e( '走行距離を普通車 15 km/L 換算し、多治見のレギュラー単価と EV 電力代（150 Wh/km × LOOOP）の差を節約額にしています。', 'gaming-hub' ); ?>
+				<?php esc_html_e( '走行距離・消費電力・発着地を記録し、普通車 15 km/L 換算との差を節約額にしています。発着地は位置スコープがあるときだけ短い地名として保存します（座標は保存しません）。', 'gaming-hub' ); ?>
 				<?php if ( $price_label ) : ?>
 					<span data-tesla-gas-price><?php echo esc_html( $price_label ); ?></span>
 				<?php endif; ?>
@@ -216,6 +238,7 @@ $price_label = (string) ( $now['price_label'] ?? '' );
 		<?php foreach ( $rows as $cell ) : ?>
 			<?php
 			$is_today = ! empty( $cell['is_today'] ) || ( (string) ( $cell['date'] ?? '' ) === $today );
+			$route    = $format_route( $cell['start_address'] ?? '', $cell['end_address'] ?? '' );
 			?>
 			<li class="tesla-charge-row<?php echo $is_today ? ' is-active' : ''; ?>" data-tesla-gas-day="<?php echo esc_attr( (string) ( $cell['date'] ?? '' ) ); ?>">
 				<div class="tesla-charge-when">
@@ -223,10 +246,13 @@ $price_label = (string) ( $now['price_label'] ?? '' );
 					<?php if ( $is_today ) : ?>
 						<span class="tesla-charge-badge"><?php esc_html_e( '今日', 'gaming-hub' ); ?></span>
 					<?php endif; ?>
+					<?php if ( $route ) : ?>
+						<span class="tesla-drive-route"><?php echo esc_html( $route ); ?></span>
+					<?php endif; ?>
 				</div>
 				<div class="tesla-charge-meta">
 					<span><?php echo esc_html( $format_km( $cell['km'] ?? null ) ); ?></span>
-					<span><?php echo esc_html( $format_l( $cell['gas_l'] ?? null ) ); ?></span>
+					<span><?php echo esc_html( $format_kwh( $cell['ev_kwh'] ?? null ) ); ?></span>
 					<span><?php echo esc_html( $format_yen( $cell['ev_yen'] ?? null ) ); ?></span>
 					<span><?php echo esc_html( $format_yen( $cell['saved_yen'] ?? null ) ); ?></span>
 				</div>
