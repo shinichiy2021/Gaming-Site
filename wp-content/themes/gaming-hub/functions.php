@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.10.90' );
+define( 'GAMING_HUB_VERSION', '1.10.94' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -82,6 +82,9 @@ require get_template_directory() . '/inc/pokemon-go-youtube.php';
 require get_template_directory() . '/inc/pokemon-go-events.php';
 require get_template_directory() . '/inc/pokemon-go-raids.php';
 require get_template_directory() . '/inc/ecoflow.php';
+require get_template_directory() . '/inc/affiliate.php';
+require get_template_directory() . '/inc/rank-math-setup.php';
+require get_template_directory() . '/inc/seed-posts.php';
 require get_template_directory() . '/inc/switchbot.php';
 require get_template_directory() . '/inc/looop.php';
 require get_template_directory() . '/inc/powerwall.php';
@@ -255,6 +258,24 @@ function gaming_hub_redirect_legacy_section_pages() {
 	}
 }
 add_action( 'template_redirect', 'gaming_hub_redirect_legacy_section_pages' );
+
+/**
+ * Serve Google Search Console HTML verification file at site root.
+ */
+function gaming_hub_serve_google_site_verification() {
+	$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+	$path = (string) wp_parse_url( $uri, PHP_URL_PATH );
+	if ( '/googlee038b6ecd4369c0c.html' !== $path && '/googlee038b6ecd4369c0c.html/' !== $path ) {
+		return;
+	}
+
+	nocache_headers();
+	header( 'Content-Type: text/html; charset=UTF-8' );
+	status_header( 200 );
+	echo 'google-site-verification: googlee038b6ecd4369c0c';
+	exit;
+}
+add_action( 'template_redirect', 'gaming_hub_serve_google_site_verification', 0 );
 
 /**
  * Keep dashboard tags visible even when they have no posts.

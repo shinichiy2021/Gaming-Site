@@ -1,0 +1,2 @@
+# Keep plugin trees but ignore bulky vendor caches if any appear later.
+wp-content/plugins/*/.git/

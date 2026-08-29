@@ -55,9 +55,11 @@ services:
     volumes:
       - wp_data:/var/www/html
       - ./wp-content/themes/gaming-hub:/var/www/html/wp-content/themes/gaming-hub
+      - ./wp-content/plugins/seo-by-rank-math:/var/www/html/wp-content/plugins/seo-by-rank-math
       - ./wp-content/ecoflow-cache:/var/www/html/wp-content/ecoflow-cache
       - ./scripts:/var/www/html/scripts:ro
       - ./config/.htaccess:/var/www/html/.htaccess
+      - ./config/googlee038b6ecd4369c0c.html:/var/www/html/googlee038b6ecd4369c0c.html:ro
     networks:
       - gaming-network
 
