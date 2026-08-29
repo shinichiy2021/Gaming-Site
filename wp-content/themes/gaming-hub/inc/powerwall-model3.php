@@ -33,6 +33,12 @@ define( 'GAMING_HUB_TESLA_CABIN_ENERGY_OPTION', 'gaming_hub_tesla_cabin_energy_v
 /** Widest poll gap still treated as continuous load: one missed 5-minute sample. */
 define( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX', 12 * MINUTE_IN_SECONDS );
 
+/** Drive / regen watt-hours for efficiency badges (Wh/km, regen %). */
+define( 'GAMING_HUB_TESLA_DRIVE_EFF_OPTION', 'gaming_hub_tesla_drive_eff_v1' );
+
+/** Widest poll gap for drive/regen integration (covers 15-minute sampler). */
+define( 'GAMING_HUB_TESLA_DRIVE_EFF_INTEGRATE_MAX', 22 * MINUTE_IN_SECONDS );
+
 /** Five-minute sampler that keeps the energy counters advancing. */
 define( 'GAMING_HUB_TESLA_SAMPLER_CRON', 'gaming_hub_tesla_sampler' );
 

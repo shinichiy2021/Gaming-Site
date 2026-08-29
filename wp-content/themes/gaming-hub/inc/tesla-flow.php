@@ -178,6 +178,9 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'drive_ready'     => false,
 			'asleep'          => false,
 			'gas'             => $empty_gas,
+			'efficiency'      => function_exists( 'gaming_hub_tesla_drive_efficiency_empty' )
+				? gaming_hub_tesla_drive_efficiency_empty()
+				: array(),
 			'cabin_today_kwh' => 0,
 			'cabin_today_yen' => 0,
 			'wall_yen_per_h'  => 0,
@@ -268,6 +271,16 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			: array();
 	}
 
+	$efficiency = function_exists( 'gaming_hub_tesla_drive_efficiency_snapshot' )
+		? gaming_hub_tesla_drive_efficiency_snapshot(
+			isset( $model3['today_km'] ) ? (float) $model3['today_km'] : null,
+			$asleep ? 0 : (int) ( $model3['speed_km'] ?? 0 ),
+			$asleep ? 0 : $drive_w,
+			$asleep ? 0 : $regen_w,
+			! $asleep && ( ( $drive_w ?? 0 ) >= 80 || ( $regen_w ?? 0 ) >= 80 || (int) ( $model3['speed_km'] ?? 0 ) >= 3 )
+		)
+		: array();
+
 	$wall_home = $charging && 'supercharger' !== $kind && ! $asleep;
 	$yen_kwh   = function_exists( 'gaming_hub_tesla_electricity_yen_per_kwh' )
 		? gaming_hub_tesla_electricity_yen_per_kwh()
@@ -355,6 +368,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'drive_ready'     => ! $asleep && ! empty( $model3['drive_ready'] ),
 		'asleep'          => $asleep,
 		'gas'             => $gas,
+		'efficiency'      => $efficiency,
 	);
 }
 
