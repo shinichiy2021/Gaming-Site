@@ -153,6 +153,23 @@ $price_label = (string) ( $now['price_label'] ?? '' );
 				><?php esc_html_e( '週次', 'gaming-hub' ); ?></button>
 			</div>
 		</div>
+		<?php
+		$eff = function_exists( 'gaming_hub_tesla_drive_efficiency_snapshot' )
+			? gaming_hub_tesla_drive_efficiency_snapshot(
+				isset( $sum_day['km'] ) ? (float) $sum_day['km'] : null
+			)
+			: array();
+		?>
+		<?php if ( ! empty( $eff['badge_wh'] ) || ! empty( $eff['badge_regen'] ) ) : ?>
+			<div class="tesla-eff-badges tesla-eff-badges-inline" aria-label="<?php esc_attr_e( '効率バッジ', 'gaming-hub' ); ?>">
+				<?php if ( ! empty( $eff['badge_wh'] ) ) : ?>
+					<span class="tesla-eff-badge is-<?php echo esc_attr( (string) ( $eff['tier_wh'] ?? 'idle' ) ); ?>"><?php echo esc_html( (string) $eff['badge_wh'] ); ?></span>
+				<?php endif; ?>
+				<?php if ( ! empty( $eff['badge_regen'] ) ) : ?>
+					<span class="tesla-eff-badge is-<?php echo esc_attr( (string) ( $eff['tier_regen'] ?? 'idle' ) ); ?>"><?php echo esc_html( (string) $eff['badge_regen'] ); ?></span>
+				<?php endif; ?>
+			</div>
+		<?php endif; ?>
 		<div class="tesla-gas-summary-grid" role="tabpanel">
 			<div class="tesla-gas-summary-stat">
 				<span><?php esc_html_e( '走行', 'gaming-hub' ); ?></span>

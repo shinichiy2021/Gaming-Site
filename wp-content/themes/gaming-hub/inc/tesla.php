@@ -1551,6 +1551,211 @@ function gaming_hub_tesla_record_cabin_energy( $watts, $accumulate ) {
 }
 
 /**
+ * Empty drive-efficiency counters.
+ *
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_drive_efficiency_empty() {
+	return array(
+		'wh_per_km'      => null,
+		'regen_ratio'    => null,
+		'drive_kwh'      => 0.0,
+		'regen_kwh'      => 0.0,
+		'net_kwh'        => 0.0,
+		'live_wh_per_km' => null,
+		'badge_wh'       => '',
+		'badge_regen'    => '',
+		'tier_wh'        => 'idle',
+		'tier_regen'     => 'idle',
+	);
+}
+
+/**
+ * Today's integrated drive / regen energy.
+ *
+ * @return array{drive_wh: float, regen_wh: float}
+ */
+function gaming_hub_tesla_drive_efficiency_raw() {
+	$today = wp_date( 'Y-m-d' );
+	$saved = get_option( GAMING_HUB_TESLA_DRIVE_EFF_OPTION, array() );
+	if ( ! is_array( $saved ) || (string) ( $saved['date'] ?? '' ) !== $today ) {
+		return array(
+			'drive_wh' => 0.0,
+			'regen_wh' => 0.0,
+		);
+	}
+
+	return array(
+		'drive_wh' => max( 0, (float) ( $saved['drive_wh'] ?? 0 ) ),
+		'regen_wh' => max( 0, (float) ( $saved['regen_wh'] ?? 0 ) ),
+	);
+}
+
+/**
+ * Integrate drive / regen watts between Tesla polls for efficiency badges.
+ *
+ * @param int  $drive_w Traction discharge watts.
+ * @param int  $regen_w Regenerative charge watts.
+ * @param bool $moving  Vehicle is moving.
+ * @return array{drive_wh: float, regen_wh: float}
+ */
+function gaming_hub_tesla_record_drive_efficiency( $drive_w, $regen_w, $moving ) {
+	$today   = wp_date( 'Y-m-d' );
+	$now     = time();
+	$drive_w = max( 0, (int) round( (float) $drive_w ) );
+	$regen_w = max( 0, (int) round( (float) $regen_w ) );
+	$moving  = (bool) $moving;
+	$saved   = get_option( GAMING_HUB_TESLA_DRIVE_EFF_OPTION, array() );
+	$saved   = is_array( $saved ) ? $saved : array();
+
+	if ( (string) ( $saved['date'] ?? '' ) !== $today ) {
+		$saved = array(
+			'date'     => $today,
+			'drive_wh' => 0.0,
+			'regen_wh' => 0.0,
+		);
+	}
+
+	$last_ts     = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
+	$last_drive  = isset( $saved['last_drive_w'] ) ? max( 0, (int) $saved['last_drive_w'] ) : 0;
+	$last_regen  = isset( $saved['last_regen_w'] ) ? max( 0, (int) $saved['last_regen_w'] ) : 0;
+	$last_moving = ! empty( $saved['last_moving'] );
+	$max_gap     = defined( 'GAMING_HUB_TESLA_DRIVE_EFF_INTEGRATE_MAX' )
+		? GAMING_HUB_TESLA_DRIVE_EFF_INTEGRATE_MAX
+		: ( 22 * MINUTE_IN_SECONDS );
+
+	if ( $last_moving && $last_ts > 0 ) {
+		$delta = $now - $last_ts;
+		if ( $delta > 0 && $delta <= $max_gap ) {
+			$hours = $delta / HOUR_IN_SECONDS;
+			$saved['drive_wh'] = (float) ( $saved['drive_wh'] ?? 0 ) + ( $last_drive * $hours );
+			$saved['regen_wh'] = (float) ( $saved['regen_wh'] ?? 0 ) + ( $last_regen * $hours );
+		}
+	}
+
+	$saved['last_ts']      = $now;
+	$saved['last_drive_w'] = $moving ? $drive_w : 0;
+	$saved['last_regen_w'] = $moving ? $regen_w : 0;
+	$saved['last_moving']  = $moving;
+	$saved['updated_at']   = $now;
+
+	update_option( GAMING_HUB_TESLA_DRIVE_EFF_OPTION, $saved, false );
+
+	return array(
+		'drive_wh' => max( 0, (float) $saved['drive_wh'] ),
+		'regen_wh' => max( 0, (float) $saved['regen_wh'] ),
+	);
+}
+
+/**
+ * Build Wh/km + regen-ratio badge payload.
+ *
+ * @param float|null $today_km Today's km.
+ * @param int        $speed_km Live speed.
+ * @param int|null   $drive_w  Live traction watts.
+ * @param int|null   $regen_w  Live regen watts.
+ * @param bool       $moving   Live moving flag.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_drive_efficiency_snapshot( $today_km = null, $speed_km = 0, $drive_w = null, $regen_w = null, $moving = false ) {
+	$raw      = gaming_hub_tesla_drive_efficiency_raw();
+	$drive_wh = (float) $raw['drive_wh'];
+	$regen_wh = (float) $raw['regen_wh'];
+	$net_wh   = max( 0, $drive_wh - $regen_wh );
+	$km       = null !== $today_km && is_numeric( $today_km ) ? max( 0, (float) $today_km ) : 0.0;
+
+	// Fall back to odometer estimate when pack power has not been sampled yet.
+	if ( $drive_wh < 30 && $km >= 0.5 && function_exists( 'gaming_hub_tesla_drive_energy_today' ) ) {
+		$odo = gaming_hub_tesla_drive_energy_today();
+		$est = max( 0, (float) ( $odo['today_kwh'] ?? 0 ) ) * 1000.0;
+		if ( $est > $drive_wh ) {
+			$drive_wh = $est;
+			$net_wh   = $est;
+		}
+	}
+
+	$wh_per_km = null;
+	if ( $km >= 0.5 && $net_wh >= 20 ) {
+		$wh_per_km = (int) round( $net_wh / $km );
+	}
+
+	$regen_ratio = null;
+	if ( $drive_wh >= 50 ) {
+		$regen_ratio = (int) round( 100 * $regen_wh / $drive_wh );
+		$regen_ratio = max( 0, min( 100, $regen_ratio ) );
+	}
+
+	$speed_km = max( 0, (int) $speed_km );
+	$drive_w  = null === $drive_w ? null : max( 0, (int) $drive_w );
+	$regen_w  = null === $regen_w ? null : max( 0, (int) $regen_w );
+	$live_wh  = null;
+	if ( $moving && $speed_km >= 5 && null !== $drive_w && null !== $regen_w ) {
+		$live_wh = (int) round( ( $drive_w - $regen_w ) / $speed_km );
+	}
+
+	$display_wh = null !== $live_wh ? $live_wh : $wh_per_km;
+	$tier_wh    = 'idle';
+	$badge_wh   = '';
+	if ( null !== $display_wh ) {
+		if ( $display_wh <= 0 ) {
+			$tier_wh  = 'regen';
+			$badge_wh = __( '回生中', 'gaming-hub' );
+		} elseif ( $display_wh < 130 ) {
+			$tier_wh  = 'good';
+			$badge_wh = sprintf(
+				/* translators: %s: Wh/km */
+				__( '%s Wh/km', 'gaming-hub' ),
+				number_format_i18n( $display_wh )
+			);
+		} elseif ( $display_wh < 170 ) {
+			$tier_wh  = 'ok';
+			$badge_wh = sprintf(
+				/* translators: %s: Wh/km */
+				__( '%s Wh/km', 'gaming-hub' ),
+				number_format_i18n( $display_wh )
+			);
+		} else {
+			$tier_wh  = 'high';
+			$badge_wh = sprintf(
+				/* translators: %s: Wh/km */
+				__( '%s Wh/km', 'gaming-hub' ),
+				number_format_i18n( $display_wh )
+			);
+		}
+	}
+
+	$tier_regen  = 'idle';
+	$badge_regen = '';
+	if ( null !== $regen_ratio ) {
+		$badge_regen = sprintf(
+			/* translators: %s: regen percent */
+			__( '回生 %s%%', 'gaming-hub' ),
+			number_format_i18n( $regen_ratio )
+		);
+		if ( $regen_ratio >= 15 ) {
+			$tier_regen = 'good';
+		} elseif ( $regen_ratio >= 5 ) {
+			$tier_regen = 'ok';
+		} else {
+			$tier_regen = 'low';
+		}
+	}
+
+	return array(
+		'wh_per_km'      => $wh_per_km,
+		'regen_ratio'    => $regen_ratio,
+		'drive_kwh'      => round( $drive_wh / 1000.0, 2 ),
+		'regen_kwh'      => round( $regen_wh / 1000.0, 2 ),
+		'net_kwh'        => round( $net_wh / 1000.0, 2 ),
+		'live_wh_per_km' => $live_wh,
+		'badge_wh'       => $badge_wh,
+		'badge_regen'    => $badge_regen,
+		'tier_wh'        => $tier_wh,
+		'tier_regen'     => $tier_regen,
+	);
+}
+
+/**
  * Empty home AC charging totals.
  *
  * @return array<string, mixed>
@@ -2334,6 +2539,21 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		$drive_w = 0;
 	}
 
+	if ( function_exists( 'gaming_hub_tesla_record_drive_efficiency' ) ) {
+		gaming_hub_tesla_record_drive_efficiency( (int) ( $drive_w ?? 0 ), (int) $regen_w, $moving );
+	}
+	$efficiency = function_exists( 'gaming_hub_tesla_drive_efficiency_snapshot' )
+		? gaming_hub_tesla_drive_efficiency_snapshot(
+			isset( $odo_stats['today_km'] ) ? (float) $odo_stats['today_km'] : null,
+			$speed_km,
+			(int) ( $drive_w ?? 0 ),
+			(int) $regen_w,
+			$moving
+		)
+		: ( function_exists( 'gaming_hub_tesla_drive_efficiency_empty' )
+			? gaming_hub_tesla_drive_efficiency_empty()
+			: array() );
+
 	return gaming_hub_powerwall_model3_present(
 		array(
 			'battery_percent'           => $soc,
@@ -2375,6 +2595,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'speed_km'                  => $speed_km,
 			'climate_on'                => $climate_on,
 			'drive_ready'               => $has_drive_slice,
+			'efficiency'                => $efficiency,
 			'vehicle_mode'              => $charging
 				? ( 'supercharger' === $supply['kind'] ? 'supercharger' : 'wall' )
 				: ( $regen_w >= 80
@@ -2772,8 +2993,9 @@ add_action( 'init', 'gaming_hub_tesla_maybe_disconnect', 20 );
  *
  * Those totals are integrated from the watts seen between two polls, so without
  * this they only advance while somebody has the dashboard open — an hour of
- * cabin load with nobody watching used to record nothing. Fetching itself never
- * wakes the car, but AI PLAN auto-apply may wake it in a planned charge hour.
+ * cabin load or drive/regen with nobody watching used to record nothing. Fetching
+ * itself never wakes the car, but AI PLAN auto-apply may wake it in a planned
+ * charge hour.
  */
 function gaming_hub_tesla_sampler_cron() {
 	if ( ! function_exists( 'gaming_hub_get_powerwall_flow_status' ) ) {

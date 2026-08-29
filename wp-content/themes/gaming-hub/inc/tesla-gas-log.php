@@ -790,6 +790,14 @@ function gaming_hub_tesla_gas_log_scripts() {
 	}
 
 	wp_enqueue_script(
+		'gaming-hub-tesla-eff-badges',
+		get_template_directory_uri() . '/assets/js/tesla-eff-badges.js',
+		array(),
+		GAMING_HUB_VERSION,
+		true
+	);
+
+	wp_enqueue_script(
 		'gaming-hub-tesla-gas-log',
 		get_template_directory_uri() . '/assets/js/tesla-gas-log.js',
 		array( 'gaming-hub-i18n' ),
