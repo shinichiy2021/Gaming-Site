@@ -63,7 +63,7 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 				|
 				<a href="https://www.ess-news.com/" target="_blank" rel="noopener noreferrer">ESS News</a>
 				|
-				<a href="https://www.tesla.com/ja_jp/powerwall" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Tesla 公式', 'gaming-hub' ); ?></a>
+				<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'tesla_powerwall' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>"><?php esc_html_e( 'Tesla 公式', 'gaming-hub' ); ?></a>
 			</p>
 			<p class="pw-updated-note">
 				<?php esc_html_e( '30分ごとに自動更新', 'gaming-hub' ); ?>
@@ -73,7 +73,7 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 		<div class="pw-error">
 			<p><?php esc_html_e( '最新情報を取得できませんでした。しばらくしてから再度お試しください。', 'gaming-hub' ); ?></p>
 			<p>
-				<a href="https://www.tesla.com/ja_jp/powerwall" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+				<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'tesla_powerwall' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>" class="btn btn-primary">
 					<?php esc_html_e( 'Tesla 公式サイトで確認する', 'gaming-hub' ); ?>
 				</a>
 			</p>

@@ -3528,6 +3528,13 @@ body.home .site-header.is-scrolled {
 	color: var(--color-text-muted);
 }
 
+.ecoflow-kit-offer {
+	margin: 0 0 8px;
+	font-size: 0.92rem;
+	line-height: 1.5;
+	color: var(--color-text);
+}
+
 .ecoflow-kit-list {
 	list-style: none;
 	margin: 0;
@@ -3594,6 +3601,41 @@ body.home .site-header.is-scrolled {
 	}
 }
 
+.tesla-kit-section {
+	padding: 8px 0 32px;
+}
+
+.tesla-kit .ecoflow-kit-eyebrow {
+	color: #e31937;
+}
+
+.tesla-kit-btn {
+	background: #111;
+	border-color: #111;
+	color: #fff;
+}
+
+.tesla-kit-btn:hover {
+	background: #e31937;
+	border-color: #e31937;
+	color: #fff;
+}
+
+.tesla-kit-btn-outline {
+	border-color: #111;
+	color: #111;
+}
+
+.tesla-kit-btn-outline:hover {
+	background: rgba(227, 25, 55, 0.08);
+	border-color: #e31937;
+	color: #e31937;
+}
+
+.tesla-kit .ecoflow-kit-foot a {
+	color: #e31937;
+}
+
 .ecoflow-page-nav {
 	margin: 8px 0 20px;
 	text-align: right;
@@ -3615,7 +3657,9 @@ body.home .site-header.is-scrolled {
 
 #youtube,
 #energy,
-#kit {
+#kit,
+#tesla-kit,
+#drive {
 	scroll-margin-top: 80px;
 }
 

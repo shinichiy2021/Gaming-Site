@@ -23,6 +23,12 @@ function gaming_hub_affiliate_defaults() {
 		'ecoflow_solar'       => 'https://jp.ecoflow.com/collections/solar-panels',
 		'amazon_delta_pro3'   => '',
 		'amazon_delta_1500'   => '',
+		'tesla_home'          => 'https://ts.la/shinichi831753',
+		'tesla_model3'        => 'https://ts.la/shinichi831753',
+		'tesla_charging'      => 'https://www.tesla.com/ja_jp/charging',
+		'tesla_powerwall'     => 'https://www.tesla.com/ja_jp/powerwall',
+		'amazon_tesla_model3' => '',
+		'amazon_tesla_charge' => '',
 	);
 }
 
@@ -64,6 +70,13 @@ function gaming_hub_affiliate_kit_enabled() {
 }
 
 /**
+ * Whether the Tesla kit block should render.
+ */
+function gaming_hub_affiliate_tesla_kit_enabled() {
+	return (bool) get_theme_mod( 'affiliate_tesla_kit_enabled', true );
+}
+
+/**
  * Kit products tied to live EcoFlow setup.
  *
  * @return array<int, array<string, string>>
@@ -99,6 +112,41 @@ function gaming_hub_affiliate_ecoflow_kit_items() {
 }
 
 /**
+ * Kit products tied to live Tesla / Model 3 setup.
+ *
+ * @return array<int, array<string, string>>
+ */
+function gaming_hub_affiliate_tesla_kit_items() {
+	$items = array(
+		array(
+			'name'    => 'Model 3',
+			'role'    => __( '走行ログ・充電ログで実測中の車両', 'gaming-hub' ),
+			'primary' => 'tesla_model3',
+			'amazon'  => 'amazon_tesla_model3',
+		),
+		array(
+			'name'    => __( '充電（Wall Connector など）', 'gaming-hub' ),
+			'role'    => __( '自宅・外出先の充電まわり', 'gaming-hub' ),
+			'primary' => 'tesla_charging',
+			'amazon'  => 'amazon_tesla_charge',
+		),
+		array(
+			'name'    => 'Powerwall',
+			'role'    => __( '家庭用蓄電（関連ダッシュボードあり）', 'gaming-hub' ),
+			'primary' => 'tesla_powerwall',
+			'amazon'  => '',
+		),
+	);
+
+	/**
+	 * Filter Tesla kit rows.
+	 *
+	 * @param array<int, array<string, string>> $items Kit items.
+	 */
+	return apply_filters( 'gaming_hub_affiliate_tesla_kit_items', $items );
+}
+
+/**
  * This month's PV / savings for the kit headline.
  *
  * @return array{month:string,label:string,solar_kwh:float,saved_yen:float}
@@ -128,6 +176,40 @@ function gaming_hub_affiliate_ecoflow_month_stats() {
 }
 
 /**
+ * This month's driving km / gasoline-vs-EV savings for the Tesla kit.
+ *
+ * @return array{month:string,label:string,km:float,saved_yen:float}
+ */
+function gaming_hub_affiliate_tesla_month_stats() {
+	$ym    = wp_date( 'Y-m' );
+	$label = wp_date( 'Y年n月' );
+	$km    = 0.0;
+	$yen   = 0.0;
+
+	if ( function_exists( 'gaming_hub_tesla_gas_month_payload' ) ) {
+		$payload = gaming_hub_tesla_gas_month_payload( $ym );
+		$totals  = is_array( $payload['totals'] ?? null ) ? $payload['totals'] : array();
+		$km      = (float) ( $totals['km'] ?? 0 );
+		$yen     = (float) ( $totals['saved_yen'] ?? 0 );
+		if ( ! empty( $payload['label'] ) ) {
+			$label = (string) $payload['label'];
+		} elseif ( ! empty( $payload['month'] ) ) {
+			$ts = strtotime( (string) $payload['month'] . '-01 00:00:00' );
+			if ( $ts ) {
+				$label = wp_date( 'Y年n月', $ts );
+			}
+		}
+	}
+
+	return array(
+		'month'     => $ym,
+		'label'     => $label,
+		'km'        => $km,
+		'saved_yen' => $yen,
+	);
+}
+
+/**
  * Customizer: affiliate destinations.
  *
  * @param WP_Customize_Manager $wp_customize Manager.
@@ -137,7 +219,7 @@ function gaming_hub_customize_register_affiliate( $wp_customize ) {
 		'gaming_hub_affiliate',
 		array(
 			'title'       => __( 'Affiliate / 実測キット', 'gaming-hub' ),
-			'description' => __( 'Amazon・楽天・メーカー公式アフィのURLを貼ると、EcoFlowタグの「うちの実測構成」と公式ボタンに反映されます。空欄は公式直リンクのままです。', 'gaming-hub' ),
+			'description' => __( 'A8・Amazon・メーカー公式アフィのURLを貼ると、EcoFlow / Tesla の「うちの実測構成」と公式ボタンに反映されます。空欄は公式直リンクのままです。', 'gaming-hub' ),
 			'priority'    => 38,
 		)
 	);
@@ -160,14 +242,38 @@ function gaming_hub_customize_register_affiliate( $wp_customize ) {
 		)
 	);
 
+	$wp_customize->add_setting(
+		'affiliate_tesla_kit_enabled',
+		array(
+			'default'           => true,
+			'sanitize_callback' => static function ( $value ) {
+				return (bool) $value;
+			},
+		)
+	);
+	$wp_customize->add_control(
+		'affiliate_tesla_kit_enabled',
+		array(
+			'label'   => __( 'Tesla「うちの実測構成」を表示', 'gaming-hub' ),
+			'section' => 'gaming_hub_affiliate',
+			'type'    => 'checkbox',
+		)
+	);
+
 	$fields = array(
-		'ecoflow_home'       => __( 'EcoFlow 公式トップ URL', 'gaming-hub' ),
-		'ecoflow_blog'       => __( 'EcoFlow 公式ブログ URL', 'gaming-hub' ),
-		'ecoflow_delta_pro3' => __( 'DELTA Pro 3 URL（公式 or アフィ）', 'gaming-hub' ),
-		'ecoflow_delta_1500' => __( 'DELTA 3 1500 URL（公式 or アフィ）', 'gaming-hub' ),
-		'ecoflow_solar'      => __( 'ソーラーパネル URL', 'gaming-hub' ),
-		'amazon_delta_pro3'  => __( 'DELTA Pro 3 Amazonアフィ URL（任意）', 'gaming-hub' ),
-		'amazon_delta_1500'  => __( 'DELTA 3 1500 Amazonアフィ URL（任意）', 'gaming-hub' ),
+		'ecoflow_home'        => __( 'EcoFlow 公式トップ URL', 'gaming-hub' ),
+		'ecoflow_blog'        => __( 'EcoFlow 公式ブログ URL', 'gaming-hub' ),
+		'ecoflow_delta_pro3'  => __( 'DELTA Pro 3 URL（公式 or アフィ）', 'gaming-hub' ),
+		'ecoflow_delta_1500'  => __( 'DELTA 3 1500 URL（公式 or アフィ）', 'gaming-hub' ),
+		'ecoflow_solar'       => __( 'ソーラーパネル URL', 'gaming-hub' ),
+		'amazon_delta_pro3'   => __( 'DELTA Pro 3 Amazonアフィ URL（任意）', 'gaming-hub' ),
+		'amazon_delta_1500'   => __( 'DELTA 3 1500 Amazonアフィ URL（任意）', 'gaming-hub' ),
+		'tesla_home'          => __( 'Tesla 公式トップ URL', 'gaming-hub' ),
+		'tesla_model3'        => __( 'Model 3 URL（公式 or A8）', 'gaming-hub' ),
+		'tesla_charging'      => __( 'Tesla 充電ページ URL', 'gaming-hub' ),
+		'tesla_powerwall'     => __( 'Powerwall URL', 'gaming-hub' ),
+		'amazon_tesla_model3' => __( 'Model 3 関連 Amazonアフィ URL（任意）', 'gaming-hub' ),
+		'amazon_tesla_charge' => __( '充電関連 Amazonアフィ URL（任意）', 'gaming-hub' ),
 	);
 
 	$defaults = gaming_hub_affiliate_defaults();
@@ -193,6 +299,21 @@ function gaming_hub_customize_register_affiliate( $wp_customize ) {
 add_action( 'customize_register', 'gaming_hub_customize_register_affiliate' );
 
 /**
+ * Persist Tesla referral link into theme mods (Customizer + front-end).
+ */
+function gaming_hub_ensure_tesla_referral_link() {
+	if ( get_option( 'gaming_hub_tesla_referral_v1' ) ) {
+		return;
+	}
+
+	$url = 'https://ts.la/shinichi831753';
+	set_theme_mod( 'affiliate_tesla_home', $url );
+	set_theme_mod( 'affiliate_tesla_model3', $url );
+	update_option( 'gaming_hub_tesla_referral_v1', 1 );
+}
+add_action( 'init', 'gaming_hub_ensure_tesla_referral_link', 3 );
+
+/**
  * Shortcode for posts: [ecoflow_kit]
  *
  * @return string
@@ -203,3 +324,15 @@ function gaming_hub_affiliate_ecoflow_kit_shortcode() {
 	return (string) ob_get_clean();
 }
 add_shortcode( 'ecoflow_kit', 'gaming_hub_affiliate_ecoflow_kit_shortcode' );
+
+/**
+ * Shortcode for posts: [tesla_kit]
+ *
+ * @return string
+ */
+function gaming_hub_affiliate_tesla_kit_shortcode() {
+	ob_start();
+	get_template_part( 'template-parts/tesla', 'kit' );
+	return (string) ob_get_clean();
+}
+add_shortcode( 'tesla_kit', 'gaming_hub_affiliate_tesla_kit_shortcode' );

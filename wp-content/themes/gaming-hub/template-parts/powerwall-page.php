@@ -20,4 +20,9 @@
 			?>
 		</div>
 	</section>
+	<section class="section tesla-kit-section">
+		<div class="container">
+			<?php get_template_part( 'template-parts/tesla', 'kit' ); ?>
+		</div>
+	</section>
 </div>
