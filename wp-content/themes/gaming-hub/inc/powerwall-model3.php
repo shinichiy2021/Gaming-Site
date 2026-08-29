@@ -354,6 +354,39 @@ function gaming_hub_powerwall_model3_present( array $model3 ) {
 	$odometer_km = isset( $model3['odometer_km'] ) && is_numeric( $model3['odometer_km'] )
 		? max( 0, (float) $model3['odometer_km'] )
 		: null;
+
+	$inside_c = isset( $model3['inside_temp_c'] ) && is_numeric( $model3['inside_temp_c'] )
+		? (float) $model3['inside_temp_c']
+		: null;
+	$cabin_temp_label = null !== $inside_c
+		? sprintf(
+			/* translators: %s: cabin temperature Celsius */
+			__( '室内 %s℃', 'gaming-hub' ),
+			number_format_i18n( $inside_c, 1 )
+		)
+		: __( '室内 —', 'gaming-hub' );
+
+	$tires = isset( $model3['tire_pressure'] ) && is_array( $model3['tire_pressure'] )
+		? $model3['tire_pressure']
+		: array();
+	$avg_bar = isset( $tires['avg_bar'] ) && is_numeric( $tires['avg_bar'] )
+		? (float) $tires['avg_bar']
+		: null;
+	$tire_pressure_label = null !== $avg_bar
+		? sprintf(
+			/* translators: %s: average tire pressure in bar */
+			__( '空気圧 %s bar', 'gaming-hub' ),
+			number_format_i18n( $avg_bar, 1 )
+		)
+		: __( '空気圧 —', 'gaming-hub' );
+
+	$odometer_plain_label = null !== $odometer_km
+		? sprintf(
+			/* translators: %s: lifetime odometer km */
+			__( 'オドメーター %s km', 'gaming-hub' ),
+			number_format_i18n( (int) round( $odometer_km ) )
+		)
+		: __( 'オドメーター —', 'gaming-hub' );
 	$patch       = trim( (string) ( $model3['car_version'] ?? '' ) );
 	$vehicle     = (string) ( $model3['vehicle_name'] ?? 'Model 3' );
 	if ( '' === $vehicle ) {
@@ -433,6 +466,14 @@ function gaming_hub_powerwall_model3_present( array $model3 ) {
 					number_format_i18n( (int) round( $odometer_km ) )
 				)
 				: __( '累計EXP —', 'gaming-hub' ),
+			'odometer_plain_label'  => $odometer_plain_label,
+			'cabin_temp_label'      => $cabin_temp_label,
+			'tire_pressure_label'   => $tire_pressure_label,
+			'inside_temp_c'         => $inside_c,
+			'outside_temp_c'        => isset( $model3['outside_temp_c'] ) && is_numeric( $model3['outside_temp_c'] )
+				? (float) $model3['outside_temp_c']
+				: null,
+			'tire_pressure'         => $tires,
 			'patch_label'           => '' !== $patch
 				? sprintf(
 					/* translators: %s: vehicle software version */

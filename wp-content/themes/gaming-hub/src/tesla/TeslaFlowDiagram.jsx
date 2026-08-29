@@ -324,8 +324,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 						/>
 					</div>
 
-					<div
-						className={ teslaClasses }
+					<div className={ teslaClasses }
 						data-flow-id="tesla"
 						style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }
 					>
@@ -340,6 +339,19 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 						<p className="ecoflow-node-state">{ teslaStateLabel( status, labels ) }</p>
 						{ ! asleep && status.live ? <PackEta status={ status } /> : null }
 						{ ! asleep && status.live && status.range_label ? <small>{ status.range_label }</small> : null }
+						{ status.live ? (
+							<div className="tesla-card-vitals">
+								{ status.odometer_label && String( status.odometer_label ).indexOf( '—' ) === -1 ? (
+									<small>{ status.odometer_label }</small>
+								) : null }
+								{ Number.isFinite( Number( status.cabin_temp_c ) ) && status.cabin_temp_label ? (
+									<small>{ status.cabin_temp_label }</small>
+								) : null }
+								{ status.tire_pressure?.avg_bar != null && status.tire_pressure_label ? (
+									<small>{ status.tire_pressure_label }</small>
+								) : null }
+							</div>
+						) : null }
 					</div>
 
 					<div className="tesla-flow-outputs">

@@ -363,6 +363,18 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'supply_kind'     => $kind,
 		'supply_label'    => (string) ( $model3['supply_label'] ?? '' ),
 		'range_label'     => $asleep ? '' : (string) ( $model3['range_label'] ?? '' ),
+		'odometer_km'     => isset( $model3['odometer_km'] ) && is_numeric( $model3['odometer_km'] )
+			? (float) $model3['odometer_km']
+			: null,
+		'odometer_label'  => (string) ( $model3['odometer_plain_label'] ?? $model3['odometer_label'] ?? '' ),
+		'cabin_temp_c'    => isset( $model3['inside_temp_c'] ) && is_numeric( $model3['inside_temp_c'] )
+			? (float) $model3['inside_temp_c']
+			: null,
+		'cabin_temp_label'=> (string) ( $model3['cabin_temp_label'] ?? '' ),
+		'tire_pressure'   => isset( $model3['tire_pressure'] ) && is_array( $model3['tire_pressure'] )
+			? $model3['tire_pressure']
+			: null,
+		'tire_pressure_label' => (string) ( $model3['tire_pressure_label'] ?? '' ),
 		'live'            => true,
 		'simulated'       => false,
 		'drive_ready'     => ! $asleep && ! empty( $model3['drive_ready'] ),

@@ -146,7 +146,9 @@
 		setField('model3_charge_eta', model3.charge_eta_label || '—');
 		setField('model3_charge_complete', model3.charge_complete_label || '—');
 		setField('model3_drop', model3.drop_label || '—');
-		setField('model3_odometer', model3.odometer_label || t('累計EXP —'));
+		setField('model3_odometer', model3.odometer_plain_label || model3.odometer_label || t('オドメーター —'));
+		setField('model3_cabin_temp', model3.cabin_temp_label || t('室内 —'));
+		setField('model3_tire_pressure', model3.tire_pressure_label || t('空気圧 —'));
 		setField('model3_patch', model3.patch_label || t('パッチ —'));
 		setField('model3_next_raid', model3.next_raid_label || '');
 		setField(
