@@ -7,18 +7,23 @@
 
 get_header();
 
-while ( have_posts() ) :
+	while ( have_posts() ) :
 	the_post();
-	$meta = gaming_hub_get_game_meta();
+	$meta       = gaming_hub_get_game_meta();
+	$is_ecoflow = function_exists( 'gaming_hub_has_ecoflow_tag' ) && gaming_hub_has_ecoflow_tag();
 	?>
 
-	<article id="post-<?php the_ID(); ?>" <?php post_class( 'single-post' ); ?>>
+	<article id="post-<?php the_ID(); ?>" <?php post_class( array( 'single-post', $is_ecoflow ? 'single-post-ecoflow' : '' ) ); ?>>
 		<?php if ( has_post_thumbnail() ) : ?>
 			<div class="post-hero">
 				<?php the_post_thumbnail( 'hero-banner' ); ?>
 				<div class="post-hero-overlay">
 					<div class="container">
-						<?php the_category( ', ' ); ?>
+						<?php if ( $is_ecoflow ) : ?>
+							<?php gaming_hub_render_ecoflow_tag_badge(); ?>
+						<?php else : ?>
+							<?php the_category( ', ' ); ?>
+						<?php endif; ?>
 						<h1 class="post-title"><?php the_title(); ?></h1>
 						<div class="post-meta">
 							<span class="post-date"><?php echo esc_html( get_the_date() ); ?></span>
@@ -36,12 +41,25 @@ while ( have_posts() ) :
 		<?php else : ?>
 			<div class="container">
 				<header class="post-header">
-					<?php the_category( ', ' ); ?>
+					<?php if ( $is_ecoflow ) : ?>
+						<?php gaming_hub_render_ecoflow_tag_badge(); ?>
+					<?php else : ?>
+						<?php the_category( ', ' ); ?>
+					<?php endif; ?>
 					<h1 class="post-title"><?php the_title(); ?></h1>
 					<div class="post-meta">
 						<span class="post-date"><?php echo esc_html( get_the_date() ); ?></span>
 						<span class="post-author"><?php the_author(); ?></span>
 					</div>
+					<?php if ( $is_ecoflow ) : ?>
+						<p class="post-ecoflow-links">
+							<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>"><?php esc_html_e( 'EcoFlow ダッシュボード', 'gaming-hub' ); ?></a>
+							<span aria-hidden="true">·</span>
+							<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>#energy"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
+							<span aria-hidden="true">·</span>
+							<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>#kit"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
+						</p>
+					<?php endif; ?>
 				</header>
 			</div>
 		<?php endif; ?>
@@ -73,10 +91,12 @@ while ( have_posts() ) :
 
 			<nav class="post-navigation">
 				<?php
-				the_post_navigation( array(
-					'prev_text' => '<span class="nav-label">' . esc_html__( 'Previous', 'gaming-hub' ) . '</span><span class="nav-title">%title</span>',
-					'next_text' => '<span class="nav-label">' . esc_html__( 'Next', 'gaming-hub' ) . '</span><span class="nav-title">%title</span>',
-				) );
+				the_post_navigation(
+					array(
+						'prev_text' => '<span class="nav-label">' . esc_html__( 'Previous', 'gaming-hub' ) . '</span><span class="nav-title">%title</span>',
+						'next_text' => '<span class="nav-label">' . esc_html__( 'Next', 'gaming-hub' ) . '</span><span class="nav-title">%title</span>',
+					)
+				);
 				?>
 			</nav>
 		</div>

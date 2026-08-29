@@ -928,6 +928,46 @@ body.home .site-header.is-scrolled {
 	margin-bottom: 16px;
 }
 
+.content-wrapper ul,
+.content-wrapper ol {
+	margin: 0 0 20px;
+	padding-left: 1.35em;
+}
+
+.content-wrapper li {
+	margin-bottom: 8px;
+}
+
+.content-wrapper em {
+	font-style: normal;
+	font-size: 0.92em;
+	color: var(--color-text-muted);
+}
+
+.content-wrapper a {
+	color: var(--ecoflow-green, #00c853);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.single-post-ecoflow .content-wrapper .ecoflow-kit {
+	margin-top: 28px;
+	padding-top: 8px;
+	border-top: none;
+}
+
+.post-ecoflow-links {
+	margin: 14px 0 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 10px;
+	font-size: 0.9rem;
+}
+
+.post-ecoflow-links a {
+	color: var(--ecoflow-green, #00c853);
+}
+
 .game-info-box {
 	max-width: 760px;
 	margin: 40px auto;
@@ -3448,6 +3488,112 @@ body.home .site-header.is-scrolled {
 	color: var(--color-text-muted);
 }
 
+.ecoflow-kit {
+	padding: 28px 0 8px;
+	border-top: 1px solid var(--color-border);
+}
+
+.ecoflow-kit-head {
+	max-width: 40rem;
+	margin-bottom: 24px;
+}
+
+.ecoflow-kit-eyebrow {
+	margin: 0 0 6px;
+	font-size: 0.75rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--ecoflow-green);
+}
+
+.ecoflow-kit-title {
+	margin: 0 0 10px;
+	font-family: var(--font-display);
+	font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+.ecoflow-kit-lead {
+	margin: 0 0 10px;
+	font-size: 0.98rem;
+	line-height: 1.55;
+	color: var(--color-text);
+}
+
+.ecoflow-kit-disclaimer {
+	margin: 0;
+	font-size: 0.78rem;
+	line-height: 1.45;
+	color: var(--color-text-muted);
+}
+
+.ecoflow-kit-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 12px;
+}
+
+.ecoflow-kit-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px 20px;
+	padding: 16px 18px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-bg-card);
+}
+
+.ecoflow-kit-name {
+	margin: 0 0 4px;
+	font-family: var(--font-display);
+	font-size: 1.05rem;
+}
+
+.ecoflow-kit-role {
+	margin: 0;
+	font-size: 0.88rem;
+	color: var(--color-text-muted);
+}
+
+.ecoflow-kit-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.ecoflow-kit-btn {
+	min-width: 7.5rem;
+	text-align: center;
+}
+
+.ecoflow-kit-foot {
+	margin: 18px 0 0;
+	font-size: 0.9rem;
+}
+
+.ecoflow-kit-foot a {
+	color: var(--ecoflow-green);
+}
+
+@media (max-width: 640px) {
+	.ecoflow-kit-item {
+		align-items: flex-start;
+	}
+
+	.ecoflow-kit-actions {
+		width: 100%;
+	}
+
+	.ecoflow-kit-btn {
+		flex: 1 1 auto;
+	}
+}
+
 .ecoflow-page-nav {
 	margin: 8px 0 20px;
 	text-align: right;
@@ -3468,7 +3614,8 @@ body.home .site-header.is-scrolled {
 }
 
 #youtube,
-#energy {
+#energy,
+#kit {
 	scroll-margin-top: 80px;
 }
 

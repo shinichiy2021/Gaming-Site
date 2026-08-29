@@ -35,8 +35,9 @@ $is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
 				<p class="ecoflow-archive-desc"><?php esc_html_e( 'ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事', 'gaming-hub' ); ?></p>
 				<div class="ecoflow-official-links">
 					<a href="#energy" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
-					<a href="https://jp.ecoflow.com/" target="_blank" rel="noopener noreferrer" class="btn btn-primary ecoflow-btn"><?php esc_html_e( 'EcoFlow 公式サイト', 'gaming-hub' ); ?></a>
-					<a href="https://jp.ecoflow.com/pages/blog" target="_blank" rel="noopener noreferrer" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '公式ブログ', 'gaming-hub' ); ?></a>
+					<a href="#kit" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
+					<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'ecoflow_home' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>" class="btn btn-primary ecoflow-btn"><?php esc_html_e( 'EcoFlow 公式サイト', 'gaming-hub' ); ?></a>
+					<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'ecoflow_blog' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '公式ブログ', 'gaming-hub' ); ?></a>
 				</div>
 			<?php endif; ?>
 		</div>
@@ -49,6 +50,9 @@ $is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
 	</div>
 	<div id="energy" class="container ecoflow-dashboard-wrap">
 		<?php gaming_hub_render_ecoflow_energy_page(); ?>
+	</div>
+	<div class="container ecoflow-dashboard-wrap">
+		<?php get_template_part( 'template-parts/ecoflow', 'kit' ); ?>
 	</div>
 <?php endif; ?>
 
@@ -75,24 +79,7 @@ $is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
 <?php elseif ( $is_ecoflow ) : ?>
 	<div class="container content-area">
 		<div class="ecoflow-empty">
-			<p><?php esc_html_e( 'EcoFlow タグの記事はまだありません。', 'gaming-hub' ); ?></p>
-			<div class="ecoflow-links-grid">
-				<a href="https://jp.ecoflow.com/products/delta-pro-3" target="_blank" rel="noopener noreferrer" class="ecoflow-link-card">
-					<span class="ecoflow-link-icon">🔋</span>
-					<h3><?php esc_html_e( 'ポータブル電源', 'gaming-hub' ); ?></h3>
-					<p><?php esc_html_e( 'DELTA シリーズなど製品情報', 'gaming-hub' ); ?></p>
-				</a>
-				<a href="https://jp.ecoflow.com/collections/solar-panels" target="_blank" rel="noopener noreferrer" class="ecoflow-link-card">
-					<span class="ecoflow-link-icon">☀️</span>
-					<h3><?php esc_html_e( 'ソーラーパネル', 'gaming-hub' ); ?></h3>
-					<p><?php esc_html_e( 'ソーラー充電ソリューション', 'gaming-hub' ); ?></p>
-				</a>
-				<a href="https://jp.ecoflow.com/pages/blog" target="_blank" rel="noopener noreferrer" class="ecoflow-link-card">
-					<span class="ecoflow-link-icon">📝</span>
-					<h3><?php esc_html_e( '公式ブログ', 'gaming-hub' ); ?></h3>
-					<p><?php esc_html_e( '活用方法・最新情報', 'gaming-hub' ); ?></p>
-				</a>
-			</div>
+			<p><?php esc_html_e( 'EcoFlow タグの記事はまだありません。上の実測構成・発電ログから機材を確認できます。', 'gaming-hub' ); ?></p>
 		</div>
 	</div>
 <?php elseif ( ! $is_dash ) : ?>
