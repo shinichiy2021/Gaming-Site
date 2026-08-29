@@ -15,8 +15,6 @@ get_header();
 			<div class="ecoflow-official-links">
 				<a href="#energy" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
 				<a href="#kit" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
-				<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'ecoflow_home' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>" class="btn btn-primary ecoflow-btn"><?php esc_html_e( 'EcoFlow 公式サイト', 'gaming-hub' ); ?></a>
-				<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'ecoflow_blog' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '公式ブログ', 'gaming-hub' ); ?></a>
 			</div>
 		</div>
 		<div class="ecoflow-dashboard-wrap">

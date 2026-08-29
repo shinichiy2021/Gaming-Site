@@ -37,6 +37,9 @@
 			</button>
 		</div>
 	</div>
+	<?php if ( function_exists( 'gaming_hub_render_mobile_hub_switcher' ) ) : ?>
+		<?php gaming_hub_render_mobile_hub_switcher(); ?>
+	<?php endif; ?>
 </header>
 
 <main id="main-content" class="site-main">

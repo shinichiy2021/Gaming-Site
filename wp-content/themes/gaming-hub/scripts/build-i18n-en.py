@@ -98,6 +98,7 @@ EN = {
     "家庭の電力フローから、Pokémon GO の最新情報まで。": "From home energy flow to the latest Pokémon GO news.",
     "1.5kW ソーラー・蓄電池・Model 3 の電力フローと、電気代の節約額をシミュレーション。": "1.5 kW solar, battery, and Model 3 energy flow, plus bill savings simulation.",
     "ダッシュボードへ": "Go to dashboard",
+    "ダッシュボード切替": "Dashboard switch",
     "ポータブル電源の入出力と、スマートタイムONE の時間別単価・充電計画。": "Portable-power I/O, Smart Time ONE hourly rates, and a charge plan.",
     "ステータスへ": "Go to status",
     "イベント・レイド情報と、注目 YouTuber の最新動画。": "Events, raids, and videos from featured YouTubers.",
