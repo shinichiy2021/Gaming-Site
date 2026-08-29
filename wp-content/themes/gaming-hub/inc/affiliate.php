@@ -63,6 +63,35 @@ function gaming_hub_affiliate_rel() {
 }
 
 /**
+ * Whether EcoFlow A8 banner (Dabson etc.) should render.
+ */
+function gaming_hub_affiliate_ecoflow_a8_banner_enabled() {
+	return (bool) get_theme_mod( 'affiliate_ecoflow_a8_banner_enabled', true );
+}
+
+/**
+ * Render EcoFlow A8 300x250 banner markup.
+ */
+function gaming_hub_render_ecoflow_a8_banner() {
+	if ( ! gaming_hub_affiliate_ecoflow_a8_banner_enabled() ) {
+		return;
+	}
+
+	$href = 'https://px.a8.net/svt/ejp?a8mat=4BAH9O+4M3YK2+5MSA+5YZ75';
+	$img  = 'https://www25.a8.net/svt/bgt?aid=260829420279&wid=001&eno=01&mid=s00000026281001003000&mc=1';
+	$pixel = 'https://www17.a8.net/0.gif?a8mat=4BAH9O+4M3YK2+5MSA+5YZ75';
+	?>
+	<div class="ecoflow-a8-banner" aria-label="<?php esc_attr_e( '広告', 'gaming-hub' ); ?>">
+		<p class="ecoflow-a8-banner-label"><?php esc_html_e( 'PR', 'gaming-hub' ); ?></p>
+		<a href="<?php echo esc_url( $href ); ?>" target="_blank" rel="sponsored nofollow noopener noreferrer">
+			<img src="<?php echo esc_url( $img ); ?>" width="300" height="250" alt="<?php esc_attr_e( 'A8.net 広告バナー', 'gaming-hub' ); ?>" loading="lazy" decoding="async" />
+		</a>
+		<img src="<?php echo esc_url( $pixel ); ?>" width="1" height="1" alt="" loading="lazy" decoding="async" />
+	</div>
+	<?php
+}
+
+/**
  * Whether the EcoFlow kit block should render.
  */
 function gaming_hub_affiliate_kit_enabled() {
@@ -237,6 +266,24 @@ function gaming_hub_customize_register_affiliate( $wp_customize ) {
 		'affiliate_kit_enabled',
 		array(
 			'label'   => __( 'EcoFlow「うちの実測構成」を表示', 'gaming-hub' ),
+			'section' => 'gaming_hub_affiliate',
+			'type'    => 'checkbox',
+		)
+	);
+
+	$wp_customize->add_setting(
+		'affiliate_ecoflow_a8_banner_enabled',
+		array(
+			'default'           => true,
+			'sanitize_callback' => static function ( $value ) {
+				return (bool) $value;
+			},
+		)
+	);
+	$wp_customize->add_control(
+		'affiliate_ecoflow_a8_banner_enabled',
+		array(
+			'label'   => __( 'EcoFlow A8バナー（300×250）を表示', 'gaming-hub' ),
 			'section' => 'gaming_hub_affiliate',
 			'type'    => 'checkbox',
 		)

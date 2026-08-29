@@ -11,9 +11,10 @@ get_header();
 	the_post();
 	$meta       = gaming_hub_get_game_meta();
 	$is_ecoflow = function_exists( 'gaming_hub_has_ecoflow_tag' ) && gaming_hub_has_ecoflow_tag();
+	$is_tesla   = has_tag( 'tesla' );
 	?>
 
-	<article id="post-<?php the_ID(); ?>" <?php post_class( array( 'single-post', $is_ecoflow ? 'single-post-ecoflow' : '' ) ); ?>>
+	<article id="post-<?php the_ID(); ?>" <?php post_class( array( 'single-post', $is_ecoflow ? 'single-post-ecoflow' : '', $is_tesla ? 'single-post-tesla' : '' ) ); ?>>
 		<?php if ( has_post_thumbnail() ) : ?>
 			<div class="post-hero">
 				<?php the_post_thumbnail( 'hero-banner' ); ?>
@@ -21,6 +22,8 @@ get_header();
 					<div class="container">
 						<?php if ( $is_ecoflow ) : ?>
 							<?php gaming_hub_render_ecoflow_tag_badge(); ?>
+						<?php elseif ( $is_tesla ) : ?>
+							<a href="<?php echo esc_url( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) ); ?>" class="ecoflow-tag-badge tesla-tag-badge">Tesla</a>
 						<?php else : ?>
 							<?php the_category( ', ' ); ?>
 						<?php endif; ?>
@@ -43,6 +46,8 @@ get_header();
 				<header class="post-header">
 					<?php if ( $is_ecoflow ) : ?>
 						<?php gaming_hub_render_ecoflow_tag_badge(); ?>
+					<?php elseif ( $is_tesla ) : ?>
+						<a href="<?php echo esc_url( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) ); ?>" class="ecoflow-tag-badge tesla-tag-badge">Tesla</a>
 					<?php else : ?>
 						<?php the_category( ', ' ); ?>
 					<?php endif; ?>
@@ -58,6 +63,14 @@ get_header();
 							<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>#energy"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
 							<span aria-hidden="true">·</span>
 							<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>#kit"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
+						</p>
+					<?php elseif ( $is_tesla ) : ?>
+						<p class="post-ecoflow-links post-tesla-links">
+							<a href="<?php echo esc_url( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) ); ?>"><?php esc_html_e( 'Tesla ダッシュボード', 'gaming-hub' ); ?></a>
+							<span aria-hidden="true">·</span>
+							<a href="<?php echo esc_url( ( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) ) . '#drive' ); ?>"><?php esc_html_e( 'Driving Log', 'gaming-hub' ); ?></a>
+							<span aria-hidden="true">·</span>
+							<a href="<?php echo esc_url( ( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) ) . '#tesla-kit' ); ?>"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
 						</p>
 					<?php endif; ?>
 				</header>
