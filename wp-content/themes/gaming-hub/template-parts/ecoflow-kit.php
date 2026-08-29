@@ -69,6 +69,10 @@ $solar = (float) $stats['solar_kwh'];
 		<?php endforeach; ?>
 	</ul>
 
+	<?php if ( function_exists( 'gaming_hub_render_ecoflow_a8_banner' ) ) : ?>
+		<?php gaming_hub_render_ecoflow_a8_banner(); ?>
+	<?php endif; ?>
+
 	<p class="ecoflow-kit-foot">
 		<a href="#energy"><?php esc_html_e( '発電ログで数字を確認 →', 'gaming-hub' ); ?></a>
 	</p>

@@ -928,6 +928,27 @@ body.home .site-header.is-scrolled {
 	margin-bottom: 16px;
 }
 
+.content-wrapper .article-figure {
+	margin: 8px 0 28px;
+	border-radius: var(--radius-lg, 12px);
+	overflow: hidden;
+	background: var(--color-bg-card, #111);
+	border: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+}
+
+.content-wrapper .article-figure img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.content-wrapper .article-figure figcaption {
+	padding: 10px 14px 12px;
+	font-size: 0.85rem;
+	line-height: 1.45;
+	color: var(--color-text-muted, #999);
+}
+
 .content-wrapper ul,
 .content-wrapper ol {
 	margin: 0 0 20px;
@@ -3587,6 +3608,40 @@ body.home .site-header.is-scrolled {
 	color: var(--ecoflow-green);
 }
 
+.ecoflow-a8-banner {
+	margin: 24px 0 8px;
+	text-align: center;
+}
+
+.ecoflow-a8-banner-label {
+	margin: 0 0 8px;
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	color: var(--color-text-muted);
+}
+
+.ecoflow-a8-banner a {
+	display: inline-block;
+	line-height: 0;
+	border-radius: var(--radius-lg, 12px);
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+}
+
+.ecoflow-a8-banner img[width="300"] {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}
+
+.ecoflow-a8-banner img[width="1"] {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}
+
 @media (max-width: 640px) {
 	.ecoflow-kit-item {
 		align-items: flex-start;
@@ -3633,6 +3688,27 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-kit .ecoflow-kit-foot a {
+	color: #e31937;
+}
+
+.tesla-tag-badge {
+	background: #111;
+	color: #fff;
+}
+
+.tesla-tag-badge:hover {
+	background: #e31937;
+	color: #fff;
+}
+
+.single-post-tesla .content-wrapper .ecoflow-kit,
+.single-post-tesla .content-wrapper .tesla-kit {
+	margin-top: 28px;
+	padding-top: 8px;
+	border-top: none;
+}
+
+.post-tesla-links a {
 	color: #e31937;
 }
 
