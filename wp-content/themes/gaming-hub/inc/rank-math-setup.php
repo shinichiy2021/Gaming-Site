@@ -97,6 +97,17 @@ function gaming_hub_configure_rank_math_defaults() {
 	$general['google_verify'] = 'kBdmp1szFKqha1zPV34NzHC38k-U08kf8jZ1BDGIm1k';
 	update_option( 'rank-math-options-general', $general );
 
+	$sitemap = get_option( 'rank-math-options-sitemap', array() );
+	if ( ! is_array( $sitemap ) ) {
+		$sitemap = array();
+	}
+	$sitemap['items_per_page']       = $sitemap['items_per_page'] ?? 200;
+	$sitemap['pt_post_sitemap']      = 'on';
+	$sitemap['pt_page_sitemap']      = 'on';
+	$sitemap['tax_category_sitemap'] = 'on';
+	$sitemap['tax_post_tag_sitemap'] = 'on';
+	update_option( 'rank-math-options-sitemap', $sitemap );
+
 	flush_rewrite_rules( false );
 }
 
@@ -130,10 +141,39 @@ function gaming_hub_ensure_rank_math_google_verify() {
 add_action( 'init', 'gaming_hub_ensure_rank_math_google_verify', 6 );
 
 /**
+ * Ensure Rank Math sitemap settings include posts/pages (production was empty → 404).
+ */
+function gaming_hub_ensure_rank_math_sitemap_settings() {
+	if ( get_option( 'gaming_hub_rank_math_sitemap_settings_v1' ) ) {
+		return;
+	}
+
+	$sitemap = get_option( 'rank-math-options-sitemap', array() );
+	if ( ! is_array( $sitemap ) ) {
+		$sitemap = array();
+	}
+
+	$sitemap['items_per_page']          = isset( $sitemap['items_per_page'] ) ? absint( $sitemap['items_per_page'] ) : 200;
+	$sitemap['include_images']          = $sitemap['include_images'] ?? 'on';
+	$sitemap['pt_post_sitemap']         = 'on';
+	$sitemap['pt_page_sitemap']         = 'on';
+	$sitemap['tax_category_sitemap']    = 'on';
+	$sitemap['tax_post_tag_sitemap']    = 'on';
+	$sitemap['authors_sitemap']         = $sitemap['authors_sitemap'] ?? 'off';
+
+	update_option( 'rank-math-options-sitemap', $sitemap );
+	update_option( 'gaming_hub_rank_math_sitemap_settings_v1', 1 );
+
+	// Allow rewrite flush to run again after settings fix.
+	delete_option( 'gaming_hub_rank_math_sitemap_flush_v3' );
+}
+add_action( 'init', 'gaming_hub_ensure_rank_math_sitemap_settings', 4 );
+
+/**
  * Flush Rank Math sitemap rewrites after the plugin has registered them.
  */
 function gaming_hub_flush_rank_math_sitemap_rewrites() {
-	if ( get_option( 'gaming_hub_rank_math_sitemap_flush_v3' ) ) {
+	if ( get_option( 'gaming_hub_rank_math_sitemap_flush_v4' ) ) {
 		return;
 	}
 	if ( ! class_exists( '\RankMath\Helper' ) ) {
@@ -142,15 +182,93 @@ function gaming_hub_flush_rank_math_sitemap_rewrites() {
 
 	\RankMath\Helper::update_modules( array( 'sitemap' => 'on' ) );
 	flush_rewrite_rules( false );
-	update_option( 'gaming_hub_rank_math_sitemap_flush_v3', 1 );
+	update_option( 'gaming_hub_rank_math_sitemap_flush_v4', 1 );
 }
 add_action( 'wp_loaded', 'gaming_hub_flush_rank_math_sitemap_rewrites', 99 );
 
 /**
- * Fallback: serve Rank Math sitemaps when rewrite rules are missing (production 404).
+ * Fallback sitemap when Rank Math rewrite/settings fail.
+ *
+ * @param string $type Sitemap type (1 = index, post, page, …).
+ */
+function gaming_hub_output_simple_sitemap( $type ) {
+	nocache_headers();
+	header( 'Content-Type: application/xml; charset=UTF-8' );
+	status_header( 200 );
+
+	if ( '1' === $type ) {
+		$sitemaps = array(
+			home_url( '/post-sitemap.xml' ),
+			home_url( '/page-sitemap.xml' ),
+			home_url( '/category-sitemap.xml' ),
+			home_url( '/post_tag-sitemap.xml' ),
+		);
+		echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+		echo '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+		foreach ( $sitemaps as $loc ) {
+			echo "\t<sitemap>\n\t\t<loc>" . esc_url( $loc ) . "</loc>\n\t</sitemap>\n";
+		}
+		echo '</sitemapindex>';
+		exit;
+	}
+
+	$urls = array();
+	if ( 'post' === $type || 'page' === $type ) {
+		$q = new WP_Query(
+			array(
+				'post_type'              => $type,
+				'post_status'            => 'publish',
+				'posts_per_page'         => 200,
+				'orderby'                => 'modified',
+				'order'                  => 'DESC',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+			)
+		);
+		foreach ( $q->posts as $post ) {
+			$urls[] = array(
+				'loc'     => get_permalink( $post ),
+				'lastmod' => get_post_modified_time( 'c', true, $post ),
+			);
+		}
+	} elseif ( 'category' === $type || 'post_tag' === $type ) {
+		$terms = get_terms(
+			array(
+				'taxonomy'   => $type,
+				'hide_empty' => true,
+				'number'     => 200,
+			)
+		);
+		if ( ! is_wp_error( $terms ) ) {
+			foreach ( $terms as $term ) {
+				$link = get_term_link( $term );
+				if ( is_wp_error( $link ) ) {
+					continue;
+				}
+				$urls[] = array( 'loc' => $link, 'lastmod' => '' );
+			}
+		}
+	}
+
+	echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+	echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+	foreach ( $urls as $url ) {
+		echo "\t<url>\n\t\t<loc>" . esc_url( $url['loc'] ) . "</loc>\n";
+		if ( ! empty( $url['lastmod'] ) ) {
+			echo "\t\t<lastmod>" . esc_html( $url['lastmod'] ) . "</lastmod>\n";
+		}
+		echo "\t</url>\n";
+	}
+	echo '</urlset>';
+	exit;
+}
+
+/**
+ * Fallback: serve sitemaps when Rank Math rewrite/settings fail (production 404).
  */
 function gaming_hub_rank_math_sitemap_fallback() {
-	if ( empty( $_SERVER['REQUEST_URI'] ) || ! class_exists( '\RankMath\Sitemap\Sitemap_XML' ) ) {
+	if ( empty( $_SERVER['REQUEST_URI'] ) ) {
 		return;
 	}
 
@@ -161,41 +279,30 @@ function gaming_hub_rank_math_sitemap_fallback() {
 	}
 
 	$type = '';
-	$page = '';
 
 	if ( '/sitemap_index.xml' === $path || '/sitemap.xml' === $path ) {
 		$type = '1';
 	} elseif ( preg_match( '#^/([a-z0-9_-]+)-sitemap([0-9]*)\.xml$#', $path, $matches ) ) {
 		$type = $matches[1];
-		$page = isset( $matches[2] ) ? $matches[2] : '';
-	} elseif ( preg_match( '#^/([a-z]+)?-?sitemap\.xsl$#', $path, $matches ) ) {
-		if ( class_exists( '\RankMath\Sitemap\Stylesheet' ) ) {
-			$xsl = class_exists( '\RankMath\Sitemap\Router' )
-				? \RankMath\Sitemap\Router::get_sitemap_slug( $matches[1] ?? '' )
-				: ( $matches[1] ?? 'main' );
-			$stylesheet = new \RankMath\Sitemap\Stylesheet();
-			$stylesheet->output( $xsl ? $xsl : 'main' );
-			exit;
-		}
-		return;
 	} else {
 		return;
 	}
 
-	if ( '' !== $page ) {
-		set_query_var( 'sitemap_n', $page );
+	// Prefer Rank Math when it can build a non-empty document via query vars + rewrites.
+	// If that path 404s (common on fresh prod), always emit a simple valid sitemap.
+	if ( class_exists( '\RankMath\Sitemap\Generator' ) ) {
+		$generator = new \RankMath\Sitemap\Generator();
+		$built     = $generator->get_output( $type, 1 );
+		if ( is_string( $built ) && '' !== trim( $built ) ) {
+			nocache_headers();
+			header( 'Content-Type: application/xml; charset=UTF-8' );
+			status_header( 200 );
+			echo $built; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo "\n<!-- XML Sitemap generated by Rank Math SEO Plugin (c) Rank Math - rankmath.com -->";
+			exit;
+		}
 	}
-	set_query_var( 'sitemap', $type );
 
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- sitemap route, no form.
-	$_GET['sitemap'] = $type;
-	if ( '' !== $page ) {
-		$_GET['sitemap_n'] = $page;
-	}
-
-	status_header( 200 );
-	// Constructor outputs XML and exits.
-	new \RankMath\Sitemap\Sitemap_XML( $type );
-	exit;
+	gaming_hub_output_simple_sitemap( $type );
 }
 add_action( 'template_redirect', 'gaming_hub_rank_math_sitemap_fallback', 0 );
