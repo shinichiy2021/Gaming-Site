@@ -5673,6 +5673,97 @@ body.home .site-header.is-scrolled {
 	grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.tesla-gas-summary {
+	margin: 0 0 1rem;
+	padding: 0.9rem 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: var(--radius);
+	background: linear-gradient(145deg, rgba(18, 28, 36, 0.92), rgba(10, 14, 20, 0.88));
+}
+
+.tesla-gas-summary-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-bottom: 0.85rem;
+}
+
+.tesla-gas-summary-kicker {
+	margin: 0;
+	font-size: 0.68rem;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: rgba(244, 241, 234, 0.55);
+}
+
+.tesla-gas-summary-head strong {
+	display: block;
+	margin-top: 0.15rem;
+	font-family: var(--font-display);
+	font-size: 1rem;
+	color: rgba(244, 241, 234, 0.92);
+}
+
+.tesla-gas-summary-tabs {
+	display: inline-flex;
+	gap: 0.35rem;
+}
+
+.tesla-gas-summary-tab {
+	appearance: none;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	margin: 0;
+	padding: 0.35rem 0.7rem;
+	border-radius: var(--radius);
+	background: rgba(0, 0, 0, 0.22);
+	color: rgba(244, 241, 234, 0.62);
+	font: inherit;
+	font-size: 0.78rem;
+	cursor: pointer;
+}
+
+.tesla-gas-summary-tab.is-active {
+	border-color: rgba(0, 245, 212, 0.35);
+	background: rgba(0, 245, 212, 0.12);
+	color: #00f5d4;
+}
+
+.tesla-gas-summary-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 0.55rem;
+}
+
+.tesla-gas-summary-stat {
+	min-width: 0;
+}
+
+.tesla-gas-summary-stat span {
+	display: block;
+	font-size: 0.72rem;
+	color: rgba(244, 241, 234, 0.55);
+}
+
+.tesla-gas-summary-stat strong {
+	display: block;
+	margin-top: 0.2rem;
+	font-family: var(--font-display);
+	font-size: 1.05rem;
+	color: rgba(244, 241, 234, 0.95);
+	line-height: 1.2;
+}
+
+.tesla-gas-summary-save strong {
+	color: #00f5d4;
+}
+
+@media (max-width: 720px) {
+	.tesla-gas-summary-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
 .tesla-charge-meta span {
 	min-width: 0;
 }

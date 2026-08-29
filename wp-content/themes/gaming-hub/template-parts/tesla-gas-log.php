@@ -12,7 +12,11 @@ $days     = is_array( $calendar['days'] ?? null ) ? $calendar['days'] : array();
 $totals   = is_array( $calendar['totals'] ?? null ) ? $calendar['totals'] : array();
 $now      = is_array( $calendar['now'] ?? null ) ? $calendar['now'] : array();
 $today_st = is_array( $calendar['today_stats'] ?? null ) ? $calendar['today_stats'] : array();
+$summary  = is_array( $calendar['summary'] ?? null ) ? $calendar['summary'] : array();
 $today    = (string) ( $calendar['today'] ?? '' );
+$sum_day  = is_array( $summary['day'] ?? null ) ? $summary['day'] : array();
+$sum_week = is_array( $summary['week'] ?? null ) ? $summary['week'] : array();
+$sum_view = $sum_day;
 
 $format_km = static function ( $value, $digits = 1 ) {
 	if ( null === $value || '' === $value ) {
@@ -33,6 +37,13 @@ $format_yen = static function ( $value ) {
 		return '—';
 	}
 	return number_format( (float) $value, 0 ) . ' 円';
+};
+
+$format_avg = static function ( $value ) {
+	if ( null === $value || '' === $value ) {
+		return '—';
+	}
+	return number_format( (float) $value, 1 ) . ' 円/km';
 };
 
 $weekday_labels = array(
@@ -75,6 +86,7 @@ $price_label = (string) ( $now['price_label'] ?? '' );
 	aria-label="<?php esc_attr_e( 'ガソリン節約ログ', 'gaming-hub' ); ?>"
 	data-tesla-gas
 	data-month="<?php echo esc_attr( $calendar['month'] ?? '' ); ?>"
+	data-summary="<?php echo esc_attr( wp_json_encode( $summary ) ); ?>"
 >
 	<div class="ecoflow-plan-header ecoflow-plan-head">
 		<div>
@@ -94,6 +106,49 @@ $price_label = (string) ( $now['price_label'] ?? '' );
 				<button type="button" class="ecoflow-plan-cancel" data-tesla-gas-next data-month="<?php echo esc_attr( $calendar['next'] ?? '' ); ?>"><?php esc_html_e( '翌月', 'gaming-hub' ); ?></button>
 			</span>
 		</p>
+	</div>
+
+	<div class="tesla-gas-summary" data-tesla-gas-summary>
+		<div class="tesla-gas-summary-head">
+			<div>
+				<p class="tesla-gas-summary-kicker"><?php esc_html_e( 'SUMMARY', 'gaming-hub' ); ?></p>
+				<strong data-tesla-gas-summary-label><?php echo esc_html( (string) ( $sum_view['label'] ?? __( '今日', 'gaming-hub' ) ) ); ?></strong>
+			</div>
+			<div class="tesla-gas-summary-tabs" role="tablist" aria-label="<?php esc_attr_e( '日次／週次サマリー', 'gaming-hub' ); ?>">
+				<button
+					type="button"
+					class="tesla-gas-summary-tab is-active"
+					role="tab"
+					aria-selected="true"
+					data-tesla-gas-summary-tab="day"
+				><?php esc_html_e( '日次', 'gaming-hub' ); ?></button>
+				<button
+					type="button"
+					class="tesla-gas-summary-tab"
+					role="tab"
+					aria-selected="false"
+					data-tesla-gas-summary-tab="week"
+				><?php esc_html_e( '週次', 'gaming-hub' ); ?></button>
+			</div>
+		</div>
+		<div class="tesla-gas-summary-grid" role="tabpanel">
+			<div class="tesla-gas-summary-stat">
+				<span><?php esc_html_e( '走行', 'gaming-hub' ); ?></span>
+				<strong data-tesla-gas-summary-km><?php echo esc_html( $format_km( $sum_view['km'] ?? 0 ) ); ?></strong>
+			</div>
+			<div class="tesla-gas-summary-stat">
+				<span><?php esc_html_e( '充電円', 'gaming-hub' ); ?></span>
+				<strong data-tesla-gas-summary-ev><?php echo esc_html( $format_yen( $sum_view['ev_yen'] ?? 0 ) ); ?></strong>
+			</div>
+			<div class="tesla-gas-summary-stat tesla-gas-summary-save">
+				<span><?php esc_html_e( '節約円', 'gaming-hub' ); ?></span>
+				<strong data-tesla-gas-summary-save><?php echo esc_html( $format_yen( $sum_view['saved_yen'] ?? 0 ) ); ?></strong>
+			</div>
+			<div class="tesla-gas-summary-stat">
+				<span><?php esc_html_e( '平均単価', 'gaming-hub' ); ?></span>
+				<strong data-tesla-gas-summary-avg><?php echo esc_html( $format_avg( $sum_view['avg_yen_per_km'] ?? null ) ); ?></strong>
+			</div>
+		</div>
 	</div>
 
 	<div class="ecoflow-rates-hud ecoflow-plan-hud ecoflow-cal-hud">
