@@ -126,6 +126,42 @@ function gaming_hub_api_diagram_hero_alt( $post_id = null ) {
 }
 
 /**
+ * Lancers menu URL for implementation inquiries.
+ *
+ * @return string
+ */
+function gaming_hub_lancers_url() {
+	return 'https://www.lancers.jp/menu/detail/1338805';
+}
+
+/**
+ * Lancers package + URL block for API implementation articles.
+ *
+ * @return string
+ */
+function gaming_hub_article_lancers_section() {
+	$url = esc_url( gaming_hub_lancers_url() );
+
+	return <<<HTML
+<h2>同種の実装をご依頼の方</h2>
+<div class="article-lancers">
+<p>この記事と同様の <strong>Web アプリ・API 連携・ダッシュボード</strong> のご相談は、<a href="{$url}" target="_blank" rel="noopener noreferrer">ランサーズ</a> からお問い合わせください。取引はランサーズ経由のみ対応しています。</p>
+<table>
+<thead>
+<tr><th>プラン</th><th>料金（税込目安）</th><th>内容</th></tr>
+</thead>
+<tbody>
+<tr><td>ベーシック</td><td>30,000円</td><td>既存サイトの軽微な修正、1ページ HTML/CSS コーディング</td></tr>
+<tr><td>スタンダード</td><td>80,000円</td><td>プロモーション LP 1枚（要件整理込み）</td></tr>
+<tr><td>プレミアム</td><td>150,000円</td><td>紹介サイト 3〜5ページ（レスポンシブ）</td></tr>
+</tbody>
+</table>
+<p class="article-lancers-link"><a href="{$url}" target="_blank" rel="noopener noreferrer">ランサーズのパッケージ詳細・相談はこちら →</a></p>
+</div>
+HTML;
+}
+
+/**
  * Figure HTML for review articles.
  *
  * @param string $filename Image file under assets/images/.
@@ -558,6 +594,8 @@ function gaming_hub_seed_delta_pro3_api_content() {
 	$ecoflow = esc_url( gaming_hub_ecoflow_url() );
 	$energy  = $ecoflow . '#energy';
 	$review  = esc_url( home_url( '/delta-pro-3-jissoku-review/' ) );
+	$lancers = esc_url( gaming_hub_lancers_url() );
+	$lancers_block = gaming_hub_article_lancers_section();
 
 	$fig_dual  = gaming_hub_article_figure( 'ecoflow-api-dual-path.svg', 'Pro 3 REST と 1500 MQTT の二系統', 'Pro 3 は Developer API、1500 は App Login MQTT — 経路を分離', 'article-figure--diagram' );
 	$fig_quota = gaming_hub_article_figure( 'ecoflow-api-quota-flow.svg', 'quota 正規化フロー', 'raw quota → フォールバックキー → ダッシュボード / 発電ログ', 'article-figure--diagram' );
@@ -679,11 +717,14 @@ wp-content/ecoflow-cache/    … 実行時生成（volume マウント）
 <p>うちの構成は <strong>Pro 3 = Developer API で読む・書く</strong>、<strong>1500 = MQTT ブリッジで読む・ファイル IPC で書く</strong> の二系統です。無理に一つの SDK に寄せず、quota 正規化とキャッシュ TTL で UI を安定させています。</p>
 <p>ライブ状態は <a href="{$ecoflow}">EcoFlow ダッシュボード</a>、実装の参照はテーマ <code>inc/ecoflow*.php</code> と <code>scripts/ecoflow-*.mjs</code> を見てください。製品選びや節約額の話は <a href="{$review}">DELTA Pro 3 実測レビュー</a> の方が向いています。</p>
 
+{$lancers_block}
+
 <h2>関連リンク</h2>
 <ul>
 <li><a href="{$ecoflow}">EcoFlow ダッシュボード</a></li>
 <li><a href="{$energy}">発電ログ</a></li>
 <li><a href="{$review}">DELTA Pro 3 実測レビュー</a></li>
+<li><a href="{$lancers}" target="_blank" rel="noopener noreferrer">ランサーズ（Web/API 実装）</a></li>
 </ul>
 HTML;
 }
@@ -763,6 +804,8 @@ function gaming_hub_seed_tesla_api_content() {
 	$tesla  = esc_url( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) );
 	$drive  = $tesla . '#drive';
 	$review = esc_url( home_url( '/model3-jissoku-review/' ) );
+	$lancers = esc_url( gaming_hub_lancers_url() );
+	$lancers_block = gaming_hub_article_lancers_section();
 
 	$fig_dual  = gaming_hub_article_figure( 'tesla-api-dual-path.svg', 'Fleet 読み取りと署名コマンドの二系統', '読み取りは Fleet REST、書き込みは tesla-http-proxy — 経路を分離', 'article-figure--diagram' );
 	$fig_quota = gaming_hub_article_figure( 'tesla-api-quota-flow.svg', 'vehicle_data 正規化とポーリング方針', 'vehicle_data → 位置除去 → model3 status → ダッシュボード / ログ', 'article-figure--diagram' );
@@ -864,11 +907,14 @@ docker-compose*.yml        … tesla-http-proxy サービス</code></pre>
 <p>うちの構成は <strong>読み取り = Fleet API</strong>、<strong>書き込み = tesla-http-proxy 署名コマンド</strong> の二系統です。partner 公開鍵と仮想キーを本番で揃え、ポーリングはスリープ優先にしています。</p>
 <p>ライブ状態は <a href="{$tesla}">Tesla ダッシュボード</a>、実装の参照はテーマ <code>inc/tesla*.php</code> を見てください。節約額や日常運用は <a href="{$review}">Model 3 実測レビュー</a> へ。</p>
 
+{$lancers_block}
+
 <h2>関連リンク</h2>
 <ul>
 <li><a href="{$tesla}">Tesla ダッシュボード</a></li>
 <li><a href="{$drive}">Driving Log</a></li>
 <li><a href="{$review}">Model 3 実測レビュー</a></li>
+<li><a href="{$lancers}" target="_blank" rel="noopener noreferrer">ランサーズ（Web/API 実装）</a></li>
 </ul>
 HTML;
 }
@@ -1009,6 +1055,45 @@ function gaming_hub_refresh_delta_pro3_api_hero() {
 	update_option( 'gaming_hub_delta_pro3_api_hero_v1', 1 );
 }
 add_action( 'init', 'gaming_hub_refresh_delta_pro3_api_hero', 32 );
+
+/**
+ * API articles: Lancers package + URL section.
+ */
+function gaming_hub_refresh_api_articles_lancers_v1() {
+	if ( get_option( 'gaming_hub_api_articles_lancers_v1' ) ) {
+		return;
+	}
+
+	$map = array(
+		gaming_hub_delta_pro3_api_post_slug() => 'gaming_hub_seed_delta_pro3_api_content',
+		gaming_hub_tesla_api_post_slug()      => 'gaming_hub_seed_tesla_api_content',
+	);
+
+	foreach ( $map as $slug => $content_fn ) {
+		$posts = get_posts(
+			array(
+				'name'           => $slug,
+				'post_type'      => 'post',
+				'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+			)
+		);
+		if ( empty( $posts ) ) {
+			continue;
+		}
+
+		wp_update_post(
+			array(
+				'ID'           => (int) $posts[0],
+				'post_content' => call_user_func( $content_fn ),
+			)
+		);
+	}
+
+	update_option( 'gaming_hub_api_articles_lancers_v1', 1 );
+}
+add_action( 'init', 'gaming_hub_refresh_api_articles_lancers_v1', 33 );
 
 /**
  * Refresh seeded review posts with inline figures + featured images.
