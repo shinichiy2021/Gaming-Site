@@ -20,6 +20,34 @@ function gaming_hub_theme_image_url( $filename ) {
 }
 
 /**
+ * Post slug for the DELTA Pro 3 API implementation article.
+ */
+function gaming_hub_delta_pro3_api_post_slug() {
+	return 'delta-pro-3-api-jissou';
+}
+
+/**
+ * Whether the current (or given) post is the API implementation article.
+ *
+ * @param int|null $post_id Post ID.
+ */
+function gaming_hub_is_delta_pro3_api_post( $post_id = null ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( ! $post_id ) {
+		return false;
+	}
+
+	return gaming_hub_delta_pro3_api_post_slug() === get_post_field( 'post_name', $post_id );
+}
+
+/**
+ * Hero / card diagram for the API implementation article.
+ */
+function gaming_hub_delta_pro3_api_hero_image_url() {
+	return gaming_hub_theme_image_url( 'ecoflow-api-architecture.svg' );
+}
+
+/**
  * Figure HTML for review articles.
  *
  * @param string $filename Image file under assets/images/.
@@ -41,13 +69,50 @@ function gaming_hub_article_figure( $filename, $alt, $caption = '', $class = '' 
 		$figure_class .= ' ' . sanitize_html_class( $class, '' );
 	}
 	$html = '<figure class="' . esc_attr( trim( $figure_class ) ) . '">';
-	$html .= '<img src="' . $url . '" alt="' . $alt . '" loading="lazy" decoding="async" />';
+
+	$img_attrs = ' src="' . $url . '" alt="' . $alt . '" loading="lazy" decoding="async"';
+	if ( preg_match( '/\.svg$/i', $filename ) ) {
+		$svg_size = gaming_hub_svg_dimensions( $path );
+		if ( $svg_size ) {
+			$img_attrs .= ' width="' . (int) $svg_size['width'] . '" height="' . (int) $svg_size['height'] . '"';
+		}
+	}
+	$html .= '<img' . $img_attrs . ' />';
 	if ( '' !== $caption ) {
 		$html .= '<figcaption>' . esc_html( $caption ) . '</figcaption>';
 	}
 	$html .= '</figure>';
 
 	return $html;
+}
+
+/**
+ * Read width/height from an SVG viewBox or root attributes.
+ *
+ * @param string $path Absolute SVG path.
+ * @return array{width:int,height:int}|null
+ */
+function gaming_hub_svg_dimensions( $path ) {
+	$raw = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+	if ( false === $raw || '' === $raw ) {
+		return null;
+	}
+
+	if ( preg_match( '/\bwidth="(\d+(?:\.\d+)?)"\b/i', $raw, $width ) && preg_match( '/\bheight="(\d+(?:\.\d+)?)"\b/i', $raw, $height ) ) {
+		return array(
+			'width'  => (int) round( (float) $width[1] ),
+			'height' => (int) round( (float) $height[1] ),
+		);
+	}
+
+	if ( preg_match( '/\bviewBox="[\d.\s]+?\s+([\d.]+)\s+([\d.]+)"/i', $raw, $view ) ) {
+		return array(
+			'width'  => (int) round( (float) $view[1] ),
+			'height' => (int) round( (float) $view[2] ),
+		);
+	}
+
+	return null;
 }
 
 /**
@@ -416,12 +481,10 @@ function gaming_hub_seed_delta_pro3_api_content() {
 	$energy  = $ecoflow . '#energy';
 	$review  = esc_url( home_url( '/delta-pro-3-jissoku-review/' ) );
 
-	$fig_arch  = gaming_hub_article_figure( 'ecoflow-api-architecture.svg', 'EcoFlow 連携アーキテクチャ図', 'WordPress + Developer API + MQTT ブリッジの全体構成', 'article-figure--diagram' );
 	$fig_dual  = gaming_hub_article_figure( 'ecoflow-api-dual-path.svg', 'Pro 3 REST と 1500 MQTT の二系統', 'Pro 3 は Developer API、1500 は App Login MQTT — 経路を分離', 'article-figure--diagram' );
 	$fig_quota = gaming_hub_article_figure( 'ecoflow-api-quota-flow.svg', 'quota 正規化フロー', 'raw quota → フォールバックキー → ダッシュボード / 発電ログ', 'article-figure--diagram' );
 
 	return <<<HTML
-{$fig_arch}
 <p>Gaming-Hub の <a href="{$ecoflow}">EcoFlow ダッシュボード</a>は、自宅の DELTA Pro 3 と DELTA 3 1500 からライブ計測・発電ログ・充電計画を出しています。製品レビューではなく、<strong>API と実装のメモ</strong>です。同じことをやりたいエンジニア向けに、うちの構成とハマりどころを書きます。</p>
 <p>前提: 公式モバイル SDK は使っていません。Pro 3 は <strong>EcoFlow Developer API (REST)</strong>、1500 系は <strong>App Login + MQTT</strong> です。機種ごとに経路が違うので、最初から一本化しない方が楽でした。</p>
 
@@ -617,7 +680,7 @@ add_action( 'init', 'gaming_hub_seed_delta_pro3_api_post', 22 );
  * Refresh API article with engineer-style diagram figures.
  */
 function gaming_hub_refresh_delta_pro3_api_diagrams() {
-	if ( get_option( 'gaming_hub_delta_pro3_api_diagrams_v1' ) ) {
+	if ( get_option( 'gaming_hub_delta_pro3_api_diagrams_v2' ) ) {
 		return;
 	}
 
@@ -647,9 +710,42 @@ function gaming_hub_refresh_delta_pro3_api_diagrams() {
 		set_post_thumbnail( $post_id, $att_id );
 	}
 
-	update_option( 'gaming_hub_delta_pro3_api_diagrams_v1', 1 );
+	update_option( 'gaming_hub_delta_pro3_api_diagrams_v2', 1 );
 }
 add_action( 'init', 'gaming_hub_refresh_delta_pro3_api_diagrams', 31 );
+
+/**
+ * API article: diagram hero + drop duplicate top figure from body.
+ */
+function gaming_hub_refresh_delta_pro3_api_hero() {
+	if ( get_option( 'gaming_hub_delta_pro3_api_hero_v1' ) ) {
+		return;
+	}
+
+	$posts = get_posts(
+		array(
+			'name'           => gaming_hub_delta_pro3_api_post_slug(),
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	if ( empty( $posts ) ) {
+		return;
+	}
+
+	$post_id = (int) $posts[0];
+	wp_update_post(
+		array(
+			'ID'           => $post_id,
+			'post_content' => gaming_hub_seed_delta_pro3_api_content(),
+		)
+	);
+
+	update_option( 'gaming_hub_delta_pro3_api_hero_v1', 1 );
+}
+add_action( 'init', 'gaming_hub_refresh_delta_pro3_api_hero', 32 );
 
 /**
  * Refresh seeded review posts with inline figures + featured images.
