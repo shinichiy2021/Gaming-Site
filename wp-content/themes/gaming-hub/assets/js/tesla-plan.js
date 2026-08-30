@@ -38,6 +38,9 @@
 		if (mode === 'past') {
 			return t('経過');
 		}
+		if (mode === 'sleep') {
+			return t('スリープ');
+		}
 		return t('待機');
 	}
 
@@ -94,11 +97,20 @@
 
 		root.classList.toggle('is-deficit', !!plan.needs_grid);
 		root.classList.toggle('is-ok', !plan.needs_grid);
+		root.classList.toggle('is-asleep', !!(plan.asleep && (plan.plan_day || 'today') === 'today'));
 		root.setAttribute('data-plan-id', plan.plan_id || '');
 		root.setAttribute('data-plan-date', plan.plan_date || '');
 
 		setText('[data-tesla-plan-title]', plan.title || '');
 		setText('[data-tesla-plan-note]', plan.note || '');
+		const sleepEl = root.querySelector('[data-tesla-plan-sleep]');
+		if (sleepEl) {
+			const asleepNow = !!(plan.asleep && (plan.plan_day || 'today') === 'today');
+			sleepEl.hidden = !asleepNow;
+			if (asleepNow) {
+				sleepEl.textContent = plan.asleep_note || t('スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。');
+			}
+		}
 		const autoEl = root.querySelector('[data-tesla-plan-auto]');
 		if (autoEl) {
 			const autoPlan = views.today || plan;
@@ -129,9 +141,12 @@
 			'[data-tesla-plan-soc-now]',
 			plan.soc_now == null ? '—' : Math.round(Number(plan.soc_now)) + '%'
 		);
+		const asleepToday = !!(plan.asleep && (plan.plan_day || 'today') === 'today');
 		setText(
 			'[data-tesla-plan-soc-end]',
-			plan.soc_end == null ? '' : t('計画後 %s%%').replace('%s', String(Math.round(Number(plan.soc_end))))
+			asleepToday
+				? t('スリープ中・固定')
+				: (plan.soc_end == null ? '' : t('計画後 %s%%').replace('%s', String(Math.round(Number(plan.soc_end)))))
 		);
 		setText(
 			'[data-tesla-plan-target]',
@@ -194,9 +209,10 @@
 		}
 
 		const nowSlot = byHour[hour] || {};
-		const liveCharging = isLiveDay && !!(liveCharge.charging || plan.live_charging);
+		const asleepNow = isLiveDay && !!(plan.asleep || (views.today && views.today.asleep));
+		const liveCharging = isLiveDay && !asleepNow && !!(liveCharge.charging || plan.live_charging);
 		const liveWatts = Number(liveCharge.watts || plan.live_charge_w || 0);
-		const nowMode = liveCharging ? 'charge' : (isLiveDay ? (nowSlot.mode || 'idle') : 'idle');
+		const nowMode = asleepNow ? 'sleep' : (liveCharging ? 'charge' : (isLiveDay ? (nowSlot.mode || 'idle') : 'idle'));
 		const nowEl = root.querySelector('[data-tesla-plan-now-mode]');
 		const nowWrap = root.querySelector('.ecoflow-plan-stat-now');
 		if (nowEl) {
@@ -205,7 +221,14 @@
 		if (nowWrap) {
 			nowWrap.className = 'ecoflow-rates-stat ecoflow-plan-stat-now is-' + nowMode;
 		}
-		if (liveCharging) {
+		if (asleepNow) {
+			setText(
+				'[data-tesla-plan-now-watts]',
+				plan.soc_now == null
+					? t('入眠時の残量を表示')
+					: t('固定 %s%%').replace('%s', String(Math.round(Number(plan.soc_now))))
+			);
+		} else if (liveCharging) {
 			setText('[data-tesla-plan-now-watts]', Math.round(Math.max(0, liveWatts)).toLocaleString() + ' W');
 		} else if (nowMode === 'drive' && nowSlot.drive_km != null) {
 			setText('[data-tesla-plan-now-watts]', Number(nowSlot.drive_km).toFixed(1) + ' km');
@@ -351,6 +374,18 @@
 			return;
 		}
 		rememberLiveCharge(event.detail);
+		if (views.today) {
+			views.today.asleep = !!event.detail.asleep;
+			if (event.detail.asleep && event.detail.battery_percent != null && !Number.isNaN(Number(event.detail.battery_percent))) {
+				// Keep the held SOC; do not overwrite with fluctuating projections.
+				if (views.today.soc_now == null) {
+					views.today.soc_now = Number(event.detail.battery_percent);
+				}
+			}
+			if (!event.detail.asleep && event.detail.battery_percent != null && !Number.isNaN(Number(event.detail.battery_percent))) {
+				views.today.soc_now = Number(event.detail.battery_percent);
+			}
+		}
 		paintPlan(views[selectedDay] || views.today);
 	});
 

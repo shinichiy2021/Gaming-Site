@@ -5217,11 +5217,34 @@ body.home .site-header.is-scrolled {
 	color: #ff6b35;
 }
 
+.ecoflow-plan-stat-now.is-sleep strong {
+	color: #9aa3b5;
+}
+
 .tesla-plan {
 	border-color: rgba(232, 33, 39, 0.32);
 	background:
 		radial-gradient(ellipse at 0% 0%, rgba(232, 33, 39, 0.1), transparent 50%),
 		rgba(8, 7, 15, 0.72);
+}
+
+.tesla-plan.is-asleep {
+	border-color: rgba(154, 163, 181, 0.45);
+}
+
+.tesla-plan-sleep-note {
+	margin: 8px 0 0;
+	padding: 10px 14px;
+	font-size: 0.88rem;
+	line-height: 1.45;
+	color: #c5c8d0;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	border-radius: var(--radius-md, 10px);
+}
+
+.tesla-plan.is-asleep .ecoflow-plan-stat-now {
+	box-shadow: inset 0 0 0 1px rgba(154, 163, 181, 0.35);
 }
 
 .tesla-plan .ecoflow-plan-kicker {

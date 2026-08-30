@@ -76,7 +76,10 @@ $now_slot = $by_hour[ $now_hour ] ?? array();
 $now_mode = (string) ( $now_slot['mode'] ?? 'idle' );
 $live_charging = $is_today && ! empty( $plan['live_charging'] );
 $live_charge_w = (int) ( $plan['live_charge_w'] ?? 0 );
-if ( $live_charging ) {
+$asleep        = $is_today && ! empty( $plan['asleep'] );
+if ( $asleep ) {
+	$now_mode = 'sleep';
+} elseif ( $live_charging ) {
 	$now_mode = 'charge';
 }
 $mode_label = array(
@@ -84,6 +87,7 @@ $mode_label = array(
 	'drive'  => __( '走行', 'gaming-hub' ),
 	'idle'   => __( '待機', 'gaming-hub' ),
 	'past'   => __( '経過', 'gaming-hub' ),
+	'sleep'  => __( 'スリープ', 'gaming-hub' ),
 );
 $soc_ticks = array( 100, 75, 50, 25, 0 );
 $yen_ticks = array();
@@ -101,7 +105,7 @@ $next_note = $next_charge_labels
 
 <section
 	id="plan"
-	class="ecoflow-plan tesla-plan<?php echo $needs_grid ? ' is-deficit' : ' is-ok'; ?>"
+	class="ecoflow-plan tesla-plan<?php echo $needs_grid ? ' is-deficit' : ' is-ok'; ?><?php echo $asleep ? ' is-asleep' : ''; ?>"
 	aria-label="<?php esc_attr_e( 'Tesla 充電計画', 'gaming-hub' ); ?>"
 	data-tesla-plan
 	data-plan-id="<?php echo esc_attr( $plan['plan_id'] ?? '' ); ?>"
@@ -118,6 +122,9 @@ $next_note = $next_charge_labels
 			<p class="ecoflow-plan-kicker"><?php esc_html_e( 'AI PLAN', 'gaming-hub' ); ?></p>
 			<h3 data-tesla-plan-title><?php echo esc_html( $plan['title'] ?? __( '今日の充電計画', 'gaming-hub' ) ); ?></h3>
 			<p class="ecoflow-plan-note" data-tesla-plan-note><?php echo esc_html( $plan['note'] ?? '' ); ?></p>
+			<p class="tesla-plan-sleep-note" data-tesla-plan-sleep <?php echo $asleep ? '' : 'hidden'; ?>>
+				<?php echo esc_html( (string) ( $plan['asleep_note'] ?? __( 'スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。', 'gaming-hub' ) ) ); ?>
+			</p>
 			<p class="tesla-plan-auto<?php echo ! empty( $plan['auto_error'] ) ? ' is-error' : ''; ?>" data-tesla-plan-auto>
 				<?php echo esc_html( (string) ( $plan['auto_note'] ?? __( 'AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。', 'gaming-hub' ) ) ); ?>
 			</p>
@@ -146,7 +153,17 @@ $next_note = $next_charge_labels
 			<strong data-tesla-plan-now-mode><?php echo esc_html( $mode_label[ $now_mode ] ?? $now_mode ); ?></strong>
 			<small data-tesla-plan-now-watts>
 				<?php
-				if ( $live_charging ) {
+				if ( $asleep ) {
+					echo esc_html(
+						isset( $plan['soc_now'] )
+							? sprintf(
+								/* translators: %s: SOC percent */
+								__( '固定 %s%%', 'gaming-hub' ),
+								number_format_i18n( (float) $plan['soc_now'], 0 )
+							)
+							: __( '入眠時の残量を表示', 'gaming-hub' )
+					);
+				} elseif ( $live_charging ) {
 					echo esc_html( number_format_i18n( max( 0, $live_charge_w ) ) . ' W' );
 				} elseif ( 'drive' === $now_mode && isset( $now_slot['drive_km'] ) ) {
 					echo esc_html( number_format_i18n( (float) $now_slot['drive_km'], 1 ) . ' km' );
@@ -310,7 +327,9 @@ $next_note = $next_charge_labels
 				<strong data-tesla-plan-soc-now><?php echo esc_html( isset( $plan['soc_now'] ) ? number_format_i18n( (float) $plan['soc_now'], 0 ) . '%' : '—' ); ?></strong>
 				<small data-tesla-plan-soc-end>
 					<?php
-					if ( isset( $plan['soc_end'] ) && null !== $plan['soc_end'] ) {
+					if ( $asleep ) {
+						esc_html_e( 'スリープ中・固定', 'gaming-hub' );
+					} elseif ( isset( $plan['soc_end'] ) && null !== $plan['soc_end'] ) {
 						printf(
 							/* translators: %s: SOC */
 							esc_html__( '計画後 %s%%', 'gaming-hub' ),
