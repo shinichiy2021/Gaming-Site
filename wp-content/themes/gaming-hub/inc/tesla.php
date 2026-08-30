@@ -988,6 +988,13 @@ function gaming_hub_tesla_is_api_skip() {
 function gaming_hub_tesla_mark_api_skip( $ttl, $reason = 'error' ) {
 	$reason = 'asleep' === $reason ? 'asleep' : 'error';
 	set_transient( GAMING_HUB_TESLA_SKIP_KEY, $reason, max( 30, (int) $ttl ) );
+
+	if ( 'asleep' === $reason && function_exists( 'gaming_hub_tesla_sleep_soc_freeze' ) ) {
+		$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
+		if ( is_array( $cached ) && isset( $cached['battery_percent'] ) && is_numeric( $cached['battery_percent'] ) ) {
+			gaming_hub_tesla_sleep_soc_freeze( $cached['battery_percent'] );
+		}
+	}
 }
 
 /**
@@ -1006,6 +1013,9 @@ function gaming_hub_tesla_store_model3( array $model3 ) {
 	$model3['asleep']     = false;
 	$model3['fetched_at'] = time();
 	set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $model3, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
+	if ( function_exists( 'gaming_hub_tesla_sleep_soc_clear' ) ) {
+		gaming_hub_tesla_sleep_soc_clear();
+	}
 }
 
 /**

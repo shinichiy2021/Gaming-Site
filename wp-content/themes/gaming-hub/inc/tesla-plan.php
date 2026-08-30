@@ -23,11 +23,13 @@ define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR', 6 );
 /** Friday hour when the overnight boost window opens. */
 define( 'GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR', 22 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v7_' );
+define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v8_' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_OPTION', 'gaming_hub_tesla_plan_auto_v1' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_LOCK', 'gaming_hub_tesla_plan_auto_lock' );
 /** Max automatic wakes per day (AI PLAN cron). Manual ON/OFF is not limited. */
 define( 'GAMING_HUB_TESLA_WAKE_BUDGET_KEY', 'gaming_hub_tesla_wake_budget_v1' );
+/** Frozen SOC while the vehicle is asleep (do not drift the chart). */
+define( 'GAMING_HUB_TESLA_SLEEP_SOC_OPTION', 'gaming_hub_tesla_sleep_soc_v1' );
 define( 'GAMING_HUB_TESLA_WAKE_BUDGET_MAX', 4 );
 
 /** Measured hourly SOC, so the plan chart can show today's past hours. */
@@ -65,6 +67,113 @@ function gaming_hub_tesla_soc_log_record( $soc ) {
 	$log = array_slice( $log, 0, GAMING_HUB_TESLA_SOC_LOG_DAYS, true );
 
 	update_option( GAMING_HUB_TESLA_SOC_LOG_OPTION, $log, false );
+}
+
+/**
+ * Frozen sleep SOC state.
+ *
+ * @return array{soc: float, date: string, hour: int, at: int}|null
+ */
+function gaming_hub_tesla_sleep_soc_state() {
+	$raw = get_option( GAMING_HUB_TESLA_SLEEP_SOC_OPTION, null );
+	if ( ! is_array( $raw ) || ! isset( $raw['soc'] ) || ! is_numeric( $raw['soc'] ) ) {
+		return null;
+	}
+
+	$soc = max( 0, min( 100, (float) $raw['soc'] ) );
+	if ( $soc <= 0 ) {
+		return null;
+	}
+
+	return array(
+		'soc'  => round( $soc, 1 ),
+		'date' => (string) ( $raw['date'] ?? '' ),
+		'hour' => isset( $raw['hour'] ) ? max( 0, min( 23, (int) $raw['hour'] ) ) : 0,
+		'at'   => isset( $raw['at'] ) ? (int) $raw['at'] : 0,
+	);
+}
+
+/**
+ * Freeze battery % when the car first goes to sleep.
+ *
+ * @param int|float $soc Last known percent.
+ */
+function gaming_hub_tesla_sleep_soc_freeze( $soc ) {
+	if ( ! is_numeric( $soc ) ) {
+		return;
+	}
+
+	$soc = max( 0, min( 100, (float) $soc ) );
+	if ( $soc <= 0 ) {
+		return;
+	}
+
+	$existing = gaming_hub_tesla_sleep_soc_state();
+	$today    = wp_date( 'Y-m-d' );
+	if ( $existing && $existing['date'] === $today ) {
+		return;
+	}
+
+	update_option(
+		GAMING_HUB_TESLA_SLEEP_SOC_OPTION,
+		array(
+			'soc'  => round( $soc, 1 ),
+			'date' => $today,
+			'hour' => (int) wp_date( 'G' ),
+			'at'   => time(),
+		),
+		false
+	);
+}
+
+/**
+ * Clear frozen sleep SOC after a live wake reading.
+ */
+function gaming_hub_tesla_sleep_soc_clear() {
+	delete_option( GAMING_HUB_TESLA_SLEEP_SOC_OPTION );
+}
+
+/**
+ * SOC to display / plan from while asleep (frozen) or live.
+ *
+ * @param int|float|null $fallback Last known live SOC.
+ * @return float|null
+ */
+function gaming_hub_tesla_plan_held_soc( $fallback = null ) {
+	$frozen = gaming_hub_tesla_sleep_soc_state();
+	if ( $frozen ) {
+		return (float) $frozen['soc'];
+	}
+
+	if ( null !== $fallback && is_numeric( $fallback ) ) {
+		$soc = max( 0, min( 100, (float) $fallback ) );
+		return $soc > 0 ? $soc : null;
+	}
+
+	return null;
+}
+
+/**
+ * While asleep, pin measured hours to the frozen SOC so the chart does not drift.
+ *
+ * @param string            $date     Y-m-d.
+ * @param array<int, float> $measured Logged hours.
+ * @return array<int, float>
+ */
+function gaming_hub_tesla_plan_measured_with_sleep_hold( $date, array $measured ) {
+	$frozen = gaming_hub_tesla_sleep_soc_state();
+	if ( ! $frozen || $frozen['date'] !== $date ) {
+		return $measured;
+	}
+
+	$today = wp_date( 'Y-m-d' );
+	$end   = ( $date === $today ) ? (int) wp_date( 'G' ) : 23;
+	$from  = (int) $frozen['hour'];
+	for ( $h = $from; $h <= $end; $h++ ) {
+		$measured[ $h ] = (float) $frozen['soc'];
+	}
+
+	return $measured;
 }
 
 /**
@@ -711,7 +820,7 @@ function gaming_hub_tesla_plan_pick_from_candidates( array $candidates, $deficit
  */
 function gaming_hub_tesla_plan_trim_picked_to_soc( $start_soc, array $drive_km, array $picked, $date, $from_hour, $cap ) {
 	$picked   = array_values( $picked );
-	$measured = gaming_hub_tesla_soc_log_for_date( $date );
+	$measured = gaming_hub_tesla_plan_measured_with_sleep_hold( $date, gaming_hub_tesla_soc_log_for_date( $date ) );
 	$cap      = (float) $cap;
 
 	while ( $picked ) {
@@ -959,8 +1068,13 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		$start_soc,
 		$drive['hours'],
 		$charge_w,
-		$from_hour,
-		gaming_hub_tesla_soc_log_for_date( $date )
+		// While asleep, keep the current hour on the frozen measured SOC — do not
+		// apply planned charge/drive to the live remaining % until the car wakes.
+		( ! empty( $ctx['asleep'] ) && 'today' === $day ) ? ( $now_hour + 1 ) : $from_hour,
+		gaming_hub_tesla_plan_measured_with_sleep_hold(
+			$date,
+			gaming_hub_tesla_soc_log_for_date( $date )
+		)
 	);
 	$soc_end    = null;
 	for ( $h = 23; $h >= 0; $h-- ) {
@@ -1149,8 +1263,15 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$flow     = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
 	$model3   = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
-	$charging = ( ! empty( $flow['live'] ) && ! empty( $flow['is_charging'] ) && empty( $flow['asleep'] ) )
-		|| ( 'tesla' === (string) ( $status['model3_source'] ?? '' ) && ! empty( $model3['is_charging'] ) && empty( $model3['asleep'] ) );
+	$asleep   = ( ! empty( $flow['asleep'] ) || ! empty( $model3['asleep'] ) || ! empty( $status['tesla_asleep'] ) )
+		&& empty( $model3['is_charging'] )
+		&& empty( $flow['is_charging'] );
+	if ( ! $asleep && function_exists( 'gaming_hub_tesla_api_skip_reason' ) && 'asleep' === gaming_hub_tesla_api_skip_reason() ) {
+		$asleep = empty( $model3['is_charging'] ) && empty( $flow['is_charging'] );
+	}
+
+	$charging = ( ! empty( $flow['live'] ) && ! empty( $flow['is_charging'] ) && ! $asleep )
+		|| ( 'tesla' === (string) ( $status['model3_source'] ?? '' ) && ! empty( $model3['is_charging'] ) && ! $asleep );
 	$wall_w   = (int) ( $flow['wall_w'] ?? 0 );
 	$super_w  = (int) ( $flow['super_w'] ?? 0 );
 	$watts    = $charging ? max( $wall_w, $super_w, (int) ( $model3['watts'] ?? 0 ) ) : 0;
@@ -1158,6 +1279,31 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$plan['live_charging'] = $charging;
 	$plan['live_charge_w'] = $watts;
 	$plan['live_supply']   = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+	$plan['asleep']        = $asleep;
+
+	if ( $asleep ) {
+		$live_soc = isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] )
+			? (float) $model3['battery_percent']
+			: ( isset( $plan['soc_now'] ) && is_numeric( $plan['soc_now'] ) ? (float) $plan['soc_now'] : null );
+		if ( null !== $live_soc && $live_soc > 0 ) {
+			gaming_hub_tesla_sleep_soc_freeze( $live_soc );
+		}
+		$held = gaming_hub_tesla_plan_held_soc( $live_soc );
+		if ( null !== $held ) {
+			$plan['soc_now']   = $held;
+			$plan['start_soc'] = $held;
+			$now_hour          = (int) wp_date( 'G' );
+			if ( is_array( $plan['soc_series'] ?? null ) && ( $plan['plan_day'] ?? '' ) === 'today' ) {
+				$plan['soc_series'][ $now_hour ] = $held;
+			}
+		}
+		$plan['asleep_note'] = __( 'スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。', 'gaming-hub' );
+	} else {
+		$plan['asleep_note'] = '';
+		if ( function_exists( 'gaming_hub_tesla_sleep_soc_clear' ) && ! empty( $flow['live'] ) ) {
+			gaming_hub_tesla_sleep_soc_clear();
+		}
+	}
 
 	$auto = gaming_hub_tesla_plan_auto_state();
 	$plan['auto_note']         = gaming_hub_tesla_plan_auto_note( $plan, $auto );
@@ -1191,6 +1337,10 @@ function gaming_hub_tesla_plan_auto_state() {
  * @param array<string, mixed> $auto Saved auto state.
  */
 function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
+	if ( ! empty( $plan['asleep'] ) ) {
+		return __( 'スリープ中のため充電コマンドは送りません。残量表示は入眠時の値のままです。', 'gaming-hub' );
+	}
+
 	$error = (string) ( $auto['error'] ?? '' );
 	if ( '' !== $error ) {
 		return sprintf(
@@ -1452,9 +1602,31 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 	$model3  = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
 	$flow    = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
 	$live    = 'tesla' === (string) ( $status['model3_source'] ?? '' ) && ! empty( $flow['live'] );
-	$soc     = isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] )
+	$asleep  = ( ! empty( $flow['asleep'] ) || ! empty( $model3['asleep'] ) || ! empty( $status['tesla_asleep'] ) )
+		&& empty( $model3['is_charging'] )
+		&& empty( $flow['is_charging'] );
+	if ( ! $asleep && function_exists( 'gaming_hub_tesla_api_skip_reason' ) && 'asleep' === gaming_hub_tesla_api_skip_reason() ) {
+		$asleep = empty( $model3['is_charging'] ) && empty( $flow['is_charging'] );
+	}
+
+	$raw_soc = isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] )
 		? max( 0, min( 100, (float) $model3['battery_percent'] ) )
-		: ( $live ? 50.0 : 55.0 );
+		: null;
+
+	if ( $asleep ) {
+		if ( null !== $raw_soc && $raw_soc > 0 ) {
+			gaming_hub_tesla_sleep_soc_freeze( $raw_soc );
+		}
+		$held = gaming_hub_tesla_plan_held_soc( $raw_soc );
+		$soc  = null !== $held ? $held : ( $live ? 50.0 : 55.0 );
+	} else {
+		if ( $live ) {
+			gaming_hub_tesla_sleep_soc_clear();
+		}
+		$soc = null !== $raw_soc && $raw_soc > 0
+			? $raw_soc
+			: ( $live ? 50.0 : 55.0 );
+	}
 	$car_limit = isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
 		? max( 50, min( 100, (int) $model3['charge_limit_percent'] ) )
 		: 0;
@@ -1469,7 +1641,7 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 	$now_hour  = (int) wp_date( 'G' );
 	$dates     = gaming_hub_tesla_plan_dates();
 	$target    = gaming_hub_tesla_plan_target_soc_for_date( $dates['today'], $now_hour );
-	$cache_key = GAMING_HUB_TESLA_PLAN_CACHE_PREFIX . $dates['today'] . '_' . $now_hour . '_' . (int) floor( $soc / 5 ) . '_' . (int) round( $today_km ) . '_' . $target . '_' . $car_limit . '_' . ( $live ? '1' : '0' );
+	$cache_key = GAMING_HUB_TESLA_PLAN_CACHE_PREFIX . $dates['today'] . '_' . $now_hour . '_' . (int) floor( $soc / 5 ) . '_' . (int) round( $today_km ) . '_' . $target . '_' . $car_limit . '_' . ( $live ? '1' : '0' ) . '_' . ( $asleep ? 's' : 'a' );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) && ! empty( $cached['plan_id'] ) ) {
 		return gaming_hub_tesla_plan_apply_live( $cached, $status );
@@ -1482,6 +1654,7 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 		'car_limit'  => $car_limit,
 		'today_km'   => $today_km,
 		'live'       => $live,
+		'asleep'     => $asleep,
 		'price_meta' => gaming_hub_tesla_plan_price_meta(),
 	);
 
