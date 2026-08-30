@@ -5247,6 +5247,58 @@ body.home .site-header.is-scrolled {
 	box-shadow: inset 0 0 0 1px rgba(154, 163, 181, 0.35);
 }
 
+.tesla-plan .ecoflow-plan-col.is-sleep,
+.tesla-plan .ecoflow-plan-col.is-sleep-hold {
+	background: rgba(148, 163, 184, 0.12);
+}
+
+.tesla-plan .ecoflow-plan-col.is-sleep-hold .ecoflow-soc-bar-pro.is-held,
+.tesla-plan .ecoflow-soc-bar-pro.is-held {
+	background: linear-gradient(180deg, #c5ccd8 0%, #8b95a8 100%);
+	box-shadow: none;
+	opacity: 0.92;
+}
+
+.tesla-plan .ecoflow-plan-col.is-now.is-sleep-hold .ecoflow-soc-stack,
+.tesla-plan.is-asleep .ecoflow-rate-col.is-now .ecoflow-soc-stack {
+	filter: drop-shadow(0 0 8px rgba(180, 190, 210, 0.55));
+}
+
+.tesla-plan.is-asleep .ecoflow-rate-col.is-now .ecoflow-rate-bar {
+	box-shadow: 0 0 10px rgba(180, 190, 210, 0.45);
+	outline: 1px solid rgba(220, 225, 235, 0.7);
+}
+
+.tesla-plan .ecoflow-rate-now-pip.is-sleep {
+	color: #c5ccd8;
+	text-shadow: 0 0 8px rgba(180, 190, 210, 0.55);
+	letter-spacing: 0.06em;
+}
+
+.tesla-plan .ecoflow-plan-charge-bar.is-deferred {
+	opacity: 0.28;
+	box-shadow: none;
+	background:
+		repeating-linear-gradient(
+			to top,
+			rgba(255, 230, 0, 0.35) 0 3px,
+			rgba(255, 255, 255, 0.04) 3px 6px
+		);
+}
+
+.tesla-plan .ecoflow-plan-col.is-charge.is-sleep-hold {
+	background: rgba(148, 163, 184, 0.1);
+}
+
+.tesla-plan .ecoflow-rate-hour.is-sleep-hold {
+	color: #aeb6c4;
+}
+
+.tesla-plan .ecoflow-plan-chart.is-asleep-chart .ecoflow-rate-track {
+	box-shadow: inset 0 0 0 1px rgba(154, 163, 181, 0.22);
+	border-radius: 6px;
+}
+
 .tesla-plan .ecoflow-plan-kicker {
 	color: #ff6b6b;
 }

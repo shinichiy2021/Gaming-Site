@@ -202,7 +202,7 @@ $next_note = $next_charge_labels
 		</div>
 	</div>
 
-	<div class="ecoflow-rate-chart ecoflow-plan-chart is-pro-soc-only">
+	<div class="ecoflow-rate-chart ecoflow-plan-chart is-pro-soc-only<?php echo $asleep ? ' is-asleep-chart' : ''; ?>">
 		<div class="ecoflow-rate-y ecoflow-rate-y-soc" aria-hidden="true">
 			<span class="ecoflow-rate-y-unit"><?php esc_html_e( '%', 'gaming-hub' ); ?></span>
 			<?php foreach ( $soc_ticks as $tick ) : ?>
@@ -210,16 +210,28 @@ $next_note = $next_charge_labels
 			<?php endforeach; ?>
 		</div>
 		<div class="ecoflow-rate-plot">
-			<div class="ecoflow-rate-track" data-tesla-plan-track role="img" aria-label="<?php esc_attr_e( 'Model 3 の充電計画・残量予測・走行見込み・請求単価', 'gaming-hub' ); ?>">
-				<?php for ( $h = 0; $h < 24; $h++ ) : ?>
-					<?php
+			<div
+				class="ecoflow-rate-track"
+				data-tesla-plan-track
+				role="img"
+				aria-label="<?php echo esc_attr( $asleep ? __( 'スリープ中の固定残量と充電計画', 'gaming-hub' ) : __( 'Model 3 の充電計画・残量予測・走行見込み・請求単価', 'gaming-hub' ) ); ?>"
+			>
+				<?php
+				$sleep_from = $asleep && isset( $plan['sleep_from_hour'] ) && is_numeric( $plan['sleep_from_hour'] )
+					? max( 0, min( 23, (int) $plan['sleep_from_hour'] ) )
+					: null;
+				for ( $h = 0; $h < 24; $h++ ) :
 					$slot      = $by_hour[ $h ] ?? array();
 					$mode      = (string) ( $slot['mode'] ?? 'idle' );
 					$is_now    = $is_today && $h === $now_hour;
-					if ( $is_now && $live_charging ) {
+					$is_hold   = $asleep && null !== $sleep_from && $h >= $sleep_from && $h <= $now_hour;
+					$plan_charge = 'charge' === $mode;
+					if ( $is_now && $asleep ) {
+						$mode = 'sleep';
+					} elseif ( $is_now && $live_charging ) {
 						$mode = 'charge';
 					}
-					$is_charge = 'charge' === $mode;
+					$is_charge = $plan_charge || 'charge' === $mode;
 					$soc_pct   = $soc_series[ $h ] ?? null;
 					$has_soc   = is_numeric( $soc_pct );
 					$soc_h     = $has_soc ? max( 0, min( 100, (float) $soc_pct ) ) : 0;
@@ -233,15 +245,24 @@ $next_note = $next_charge_labels
 					if ( $is_now ) {
 						$col_class .= ' is-now';
 					}
+					if ( $is_hold ) {
+						$col_class .= ' is-sleep-hold';
+					}
 					if ( ! $has_soc ) {
 						$col_class .= ' is-empty';
 					}
 					$tip = array( sprintf( '%d:00', $h ), $mode_label[ $mode ] ?? $mode );
+					if ( $is_hold ) {
+						$tip[] = __( '固定残量', 'gaming-hub' );
+					}
 					if ( $has_soc ) {
 						$tip[] = number_format_i18n( (float) $soc_pct, 0 ) . '%';
 					}
 					if ( $is_charge ) {
 						$tip[] = number_format_i18n( $col_watts ) . ' W';
+						if ( $asleep ) {
+							$tip[] = __( '計画のみ（未実行）', 'gaming-hub' );
+						}
 					}
 					if ( isset( $slot['drive_km'] ) && null !== $slot['drive_km'] ) {
 						$tip[] = number_format_i18n( (float) $slot['drive_km'], 1 ) . ' km';
@@ -252,17 +273,17 @@ $next_note = $next_charge_labels
 					?>
 					<div class="<?php echo esc_attr( $col_class ); ?>" data-tesla-plan-col data-hour="<?php echo esc_attr( (string) $h ); ?>">
 						<?php if ( $is_now ) : ?>
-							<span class="ecoflow-rate-now-pip"><?php esc_html_e( 'NOW', 'gaming-hub' ); ?></span>
+							<span class="ecoflow-rate-now-pip<?php echo $asleep ? ' is-sleep' : ''; ?>"><?php echo esc_html( $asleep ? __( 'SLEEP', 'gaming-hub' ) : __( 'NOW', 'gaming-hub' ) ); ?></span>
 						<?php endif; ?>
 						<span
-							class="ecoflow-plan-charge-bar"
+							class="ecoflow-plan-charge-bar<?php echo ( $is_charge && $asleep ) ? ' is-deferred' : ''; ?>"
 							data-tesla-plan-charge-bar
 							style="height: <?php echo esc_attr( (string) round( $charge_h, 1 ) ); ?>%;"
 							<?php echo $is_charge ? '' : 'hidden'; ?>
 						></span>
 						<span class="ecoflow-soc-stack" title="<?php echo esc_attr( implode( ' · ', $tip ) ); ?>">
 							<span
-								class="ecoflow-rate-bar ecoflow-soc-bar-pro"
+								class="ecoflow-rate-bar ecoflow-soc-bar-pro<?php echo $is_hold ? ' is-held' : ''; ?>"
 								data-tesla-plan-bar
 								style="height: <?php echo esc_attr( (string) round( $soc_h, 1 ) ); ?>%;"
 							></span>
@@ -281,9 +302,10 @@ $next_note = $next_charge_labels
 				<?php for ( $h = 0; $h < 24; $h++ ) : ?>
 					<?php
 					$is_now     = $is_today && $h === $now_hour;
-					$show_label = 0 === $h % 3 || $is_now;
+					$is_hold    = $asleep && null !== $sleep_from && $h >= $sleep_from && $h <= $now_hour;
+					$show_label = 0 === $h % 3 || $is_now || ( $is_hold && $h === $sleep_from );
 					?>
-					<span class="ecoflow-rate-hour<?php echo $is_now ? ' is-now' : ''; ?>" data-tesla-plan-hour data-hour="<?php echo esc_attr( (string) $h ); ?>"><?php echo $show_label ? esc_html( (string) $h ) : ''; ?></span>
+					<span class="ecoflow-rate-hour<?php echo $is_now ? ' is-now' : ''; ?><?php echo $is_hold ? ' is-sleep-hold' : ''; ?>" data-tesla-plan-hour data-hour="<?php echo esc_attr( (string) $h ); ?>"><?php echo $show_label ? esc_html( (string) $h ) : ''; ?></span>
 				<?php endfor; ?>
 			</div>
 		</div>
@@ -294,7 +316,15 @@ $next_note = $next_charge_labels
 			<?php endforeach; ?>
 		</div>
 	</div>
-	<p class="ecoflow-rate-legend"><?php esc_html_e( '黄棒: Model 3 残量 · 金の帯: 自宅充電（計画）· 朱橙線: 走行見込み · 青緑線: 請求単価', 'gaming-hub' ); ?></p>
+	<p class="ecoflow-rate-legend" data-tesla-plan-legend>
+		<?php
+		echo esc_html(
+			$asleep
+				? __( '灰棒: スリープ中の固定残量 · 薄い金帯: 計画充電（未実行）· 朱橙線: 走行見込み · 青緑線: 請求単価', 'gaming-hub' )
+				: __( '黄棒: Model 3 残量 · 金の帯: 自宅充電（計画）· 朱橙線: 走行見込み · 青緑線: 請求単価', 'gaming-hub' )
+		);
+		?>
+	</p>
 	<p class="ecoflow-plan-next" data-tesla-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 
 	<details class="ecoflow-plan-more">

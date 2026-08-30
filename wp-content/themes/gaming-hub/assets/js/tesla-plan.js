@@ -251,13 +251,28 @@
 
 		const track = root.querySelector('[data-tesla-plan-track]');
 		const socSeries = Array.isArray(plan.soc_series) ? plan.soc_series : [];
+		const sleepFrom = asleepNow && plan.sleep_from_hour != null && !Number.isNaN(Number(plan.sleep_from_hour))
+			? Math.max(0, Math.min(23, Number(plan.sleep_from_hour)))
+			: (asleepNow ? hour : null);
+		const chart = root.querySelector('.ecoflow-plan-chart');
+		if (chart) {
+			chart.classList.toggle('is-asleep-chart', asleepNow);
+		}
+		const legend = root.querySelector('[data-tesla-plan-legend]');
+		if (legend) {
+			legend.textContent = asleepNow
+				? t('灰棒: スリープ中の固定残量 · 薄い金帯: 計画充電（未実行）· 朱橙線: 走行見込み · 青緑線: 請求単価')
+				: t('黄棒: Model 3 残量 · 金の帯: 自宅充電（計画）· 朱橙線: 走行見込み · 青緑線: 請求単価');
+		}
 		if (track) {
 			for (let h = 0; h < 24; h += 1) {
 				const slot = byHour[h] || {};
 				const isNow = isLiveDay && h === hour;
-				const liveHere = isNow && (liveCharge.charging || !!plan.live_charging);
-				const mode = liveHere ? 'charge' : (slot.mode || 'idle');
-				const isCharge = mode === 'charge';
+				const isHold = asleepNow && sleepFrom != null && h >= sleepFrom && h <= hour;
+				const liveHere = isNow && !asleepNow && (liveCharge.charging || !!plan.live_charging);
+				const slotMode = slot.mode || 'idle';
+				const mode = (isNow && asleepNow) ? 'sleep' : (liveHere ? 'charge' : slotMode);
+				const isCharge = slotMode === 'charge' || mode === 'charge';
 				const soc = socSeries[h];
 				const hasSoc = soc !== null && soc !== undefined && !Number.isNaN(Number(soc));
 				const height = hasSoc ? Math.max(0, Math.min(100, Number(soc))) : 0;
@@ -271,31 +286,44 @@
 				}
 				col.className = 'ecoflow-rate-col ecoflow-plan-col is-' + mode
 					+ (isNow ? ' is-now' : '')
+					+ (isHold ? ' is-sleep-hold' : '')
 					+ (hasSoc ? '' : ' is-empty');
 				let pip = col.querySelector('.ecoflow-rate-now-pip');
 				if (isNow && !pip) {
 					pip = document.createElement('span');
 					pip.className = 'ecoflow-rate-now-pip';
-					pip.textContent = t('NOW');
 					col.insertBefore(pip, col.firstChild);
 				} else if (!isNow && pip) {
 					pip.remove();
+					pip = null;
+				}
+				if (pip) {
+					pip.classList.toggle('is-sleep', asleepNow);
+					pip.textContent = asleepNow ? t('SLEEP') : t('NOW');
 				}
 				const chargeBar = col.querySelector('[data-tesla-plan-charge-bar]');
 				if (chargeBar) {
 					chargeBar.style.height = chargeH.toFixed(1) + '%';
 					chargeBar.hidden = !isCharge;
+					chargeBar.classList.toggle('is-deferred', isCharge && asleepNow);
 				}
 				const bar = col.querySelector('[data-tesla-plan-bar]');
 				if (bar) {
 					bar.style.height = height.toFixed(1) + '%';
+					bar.classList.toggle('is-held', isHold);
 				}
 				const tip = [h + ':00', modeLabel(mode)];
+				if (isHold) {
+					tip.push(t('固定残量'));
+				}
 				if (hasSoc) {
 					tip.push(Math.round(Number(soc)) + '%');
 				}
 				if (isCharge) {
 					tip.push(Math.round(watts).toLocaleString() + ' W');
+					if (asleepNow) {
+						tip.push(t('計画のみ（未実行）'));
+					}
 				}
 				if (slot.drive_km != null) {
 					tip.push(Number(slot.drive_km).toFixed(1) + ' km');
@@ -312,7 +340,8 @@
 				const hourEl = root.querySelector('[data-tesla-plan-hour][data-hour="' + h + '"]');
 				if (hourEl) {
 					hourEl.classList.toggle('is-now', isNow);
-					hourEl.textContent = (h % 3 === 0 || isNow) ? String(h) : '';
+					hourEl.classList.toggle('is-sleep-hold', isHold);
+					hourEl.textContent = (h % 3 === 0 || isNow || (isHold && h === sleepFrom)) ? String(h) : '';
 				}
 			}
 		}
@@ -381,9 +410,13 @@
 				if (views.today.soc_now == null) {
 					views.today.soc_now = Number(event.detail.battery_percent);
 				}
+				if (views.today.sleep_from_hour == null) {
+					views.today.sleep_from_hour = new Date().getHours();
+				}
 			}
 			if (!event.detail.asleep && event.detail.battery_percent != null && !Number.isNaN(Number(event.detail.battery_percent))) {
 				views.today.soc_now = Number(event.detail.battery_percent);
+				views.today.sleep_from_hour = null;
 			}
 		}
 		paintPlan(views[selectedDay] || views.today);
