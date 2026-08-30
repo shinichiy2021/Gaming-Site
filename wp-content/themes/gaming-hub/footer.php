@@ -28,6 +28,21 @@
 				) );
 				?>
 			</div>
+
+			<div class="footer-lancers">
+				<h4><?php esc_html_e( 'Web制作・API実装', 'gaming-hub' ); ?></h4>
+				<p class="footer-lancers-lead"><?php esc_html_e( 'ランサーズのパッケージでご相談いただけます。', 'gaming-hub' ); ?></p>
+				<ul class="footer-lancers-plans">
+					<li><?php esc_html_e( 'ベーシック 30,000円', 'gaming-hub' ); ?></li>
+					<li><?php esc_html_e( 'スタンダード 80,000円', 'gaming-hub' ); ?></li>
+					<li><?php esc_html_e( 'プレミアム 150,000円', 'gaming-hub' ); ?></li>
+				</ul>
+				<p class="footer-lancers-cta">
+					<a href="<?php echo esc_url( function_exists( 'gaming_hub_lancers_url' ) ? gaming_hub_lancers_url() : 'https://www.lancers.jp/menu/detail/1338805' ); ?>" target="_blank" rel="noopener noreferrer">
+						<?php esc_html_e( 'ランサーズで詳細・相談', 'gaming-hub' ); ?>
+					</a>
+				</p>
+			</div>
 		</div>
 
 		<div class="footer-bottom">

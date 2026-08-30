@@ -1016,6 +1016,45 @@ body.home .site-header.is-scrolled {
 	overflow-x: auto;
 }
 
+.content-wrapper .article-lancers {
+	margin: 24px 0 32px;
+	padding: 18px 20px;
+	border: 1px solid rgba(0, 200, 83, 0.28);
+	border-radius: 10px;
+	background: rgba(0, 200, 83, 0.06);
+}
+
+.content-wrapper .article-lancers table {
+	display: table;
+	margin-top: 12px;
+	font-size: 0.92rem;
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.content-wrapper .article-lancers th,
+.content-wrapper .article-lancers td {
+	padding: 8px 10px;
+	border: 1px solid rgba(244, 241, 234, 0.12);
+	vertical-align: top;
+}
+
+.content-wrapper .article-lancers th {
+	background: rgba(0, 0, 0, 0.22);
+	text-align: left;
+	white-space: nowrap;
+}
+
+.content-wrapper .article-lancers-link {
+	margin: 14px 0 0;
+	font-weight: 600;
+}
+
+.single-post-tesla .content-wrapper .article-lancers {
+	border-color: rgba(232, 33, 39, 0.32);
+	background: rgba(232, 33, 39, 0.06);
+}
+
 .content-wrapper pre.article-code {
 	margin: 16px 0 24px;
 	padding: 14px 16px;
@@ -1199,7 +1238,7 @@ body.home .site-header.is-scrolled {
 
 .footer-grid {
 	display: grid;
-	grid-template-columns: 2fr 1fr 1fr;
+	grid-template-columns: 2fr 1fr 1fr 1.2fr;
 	gap: 40px;
 	margin-bottom: 40px;
 }
@@ -1211,13 +1250,45 @@ body.home .site-header.is-scrolled {
 }
 
 .footer-widget-title,
-.footer-links h4 {
+.footer-links h4,
+.footer-lancers h4 {
 	font-family: var(--font-display);
 	font-size: 0.9rem;
 	text-transform: uppercase;
 	letter-spacing: 1px;
 	margin-bottom: 16px;
 	color: var(--color-primary);
+}
+
+.footer-lancers-lead {
+	color: var(--color-text-muted);
+	font-size: 0.88rem;
+	line-height: 1.5;
+	margin: 0 0 12px;
+}
+
+.footer-lancers-plans {
+	list-style: none;
+	margin: 0 0 14px;
+	padding: 0;
+}
+
+.footer-lancers-plans li {
+	color: var(--color-text-muted);
+	font-size: 0.88rem;
+	margin-bottom: 6px;
+}
+
+.footer-lancers-cta a {
+	color: var(--color-primary);
+	font-size: 0.9rem;
+	font-weight: 600;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.footer-lancers-cta a:hover {
+	opacity: 0.88;
 }
 
 .footer-menu {
