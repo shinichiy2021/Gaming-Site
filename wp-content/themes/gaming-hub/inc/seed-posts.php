@@ -27,7 +27,36 @@ function gaming_hub_delta_pro3_api_post_slug() {
 }
 
 /**
- * Whether the current (or given) post is the API implementation article.
+ * Post slug for the Model 3 / Tesla API implementation article.
+ */
+function gaming_hub_tesla_api_post_slug() {
+	return 'model3-api-jissou';
+}
+
+/**
+ * Whether the current (or given) post is an engineer API implementation article.
+ *
+ * @param int|null $post_id Post ID.
+ */
+function gaming_hub_is_api_diagram_post( $post_id = null ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( ! $post_id ) {
+		return false;
+	}
+
+	$slug = get_post_field( 'post_name', $post_id );
+	return in_array(
+		$slug,
+		array(
+			gaming_hub_delta_pro3_api_post_slug(),
+			gaming_hub_tesla_api_post_slug(),
+		),
+		true
+	);
+}
+
+/**
+ * Whether the current (or given) post is the EcoFlow API implementation article.
  *
  * @param int|null $post_id Post ID.
  */
@@ -41,10 +70,59 @@ function gaming_hub_is_delta_pro3_api_post( $post_id = null ) {
 }
 
 /**
- * Hero / card diagram for the API implementation article.
+ * Whether the current (or given) post is the Tesla API implementation article.
+ *
+ * @param int|null $post_id Post ID.
+ */
+function gaming_hub_is_tesla_api_post( $post_id = null ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( ! $post_id ) {
+		return false;
+	}
+
+	return gaming_hub_tesla_api_post_slug() === get_post_field( 'post_name', $post_id );
+}
+
+/**
+ * Hero / card diagram for the EcoFlow API implementation article.
  */
 function gaming_hub_delta_pro3_api_hero_image_url() {
 	return gaming_hub_theme_image_url( 'ecoflow-api-architecture.svg' );
+}
+
+/**
+ * Hero / card diagram for the Tesla API implementation article.
+ */
+function gaming_hub_tesla_api_hero_image_url() {
+	return gaming_hub_theme_image_url( 'tesla-api-architecture.svg' );
+}
+
+/**
+ * Hero image URL for the current API diagram article.
+ *
+ * @param int|null $post_id Post ID.
+ * @return string
+ */
+function gaming_hub_api_diagram_hero_image_url( $post_id = null ) {
+	if ( gaming_hub_is_tesla_api_post( $post_id ) ) {
+		return gaming_hub_tesla_api_hero_image_url();
+	}
+
+	return gaming_hub_delta_pro3_api_hero_image_url();
+}
+
+/**
+ * Alt text for the current API diagram hero.
+ *
+ * @param int|null $post_id Post ID.
+ * @return string
+ */
+function gaming_hub_api_diagram_hero_alt( $post_id = null ) {
+	if ( gaming_hub_is_tesla_api_post( $post_id ) ) {
+		return __( 'Tesla Fleet API 連携アーキテクチャ図', 'gaming-hub' );
+	}
+
+	return __( 'EcoFlow 連携アーキテクチャ図', 'gaming-hub' );
 }
 
 /**
@@ -675,6 +753,191 @@ function gaming_hub_seed_delta_pro3_api_post() {
 	update_option( 'gaming_hub_seed_delta_pro3_api_v1', (int) $post_id );
 }
 add_action( 'init', 'gaming_hub_seed_delta_pro3_api_post', 22 );
+
+/**
+ * Article body for Model 3 / Tesla Fleet API implementation notes.
+ *
+ * @return string
+ */
+function gaming_hub_seed_tesla_api_content() {
+	$tesla  = esc_url( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) );
+	$drive  = $tesla . '#drive';
+	$review = esc_url( home_url( '/model3-jissoku-review/' ) );
+
+	$fig_dual  = gaming_hub_article_figure( 'tesla-api-dual-path.svg', 'Fleet 読み取りと署名コマンドの二系統', '読み取りは Fleet REST、書き込みは tesla-http-proxy — 経路を分離', 'article-figure--diagram' );
+	$fig_quota = gaming_hub_article_figure( 'tesla-api-quota-flow.svg', 'vehicle_data 正規化とポーリング方針', 'vehicle_data → 位置除去 → model3 status → ダッシュボード / ログ', 'article-figure--diagram' );
+
+	return <<<HTML
+<p>Gaming-Hub の <a href="{$tesla}">Tesla ダッシュボード</a>は、自宅の Model 3 から残量・充電・走行ログ・AI PLAN を出しています。製品レビューではなく、<strong>Fleet API と実装のメモ</strong>です。同じことをやりたいエンジニア向けに、うちの構成とハマりどころを書きます。</p>
+<p>前提: 非公式の Owner API ラッパーは使っていません。<strong>Tesla Fleet API</strong> で読み取り、<strong>tesla-http-proxy</strong>（vehicle-command）で署名付きコマンドを送ります。localhost だけでは partner 登録が通らないので、本番ドメインが必須です。</p>
+
+<h2>全体像</h2>
+<p>スタックは WordPress (PHP) + Docker 上の <code>tesla-http-proxy</code> + 本番ドメインの公開鍵です。</p>
+<ul>
+<li><strong>WordPress</strong> — ダッシュボード UI、OAuth コールバック、WP-Cron、Driving / Charge / ガソリン比較ログ</li>
+<li><strong>Fleet API クライアント</strong> — <code>inc/tesla-api.php</code> の <code>Gaming_Hub_Tesla_Api</code></li>
+<li><strong>tesla-http-proxy</strong> — <code>docker compose</code> の <code>tesla/vehicle-command</code>（署名コマンド専用）</li>
+<li><strong>/.well-known/appspecific/com.tesla.3p.public-key.pem</strong> — partner_accounts 用公開鍵</li>
+</ul>
+<pre class="article-code"><code>Browser → WordPress (PHP)
+              ├─ OAuth refresh → Fleet vehicle_data   … ライブ読み取り
+              ├─ POST command/* via tesla-http-proxy … 充電制御
+              └─ AI PLAN cron (diff only, wake budget)
+
+tesla-http-proxy → signed Fleet vehicle commands
+production domain → /.well-known/.../public-key.pem</code></pre>
+<p>読み取りと書き込みでベース URL を分けています。<strong>読みは Fleet、書きは proxy</strong>。混ぜると unsigned で落ちます。</p>
+
+<h2>Fleet API — 読み取り</h2>
+{$fig_dual}
+<p>developer.tesla.com でアプリを作り、Client ID / Secret と VIN を Customizer か <code>.env</code> に入れます。</p>
+<ul>
+<li><code>TESLA_CLIENT_ID</code> / <code>TESLA_CLIENT_SECRET</code></li>
+<li><code>TESLA_VEHICLE_VIN</code></li>
+<li><code>TESLA_FLEET_API_BASE_URL</code> — 日本は <strong>NA</strong>: <code>https://fleet-api.prd.na.vn.cloud.tesla.com</code></li>
+<li><code>TESLA_REDIRECT_URI</code> — <code>/wp-json/gaming-hub/v1/tesla/oauth/callback</code>（本番ドメイン）</li>
+</ul>
+<p>トークンは <code>fleet-auth.prd.vn.cloud.tesla.com</code> で refresh。access token は transient、refresh token は option に保存します。</p>
+<p>読み取りの中心は <code>GET /api/1/vehicles/{vin}/vehicle_data</code> です。正規化後の主なフィールド:</p>
+<ul>
+<li>SOC / charge_state / charging_amps</li>
+<li>odometer / speed / shift_state（走行判定）</li>
+<li>cabin temp / tire pressures</li>
+<li><code>asleep</code> — スリープ時は API を送らず前回スナップショットを表示</li>
+</ul>
+
+<h3>partner_accounts と公開鍵</h3>
+<p>Fleet を使うには本番ドメインで公開鍵をホストし、Allowed Origins と同じドメインを Tesla に登録します。</p>
+<pre class="article-code"><code>https://&lt;your-domain&gt;/.well-known/appspecific/com.tesla.3p.public-key.pem</code></pre>
+<p>localhost だけでは <code>vehicle_data</code> が取れません。実装は <code>gaming_hub_tesla_register_partner_account()</code> / <code>gaming_hub_tesla_verify_public_key_hosted()</code> です。</p>
+
+<h2>tesla-http-proxy — 書き込み</h2>
+<p>充電コマンド（<code>charge_start</code> / <code>charge_stop</code> / <code>set_charge_limit</code>）は署名が必須です。うちは Docker の <code>tesla-http-proxy</code> に寄せています。</p>
+<pre class="article-code"><code>TESLA_COMMAND_PROXY_URL=https://tesla-http-proxy:4443</code></pre>
+<p><code>Gaming_Hub_Tesla_Api::send_vehicle_command()</code> は proxy URL があるとベースを差し替え、TLS verify を切って内部通信します。車側には <strong>仮想キー</strong> のペアリングが必要で、未ペアだと <code>key_not_paired</code> 系で落ちます。</p>
+
+<h3>AI PLAN との接続</h3>
+<p><code>inc/tesla-plan.php</code> が LOOOP 単価と目標 SOC（平日おおよそ 80%、土曜朝に向けた上積み）から充電枠を組みます。WP-Cron は計画が変わったときだけコマンドを送り、自動 wake は日 4 回まで（手動 ON/OFF は制限なし）です。</p>
+
+<h2>ポーリング方針</h2>
+{$fig_quota}
+<p>スリープを起こしすぎないことがポイントです。</p>
+<ul>
+<li>通常ポーリング: idle 15 分 / active 10 分</li>
+<li>スリープ検知後: 30 分スキップ</li>
+<li>API エラー後: 10 分スキップ</li>
+<li>最後の成功ステータスは最大 6 時間保持して UI に出す</li>
+</ul>
+<p>位置スコープは任意です。付いていない／拒否済みなら <code>gaming_hub_tesla_strip_location()</code> で落とし、住所は保存しません。</p>
+
+<h2>ログとの接続</h2>
+<ul>
+<li><strong>Driving Log</strong> — オドメーター差分 → km・電費・ガソリン比較節約円（<code>tesla-gas-log.php</code>）</li>
+<li><strong>Charge Log</strong> — 自宅 / Supercharger セッション（<code>tesla-charge-log.php</code>）</li>
+<li><strong>SOC ログ</strong> — 時間別 SOC を残し、AI PLAN チャートの過去帯を埋める</li>
+</ul>
+<p>グラフと最新数字は <a href="{$drive}">Driving Log</a>。購入・運用の話は <a href="{$review}">Model 3 実測レビュー</a> の方が向いています。</p>
+
+<h2>ハマったところ（再現用メモ）</h2>
+<ul>
+<li><strong>リージョン</strong> — 日本アカウントは NA Fleet URL。EU/CN を叩くと失敗する</li>
+<li><strong>partner_accounts</strong> — 公開鍵未設置 / Allowed Origins 不一致だと vehicle_data 不可</li>
+<li><strong>localhost OAuth</strong> — 開発では refresh token を本番で取って持ち込む方が楽</li>
+<li><strong>unsigned command</strong> — proxy なしの command POST は拒否される</li>
+<li><strong>仮想キー</strong> — ペアリング忘れが充電制御失敗の最頻原因</li>
+<li><strong>スコープ追加</strong> — Tesla は前回許可を再利用するので、位置などを増やすときは「不足スコープ追加」か再認可が必要</li>
+<li><strong>wake 乱用</strong> — 好奇心で毎分 poll しない。スリープ尊重がバッテリーと API の両方に効く</li>
+</ul>
+
+<h2>ディレクトリ早見表</h2>
+<pre class="article-code"><code>wp-content/themes/gaming-hub/
+  inc/tesla-api.php      … Fleet / proxy クライアント
+  inc/tesla.php            … OAuth・ステータス正規化・公開鍵
+  inc/tesla-plan.php       … AI PLAN・wake budget
+  inc/tesla-gas-log.php    … 走行・ガソリン比較
+  inc/tesla-charge-log.php … 充電セッション
+
+tesla/                     … proxy 用鍵（git に秘密鍵を入れない）
+docker-compose*.yml        … tesla-http-proxy サービス</code></pre>
+
+<h2>まとめ</h2>
+<p>うちの構成は <strong>読み取り = Fleet API</strong>、<strong>書き込み = tesla-http-proxy 署名コマンド</strong> の二系統です。partner 公開鍵と仮想キーを本番で揃え、ポーリングはスリープ優先にしています。</p>
+<p>ライブ状態は <a href="{$tesla}">Tesla ダッシュボード</a>、実装の参照はテーマ <code>inc/tesla*.php</code> を見てください。節約額や日常運用は <a href="{$review}">Model 3 実測レビュー</a> へ。</p>
+
+<h2>関連リンク</h2>
+<ul>
+<li><a href="{$tesla}">Tesla ダッシュボード</a></li>
+<li><a href="{$drive}">Driving Log</a></li>
+<li><a href="{$review}">Model 3 実測レビュー</a></li>
+</ul>
+HTML;
+}
+
+/**
+ * Create the seeded Model 3 / Tesla API implementation post once.
+ */
+function gaming_hub_seed_tesla_api_post() {
+	if ( get_option( 'gaming_hub_seed_tesla_api_v1' ) ) {
+		return;
+	}
+
+	$existing = get_posts(
+		array(
+			'name'           => gaming_hub_tesla_api_post_slug(),
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	if ( ! empty( $existing ) ) {
+		update_option( 'gaming_hub_seed_tesla_api_v1', (int) $existing[0] );
+		return;
+	}
+
+	if ( ! term_exists( 'tesla', 'post_tag' ) ) {
+		wp_insert_term(
+			'Tesla',
+			'post_tag',
+			array(
+				'slug' => 'tesla',
+			)
+		);
+	}
+
+	$post_id = wp_insert_post(
+		array(
+			'post_title'   => 'Model 3 API 実装メモ｜Fleet API × tesla-http-proxy 構成',
+			'post_name'    => gaming_hub_tesla_api_post_slug(),
+			'post_status'  => 'publish',
+			'post_type'    => 'post',
+			'post_content' => gaming_hub_seed_tesla_api_content(),
+			'post_excerpt' => 'Gaming-Hub の Tesla Fleet API 連携実装メモ。OAuth、partner 公開鍵、vehicle_data、tesla-http-proxy 署名コマンド、ポーリングと AI PLAN のハマりどころまで。',
+			'tags_input'   => array( 'tesla' ),
+		),
+		true
+	);
+
+	if ( is_wp_error( $post_id ) || ! $post_id ) {
+		return;
+	}
+
+	update_post_meta( $post_id, 'rank_math_title', 'Model 3 API 実装メモ｜Fleet API × tesla-http-proxy' );
+	update_post_meta( $post_id, 'rank_math_description', 'Tesla Model 3 の Fleet API と tesla-http-proxy 構成。OAuth、公開鍵、vehicle_data、署名コマンド、ポーリング方針をエンジニア向けに解説。' );
+	update_post_meta( $post_id, 'rank_math_focus_keyword', 'Model 3 API' );
+	update_post_meta( $post_id, 'rank_math_robots', array( 'index' ) );
+
+	$att_id = gaming_hub_ensure_theme_image_attachment( 'tesla-api-architecture.svg' );
+	if ( ! $att_id ) {
+		$att_id = gaming_hub_ensure_theme_image_attachment( 'tesla-model3-gaming.jpg' );
+	}
+	if ( $att_id ) {
+		set_post_thumbnail( $post_id, $att_id );
+	}
+
+	update_option( 'gaming_hub_seed_tesla_api_v1', (int) $post_id );
+}
+add_action( 'init', 'gaming_hub_seed_tesla_api_post', 23 );
 
 /**
  * Refresh API article with engineer-style diagram figures.

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="420" viewBox="0 0 1200 420" role="img" aria-label="Tesla vehicle_data normalize and poll policy">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0c0c0e"/>
+      <stop offset="100%" stop-color="#141010"/>
+    </linearGradient>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#ffcb05"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="420" fill="url(#bg3)"/>
+  <text x="40" y="42" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="13">VEHICLE_DATA NORMALIZE</text>
+
+  <g font-family="ui-monospace, Menlo, monospace">
+    <rect x="40" y="80" width="180" height="100" rx="10" fill="#121216" stroke="#3a3a42"/>
+    <text x="130" y="118" text-anchor="middle" fill="#c8c8d0" font-size="12">vehicle_data</text>
+    <text x="130" y="140" text-anchor="middle" fill="#6a6a74" font-size="10">Fleet JSON</text>
+    <text x="130" y="156" text-anchor="middle" fill="#6a6a74" font-size="10">or cached snapshot</text>
+
+    <line x1="220" y1="130" x2="268" y2="130" stroke="#ffcb05" stroke-width="2" marker-end="url(#arr)"/>
+
+    <rect x="270" y="80" width="220" height="100" rx="10" fill="#121216" stroke="#e31937"/>
+    <text x="380" y="112" text-anchor="middle" fill="#e31937" font-size="11">strip location</text>
+    <text x="380" y="130" text-anchor="middle" fill="#e31937" font-size="11">if no scope / denied</text>
+    <text x="380" y="156" text-anchor="middle" fill="#8a8a98" font-size="9">address never stored</text>
+
+    <line x1="490" y1="130" x2="538" y2="130" stroke="#ffcb05" stroke-width="2" marker-end="url(#arr)"/>
+
+    <rect x="540" y="80" width="220" height="100" rx="10" fill="#121216" stroke="#e31937"/>
+    <text x="650" y="112" text-anchor="middle" fill="#c8c8d0" font-size="11">model3 status</text>
+    <text x="650" y="134" text-anchor="middle" fill="#a8a8b0" font-size="10">battery | charge | drive</text>
+    <text x="650" y="152" text-anchor="middle" fill="#a8a8b0" font-size="10">cabin | tires | asleep</text>
+
+    <line x1="760" y1="130" x2="808" y2="130" stroke="#ffcb05" stroke-width="2" marker-end="url(#arr)"/>
+
+    <rect x="810" y="80" width="170" height="100" rx="10" fill="#121216" stroke="#ffcb05"/>
+    <text x="895" y="118" text-anchor="middle" fill="#ffcb05" font-size="12">Dashboard</text>
+    <text x="895" y="140" text-anchor="middle" fill="#a8a8b0" font-size="10">React flow | cards</text>
+    <text x="895" y="156" text-anchor="middle" fill="#a8a8b0" font-size="10">AI PLAN chart</text>
+
+    <line x1="980" y1="130" x2="1028" y2="130" stroke="#ffcb05" stroke-width="2" marker-end="url(#arr)"/>
+
+    <rect x="1030" y="80" width="130" height="100" rx="10" fill="#121216" stroke="#3a3a42"/>
+    <text x="1095" y="118" text-anchor="middle" fill="#c8c8d0" font-size="11">logs</text>
+    <text x="1095" y="140" text-anchor="middle" fill="#6a6a74" font-size="9">drive | charge</text>
+    <text x="1095" y="156" text-anchor="middle" fill="#6a6a74" font-size="9">gas compare</text>
+  </g>
+
+  <rect x="40" y="220" width="1120" height="160" rx="12" fill="#0e0e12" stroke="#2a2a30"/>
+  <text x="64" y="252" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="12">poll policy (do not wake for curiosity)</text>
+  <text x="64" y="284" fill="#c8c8d0" font-family="ui-monospace, Menlo, monospace" font-size="11">idle poll TTL 15m | active 10m | after sleep detect skip 30m</text>
+  <text x="64" y="308" fill="#c8c8d0" font-family="ui-monospace, Menlo, monospace" font-size="11">error skip 10m | keep last good status up to 6h</text>
+  <text x="64" y="332" fill="#c8c8d0" font-family="ui-monospace, Menlo, monospace" font-size="11">AI PLAN auto wake budget max 4/day | manual ON/OFF unlimited</text>
+  <text x="64" y="360" fill="#6a6a74" font-family="ui-monospace, Menlo, monospace" font-size="10">target SOC weekday ~80% | Saturday boost to 100% overnight</text>
+</svg>

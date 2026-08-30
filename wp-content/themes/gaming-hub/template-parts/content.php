@@ -1,8 +1,8 @@
 <article id="post-<?php the_ID(); ?>" <?php post_class( 'post-card' ); ?>>
 	<a href="<?php the_permalink(); ?>" class="post-card-link">
-		<div class="post-card-image<?php echo ( function_exists( 'gaming_hub_is_delta_pro3_api_post' ) && gaming_hub_is_delta_pro3_api_post() ) ? ' post-card-image--diagram' : ''; ?>">
-			<?php if ( function_exists( 'gaming_hub_is_delta_pro3_api_post' ) && gaming_hub_is_delta_pro3_api_post() ) : ?>
-				<img src="<?php echo esc_url( gaming_hub_delta_pro3_api_hero_image_url() ); ?>" alt="<?php esc_attr_e( 'EcoFlow 連携アーキテクチャ図', 'gaming-hub' ); ?>" width="1200" height="675" loading="lazy" decoding="async" />
+		<div class="post-card-image<?php echo ( function_exists( 'gaming_hub_is_api_diagram_post' ) && gaming_hub_is_api_diagram_post() ) ? ' post-card-image--diagram' : ''; ?>">
+			<?php if ( function_exists( 'gaming_hub_is_api_diagram_post' ) && gaming_hub_is_api_diagram_post() ) : ?>
+				<img src="<?php echo esc_url( gaming_hub_api_diagram_hero_image_url() ); ?>" alt="<?php echo esc_attr( gaming_hub_api_diagram_hero_alt() ); ?>" width="1200" height="675" loading="lazy" decoding="async" />
 			<?php elseif ( has_post_thumbnail() ) : ?>
 				<?php the_post_thumbnail( 'game-card' ); ?>
 			<?php else : ?>
