@@ -980,6 +980,27 @@ body.home .site-header.is-scrolled {
 	overflow-x: auto;
 }
 
+.content-wrapper pre.article-code {
+	margin: 16px 0 24px;
+	padding: 14px 16px;
+	border-radius: var(--radius-lg, 12px);
+	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+	overflow-x: auto;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 0.82rem;
+	line-height: 1.55;
+	color: #d8e8dc;
+	-webkit-overflow-scrolling: touch;
+}
+
+.content-wrapper pre.article-code code {
+	background: none;
+	padding: 0;
+	font-size: inherit;
+	white-space: pre;
+}
+
 .content-wrapper .article-figure {
 	margin: 8px 0 28px;
 	border-radius: var(--radius-lg, 12px);
@@ -999,6 +1020,16 @@ body.home .site-header.is-scrolled {
 	font-size: 0.85rem;
 	line-height: 1.45;
 	color: var(--color-text-muted, #999);
+}
+
+.content-wrapper .article-figure--diagram {
+	background: #0a100e;
+	border-color: rgba(0, 200, 83, 0.22);
+}
+
+.content-wrapper .article-figure--diagram img {
+	width: 100%;
+	height: auto;
 }
 
 .content-wrapper ul,
