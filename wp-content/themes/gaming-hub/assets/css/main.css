@@ -851,6 +851,16 @@ body.home .site-header.is-scrolled {
 	object-fit: cover;
 }
 
+.post-card-image--diagram {
+	background: #0a100e;
+}
+
+.post-card-image--diagram img {
+	object-fit: contain;
+	padding: 10px;
+	box-sizing: border-box;
+}
+
 .post-card-body {
 	padding: 20px;
 	min-width: 0;
@@ -898,6 +908,23 @@ body.home .site-header.is-scrolled {
 	width: 100%;
 	height: 400px;
 	object-fit: cover;
+}
+
+.post-hero--diagram {
+	max-height: none;
+	background: #0a100e;
+	border-bottom: 1px solid rgba(0, 200, 83, 0.2);
+}
+
+.post-hero--diagram img {
+	height: auto;
+	max-height: min(52vw, 420px);
+	object-fit: contain;
+	object-position: center top;
+}
+
+.post-hero--diagram .post-hero-overlay {
+	background: linear-gradient(transparent 0%, rgba(10, 16, 14, 0.55) 45%, rgba(10, 10, 15, 0.96) 100%);
 }
 
 .post-hero-overlay {

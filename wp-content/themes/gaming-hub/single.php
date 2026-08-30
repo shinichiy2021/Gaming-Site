@@ -14,10 +14,17 @@ get_header();
 	$is_tesla   = has_tag( 'tesla' );
 	?>
 
-	<article id="post-<?php the_ID(); ?>" <?php post_class( array( 'single-post', $is_ecoflow ? 'single-post-ecoflow' : '', $is_tesla ? 'single-post-tesla' : '' ) ); ?>>
-		<?php if ( has_post_thumbnail() ) : ?>
-			<div class="post-hero">
-				<?php the_post_thumbnail( 'hero-banner' ); ?>
+	<article id="post-<?php the_ID(); ?>" <?php post_class( array( 'single-post', $is_ecoflow ? 'single-post-ecoflow' : '', $is_tesla ? 'single-post-tesla' : '', function_exists( 'gaming_hub_is_delta_pro3_api_post' ) && gaming_hub_is_delta_pro3_api_post() ? 'single-post-api' : '' ) ); ?>>
+		<?php
+		$is_api_article = function_exists( 'gaming_hub_is_delta_pro3_api_post' ) && gaming_hub_is_delta_pro3_api_post();
+		if ( has_post_thumbnail() || $is_api_article ) :
+			?>
+			<div class="post-hero<?php echo $is_api_article ? ' post-hero--diagram' : ''; ?>">
+				<?php if ( $is_api_article ) : ?>
+					<img src="<?php echo esc_url( gaming_hub_delta_pro3_api_hero_image_url() ); ?>" alt="<?php esc_attr_e( 'EcoFlow 連携アーキテクチャ図', 'gaming-hub' ); ?>" width="1200" height="675" decoding="async" fetchpriority="high" />
+				<?php else : ?>
+					<?php the_post_thumbnail( 'hero-banner' ); ?>
+				<?php endif; ?>
 				<div class="post-hero-overlay">
 					<div class="container">
 						<?php if ( $is_ecoflow ) : ?>
