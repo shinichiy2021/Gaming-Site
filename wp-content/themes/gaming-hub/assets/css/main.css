@@ -927,6 +927,15 @@ body.home .site-header.is-scrolled {
 	background: linear-gradient(transparent 0%, rgba(10, 16, 14, 0.55) 45%, rgba(10, 10, 15, 0.96) 100%);
 }
 
+.post-hero--diagram-tesla {
+	background: #0c0c0e;
+	border-bottom-color: rgba(227, 25, 55, 0.28);
+}
+
+.post-hero--diagram-tesla .post-hero-overlay {
+	background: linear-gradient(transparent 0%, rgba(20, 10, 12, 0.55) 45%, rgba(10, 10, 15, 0.96) 100%);
+}
+
 .post-hero-overlay {
 	position: absolute;
 	inset: 0;

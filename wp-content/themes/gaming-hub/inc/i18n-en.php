@@ -66,6 +66,8 @@ return array(
 	'A8.net 広告バナー' => 'A8.net ad banner',
 	'Driving Log で数字を確認 →' => 'See numbers in the Driving Log →',
 	'Tesla ダッシュボード' => 'Tesla dashboard',
+	'Tesla Fleet API 連携アーキテクチャ図' => 'Tesla Fleet API architecture diagram',
+	'EcoFlow 連携アーキテクチャ図' => 'EcoFlow architecture diagram',
 	'Driving Log' => 'Driving Log',
 	'EcoFlow ダッシュボード' => 'EcoFlow dashboard',
 	'ポータブル電源' => 'Portable power',
