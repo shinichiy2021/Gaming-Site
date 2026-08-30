@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="EcoFlow integration architecture">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a120e"/>
+      <stop offset="100%" stop-color="#12100a"/>
+    </linearGradient>
+    <linearGradient id="box" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a221c"/>
+      <stop offset="100%" stop-color="#121814"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00c853"/>
+      <stop offset="100%" stop-color="#00a844"/>
+    </linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#6bdc8a"/>
+    </marker>
+    <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ffcb05"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1152" height="627" rx="16" fill="none" stroke="#2a3a30" stroke-width="1"/>
+
+  <text x="48" y="58" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2">GAMING-HUB · ECOFLOW STACK</text>
+  <text x="48" y="88" fill="#e8efe9" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700">WordPress + Developer API + MQTT Bridge</text>
+
+  <!-- Browser -->
+  <g transform="translate(48,130)">
+    <rect width="150" height="72" rx="10" fill="url(#box)" stroke="#33443a"/>
+    <text x="75" y="32" text-anchor="middle" fill="#b8c8bc" font-family="ui-monospace, Menlo, monospace" font-size="14">Browser</text>
+    <text x="75" y="54" text-anchor="middle" fill="#6a7a70" font-family="ui-monospace, Menlo, monospace" font-size="11">Dashboard UI</text>
+  </g>
+
+  <!-- WordPress -->
+  <g transform="translate(280,110)">
+    <rect width="260" height="112" rx="12" fill="url(#box)" stroke="#00c853" stroke-width="1.5"/>
+    <text x="20" y="30" fill="#00c853" font-family="ui-monospace, Menlo, monospace" font-size="13">WordPress (PHP)</text>
+    <text x="20" y="54" fill="#c8d8cc" font-family="ui-monospace, Menlo, monospace" font-size="11">ecoflow-api.php · schedule · energy</text>
+    <text x="20" y="72" fill="#c8d8cc" font-family="ui-monospace, Menlo, monospace" font-size="11">REST · WP-Cron · transient 5s</text>
+    <text x="20" y="90" fill="#8aa898" font-family="ui-monospace, Menlo, monospace" font-size="10">read/write ecoflow-cache/*.json</text>
+  </g>
+
+  <!-- Cache volume -->
+  <g transform="translate(280,260)">
+    <rect width="260" height="88" rx="10" fill="#101812" stroke="#ffcb05" stroke-dasharray="6 4"/>
+    <text x="20" y="28" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="12">wp-content/ecoflow-cache/</text>
+    <text x="20" y="48" fill="#a8b8ac" font-family="ui-monospace, Menlo, monospace" font-size="10">bridge-config.json · bridge-status.json</text>
+    <text x="20" y="64" fill="#a8b8ac" font-family="ui-monospace, Menlo, monospace" font-size="10">{SN}.json · bridge-command.json</text>
+  </g>
+
+  <!-- Node bridge -->
+  <g transform="translate(620,110)">
+    <rect width="240" height="112" rx="12" fill="url(#box)" stroke="#5b8cff" stroke-width="1.5"/>
+    <text x="20" y="30" fill="#5b8cff" font-family="ui-monospace, Menlo, monospace" font-size="13">ecoflow-bridge (Node)</text>
+    <text x="20" y="54" fill="#c8d8cc" font-family="ui-monospace, Menlo, monospace" font-size="11">ecoflow-bridge-daemon.mjs</text>
+    <text x="20" y="72" fill="#c8d8cc" font-family="ui-monospace, Menlo, monospace" font-size="11">App Login ’ MQTT over TLS</text>
+    <text x="20" y="90" fill="#8aa898" font-family="ui-monospace, Menlo, monospace" font-size="10">TTL 90s live · stable client ID</text>
+  </g>
+
+  <!-- Developer API -->
+  <g transform="translate(620,280)">
+    <rect width="240" height="88" rx="10" fill="url(#box)" stroke="#00c853"/>
+    <text x="20" y="28" fill="#00c853" font-family="ui-monospace, Menlo, monospace" font-size="12">Developer API</text>
+    <text x="20" y="48" fill="#a8b8ac" font-family="ui-monospace, Menlo, monospace" font-size="10">GET  /device/quota/all</text>
+    <text x="20" y="64" fill="#a8b8ac" font-family="ui-monospace, Menlo, monospace" font-size="10">PUT  /device/quota</text>
+    <text x="20" y="80" fill="#6a8a74" font-family="ui-monospace, Menlo, monospace" font-size="10">api-a.ecoflow.com (JP)</text>
+  </g>
+
+  <!-- Devices -->
+  <g transform="translate(920,130)">
+    <rect width="220" height="96" rx="12" fill="url(#box)" stroke="#00c853"/>
+    <text x="20" y="30" fill="#e8efe9" font-family="ui-monospace, Menlo, monospace" font-size="13">DELTA Pro 3</text>
+    <text x="20" y="52" fill="#00c853" font-family="ui-monospace, Menlo, monospace" font-size="11">Developer API (REST)</text>
+    <text x="20" y="72" fill="#8aa898" font-family="ui-monospace, Menlo, monospace" font-size="10">powInSumW · bmsChgDsgState</text>
+  </g>
+  <g transform="translate(920,260)">
+    <rect width="220" height="96" rx="12" fill="url(#box)" stroke="#5b8cff"/>
+    <text x="20" y="30" fill="#e8efe9" font-family="ui-monospace, Menlo, monospace" font-size="13">DELTA 3 1500</text>
+    <text x="20" y="52" fill="#5b8cff" font-family="ui-monospace, Menlo, monospace" font-size="11">App Login (MQTT)</text>
+    <text x="20" y="72" fill="#8aa898" font-family="ui-monospace, Menlo, monospace" font-size="10">D361 · quota via bridge</text>
+  </g>
+
+  <!-- Arrows -->
+  <line x1="198" y1="166" x2="278" y2="166" stroke="#6bdc8a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="420" y1="222" x2="420" y2="258" stroke="#ffcb05" stroke-width="2" marker-end="url(#arrow-gold)"/>
+  <line x1="540" y1="166" x2="618" y2="166" stroke="#6bdc8a" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <line x1="540" y1="304" x2="618" y2="324" stroke="#ffcb05" stroke-width="2" marker-end="url(#arrow-gold)"/>
+  <line x1="860" y1="166" x2="918" y2="178" stroke="#00c853" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="860" y1="324" x2="918" y2="308" stroke="#5b8cff" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="740" y1="222" x2="740" y2="278" stroke="#00c853" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="860" y1="166" x2="900" y2="166" x2="918" y2="178" stroke="#00c853" stroke-width="0"/>
+
+  <!-- Legend -->
+  <g transform="translate(48,400)">
+    <rect width="1104" height="220" rx="14" fill="#0e1410" stroke="#2a3a30"/>
+    <text x="24" y="36" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="12">DATA PLANE</text>
+    <text x="24" y="68" fill="#c8d8cc" font-family="ui-monospace, Menlo, monospace" font-size="11">` Pro 3: PHP ’ signed REST ’ quota/all (read) · quota PUT (charge W, backup SOC)</text>
+    <text x="24" y="92" fill="#c8d8cc" font-family="ui-monospace, Menlo, monospace" font-size="11">a 1500: Node ’ MQTT subscribe ’ {SN}.json · PHP queues bridge-command.json for SET</text>
+    <text x="24" y="116" fill="#c8d8cc" font-family="ui-monospace, Menlo, monospace" font-size="11">b No HTTP between PHP and Node  file IPC + Docker volume only</text>
+    <text x="24" y="152" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="12">NORMALIZE</text>
+    <text x="24" y="180" fill="#a8b8ac" font-family="ui-monospace, Menlo, monospace" font-size="11">gaming_hub_parse_ecoflow_quota() ’ battery · input/output · solar · charge_state</text>
+    <text x="24" y="204" fill="#6a8a74" font-family="ui-monospace, Menlo, monospace" font-size="10">bmsChgDsgState: 0=idle · 1=discharge · 2=charge</text>
+  </g>
+</svg>

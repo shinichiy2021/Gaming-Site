@@ -25,9 +25,10 @@ function gaming_hub_theme_image_url( $filename ) {
  * @param string $filename Image file under assets/images/.
  * @param string $alt      Alt text.
  * @param string $caption  Optional caption.
+ * @param string $class    Optional extra figure class(es).
  * @return string
  */
-function gaming_hub_article_figure( $filename, $alt, $caption = '' ) {
+function gaming_hub_article_figure( $filename, $alt, $caption = '', $class = '' ) {
 	$path = get_template_directory() . '/assets/images/' . ltrim( (string) $filename, '/' );
 	if ( ! is_readable( $path ) ) {
 		return '';
@@ -35,7 +36,11 @@ function gaming_hub_article_figure( $filename, $alt, $caption = '' ) {
 
 	$url = esc_url( gaming_hub_theme_image_url( $filename ) );
 	$alt = esc_attr( $alt );
-	$html = '<figure class="article-figure">';
+	$figure_class = 'article-figure';
+	if ( '' !== $class ) {
+		$figure_class .= ' ' . sanitize_html_class( $class, '' );
+	}
+	$html = '<figure class="' . esc_attr( trim( $figure_class ) ) . '">';
 	$html .= '<img src="' . $url . '" alt="' . $alt . '" loading="lazy" decoding="async" />';
 	if ( '' !== $caption ) {
 		$html .= '<figcaption>' . esc_html( $caption ) . '</figcaption>';
@@ -400,6 +405,251 @@ function gaming_hub_seed_model3_review_post() {
 	update_option( 'gaming_hub_seed_model3_review_v1', (int) $post_id );
 }
 add_action( 'init', 'gaming_hub_seed_model3_review_post', 21 );
+
+/**
+ * Article body for DELTA Pro 3 API / implementation notes.
+ *
+ * @return string
+ */
+function gaming_hub_seed_delta_pro3_api_content() {
+	$ecoflow = esc_url( gaming_hub_ecoflow_url() );
+	$energy  = $ecoflow . '#energy';
+	$review  = esc_url( home_url( '/delta-pro-3-jissoku-review/' ) );
+
+	$fig_arch  = gaming_hub_article_figure( 'ecoflow-api-architecture.svg', 'EcoFlow 連携アーキテクチャ図', 'WordPress + Developer API + MQTT ブリッジの全体構成', 'article-figure--diagram' );
+	$fig_dual  = gaming_hub_article_figure( 'ecoflow-api-dual-path.svg', 'Pro 3 REST と 1500 MQTT の二系統', 'Pro 3 は Developer API、1500 は App Login MQTT — 経路を分離', 'article-figure--diagram' );
+	$fig_quota = gaming_hub_article_figure( 'ecoflow-api-quota-flow.svg', 'quota 正規化フロー', 'raw quota → フォールバックキー → ダッシュボード / 発電ログ', 'article-figure--diagram' );
+
+	return <<<HTML
+{$fig_arch}
+<p>Gaming-Hub の <a href="{$ecoflow}">EcoFlow ダッシュボード</a>は、自宅の DELTA Pro 3 と DELTA 3 1500 からライブ計測・発電ログ・充電計画を出しています。製品レビューではなく、<strong>API と実装のメモ</strong>です。同じことをやりたいエンジニア向けに、うちの構成とハマりどころを書きます。</p>
+<p>前提: 公式モバイル SDK は使っていません。Pro 3 は <strong>EcoFlow Developer API (REST)</strong>、1500 系は <strong>App Login + MQTT</strong> です。機種ごとに経路が違うので、最初から一本化しない方が楽でした。</p>
+
+<h2>全体像</h2>
+<p>スタックは WordPress (PHP) + Docker 上の Node ブリッジ + 共有キャッシュディレクトリです。</p>
+<ul>
+<li><strong>WordPress</strong> — ダッシュボード UI、REST、WP-Cron、発電ログの積算</li>
+<li><strong>Developer API クライアント</strong> — <code>inc/ecoflow-api.php</code> の <code>Gaming_Hub_Ecoflow_Api</code></li>
+<li><strong>ecoflow-bridge コンテナ</strong> — <code>scripts/ecoflow-bridge-daemon.mjs</code> が MQTT を張り続ける</li>
+<li><strong>wp-content/ecoflow-cache/</strong> — PHP と Node の IPC 用（git には入れない）</li>
+</ul>
+<pre class="article-code"><code>Browser → WordPress (PHP)
+              ├─ GET  /iot-open/sign/device/quota/all   … Pro 3 ライブ
+              ├─ PUT  /iot-open/sign/device/quota       … Pro 3 充電制御
+              └─ read/write ecoflow-cache/*.json
+
+ecoflow-bridge (Node) → App Login → MQTT over TLS
+              └─ write {SN}.json, bridge-status.json
+              └─ read  bridge-command.json（1500 への SET）</code></pre>
+<p>PHP と Node は HTTP では話しません。<strong>ファイルと Docker volume</strong> で繋いでいます。小規模ならこれで十分です。</p>
+
+<h2>Pro 3 — Developer API</h2>
+{$fig_dual}
+<p>Pro 3 は EcoFlow 開発者ポータルで発行した Access Key / Secret Key とデバイス SN で動きます。Customizer か <code>.env</code> に入れます。</p>
+<ul>
+<li><code>ECOFLOW_ACCESS_KEY</code> / <code>ECOFLOW_SECRET_KEY</code></li>
+<li><code>ECOFLOW_DEVICE_SN</code> — Pro 3 のシリアル</li>
+<li><code>ECOFLOW_API_REGION</code> — 日本アカウントは <strong>Asia (<code>a</code> → api-a.ecoflow.com)</strong></li>
+</ul>
+<p>読み取りの中心は <code>GET /iot-open/sign/device/quota/all?sn=…</code> です。返るのはフラットな quota マップで、キー名が機種・FW で微妙に違います。うちでは <code>gaming_hub_ecoflow_quota_value()</code> が複数キーをフォールバックで試します。</p>
+<p>ダッシュボード表示で特に使っているのは次のあたりです。</p>
+<ul>
+<li><code>powInSumW</code> / <code>powOutSumW</code> — 合計入出力 [W]</li>
+<li><code>bmsChgDsgState</code> — 0=待機, 1=放電, 2=充電（Pro 3 の状態判定の軸）</li>
+<li>ハイボルト系 — <code>mppt.inWatts</code> など PV 入力</li>
+<li>AC 入出力 — <code>plugInInfoAcInWatts</code> / AC out 系</li>
+</ul>
+<p>状態ラベルはワット数だけに頼らず、<code>bmsChgDsgState</code> を優先しています。待機中でも数十 W 動くので、閾値だけだと「充電中／放電中」がブレます。</p>
+
+<h3>書き込み（充電制御）</h3>
+<p>Pro 3 への制御は Developer API の <code>PUT /iot-open/sign/device/quota</code> です。AI PLAN を承認すると、WP-Cron が 10 分ごとに計画を見直し、<strong>充電コマンドが変わったときだけ</strong> API を叩きます。</p>
+<p>主に触っているパラメータ:</p>
+<ul>
+<li><code>cfgPlugInInfoAcInChgPowMax</code> — グリッド AC 充電上限 [W]（うちは 0 または 1,000 W）</li>
+<li>Energy Backup 予備 SOC — 充電枠の前後で reserve を切り替え</li>
+</ul>
+<p>実装は <code>inc/ecoflow-schedule.php</code> → <code>Gaming_Hub_Ecoflow_Api::set_ac_charge_power()</code> です。毎秒 PUT しないのがポイント。EcoFlow 側も、こちらも、どちらも余計なコマンドは嫌がります。</p>
+
+<h2>Delta 3 1500 — App Login + MQTT</h2>
+<p>1500（シリアル <code>D361</code> / <code>D362</code> / <code>D381</code> 系）は <strong>Developer API の quota が空</strong> です。公式の Developer ドキュメント上も、Delta 3 ラインは App 経由が前提です。</p>
+<p>なので Node ブリッジを別コンテナで常駐させています。</p>
+<pre class="article-code"><code>docker compose up -d ecoflow-bridge</code></pre>
+<p>必要なのは App Login 用メール／パスワード（<code>ECOFLOW_APP_EMAIL</code>, <code>ECOFLOW_APP_PASSWORD</code>）と 1500 の SN（<code>ECOFLOW_DEVICE_SN_2</code>）です。WordPress は Customizer 保存時に <code>bridge-config.json</code> を同期します。</p>
+
+<h3>MQTT ブリッジの流れ</h3>
+<ol>
+<li><code>ecoflow-app-client.mjs</code> が App Login API でトークン取得</li>
+<li>certification レスポンスから MQTT ブローカー (<code>mqtts://</code>) に接続</li>
+<li>quota トピックを subscribe し、<code>{SN}.json</code> に最新 quota を書く</li>
+<li><code>bridge-status.json</code> に接続状態・エラーを書く（TTL 90 秒で「ライブ」判定）</li>
+</ol>
+<p>Client ID はユーザー ID から SHA-256 で安定生成しています。毎回ランダムにすると、EcoFlow 側の <strong>1 日 10 client ID 制限</strong> にすぐ当たります（ログに <code>server is too busy</code> が出たらまず疑う）。</p>
+
+<h3>1500 への書き込み</h3>
+<p>1500 の AC 充電 SET は MQTT 経由です。PHP は <code>bridge-command.json</code> にコマンドを書き、デーモンが拾って publish します。結果は <code>bridge-command-result.json</code>。REST で Node を呼ばないので、デーモンが落ちても WordPress は生き残ります。</p>
+
+<h2>PHP 側の quota 正規化</h2>
+{$fig_quota}
+<p><code>gaming_hub_fetch_ecoflow_device_status()</code> の優先順位はこうです。</p>
+<ol>
+<li>MQTT ブリッジキャッシュ（1500 / app-only 機種）</li>
+<li>Developer API <code>quota/all</code>（Pro 3）</li>
+<li>1500 で API が空 → ブリッジ待ちメッセージ</li>
+</ol>
+<p>正規化後の共通フィールド（<code>gaming_hub_parse_ecoflow_quota()</code>）:</p>
+<ul>
+<li><code>battery</code> — SOC [%]</li>
+<li><code>input</code> / <code>output</code> — 合計 W</li>
+<li><code>solar</code> — HV + LV の合算（機種で内訳キーが違う）</li>
+<li><code>charge_state</code> — 表示用ラベル（グリッド充電中 / 放電中 / ソーラー充電中 …）</li>
+</ul>
+<p>ステータスは transient で 5 秒キャッシュ。ページ表示のたびに quota/all を叩かないようにしています。</p>
+
+<h2>発電ログ（energy）との接続</h2>
+<p>ライブ quota とは別に、<code>inc/ecoflow-energy.php</code> が時間別・日別 kWh を積算します。入力は Pro + 1500 の合算、節約額は「その時間に AC 出力していた分 × LOOOP 単価 − グリッド買電」を日次で出しています。API 実装の話としては、<strong>MQTT が落ちている時間帯は 1500 側の入力が欠ける</strong> ので、ログ品質もブリッジ死活に依存します。</p>
+<p>グラフは <a href="{$energy}">/tag/ecoflow/#energy</a>。実運用の数字は <a href="{$review}">実測レビュー記事</a> よりログ優先で見てください。</p>
+
+<h2>ハマったところ（再現用メモ）</h2>
+<ul>
+<li><strong>API Region</strong> — 日本は <code>a</code>。US デフォルトのままだと MQTT 認証で <code>not authorized</code> になりがち</li>
+<li><strong>Google ログインのみ</strong> — MQTT は Google OAuth そのものは使えない。アプリ内で「ログインパスワード」を別途設定する必要あり</li>
+<li><strong>Delta 3 は Developer API 非対応</strong> — Pro 3 だけ Developer API 、1500 は MQTT、と割り切る</li>
+<li><strong>quota キーのブレ</strong> — <code>pdStatus.foo</code> と <code>pd.foo</code> 等。正規化レイヤを挟まないと UI が壊れる</li>
+<li><strong>bridge-status.json は secret 扱い</strong> — userId 等が入る。gitignore 済み</li>
+<li><strong>制御は diff だけ送る</strong> — 計画ウィンドウが変わったときだけ PUT / MQTT publish</li>
+</ul>
+
+<h2>ディレクトリ早見表</h2>
+<pre class="article-code"><code>wp-content/themes/gaming-hub/
+  inc/ecoflow-api.php      … Developer API クライアント
+  inc/ecoflow-app.php        … ブリッジキャッシュ読み書き
+  inc/ecoflow-schedule.php   … 充電計画の承認・適用
+  inc/ecoflow-energy.php     … 発電ログ積算
+  scripts/ecoflow-app-client.mjs
+  scripts/ecoflow-bridge-daemon.mjs
+
+wp-content/ecoflow-cache/    … 実行時生成（volume マウント）
+  bridge-config.json
+  bridge-status.json
+  bridge-command.json
+  {DEVICE_SN}.json</code></pre>
+
+<h2>まとめ</h2>
+<p>うちの構成は <strong>Pro 3 = Developer API で読む・書く</strong>、<strong>1500 = MQTT ブリッジで読む・ファイル IPC で書く</strong> の二系統です。無理に一つの SDK に寄せず、quota 正規化とキャッシュ TTL で UI を安定させています。</p>
+<p>ライブ状態は <a href="{$ecoflow}">EcoFlow ダッシュボード</a>、実装の参照はテーマ <code>inc/ecoflow*.php</code> と <code>scripts/ecoflow-*.mjs</code> を見てください。製品選びや節約額の話は <a href="{$review}">DELTA Pro 3 実測レビュー</a> の方が向いています。</p>
+
+<h2>関連リンク</h2>
+<ul>
+<li><a href="{$ecoflow}">EcoFlow ダッシュボード</a></li>
+<li><a href="{$energy}">発電ログ</a></li>
+<li><a href="{$review}">DELTA Pro 3 実測レビュー</a></li>
+</ul>
+HTML;
+}
+
+/**
+ * Create the seeded DELTA Pro 3 API implementation post once.
+ */
+function gaming_hub_seed_delta_pro3_api_post() {
+	if ( get_option( 'gaming_hub_seed_delta_pro3_api_v1' ) ) {
+		return;
+	}
+
+	$existing = get_posts(
+		array(
+			'name'           => 'delta-pro-3-api-jissou',
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	if ( ! empty( $existing ) ) {
+		update_option( 'gaming_hub_seed_delta_pro3_api_v1', (int) $existing[0] );
+		return;
+	}
+
+	if ( ! term_exists( 'ecoflow', 'post_tag' ) ) {
+		wp_insert_term(
+			'EcoFlow',
+			'post_tag',
+			array(
+				'slug' => 'ecoflow',
+			)
+		);
+	}
+
+	$post_id = wp_insert_post(
+		array(
+			'post_title'   => 'DELTA Pro 3 API 実装メモ｜Developer API × MQTT ブリッジ構成',
+			'post_name'    => 'delta-pro-3-api-jissou',
+			'post_status'  => 'publish',
+			'post_type'    => 'post',
+			'post_content' => gaming_hub_seed_delta_pro3_api_content(),
+			'post_excerpt' => 'Gaming-Hub の EcoFlow 連携実装メモ。Pro 3 は Developer API、Delta 3 1500 は App Login MQTT。quota キー、充電制御、docker compose、ハマりどころまで。',
+			'tags_input'   => array( 'ecoflow' ),
+		),
+		true
+	);
+
+	if ( is_wp_error( $post_id ) || ! $post_id ) {
+		return;
+	}
+
+	update_post_meta( $post_id, 'rank_math_title', 'DELTA Pro 3 API 実装メモ｜Developer API × MQTT' );
+	update_post_meta( $post_id, 'rank_math_description', 'EcoFlow DELTA Pro 3 の Developer API と Delta 3 1500 の MQTT ブリッジ構成。quota キー、充電制御、Docker、実装のハマりどころをエンジニア向けに解説。' );
+	update_post_meta( $post_id, 'rank_math_focus_keyword', 'DELTA Pro 3 API' );
+	update_post_meta( $post_id, 'rank_math_robots', array( 'index' ) );
+
+	$att_id = gaming_hub_ensure_theme_image_attachment( 'ecoflow-api-architecture.svg' );
+	if ( ! $att_id ) {
+		$att_id = gaming_hub_ensure_theme_image_attachment( 'ecoflow-pro-gaming.jpg' );
+	}
+	if ( $att_id ) {
+		set_post_thumbnail( $post_id, $att_id );
+	}
+
+	update_option( 'gaming_hub_seed_delta_pro3_api_v1', (int) $post_id );
+}
+add_action( 'init', 'gaming_hub_seed_delta_pro3_api_post', 22 );
+
+/**
+ * Refresh API article with engineer-style diagram figures.
+ */
+function gaming_hub_refresh_delta_pro3_api_diagrams() {
+	if ( get_option( 'gaming_hub_delta_pro3_api_diagrams_v1' ) ) {
+		return;
+	}
+
+	$posts = get_posts(
+		array(
+			'name'           => 'delta-pro-3-api-jissou',
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	if ( empty( $posts ) ) {
+		return;
+	}
+
+	$post_id = (int) $posts[0];
+	wp_update_post(
+		array(
+			'ID'           => $post_id,
+			'post_content' => gaming_hub_seed_delta_pro3_api_content(),
+		)
+	);
+
+	$att_id = gaming_hub_ensure_theme_image_attachment( 'ecoflow-api-architecture.svg' );
+	if ( $att_id ) {
+		set_post_thumbnail( $post_id, $att_id );
+	}
+
+	update_option( 'gaming_hub_delta_pro3_api_diagrams_v1', 1 );
+}
+add_action( 'init', 'gaming_hub_refresh_delta_pro3_api_diagrams', 31 );
 
 /**
  * Refresh seeded review posts with inline figures + featured images.
