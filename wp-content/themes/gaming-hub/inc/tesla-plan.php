@@ -1288,7 +1288,8 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 		if ( null !== $live_soc && $live_soc > 0 ) {
 			gaming_hub_tesla_sleep_soc_freeze( $live_soc );
 		}
-		$held = gaming_hub_tesla_plan_held_soc( $live_soc );
+		$held   = gaming_hub_tesla_plan_held_soc( $live_soc );
+		$frozen = gaming_hub_tesla_sleep_soc_state();
 		if ( null !== $held ) {
 			$plan['soc_now']   = $held;
 			$plan['start_soc'] = $held;
@@ -1297,9 +1298,13 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 				$plan['soc_series'][ $now_hour ] = $held;
 			}
 		}
-		$plan['asleep_note'] = __( 'スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。', 'gaming-hub' );
+		$plan['sleep_held_soc']  = $held;
+		$plan['sleep_from_hour'] = $frozen ? (int) $frozen['hour'] : (int) wp_date( 'G' );
+		$plan['asleep_note']     = __( 'スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。', 'gaming-hub' );
 	} else {
-		$plan['asleep_note'] = '';
+		$plan['asleep_note']     = '';
+		$plan['sleep_held_soc']  = null;
+		$plan['sleep_from_hour'] = null;
 		if ( function_exists( 'gaming_hub_tesla_sleep_soc_clear' ) && ! empty( $flow['live'] ) ) {
 			gaming_hub_tesla_sleep_soc_clear();
 		}
