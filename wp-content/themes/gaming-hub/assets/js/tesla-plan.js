@@ -250,10 +250,18 @@
 		}
 
 		const track = root.querySelector('[data-tesla-plan-track]');
-		const socSeries = Array.isArray(plan.soc_series) ? plan.soc_series : [];
+		const socSeries = Array.isArray(plan.soc_series) ? plan.soc_series.slice() : [];
 		const sleepFrom = asleepNow && plan.sleep_from_hour != null && !Number.isNaN(Number(plan.sleep_from_hour))
 			? Math.max(0, Math.min(23, Number(plan.sleep_from_hour)))
 			: (asleepNow ? hour : null);
+		const heldSoc = asleepNow && plan.sleep_held_soc != null && !Number.isNaN(Number(plan.sleep_held_soc))
+			? Number(plan.sleep_held_soc)
+			: (asleepNow && plan.soc_now != null ? Number(plan.soc_now) : null);
+		if (asleepNow && heldSoc != null && sleepFrom != null) {
+			for (let h = sleepFrom; h <= hour; h += 1) {
+				socSeries[h] = heldSoc;
+			}
+		}
 		const chart = root.querySelector('.ecoflow-plan-chart');
 		if (chart) {
 			chart.classList.toggle('is-asleep-chart', asleepNow);
@@ -459,5 +467,5 @@
 	}
 
 	loadPlan();
-	setInterval(loadPlan, 30000);
+	setInterval(loadPlan, 60000);
 })();
