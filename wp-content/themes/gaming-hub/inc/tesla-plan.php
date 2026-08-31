@@ -23,7 +23,7 @@ define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR', 6 );
 /** Friday hour when the overnight boost window opens. */
 define( 'GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR', 22 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v8_' );
+define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v9_' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_OPTION', 'gaming_hub_tesla_plan_auto_v1' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_LOCK', 'gaming_hub_tesla_plan_auto_lock' );
 /** Max automatic wakes per day (AI PLAN cron). Manual ON/OFF is not limited. */
@@ -110,7 +110,8 @@ function gaming_hub_tesla_sleep_soc_freeze( $soc ) {
 
 	$existing = gaming_hub_tesla_sleep_soc_state();
 	$today    = wp_date( 'Y-m-d' );
-	if ( $existing && $existing['date'] === $today ) {
+	// Keep the first freeze for this sleep session so the plateau hour does not drift.
+	if ( $existing && $existing['date'] === $today && $existing['soc'] > 0 ) {
 		return;
 	}
 
@@ -1290,16 +1291,25 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 		}
 		$held   = gaming_hub_tesla_plan_held_soc( $live_soc );
 		$frozen = gaming_hub_tesla_sleep_soc_state();
+		$now_hour = (int) wp_date( 'G' );
+		$from_hour = $frozen ? (int) $frozen['hour'] : $now_hour;
+
 		if ( null !== $held ) {
 			$plan['soc_now']   = $held;
 			$plan['start_soc'] = $held;
-			$now_hour          = (int) wp_date( 'G' );
+			// Pin every sleep-held hour on the chart (not only NOW).
 			if ( is_array( $plan['soc_series'] ?? null ) && ( $plan['plan_day'] ?? '' ) === 'today' ) {
-				$plan['soc_series'][ $now_hour ] = $held;
+				for ( $h = $from_hour; $h <= $now_hour; $h++ ) {
+					$plan['soc_series'][ $h ] = $held;
+				}
+			}
+			// Keep the hourly SOC log flat while asleep so rebuilds stay correct.
+			if ( function_exists( 'gaming_hub_tesla_soc_log_record' ) ) {
+				gaming_hub_tesla_soc_log_record( $held );
 			}
 		}
 		$plan['sleep_held_soc']  = $held;
-		$plan['sleep_from_hour'] = $frozen ? (int) $frozen['hour'] : (int) wp_date( 'G' );
+		$plan['sleep_from_hour'] = $from_hour;
 		$plan['asleep_note']     = __( 'スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。', 'gaming-hub' );
 	} else {
 		$plan['asleep_note']     = '';

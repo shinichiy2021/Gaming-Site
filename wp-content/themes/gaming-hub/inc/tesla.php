@@ -19,10 +19,10 @@ define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' )
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
 define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v5' );
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
-define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 15 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 30 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 10 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 8 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 5 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 5 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 8 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STALE_CHARGE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_TAG_SLUG', 'tesla' );
@@ -989,12 +989,24 @@ function gaming_hub_tesla_mark_api_skip( $ttl, $reason = 'error' ) {
 	$reason = 'asleep' === $reason ? 'asleep' : 'error';
 	set_transient( GAMING_HUB_TESLA_SKIP_KEY, $reason, max( 30, (int) $ttl ) );
 
-	if ( 'asleep' === $reason && function_exists( 'gaming_hub_tesla_sleep_soc_freeze' ) ) {
-		$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
-		if ( is_array( $cached ) && isset( $cached['battery_percent'] ) && is_numeric( $cached['battery_percent'] ) ) {
-			gaming_hub_tesla_sleep_soc_freeze( $cached['battery_percent'] );
-		}
+	if ( 'asleep' !== $reason ) {
+		return;
 	}
+
+	$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
+	if ( ! is_array( $cached ) ) {
+		return;
+	}
+
+	if ( isset( $cached['battery_percent'] ) && is_numeric( $cached['battery_percent'] ) && function_exists( 'gaming_hub_tesla_sleep_soc_freeze' ) ) {
+		gaming_hub_tesla_sleep_soc_freeze( $cached['battery_percent'] );
+	}
+
+	// Persist asleep on the snapshot without treating it as a live wake store.
+	$cached['asleep']      = true;
+	$cached['is_charging'] = false;
+	$cached['watts']       = 0;
+	set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $cached, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
 }
 
 /**
@@ -1005,7 +1017,7 @@ function gaming_hub_tesla_clear_api_skip() {
 }
 
 /**
- * Persist last live Model 3 snapshot.
+ * Persist last live (awake) Model 3 snapshot.
  *
  * @param array<string, mixed> $model3 Mapped Model 3 payload.
  */
@@ -1016,6 +1028,28 @@ function gaming_hub_tesla_store_model3( array $model3 ) {
 	if ( function_exists( 'gaming_hub_tesla_sleep_soc_clear' ) ) {
 		gaming_hub_tesla_sleep_soc_clear();
 	}
+}
+
+/**
+ * Persist a corrected cache snapshot while the car may still be asleep.
+ * Does not clear the frozen sleep SOC.
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ * @param bool                 $asleep Vehicle is asleep.
+ */
+function gaming_hub_tesla_store_model3_snapshot( array $model3, $asleep = false ) {
+	$model3['asleep'] = (bool) $asleep;
+	if ( $asleep ) {
+		$model3['is_charging']               = false;
+		$model3['watts']                     = 0;
+		$model3['charge_rate_kw']            = 0;
+		$model3['time_to_full_charge_hours'] = 0;
+		$model3['minutes_to_full']           = 0;
+		if ( isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] ) && function_exists( 'gaming_hub_tesla_sleep_soc_freeze' ) ) {
+			gaming_hub_tesla_sleep_soc_freeze( $model3['battery_percent'] );
+		}
+	}
+	set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $model3, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
 }
 
 /**
@@ -2475,8 +2509,15 @@ function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false )
 	$cached  = gaming_hub_tesla_reconcile_cached_charging( $cached, $asleep );
 	$cleared = ! empty( $before['is_charging'] ) && empty( $cached['is_charging'] );
 
-	if ( $cleared ) {
-		gaming_hub_tesla_store_model3( $cached );
+	if ( $asleep ) {
+		$cached['asleep'] = true;
+		if ( isset( $cached['battery_percent'] ) && is_numeric( $cached['battery_percent'] ) && function_exists( 'gaming_hub_tesla_sleep_soc_freeze' ) ) {
+			gaming_hub_tesla_sleep_soc_freeze( $cached['battery_percent'] );
+		}
+		// Never call store_model3() here — that clears the sleep freeze and marks awake.
+		gaming_hub_tesla_store_model3_snapshot( $cached, true );
+	} elseif ( $cleared ) {
+		gaming_hub_tesla_store_model3_snapshot( $cached, false );
 		if ( defined( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY' ) ) {
 			delete_transient( GAMING_HUB_POWERWALL_FLOW_CACHE_KEY );
 		}
