@@ -14,14 +14,14 @@ get_header();
 	$is_tesla   = has_tag( 'tesla' );
 	?>
 
-	<article id="post-<?php the_ID(); ?>" <?php post_class( array( 'single-post', $is_ecoflow ? 'single-post-ecoflow' : '', $is_tesla ? 'single-post-tesla' : '', function_exists( 'gaming_hub_is_api_diagram_post' ) && gaming_hub_is_api_diagram_post() ? 'single-post-api' : '' ) ); ?>>
+	<article id="post-<?php the_ID(); ?>" <?php post_class( array( 'single-post', $is_ecoflow ? 'single-post-ecoflow' : '', $is_tesla ? 'single-post-tesla' : '', function_exists( 'gaming_hub_is_diagram_article_post' ) && gaming_hub_is_diagram_article_post() ? 'single-post-api' : '' ) ); ?>>
 		<?php
-		$is_api_article = function_exists( 'gaming_hub_is_api_diagram_post' ) && gaming_hub_is_api_diagram_post();
-		if ( has_post_thumbnail() || $is_api_article ) :
+		$is_diagram_article = function_exists( 'gaming_hub_is_diagram_article_post' ) && gaming_hub_is_diagram_article_post();
+		if ( has_post_thumbnail() || $is_diagram_article ) :
 			?>
-			<div class="post-hero<?php echo $is_api_article ? ' post-hero--diagram' : ''; ?><?php echo ( function_exists( 'gaming_hub_is_tesla_api_post' ) && gaming_hub_is_tesla_api_post() ) ? ' post-hero--diagram-tesla' : ''; ?>">
-				<?php if ( $is_api_article ) : ?>
-					<img src="<?php echo esc_url( gaming_hub_api_diagram_hero_image_url() ); ?>" alt="<?php echo esc_attr( gaming_hub_api_diagram_hero_alt() ); ?>" width="1200" height="675" decoding="async" fetchpriority="high" />
+			<div class="post-hero<?php echo $is_diagram_article ? ' post-hero--diagram' : ''; ?><?php echo ( ( function_exists( 'gaming_hub_is_tesla_api_post' ) && gaming_hub_is_tesla_api_post() ) || ( function_exists( 'gaming_hub_is_evitara_v2h_post' ) && gaming_hub_is_evitara_v2h_post() ) ) ? ' post-hero--diagram-tesla' : ''; ?>">
+				<?php if ( $is_diagram_article ) : ?>
+					<img src="<?php echo esc_url( gaming_hub_diagram_hero_image_url() ); ?>" alt="<?php echo esc_attr( gaming_hub_diagram_hero_alt() ); ?>" width="1200" height="675" decoding="async" fetchpriority="high" />
 				<?php else : ?>
 					<?php the_post_thumbnail( 'hero-banner' ); ?>
 				<?php endif; ?>

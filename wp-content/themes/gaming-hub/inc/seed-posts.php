@@ -16,7 +16,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function gaming_hub_theme_image_url( $filename ) {
-	return trailingslashit( get_template_directory_uri() ) . 'assets/images/' . ltrim( (string) $filename, '/' );
+	$url = trailingslashit( get_template_directory_uri() ) . 'assets/images/' . ltrim( (string) $filename, '/' );
+	if ( defined( 'GAMING_HUB_VERSION' ) ) {
+		$url = add_query_arg( 'ver', GAMING_HUB_VERSION, $url );
+	}
+	return $url;
 }
 
 /**
@@ -31,6 +35,13 @@ function gaming_hub_delta_pro3_api_post_slug() {
  */
 function gaming_hub_tesla_api_post_slug() {
 	return 'model3-api-jissou';
+}
+
+/**
+ * Post slug for the e Vitara × Nichicon V2H article.
+ */
+function gaming_hub_evitara_v2h_post_slug() {
+	return 'e-vitara-v2h-2026';
 }
 
 /**
@@ -53,6 +64,29 @@ function gaming_hub_is_api_diagram_post( $post_id = null ) {
 		),
 		true
 	);
+}
+
+/**
+ * Whether the current (or given) post is the e Vitara × V2H article.
+ *
+ * @param int|null $post_id Post ID.
+ */
+function gaming_hub_is_evitara_v2h_post( $post_id = null ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( ! $post_id ) {
+		return false;
+	}
+
+	return gaming_hub_evitara_v2h_post_slug() === get_post_field( 'post_name', $post_id );
+}
+
+/**
+ * Whether the current (or given) post uses a theme SVG diagram for hero/card.
+ *
+ * @param int|null $post_id Post ID.
+ */
+function gaming_hub_is_diagram_article_post( $post_id = null ) {
+	return gaming_hub_is_api_diagram_post( $post_id ) || gaming_hub_is_evitara_v2h_post( $post_id );
 }
 
 /**
@@ -103,6 +137,24 @@ function gaming_hub_tesla_api_hero_image_url() {
  * @param int|null $post_id Post ID.
  * @return string
  */
+function gaming_hub_evitara_v2h_hero_image_url() {
+	return gaming_hub_theme_image_url( 'evitara-v2h-system.svg' );
+}
+
+/**
+ * Hero image URL for diagram-style articles (API + e Vitara).
+ *
+ * @param int|null $post_id Post ID.
+ * @return string
+ */
+function gaming_hub_diagram_hero_image_url( $post_id = null ) {
+	if ( gaming_hub_is_evitara_v2h_post( $post_id ) ) {
+		return gaming_hub_evitara_v2h_hero_image_url();
+	}
+
+	return gaming_hub_api_diagram_hero_image_url( $post_id );
+}
+
 function gaming_hub_api_diagram_hero_image_url( $post_id = null ) {
 	if ( gaming_hub_is_tesla_api_post( $post_id ) ) {
 		return gaming_hub_tesla_api_hero_image_url();
@@ -117,6 +169,14 @@ function gaming_hub_api_diagram_hero_image_url( $post_id = null ) {
  * @param int|null $post_id Post ID.
  * @return string
  */
+function gaming_hub_diagram_hero_alt( $post_id = null ) {
+	if ( gaming_hub_is_evitara_v2h_post( $post_id ) ) {
+		return __( 'e Vitara × ニチコン V2H 系統図', 'gaming-hub' );
+	}
+
+	return gaming_hub_api_diagram_hero_alt( $post_id );
+}
+
 function gaming_hub_api_diagram_hero_alt( $post_id = null ) {
 	if ( gaming_hub_is_tesla_api_post( $post_id ) ) {
 		return __( 'Tesla Fleet API 連携アーキテクチャ図', 'gaming-hub' );
@@ -984,6 +1044,224 @@ function gaming_hub_seed_tesla_api_post() {
 	update_option( 'gaming_hub_seed_tesla_api_v1', (int) $post_id );
 }
 add_action( 'init', 'gaming_hub_seed_tesla_api_post', 23 );
+
+/**
+ * Article body: Suzuki e Vitara × Nichicon V2H (no stationary battery).
+ *
+ * @return string
+ */
+function gaming_hub_seed_evitara_v2h_content() {
+	$tesla   = esc_url( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) );
+	$plan    = $tesla . '#plan';
+	$review  = esc_url( home_url( '/model3-jissoku-review/' ) );
+	$api     = esc_url( home_url( '/model3-api-jissou/' ) );
+
+	$fig_system = gaming_hub_article_figure( 'evitara-v2h-system.svg', 'e Vitara × ニチコン V2H 系統図', '太陽光 5 kW（東西）→ ES-T6 → V2H → e Vitara 61 kWh → 家庭内配線 → Model 3', 'article-figure--diagram' );
+	$fig_wall   = gaming_hub_article_figure( 'tesla-wall-connector-gaming.jpg', '自宅 V2H・200V 充電', 'V2H と既存 200V コンセントのイメージ' );
+	$fig_m3     = gaming_hub_article_figure( 'tesla-model3-gaming.jpg', 'Tesla Model 3', 'サブ EV として既存 Model 3 を AC 充電' );
+	$fig_bridge = gaming_hub_article_figure( 'evitara-v2h-ev-bridge.svg', 'e Vitara から Model 3 への車間充電', 'V2H 放電 → 家庭内 AC → 200 V コンセント → Model 3（全体効率 75〜80% 目安）', 'article-figure--diagram' );
+
+	return <<<HTML
+<p>電気自動車（EV）と太陽光発電を導入する際、多くの人が悩むのが「高額な家庭用定置型蓄電池（10〜15 kWh で 150〜200 万円）を入れるべきか」という点です。</p>
+<p>結論から言うと、大容量バッテリー（49 kWh / 61 kWh）と CHAdeMO による V2H に対応したスズキ新型 EV「<strong>e Vitara</strong>」を軸にするなら、<strong>定置型蓄電池なし・V2H 単体</strong>の構成が、コストパフォーマンスと回収スピードの両方で有利になりやすいです。</p>
+<p>本記事では、筆者が検討・設計した「太陽光東西設置 ＋ ニチコン・トライブリッド V2H ＋ e Vitara ＋ 既存 Model 3」の構成、運用ロジック、費用対効果をまとめます。Gaming-Hub では Model 3 の充電計画（<a href="{$plan}">AI PLAN</a>）や Fleet API 連携（<a href="{$api}">実装メモ</a>）も公開しています。</p>
+
+<h2>1. システムの全体構成と機器選定</h2>
+<p>高額な定置型蓄電池を省き、車そのものを「61 kWh の超大容量蓄電池」として見立てます。</p>
+
+<h3>構成機器一覧</h3>
+<ul>
+<li><strong>太陽光パネル</strong> — 新規 5.0 kW（東面 3.0 kW / 西面 2.0 kW）</li>
+<li><strong>トライブリッドパワコン</strong> — ニチコン ES-T6（4 回路 MPPT）</li>
+<li><strong>V2H 充放電設備</strong> — ニチコン V2H スタンド ＋ セパレート型 V2H ポッド</li>
+<li><strong>停電時自動切替盤</strong> — 全負荷対応 開閉器ユニット（既存分電盤は流用）</li>
+<li><strong>連動 EV</strong> — スズキ e Vitara（61 kWh・CHAdeMO 対応）</li>
+<li><strong>サブ EV</strong> — Tesla Model 3（既存の屋外 200 V コンセントから AC 充電）</li>
+</ul>
+
+<h3>系統図（概念）</h3>
+{$fig_system}
+
+<h3>なぜ最新パワコン「ES-T6」なのか</h3>
+<ul>
+<li><strong>4 回路 MPPT</strong> — 「東 3 kW」「西 2 kW」を独立系統で制御し、方角差による発電ロスを抑える</li>
+<li><strong>セパレート型ポッド</strong> — 重いスタンド本体は壁面など目立たない位置に置き、駐車場にはポッドだけ。外観を損ねにくい</li>
+</ul>
+
+<h2>2. なぜ「蓄電池なし」で成立するのか（運用ロジック）</h2>
+<p>家庭用定置型蓄電池（10〜13.5 kWh）は夜間消費（おおむね 6〜8 kWh/日）をまかなうには足りますが、価格が 150〜200 万円級です。一方 e Vitara のバッテリーは <strong>61 kWh</strong> — 定置型の 4〜5 倍です。</p>
+<ul>
+<li><strong>昼間（車が自宅）</strong> — 太陽光 5 kW の発電を家庭で消費し、余剰（目安 10〜15 kWh/日）を DC 直結で e Vitara へ急速充電</li>
+<li><strong>夜間</strong> — 日中に e Vitara へ溜めた電気を V2H で家へ給電。買電単価（目安 45 円/kWh）の電気を極力使わない</li>
+<li><strong>停電時</strong> — 61 kWh のプールがあれば、200 V エアコンや IH を普段通り使っても <strong>1 週間以上</strong>の自給自足が現実的</li>
+</ul>
+<p><strong>注意:</strong> 昼間に車で外出が多いと、余剰電力を車に溜められません。テレワークや休日など「日中に自宅にいる日が多い」ライフスタイル向けの構成です。</p>
+
+<h2>3. 車から車へ：e Vitara から Model 3 への充電</h2>
+{$fig_bridge}
+{$fig_wall}
+{$fig_m3}
+<p>自宅に Model 3 がある場合、<strong>e Vitara（V2H）→ 家庭内配線 → 既存 200 V コンセント → Model 3</strong> で電力を融通できます。</p>
+<ul>
+<li><strong>変換効率（目安）</strong> — 全体で約 75〜80%（V2H 放電 DC→AC 約 91% × 車載充電器 AC→DC 約 86%）</li>
+<li><strong>運用メリット</strong> — 約 2 割のロスはあるが、「昼間の太陽光で e Vitara に溜めた電」を夜間に Model 3 へ移せるため、電力会社から買うより経済的</li>
+</ul>
+<p>Model 3 側の充電アンペア制御は、うちでは <a href="{$api}">Tesla Fleet API</a> と <a href="{$plan}">AI PLAN</a> で時間帯単価に合わせています。<a href="{$review}">Model 3 実測レビュー</a>も参照してください。</p>
+
+<h2>4. 費用対効果と投資回収シミュレーション</h2>
+<p>定置型蓄電池を省き、国の CEV 補助金（V2H 充放電設備）と自治体補助金を活用すると、実質負担を大きく圧縮できます。</p>
+
+<h3>導入コスト（概算）</h3>
+<table>
+<thead><tr><th>項目</th><th>金額（目安）</th></tr></thead>
+<tbody>
+<tr><td>設備総額（太陽光 5 kW ＋ ニチコン V2H 一式 ＋ 工事費）</td><td>約 270 万円</td></tr>
+<tr><td>▲ 国 CEV 補助金（V2H 設備・工事枠）</td><td>▲ 約 80 万円</td></tr>
+<tr><td>▲ 自治体補助金（太陽光＋V2H）</td><td>▲ 約 12 万円</td></tr>
+<tr><td><strong>実質初期投資額</strong></td><td><strong>約 178 万円</strong></td></tr>
+</tbody>
+</table>
+
+<h3>年間の削減効果（目安）</h3>
+<table>
+<thead><tr><th>項目</th><th>金額/年</th></tr></thead>
+<tbody>
+<tr><td>家庭の電気代削減（買電ゼロ化）</td><td>約 19 万円</td></tr>
+<tr><td>EV 充電コスト浮き分（自家発電分で走行）</td><td>約 8 万円</td></tr>
+<tr><td><strong>合計節約</strong></td><td><strong>約 27 万円</strong></td></tr>
+</tbody>
+</table>
+
+<h3>投資回収年数</h3>
+<p>178 万円 ÷ 27 万円/年 ≈ <strong>6.6 年</strong></p>
+<p>太陽光＋定置蓄電池（Powerwall 3 等）で 10〜12 年前後が一般的なのに対し、<strong>約 6〜7 年</strong>で回収できる試算です。補助金額・単価・走行距離で変動します。</p>
+
+<h2>5. まとめ：API やスマートホームとの親和性</h2>
+<p>ニチコンのトライブリッドは <strong>ECHONET Lite</strong> 対応です。Python や Home Assistant と組み合わせると、例えば次のような自動化が可能です。</p>
+<ul>
+<li>ニチコンから「現在の太陽光余剰電力」をローカル取得</li>
+<li><a href="{$api}">Tesla Fleet API</a> で Model 3 の充電アンペア（Amps）を動的に増減</li>
+<li>余剰が多い時間帯だけ Model 3 の充電を上げ、夜間は V2H 放電を優先</li>
+</ul>
+<p>大容量 EV（e Vitara）を所有するなら、定置蓄電池を追加購入する前に「<strong>V2H 単体で EV を家庭用蓄電池化する</strong>」選択肢を検討する価値があります。</p>
+
+<h2>関連リンク</h2>
+<ul>
+<li><a href="{$tesla}">Tesla ダッシュボード</a></li>
+<li><a href="{$plan}">AI PLAN（Model 3 充電計画）</a></li>
+<li><a href="{$review}">Model 3 実測レビュー</a></li>
+<li><a href="{$api}">Model 3 API 実装メモ</a></li>
+</ul>
+HTML;
+}
+
+/**
+ * Create the seeded e Vitara × V2H article once.
+ */
+function gaming_hub_seed_evitara_v2h_post() {
+	if ( get_option( 'gaming_hub_seed_evitara_v2h_v1' ) ) {
+		return;
+	}
+
+	$slug = gaming_hub_evitara_v2h_post_slug();
+	$existing = get_posts(
+		array(
+			'name'           => $slug,
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	if ( ! empty( $existing ) ) {
+		update_option( 'gaming_hub_seed_evitara_v2h_v1', (int) $existing[0] );
+		return;
+	}
+
+	if ( ! term_exists( 'tesla', 'post_tag' ) ) {
+		wp_insert_term(
+			'Tesla',
+			'post_tag',
+			array(
+				'slug' => 'tesla',
+			)
+		);
+	}
+
+	$post_id = wp_insert_post(
+		array(
+			'post_title'   => '【2026年版】定置型蓄電池は不要？e Vitara × ニチコンV2Hで完全自家消費',
+			'post_name'    => $slug,
+			'post_status'  => 'publish',
+			'post_type'    => 'post',
+			'post_content' => gaming_hub_seed_evitara_v2h_content(),
+			'post_excerpt' => 'スズキ e Vitara（61kWh・CHAdeMO）とニチコン V2H で定置型蓄電池なしの完全自家消費。東西 5kW 太陽光、Model 3 への車間充電、CEV 補助金込みの回収試算まで。',
+			'tags_input'   => array( 'tesla' ),
+		),
+		true
+	);
+
+	if ( is_wp_error( $post_id ) || ! $post_id ) {
+		return;
+	}
+
+	update_post_meta( $post_id, 'rank_math_title', '【2026年版】e Vitara × ニチコンV2H｜定置型蓄電池不要の完全自家消費' );
+	update_post_meta( $post_id, 'rank_math_description', 'スズキ e Vitara とニチコン V2H で定置型蓄電池なし運用。5kW 東西太陽光、61kWh 車載バッテリー、Model 3 への充電融通、CEV 補助金と回収 6.6 年試算。' );
+	update_post_meta( $post_id, 'rank_math_focus_keyword', 'e Vitara V2H' );
+	update_post_meta( $post_id, 'rank_math_robots', array( 'index' ) );
+
+	$att_id = gaming_hub_ensure_theme_image_attachment( 'evitara-v2h-system.svg' );
+	if ( ! $att_id ) {
+		$att_id = gaming_hub_ensure_theme_image_attachment( 'tesla-wall-connector-gaming.jpg' );
+	}
+	if ( ! $att_id ) {
+		$att_id = gaming_hub_ensure_theme_image_attachment( 'tesla-model3-gaming.jpg' );
+	}
+	if ( $att_id ) {
+		set_post_thumbnail( $post_id, $att_id );
+	}
+
+	update_option( 'gaming_hub_seed_evitara_v2h_v1', (int) $post_id );
+}
+add_action( 'init', 'gaming_hub_seed_evitara_v2h_post', 24 );
+
+/**
+ * Refresh e Vitara article: SVG system diagram + inline figures.
+ */
+function gaming_hub_refresh_evitara_v2h_v2() {
+	if ( get_option( 'gaming_hub_refresh_evitara_v2h_v2' ) ) {
+		return;
+	}
+
+	$posts = get_posts(
+		array(
+			'name'           => gaming_hub_evitara_v2h_post_slug(),
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	if ( empty( $posts ) ) {
+		return;
+	}
+
+	$post_id = (int) $posts[0];
+	wp_update_post(
+		array(
+			'ID'           => $post_id,
+			'post_content' => gaming_hub_seed_evitara_v2h_content(),
+		)
+	);
+
+	$att_id = gaming_hub_ensure_theme_image_attachment( 'evitara-v2h-system.svg' );
+	if ( $att_id ) {
+		set_post_thumbnail( $post_id, $att_id );
+	}
+
+	update_option( 'gaming_hub_refresh_evitara_v2h_v2', 1 );
+}
+add_action( 'init', 'gaming_hub_refresh_evitara_v2h_v2', 32 );
 
 /**
  * Refresh API article with engineer-style diagram figures.

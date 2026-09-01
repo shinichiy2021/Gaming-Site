@@ -3803,9 +3803,20 @@ body.home .site-header.is-scrolled {
 	color: var(--ecoflow-green);
 }
 
-.ecoflow-a8-banner {
+.ecoflow-a8-banners {
 	margin: 24px 0 8px;
 	text-align: center;
+}
+
+.ecoflow-a8-banners-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	justify-content: center;
+}
+
+.ecoflow-a8-banner {
+	position: relative;
 }
 
 .ecoflow-a8-banner-label {
