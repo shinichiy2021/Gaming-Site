@@ -45,6 +45,61 @@ function gaming_hub_evitara_v2h_post_slug() {
 }
 
 /**
+ * Find seeded e Vitara post IDs (canonical slug first, then -2/-3 suffix races).
+ *
+ * @return int[]
+ */
+function gaming_hub_evitara_v2h_post_ids() {
+	global $wpdb;
+
+	$slug = gaming_hub_evitara_v2h_post_slug();
+	$like = $wpdb->esc_like( $slug ) . '%';
+
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- LIKE pattern is escaped.
+	$sql = $wpdb->prepare(
+		"SELECT ID, post_name FROM {$wpdb->posts}
+		WHERE post_type = 'post'
+		AND post_status IN ('publish','draft','pending','private')
+		AND post_name LIKE %s
+		ORDER BY (post_name = %s) DESC, ID ASC",
+		$like,
+		$slug
+	);
+
+	$rows = $wpdb->get_results( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	if ( empty( $rows ) ) {
+		return array();
+	}
+
+	$ids = array();
+	foreach ( $rows as $row ) {
+		$ids[] = (int) $row->ID;
+	}
+
+	return $ids;
+}
+
+/**
+ * Canonical e Vitara post ID, if any.
+ *
+ * @return int
+ */
+function gaming_hub_evitara_v2h_canonical_post_id() {
+	$slug = gaming_hub_evitara_v2h_post_slug();
+	$posts = get_posts(
+		array(
+			'name'           => $slug,
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+
+	return ! empty( $posts ) ? (int) $posts[0] : 0;
+}
+
+/**
  * Whether the current (or given) post is an engineer API implementation article.
  *
  * @param int|null $post_id Post ID.
@@ -1159,22 +1214,21 @@ HTML;
  * Create the seeded e Vitara × V2H article once.
  */
 function gaming_hub_seed_evitara_v2h_post() {
-	if ( get_option( 'gaming_hub_seed_evitara_v2h_v1' ) ) {
+	$stored_id = (int) get_option( 'gaming_hub_seed_evitara_v2h_v1', 0 );
+	if ( $stored_id && get_post( $stored_id ) ) {
+		return;
+	}
+
+	$canonical_id = gaming_hub_evitara_v2h_canonical_post_id();
+	if ( $canonical_id ) {
+		update_option( 'gaming_hub_seed_evitara_v2h_v1', $canonical_id );
 		return;
 	}
 
 	$slug = gaming_hub_evitara_v2h_post_slug();
-	$existing = get_posts(
-		array(
-			'name'           => $slug,
-			'post_type'      => 'post',
-			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
-			'posts_per_page' => 1,
-			'fields'         => 'ids',
-		)
-	);
-	if ( ! empty( $existing ) ) {
-		update_option( 'gaming_hub_seed_evitara_v2h_v1', (int) $existing[0] );
+	$race_ids = gaming_hub_evitara_v2h_post_ids();
+	if ( ! empty( $race_ids ) ) {
+		update_option( 'gaming_hub_seed_evitara_v2h_v1', (int) $race_ids[0] );
 		return;
 	}
 
@@ -1262,6 +1316,53 @@ function gaming_hub_refresh_evitara_v2h_v2() {
 	update_option( 'gaming_hub_refresh_evitara_v2h_v2', 1 );
 }
 add_action( 'init', 'gaming_hub_refresh_evitara_v2h_v2', 32 );
+
+/**
+ * Remove duplicate e Vitara seeded posts (keep canonical slug only).
+ */
+function gaming_hub_cleanup_evitara_v2h_duplicate_posts() {
+	if ( get_option( 'gaming_hub_cleanup_evitara_v2h_duplicates_v1' ) ) {
+		return;
+	}
+
+	$slug          = gaming_hub_evitara_v2h_post_slug();
+	$canonical_id  = gaming_hub_evitara_v2h_canonical_post_id();
+	$all_ids       = gaming_hub_evitara_v2h_post_ids();
+	$deleted       = 0;
+
+	if ( ! $canonical_id && ! empty( $all_ids ) ) {
+		$canonical_id = (int) $all_ids[0];
+		wp_update_post(
+			array(
+				'ID'        => $canonical_id,
+				'post_name' => $slug,
+			)
+		);
+	}
+
+	foreach ( $all_ids as $post_id ) {
+		$post_id = (int) $post_id;
+		if ( $canonical_id && $post_id === $canonical_id ) {
+			continue;
+		}
+
+		$post_name = get_post_field( 'post_name', $post_id );
+		if ( $slug === $post_name ) {
+			continue;
+		}
+
+		if ( wp_delete_post( $post_id, true ) ) {
+			++$deleted;
+		}
+	}
+
+	if ( $canonical_id ) {
+		update_option( 'gaming_hub_seed_evitara_v2h_v1', $canonical_id );
+	}
+
+	update_option( 'gaming_hub_cleanup_evitara_v2h_duplicates_v1', 1 );
+}
+add_action( 'init', 'gaming_hub_cleanup_evitara_v2h_duplicate_posts', 33 );
 
 /**
  * Refresh API article with engineer-style diagram figures.
