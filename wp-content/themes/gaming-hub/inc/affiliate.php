@@ -70,6 +70,33 @@ function gaming_hub_affiliate_ecoflow_a8_banner_enabled() {
 }
 
 /**
+ * EcoFlow A8 300x250 banner definitions.
+ *
+ * @return array<int, array{href:string,img:string,pixel:string}>
+ */
+function gaming_hub_ecoflow_a8_banners() {
+	$banners = array(
+		array(
+			'href'  => 'https://px.a8.net/svt/ejp?a8mat=4BAH9O+4M3YK2+5MSA+5YZ75',
+			'img'   => 'https://www25.a8.net/svt/bgt?aid=260829420279&wid=001&eno=01&mid=s00000026281001003000&mc=1',
+			'pixel' => 'https://www17.a8.net/0.gif?a8mat=4BAH9O+4M3YK2+5MSA+5YZ75',
+		),
+		array(
+			'href'  => 'https://px.a8.net/svt/ejp?a8mat=4BC0UJ+5E3BZM+53VG+5ZMCH',
+			'img'   => 'https://www21.a8.net/svt/bgt?aid=260901451326&wid=001&eno=01&mid=s00000023830001006000&mc=1',
+			'pixel' => 'https://www16.a8.net/0.gif?a8mat=4BC0UJ+5E3BZM+53VG+5ZMCH',
+		),
+	);
+
+	/**
+	 * Filter EcoFlow A8 banner rows.
+	 *
+	 * @param array<int, array{href:string,img:string,pixel:string}> $banners Banner rows.
+	 */
+	return apply_filters( 'gaming_hub_ecoflow_a8_banners', $banners );
+}
+
+/**
  * Render EcoFlow A8 300x250 banner markup.
  */
 function gaming_hub_render_ecoflow_a8_banner() {
@@ -77,16 +104,23 @@ function gaming_hub_render_ecoflow_a8_banner() {
 		return;
 	}
 
-	$href = 'https://px.a8.net/svt/ejp?a8mat=4BAH9O+4M3YK2+5MSA+5YZ75';
-	$img  = 'https://www25.a8.net/svt/bgt?aid=260829420279&wid=001&eno=01&mid=s00000026281001003000&mc=1';
-	$pixel = 'https://www17.a8.net/0.gif?a8mat=4BAH9O+4M3YK2+5MSA+5YZ75';
+	$banners = gaming_hub_ecoflow_a8_banners();
+	if ( empty( $banners ) ) {
+		return;
+	}
 	?>
-	<div class="ecoflow-a8-banner" aria-label="<?php esc_attr_e( '広告', 'gaming-hub' ); ?>">
+	<div class="ecoflow-a8-banners" aria-label="<?php esc_attr_e( '広告', 'gaming-hub' ); ?>">
 		<p class="ecoflow-a8-banner-label"><?php esc_html_e( 'PR', 'gaming-hub' ); ?></p>
-		<a href="<?php echo esc_url( $href ); ?>" target="_blank" rel="sponsored nofollow noopener noreferrer">
-			<img src="<?php echo esc_url( $img ); ?>" width="300" height="250" alt="<?php esc_attr_e( 'A8.net 広告バナー', 'gaming-hub' ); ?>" loading="lazy" decoding="async" />
-		</a>
-		<img src="<?php echo esc_url( $pixel ); ?>" width="1" height="1" alt="" loading="lazy" decoding="async" />
+		<div class="ecoflow-a8-banners-grid">
+			<?php foreach ( $banners as $banner ) : ?>
+				<div class="ecoflow-a8-banner">
+					<a href="<?php echo esc_url( $banner['href'] ); ?>" target="_blank" rel="sponsored nofollow noopener noreferrer">
+						<img src="<?php echo esc_url( $banner['img'] ); ?>" width="300" height="250" alt="<?php esc_attr_e( 'A8.net 広告バナー', 'gaming-hub' ); ?>" loading="lazy" decoding="async" />
+					</a>
+					<img src="<?php echo esc_url( $banner['pixel'] ); ?>" width="1" height="1" alt="" loading="lazy" decoding="async" />
+				</div>
+			<?php endforeach; ?>
+		</div>
 	</div>
 	<?php
 }

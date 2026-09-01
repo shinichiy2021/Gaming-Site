@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="e Vitara V2H system diagram">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c0c0e"/>
+      <stop offset="100%" stop-color="#101410"/>
+    </linearGradient>
+    <linearGradient id="box" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c1c20"/>
+      <stop offset="100%" stop-color="#121214"/>
+    </linearGradient>
+    <marker id="arrow-solar" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/>
+    </marker>
+    <marker id="arrow-ac" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ffcb05"/>
+    </marker>
+    <marker id="arrow-v2h" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#5b8cff"/>
+    </marker>
+    <marker id="arrow-tesla" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#e31937"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1152" height="627" rx="16" fill="none" stroke="#2a2a30" stroke-width="1"/>
+
+  <text x="48" y="58" fill="#4ade80" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2">V2H SYSTEM - NO STATIONARY BATTERY</text>
+  <text x="48" y="88" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700">Solar 5 kW + Nichicon V2H + e Vitara 61 kWh</text>
+
+  <rect x="48" y="110" width="220" height="420" rx="12" fill="#0a100c" stroke="#2a4030" stroke-dasharray="8 4"/>
+  <text x="68" y="138" fill="#4ade80" font-family="ui-monospace, Menlo, monospace" font-size="12">OUTDOOR</text>
+
+  <g transform="translate(68,160)">
+    <rect width="180" height="72" rx="10" fill="url(#box)" stroke="#4ade80"/>
+    <text x="90" y="30" text-anchor="middle" fill="#4ade80" font-family="ui-monospace, Menlo, monospace" font-size="13">East array</text>
+    <text x="90" y="52" text-anchor="middle" fill="#a8a8b0" font-family="ui-monospace, Menlo, monospace" font-size="11">3.0 kW DC</text>
+  </g>
+
+  <g transform="translate(68,260)">
+    <rect width="180" height="72" rx="10" fill="url(#box)" stroke="#4ade80"/>
+    <text x="90" y="30" text-anchor="middle" fill="#4ade80" font-family="ui-monospace, Menlo, monospace" font-size="13">West array</text>
+    <text x="90" y="52" text-anchor="middle" fill="#a8a8b0" font-family="ui-monospace, Menlo, monospace" font-size="11">2.0 kW DC</text>
+  </g>
+
+  <g transform="translate(320,150)">
+    <rect width="300" height="100" rx="12" fill="url(#box)" stroke="#5b8cff" stroke-width="1.5"/>
+    <text x="20" y="32" fill="#5b8cff" font-family="ui-monospace, Menlo, monospace" font-size="13">Nichicon ES-T6</text>
+    <text x="20" y="54" fill="#c8c8d0" font-family="ui-monospace, Menlo, monospace" font-size="11">Tri-Hybrid power conditioner</text>
+    <text x="20" y="74" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="10">4-string MPPT / DC link bus</text>
+  </g>
+
+  <g transform="translate(320,280)">
+    <rect width="140" height="80" rx="10" fill="url(#box)" stroke="#5b8cff"/>
+    <text x="70" y="34" text-anchor="middle" fill="#5b8cff" font-family="ui-monospace, Menlo, monospace" font-size="12">V2H stand</text>
+    <text x="70" y="56" text-anchor="middle" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="10">wall mount</text>
+  </g>
+
+  <g transform="translate(480,280)">
+    <rect width="140" height="80" rx="10" fill="url(#box)" stroke="#5b8cff"/>
+    <text x="70" y="34" text-anchor="middle" fill="#5b8cff" font-family="ui-monospace, Menlo, monospace" font-size="12">V2H pod</text>
+    <text x="70" y="56" text-anchor="middle" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="10">driveway side</text>
+  </g>
+
+  <g transform="translate(320,400)">
+    <rect width="300" height="110" rx="12" fill="url(#box)" stroke="#ffcb05" stroke-width="1.5"/>
+    <text x="20" y="36" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="14">Suzuki e Vitara</text>
+    <text x="20" y="58" fill="#c8c8d0" font-family="ui-monospace, Menlo, monospace" font-size="11">61 kWh onboard pack (CHAdeMO)</text>
+    <text x="20" y="78" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="10">EV replaces stationary home battery</text>
+    <text x="20" y="96" fill="#6a6a74" font-family="ui-monospace, Menlo, monospace" font-size="10">day: surplus charge / night: V2H discharge</text>
+  </g>
+
+  <rect x="680" y="110" width="472" height="420" rx="12" fill="#100e0a" stroke="#40382a" stroke-dasharray="8 4"/>
+  <text x="700" y="138" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="12">INDOOR</text>
+
+  <g transform="translate(700,160)">
+    <rect width="200" height="72" rx="10" fill="url(#box)" stroke="#ffcb05"/>
+    <text x="100" y="30" text-anchor="middle" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="12">Auto transfer</text>
+    <text x="100" y="52" text-anchor="middle" fill="#a8a8b0" font-family="ui-monospace, Menlo, monospace" font-size="10">whole-home backup</text>
+  </g>
+
+  <g transform="translate(920,160)">
+    <rect width="200" height="72" rx="10" fill="url(#box)" stroke="#ffcb05"/>
+    <text x="100" y="30" text-anchor="middle" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="12">Main panel</text>
+    <text x="100" y="52" text-anchor="middle" fill="#a8a8b0" font-family="ui-monospace, Menlo, monospace" font-size="10">existing 60 A service</text>
+  </g>
+
+  <g transform="translate(700,260)">
+    <rect width="200" height="72" rx="10" fill="url(#box)" stroke="#c8c8d0"/>
+    <text x="100" y="30" text-anchor="middle" fill="#e8e8ec" font-family="ui-monospace, Menlo, monospace" font-size="12">200 V loads</text>
+    <text x="100" y="52" text-anchor="middle" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="10">IH / AC / appliances</text>
+  </g>
+
+  <g transform="translate(920,260)">
+    <rect width="200" height="72" rx="10" fill="url(#box)" stroke="#e31937"/>
+    <text x="100" y="30" text-anchor="middle" fill="#e31937" font-family="ui-monospace, Menlo, monospace" font-size="12">200 V outlet</text>
+    <text x="100" y="52" text-anchor="middle" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="10">existing AC charge</text>
+  </g>
+
+  <g transform="translate(810,380)">
+    <rect width="220" height="110" rx="12" fill="url(#box)" stroke="#e31937" stroke-width="1.5"/>
+    <text x="20" y="36" fill="#e31937" font-family="ui-monospace, Menlo, monospace" font-size="14">Tesla Model 3</text>
+    <text x="20" y="58" fill="#c8c8d0" font-family="ui-monospace, Menlo, monospace" font-size="11">sub EV / AC 200 V charge</text>
+    <text x="20" y="78" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="10">V2H surplus to EV bridge</text>
+    <text x="20" y="96" fill="#6a6a74" font-family="ui-monospace, Menlo, monospace" font-size="10">Fleet API charge plan hook</text>
+  </g>
+
+  <line x1="248" y1="196" x2="318" y2="196" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-solar)"/>
+  <line x1="248" y1="296" x2="318" y2="210" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-solar)"/>
+  <line x1="470" y1="250" x2="470" y2="278" stroke="#5b8cff" stroke-width="2" marker-end="url(#arrow-v2h)"/>
+  <line x1="390" y1="360" x2="390" y2="398" stroke="#5b8cff" stroke-width="2" marker-end="url(#arrow-v2h)"/>
+  <line x1="550" y1="320" x2="470" y2="440" stroke="#5b8cff" stroke-width="2" marker-end="url(#arrow-v2h)"/>
+  <line x1="620" y1="200" x2="698" y2="196" stroke="#ffcb05" stroke-width="2" marker-end="url(#arrow-ac)"/>
+  <line x1="900" y1="196" x2="918" y2="196" stroke="#ffcb05" stroke-width="2" marker-end="url(#arrow-ac)"/>
+  <line x1="1020" y1="232" x2="1020" y2="258" stroke="#ffcb05" stroke-width="2" marker-end="url(#arrow-ac)"/>
+  <line x1="1020" y1="332" x2="1020" y2="378" stroke="#e31937" stroke-width="2" marker-end="url(#arrow-tesla)"/>
+
+  <g transform="translate(48,560)">
+    <rect width="1104" height="72" rx="12" fill="#0e0e12" stroke="#2a2a30"/>
+    <text x="24" y="28" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="11">DC solar</text>
+    <line x1="24" y1="38" x2="64" y2="38" stroke="#4ade80" stroke-width="3"/>
+    <text x="120" y="28" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="11">V2H / CHAdeMO</text>
+    <line x1="120" y1="38" x2="160" y2="38" stroke="#5b8cff" stroke-width="3"/>
+    <text x="280" y="28" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="11">AC home wiring</text>
+    <line x1="280" y1="38" x2="320" y2="38" stroke="#ffcb05" stroke-width="3"/>
+    <text x="440" y="28" fill="#8a8a98" font-family="ui-monospace, Menlo, monospace" font-size="11">Model 3 charge</text>
+    <line x1="440" y1="38" x2="480" y2="38" stroke="#e31937" stroke-width="3"/>
+    <text x="24" y="58" fill="#6a6a74" font-family="ui-monospace, Menlo, monospace" font-size="10">No stationary battery - 61 kWh EV is the home energy pool</text>
+  </g>
+</svg>
