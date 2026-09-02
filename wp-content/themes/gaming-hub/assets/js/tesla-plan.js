@@ -643,4 +643,34 @@
 
 	loadPlan();
 	setInterval(loadPlan, 60000);
+
+	const calibrateBtn = root.querySelector('[data-tesla-calibrate-home-gps]');
+	if (calibrateBtn && window.gamingHubTeslaPlan && gamingHubTeslaPlan.calibrateUrl) {
+		calibrateBtn.addEventListener('click', function () {
+			calibrateBtn.disabled = true;
+			fetch(gamingHubTeslaPlan.calibrateUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: {
+					'X-WP-Nonce': gamingHubTeslaPlan.restNonce || '',
+				},
+			})
+				.then(function (response) {
+					return response.json();
+				})
+				.then(function (payload) {
+					if (payload && payload.success) {
+						window.location.reload();
+						return;
+					}
+					window.alert((payload && payload.message) ? payload.message : t('GPS 補正に失敗しました。'));
+				})
+				.catch(function () {
+					window.alert(t('GPS 補正に失敗しました。'));
+				})
+				.finally(function () {
+					calibrateBtn.disabled = false;
+				});
+		});
+	}
 })();

@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.16.6' );
+define( 'GAMING_HUB_VERSION', '1.16.7' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
@@ -787,9 +787,9 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 	$wp_customize->add_setting(
 		'tesla_home_lat',
 		array(
-			'default'           => 35.3409,
+			'default'           => GAMING_HUB_TESLA_HOME_LAT_DEFAULT,
 			'sanitize_callback' => static function ( $value ) {
-				return is_numeric( $value ) ? (float) $value : 35.3409;
+				return is_numeric( $value ) ? (float) $value : GAMING_HUB_TESLA_HOME_LAT_DEFAULT;
 			},
 		)
 	);
@@ -809,9 +809,9 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 	$wp_customize->add_setting(
 		'tesla_home_lon',
 		array(
-			'default'           => 137.1264,
+			'default'           => GAMING_HUB_TESLA_HOME_LON_DEFAULT,
 			'sanitize_callback' => static function ( $value ) {
-				return is_numeric( $value ) ? (float) $value : 137.1264;
+				return is_numeric( $value ) ? (float) $value : GAMING_HUB_TESLA_HOME_LON_DEFAULT;
 			},
 		)
 	);
