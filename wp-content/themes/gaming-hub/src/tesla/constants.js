@@ -57,6 +57,27 @@ export function isRegenActive( status ) {
 	return Number( status?.regen_w ) >= FLOW_THRESHOLD;
 }
 
+/** Plugged at a DC stall (charging or waiting on the stall). */
+export function isSuperchargerConnected( status ) {
+	if ( ! status || status.asleep || ! status.live ) {
+		return false;
+	}
+
+	if ( status.supply_kind === 'supercharger' ) {
+		return true;
+	}
+
+	if ( status.input_type === 'dc' ) {
+		return true;
+	}
+
+	if ( status.fast_charger_present ) {
+		return true;
+	}
+
+	return false;
+}
+
 export function connectionsForStatus( status ) {
 	return FLOW_CONNECTIONS.map( ( connection ) => {
 		if ( connection.id !== 'drive' || ! isRegenActive( status ) ) {
@@ -96,8 +117,12 @@ export function wattsForFlow( flowId, status ) {
 			return watts;
 		}
 
-		if ( status.live && status.is_charging && status.supply_kind === 'supercharger' ) {
+		if ( status.is_charging && isSuperchargerConnected( status ) ) {
 			return Math.max( watts, FLOW_THRESHOLD );
+		}
+
+		if ( isSuperchargerConnected( status ) ) {
+			return FLOW_THRESHOLD;
 		}
 
 		return watts;

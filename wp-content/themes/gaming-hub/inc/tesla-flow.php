@@ -208,7 +208,18 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	}
 	$charging = ! empty( $model3['is_charging'] );
 	$asleep   = ! $charging && ! empty( $model3['asleep'] );
-	$kind     = (string) ( $model3['supply_kind'] ?? ( $charging ? 'home' : 'none' ) );
+	$kind     = (string) ( $model3['supply_kind'] ?? '' );
+	if ( '' === $kind || 'none' === $kind ) {
+		if ( ! empty( $model3['fast_charger_present'] ) ) {
+			$kind = 'supercharger';
+		} elseif ( $charging ) {
+			$kind = 'home';
+		} else {
+			$kind = 'none';
+		}
+	} elseif ( ! empty( $model3['fast_charger_present'] ) ) {
+		$kind = 'supercharger';
+	}
 	$charge_w = $charging ? gaming_hub_tesla_live_watt( $model3['watts'] ?? null ) : 0;
 	if ( $charging && ( null === $charge_w || $charge_w < 80 ) ) {
 		$rate_kw = (float) ( $model3['charge_rate_kw'] ?? 0 );
@@ -394,6 +405,8 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'input_watts'     => (int) ( $input['watts'] ?? 0 ),
 		'input_plugged'   => ! empty( $input['plugged'] ),
 		'input_charging'  => ! empty( $input['charging'] ),
+		'fast_charger_present' => ! empty( $model3['fast_charger_present'] ),
+		'plugged'         => ! empty( $model3['plugged'] ),
 		'range_label'     => $asleep ? '' : (string) ( $model3['range_label'] ?? '' ),
 		'odometer_km'     => isset( $model3['odometer_km'] ) && is_numeric( $model3['odometer_km'] )
 			? (float) $model3['odometer_km']
@@ -439,6 +452,7 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'cabin'      => __( '車内電力', 'gaming-hub' ),
 			'flow'       => __( 'Tesla の入出力', 'gaming-hub' ),
 			'idle'       => __( '待機', 'gaming-hub' ),
+			'connected'  => __( '接続中', 'gaming-hub' ),
 			'charging'   => __( '充電中', 'gaming-hub' ),
 			'driving'    => __( '走行中', 'gaming-hub' ),
 			'climate'    => __( 'エアコン', 'gaming-hub' ),
