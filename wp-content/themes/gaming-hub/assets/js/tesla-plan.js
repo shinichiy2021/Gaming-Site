@@ -90,6 +90,27 @@
 		}
 	}
 
+	function slotChargeHistory(slot, isPast) {
+		if (!isPast || !slot || !slot.charge_input) {
+			return '';
+		}
+		const logged = String(slot.charge_input);
+		if (logged === 'home_ac' || logged === 'away_ac' || logged === 'dc') {
+			return logged;
+		}
+		return '';
+	}
+
+	function showChargeBar(slot, planCharge, isPast, isLiveNowCharge) {
+		if (slotChargeHistory(slot, isPast)) {
+			return true;
+		}
+		if (isLiveNowCharge) {
+			return true;
+		}
+		return planCharge && !isPast;
+	}
+
 	function chargeBarTone(slot, opts) {
 		if (!opts.isCharge) {
 			return 'plan';
@@ -97,12 +118,9 @@
 		if (opts.isLiveNow && opts.liveInput && opts.liveInput !== 'none') {
 			return opts.liveInput;
 		}
-		if (opts.isPast) {
-			const logged = slot && slot.charge_input ? String(slot.charge_input) : '';
-			if (logged === 'home_ac' || logged === 'away_ac' || logged === 'dc') {
-				return logged;
-			}
-			return 'home_ac';
+		const history = slotChargeHistory(slot, opts.isPast);
+		if (history) {
+			return history;
 		}
 		return 'plan';
 	}
@@ -115,7 +133,7 @@
 			return t('DC 入力');
 		}
 		if (tone === 'home_ac') {
-			return t('自宅 AC');
+			return t('自宅充電（実績）');
 		}
 		return '';
 	}
@@ -385,7 +403,7 @@
 		if (legend) {
 			legend.textContent = asleepNow
 				? t('灰棒: スリープ中の固定残量 · 薄い金帯: 計画充電（未実行）· 朱橙線: 走行見込み · 青緑線: 請求単価')
-				: t('黄棒: 残量 · 金帯: 充電予定 · 色帯: 実績（自宅/外出先/DC）· 朱橙線: 走行 · 青緑線: 単価');
+				: t('黄棒: 残量 · 黄帯: 自宅充電（実績）· 金帯: 充電予定 · 色帯: 外出先/DC 実績 · 朱橙線: 走行 · 青緑線: 単価');
 		}
 		if (track) {
 			for (let h = 0; h < 24; h += 1) {
@@ -394,8 +412,11 @@
 				const isHold = asleepNow && sleepFrom != null && h >= sleepFrom && h <= hour;
 				const liveHere = isNow && !asleepNow && (liveCharge.charging || !!plan.live_charging);
 				const slotMode = slot.mode || 'idle';
+				const planCharge = slotMode === 'charge';
 				const mode = (isNow && asleepNow) ? 'sleep' : (liveHere ? 'charge' : slotMode);
-				const isCharge = slotMode === 'charge' || mode === 'charge';
+				const isPastHour = (plan.plan_day === 'yesterday') || (isLiveDay && h < hour);
+				const isLiveNowCharge = isNow && !asleepNow && (liveCharge.charging || !!plan.live_charging);
+				const isCharge = showChargeBar(slot, planCharge, isPastHour, isLiveNowCharge);
 				const soc = socSeries[h];
 				const hasSoc = soc !== null && soc !== undefined && !Number.isNaN(Number(soc));
 				const height = hasSoc ? Math.max(0, Math.min(100, Number(soc))) : 0;
@@ -407,7 +428,8 @@
 				if (!col) {
 					continue;
 				}
-				col.className = 'ecoflow-rate-col ecoflow-plan-col is-' + mode
+				const displayMode = (isCharge && slotMode === 'idle') ? 'charge' : mode;
+				col.className = 'ecoflow-rate-col ecoflow-plan-col is-' + displayMode
 					+ (isNow ? ' is-now' : '')
 					+ (isHold ? ' is-sleep-hold' : '')
 					+ (hasSoc ? '' : ' is-empty');
@@ -426,8 +448,6 @@
 				}
 				const chargeBar = col.querySelector('[data-tesla-plan-charge-bar]');
 				const liveInput = (views.today && views.today.input_type) ? views.today.input_type : (plan.input_type || '');
-				const isPastHour = (plan.plan_day === 'yesterday') || (isLiveDay && h < hour);
-				const isLiveNowCharge = isNow && !asleepNow && (liveCharge.charging || !!plan.live_charging);
 				const chargeTone = chargeBarTone(slot, {
 					isCharge: isCharge,
 					isPast: isPastHour,
@@ -459,8 +479,6 @@
 						if (inputLabel) {
 							tip.push(inputLabel);
 						}
-					} else if (isPastHour) {
-						tip.push(t('自宅 AC'));
 					} else {
 						tip.push(t('充電予定'));
 					}

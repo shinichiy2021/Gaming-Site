@@ -186,7 +186,14 @@ function gaming_hub_tesla_charge_input_log_from_sessions( $date ) {
 			$end_ts = time();
 		}
 
-		$type = 'supercharger' === (string) ( $row['supply'] ?? '' ) ? 'dc' : 'home_ac';
+		$supply = (string) ( $row['supply'] ?? 'home' );
+		if ( 'supercharger' === $supply ) {
+			$type = 'dc';
+		} elseif ( 'home' === $supply ) {
+			$type = 'home_ac';
+		} else {
+			continue;
+		}
 
 		for ( $h = 0; $h < 24; $h++ ) {
 			if ( gaming_hub_tesla_charge_input_hour_overlaps( $date, $h, $start_ts, $end_ts ) ) {
@@ -231,6 +238,43 @@ function gaming_hub_tesla_charge_input_log_for_date( $date ) {
 }
 
 /**
+ * Logged charge-input key for a past hour, if any.
+ *
+ * @param array<string, mixed> $slot    Slot row.
+ * @param bool                 $is_past Hour is before now on today.
+ * @return string home_ac|away_ac|dc|''
+ */
+function gaming_hub_tesla_plan_slot_charge_history( array $slot, $is_past ) {
+	if ( ! $is_past ) {
+		return '';
+	}
+
+	$logged = (string) ( $slot['charge_input'] ?? '' );
+
+	return in_array( $logged, gaming_hub_tesla_charge_input_types(), true ) ? $logged : '';
+}
+
+/**
+ * Whether to draw a charge band on this hour.
+ *
+ * @param array<string, mixed> $slot              Slot row.
+ * @param bool                 $plan_charge         Hour is in the AI charge plan.
+ * @param bool                 $is_past             Hour is before now on today.
+ * @param bool                 $is_live_now_charge  Charging right now in this hour.
+ */
+function gaming_hub_tesla_plan_show_charge_bar( array $slot, $plan_charge, $is_past, $is_live_now_charge ) {
+	if ( '' !== gaming_hub_tesla_plan_slot_charge_history( $slot, $is_past ) ) {
+		return true;
+	}
+
+	if ( $is_live_now_charge ) {
+		return true;
+	}
+
+	return $plan_charge && ! $is_past;
+}
+
+/**
  * Charge-bar tone for a plan slot (plan = future gold, input types = past actual).
  *
  * @param array<string, mixed> $slot         Slot row.
@@ -249,13 +293,9 @@ function gaming_hub_tesla_plan_charge_bar_tone( array $slot, $is_charge, $is_pas
 		return $live_input;
 	}
 
-	if ( $is_past ) {
-		$logged = (string) ( $slot['charge_input'] ?? '' );
-		if ( in_array( $logged, gaming_hub_tesla_charge_input_types(), true ) ) {
-			return $logged;
-		}
-
-		return 'home_ac';
+	$history = gaming_hub_tesla_plan_slot_charge_history( $slot, $is_past );
+	if ( '' !== $history ) {
+		return $history;
 	}
 
 	return 'plan';

@@ -5529,9 +5529,23 @@ body.home .site-header.is-scrolled {
 	background:
 		repeating-linear-gradient(
 			to top,
-			rgba(255, 230, 0, 0.35) 0 3px,
+			rgba(212, 175, 55, 0.42) 0 3px,
 			rgba(255, 255, 255, 0.04) 3px 6px
 		);
+}
+
+.tesla-plan .ecoflow-plan-charge-bar {
+	background:
+		repeating-linear-gradient(
+			to top,
+			rgba(212, 175, 55, 0.88) 0 3px,
+			rgba(255, 196, 64, 0.32) 3px 6px
+		);
+	box-shadow: 0 0 12px rgba(212, 175, 55, 0.45);
+}
+
+.tesla-plan .ecoflow-plan-col.is-charge {
+	background: rgba(212, 175, 55, 0.1);
 }
 
 .tesla-plan .ecoflow-plan-col.is-charge.is-sleep-hold {
@@ -5624,10 +5638,11 @@ body.home .site-header.is-scrolled {
 	background:
 		repeating-linear-gradient(
 			to top,
-			rgba(255, 230, 0, 0.82) 0 3px,
-			rgba(255, 159, 28, 0.28) 3px 6px
-		);
-	box-shadow: 0 0 12px rgba(255, 230, 0, 0.5);
+			rgba(255, 230, 0, 0.92) 0 3px,
+			rgba(255, 193, 7, 0.34) 3px 6px
+		),
+		linear-gradient(180deg, rgba(255, 230, 0, 0.18), rgba(255, 193, 7, 0.08));
+	box-shadow: 0 0 12px rgba(255, 230, 0, 0.55);
 }
 
 .tesla-plan .ecoflow-plan-charge-bar.is-input-away_ac {
