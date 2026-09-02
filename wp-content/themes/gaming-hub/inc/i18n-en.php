@@ -532,6 +532,8 @@ return array(
 	'発電と使用の見込みでは Pro が %s%% 付近になるため、グリッド充電は不要です。' => 'Solar and use forecasts already land Pro near %s%%. No grid charge needed.',
 	'明日の発電と使用の見込みでは Pro が 90% 付近になるため、グリッド充電は不要です。' => 'Tomorrow’s solar and use forecasts already land Pro near 90%. No grid charge needed.',
 	'明日の発電と使用の見込みでは Pro が %s%% 付近になるため、グリッド充電は不要です。' => 'Tomorrow’s solar and use forecasts already land Pro near %s%%. No grid charge needed.',
+	'残量が %1$s%% 未満のため、%2$s 時までの安い時間帯に（太陽光見込みに関係なく）%3$s W で約 %4$s kWh 充電します。' => 'SOC is below %1$s%%, so about %4$s kWh at %3$s W during cheap hours until %2$s:00 (ignoring solar forecast).',
+	'加えて発電・使用見込みから夜間の安い時間に %s%% まで上げる枠も含みます。' => 'Also includes evening cheap-hour charging toward %s%% based on solar and load forecasts.',
 	'安い時間に充電すると 90% を超えそうなため、グリッド充電は見送ります。' => 'Charging in cheap hours would push past 90%, so grid charge is skipped.',
 	'安い時間に充電すると %s%% を超えそうなため、グリッド充電は見送ります。' => 'Charging in cheap hours would push past %s%%, so grid charge is skipped.',
 	'明日の発電・使用見込みを踏まえ、最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。' => 'Based on tomorrow’s solar and use, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%%.',

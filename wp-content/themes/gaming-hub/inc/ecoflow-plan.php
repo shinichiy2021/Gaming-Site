@@ -21,6 +21,9 @@ define( 'GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC', 95 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_MIN_SOC', 100 - GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC );
 define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC', 95 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX', 95 );
+/** Morning cheap band (0:00–12:00): fill Pro to this SOC regardless of solar forecast. */
+define( 'GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_END_HOUR', 12 );
+define( 'GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_TARGET_SOC', 80 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC', false );
 define( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W', 1000 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W', 0 );
@@ -624,7 +627,7 @@ function gaming_hub_ecoflow_get_charge_plan( array $status, $force = false ) {
 	$delta_pack = gaming_hub_ecoflow_plan_delta_pack( $status );
 	$delta_key  = null !== ( $delta_pack['soc'] ?? null ) ? (int) floor( (float) $delta_pack['soc'] / 5 ) : 'x';
 	$dates      = gaming_hub_ecoflow_plan_dates();
-	$key        = 'gaming_hub_ecoflow_plan_v32_' . $dates['today'] . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX;
+	$key        = 'gaming_hub_ecoflow_plan_v33_' . $dates['today'] . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_END_HOUR . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_TARGET_SOC;
 
 	if ( ! $force ) {
 		$cached = get_transient( $key );
@@ -1058,6 +1061,83 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		}
 	}
 
+	$cheap_band_applied = false;
+	if ( 'today' === $day_key && $hour < GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_END_HOUR ) {
+		$cheap_deficit = gaming_hub_ecoflow_plan_cheap_band_deficit_kwh( $soc, $full_wh );
+		if ( $cheap_deficit > 0.05 ) {
+			$cheap_band = gaming_hub_ecoflow_pick_cheap_band_hours( $hour, $cheap_deficit, $plan_date );
+			if ( ! empty( $cheap_band['picked'] ) ) {
+				$cheap_band_applied = true;
+				if ( empty( $picked['picked'] ) ) {
+					$picked = $cheap_band;
+				} else {
+					$picked = gaming_hub_ecoflow_merge_picked_hours( $picked, $cheap_band );
+				}
+				$needed = false;
+			}
+		}
+	}
+
+	if ( ! $needed && ! empty( $picked['picked'] ) ) {
+		$picked = gaming_hub_ecoflow_trim_picked_to_target_soc(
+			$hour,
+			$soc,
+			$full_wh,
+			$picked['picked'],
+			$solar_hours,
+			$split_solar['pro'],
+			is_array( $room['ac_watts'] ?? null ) ? $room['ac_watts'] : array(),
+			$plan_date
+		);
+		$windows = $picked['windows'];
+		$avg_yen = $picked['avg_yen'];
+		if ( empty( $picked['picked'] ) ) {
+			$needed      = true;
+			$deficit_kwh = 0.0;
+			$note        = sprintf(
+				/* translators: %s: target SOC percent */
+				__( '安い時間に充電すると %s%% を超えそうなため、グリッド充電は見送ります。', 'gaming-hub' ),
+				number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX )
+			);
+		} else {
+			$deficit_kwh = round( count( $picked['picked'] ) * ( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W / 1000.0 ), 2 );
+			$has_pm_pick = false;
+			foreach ( $picked['picked'] as $row ) {
+				if ( (int) ( $row['hour'] ?? -1 ) >= GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_END_HOUR ) {
+					$has_pm_pick = true;
+					break;
+				}
+			}
+			if ( $cheap_band_applied ) {
+				$note = sprintf(
+					/* translators: 1: SOC %, 2: end hour, 3: watts, 4: kWh */
+					__( '残量が %1$s%% 未満のため、%2$s 時までの安い時間帯に（太陽光見込みに関係なく）%3$s W で約 %4$s kWh 充電します。', 'gaming-hub' ),
+					number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_TARGET_SOC ),
+					number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_END_HOUR ),
+					number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W ),
+					number_format_i18n( $deficit_kwh, 1 )
+				);
+				if ( $has_pm_pick ) {
+					$note .= ' ' . sprintf(
+						/* translators: %s: target SOC percent */
+						__( '加えて発電・使用見込みから夜間の安い時間に %s%% まで上げる枠も含みます。', 'gaming-hub' ),
+						number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC )
+					);
+				}
+			} elseif ( '' === $note || $needed ) {
+				$note = sprintf(
+					/* translators: 1: charge kWh, 2: charge watts, 3: target SOC */
+					'tomorrow' === $day_key
+						? __( '明日の発電・使用見込みを踏まえ、最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。', 'gaming-hub' )
+						: __( 'その日の発電・使用見込みを踏まえ、スマートタイムONEの最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。', 'gaming-hub' ),
+					number_format_i18n( $deficit_kwh, 1 ),
+					number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W ),
+					number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC )
+				);
+			}
+		}
+	}
+
 	$slots    = gaming_hub_ecoflow_build_day_slots( $hour, $solar_hours, $picked['picked'], $plan_date, $logged_keys );
 	$ac_watts = is_array( $room['ac_watts'] ?? null ) ? $room['ac_watts'] : array();
 	$soc_series_pro = gaming_hub_ecoflow_soc_series(
@@ -1253,6 +1333,142 @@ function gaming_hub_ecoflow_plan_charge_to_target_kwh( $soc, $full_wh, $solar_kw
 	$projected_kwh = ( (float) $soc / 100.0 ) * $full_kwh + (float) $solar_kwh - (float) $load_kwh;
 
 	return max( 0.0, $target_kwh - $projected_kwh );
+}
+
+/**
+ * Grid kWh needed to reach the morning cheap-band target (ignores solar forecast).
+ *
+ * @param float $soc     Current Pro SOC 0–100.
+ * @param float $full_wh Pro full Wh.
+ */
+function gaming_hub_ecoflow_plan_cheap_band_deficit_kwh( $soc, $full_wh ) {
+	$target = (float) GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_TARGET_SOC;
+	if ( (float) $soc >= $target - 0.4 ) {
+		return 0.0;
+	}
+
+	$full_kwh    = max( 0.5, (float) $full_wh / 1000.0 );
+	$current_kwh = ( (float) $soc / 100.0 ) * $full_kwh;
+	$target_kwh  = ( $target / 100.0 ) * $full_kwh;
+
+	return max( 0.0, $target_kwh - $current_kwh );
+}
+
+/**
+ * Charge hours within the morning cheap band (from now through 12:00).
+ *
+ * @param int    $from_hour   Current hour 0–23.
+ * @param float  $deficit_kwh Energy to buy.
+ * @param string $plan_date   Y-m-d.
+ * @return array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array{hour: int, index: int, yen: float}>}
+ */
+function gaming_hub_ecoflow_pick_cheap_band_hours( $from_hour, $deficit_kwh, $plan_date = null ) {
+	$end_hour  = (int) GAMING_HUB_ECOFLOW_PLAN_CHEAP_BAND_END_HOUR;
+	$from_hour = max( 0, min( 23, (int) $from_hour ) );
+
+	if ( $from_hour >= $end_hour || $deficit_kwh <= 0.05 ) {
+		return array(
+			'windows' => array(),
+			'avg_yen' => null,
+			'picked'  => array(),
+		);
+	}
+
+	$price_data = gaming_hub_ecoflow_smart_time_one_price_map();
+	$fallback   = 40.0;
+	$yen_map    = array();
+
+	if ( ! is_wp_error( $price_data ) && is_array( $price_data ) ) {
+		$fallback = (float) ( $price_data['fallback'] ?? 40.0 );
+		foreach ( (array) ( $price_data['map'] ?? array() ) as $h => $yen ) {
+			$yen_map[ (int) $h ] = (float) $yen;
+		}
+	}
+
+	$candidates = array();
+	for ( $h = $from_hour; $h < $end_hour; $h++ ) {
+		$candidates[] = array(
+			'hour'  => $h,
+			'index' => $h,
+			'yen'   => (float) ( $yen_map[ $h ] ?? $fallback ),
+		);
+	}
+
+	if ( ! $candidates ) {
+		return array(
+			'windows' => array(),
+			'avg_yen' => null,
+			'picked'  => array(),
+		);
+	}
+
+	$kwh_per_h    = GAMING_HUB_ECOFLOW_PLAN_CHARGE_W / 1000.0;
+	$hours_needed = min(
+		count( $candidates ),
+		(int) ceil( $deficit_kwh / max( $kwh_per_h, 0.1 ) )
+	);
+	$picked       = array_slice( $candidates, 0, $hours_needed );
+	$avg          = array_sum( array_column( $picked, 'yen' ) ) / count( $picked );
+
+	return array(
+		'windows' => gaming_hub_ecoflow_group_hour_windows( $picked ),
+		'avg_yen' => round( $avg, 1 ),
+		'picked'  => $picked,
+	);
+}
+
+/**
+ * Merge two picked-hour lists (unique by hour).
+ *
+ * @param array{windows?: array<int, string>, avg_yen?: float|null, picked?: array<int, array{hour: int, index: int, yen: float}>} $a First pick.
+ * @param array{windows?: array<int, string>, avg_yen?: float|null, picked?: array<int, array{hour: int, index: int, yen: float}>} $b Second pick.
+ * @return array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array{hour: int, index: int, yen: float}>}
+ */
+function gaming_hub_ecoflow_merge_picked_hours( array $a, array $b ) {
+	$by_hour = array();
+
+	foreach ( array( $a['picked'] ?? array(), $b['picked'] ?? array() ) as $rows ) {
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$h = (int) ( $row['hour'] ?? -1 );
+			if ( $h < 0 || $h > 23 ) {
+				continue;
+			}
+			if ( ! isset( $by_hour[ $h ] ) || (float) $row['yen'] < (float) $by_hour[ $h ]['yen'] ) {
+				$by_hour[ $h ] = array(
+					'hour'  => $h,
+					'index' => $h,
+					'yen'   => (float) $row['yen'],
+				);
+			}
+		}
+	}
+
+	if ( ! $by_hour ) {
+		return array(
+			'windows' => array(),
+			'avg_yen' => null,
+			'picked'  => array(),
+		);
+	}
+
+	$picked = array_values( $by_hour );
+	usort(
+		$picked,
+		static function ( $left, $right ) {
+			return $left['hour'] <=> $right['hour'];
+		}
+	);
+
+	$avg = array_sum( array_column( $picked, 'yen' ) ) / count( $picked );
+
+	return array(
+		'windows' => gaming_hub_ecoflow_group_hour_windows( $picked ),
+		'avg_yen' => round( $avg, 1 ),
+		'picked'  => $picked,
+	);
 }
 
 /**
