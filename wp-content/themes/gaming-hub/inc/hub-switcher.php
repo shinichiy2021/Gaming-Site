@@ -98,7 +98,6 @@ function gaming_hub_render_mobile_hub_switcher() {
 					aria-selected="<?php echo $is_current ? 'true' : 'false'; ?>"
 					<?php echo $is_current ? 'aria-current="page"' : ''; ?>
 				>
-					<span class="hub-switcher-dot" aria-hidden="true"></span>
 					<span class="hub-switcher-label"><?php echo esc_html( $item['label'] ); ?></span>
 				</a>
 			<?php endforeach; ?>
