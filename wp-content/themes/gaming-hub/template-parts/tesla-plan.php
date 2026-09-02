@@ -102,6 +102,7 @@ $next_note = $next_charge_labels
 	)
 	: '';
 $input_type = (string) ( $plan['input_type'] ?? 'none' );
+$plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 ?>
 
 <section
@@ -247,6 +248,23 @@ $input_type = (string) ( $plan['input_type'] ?? 'none' );
 					$charge_h  = $is_charge
 						? max( 8, min( 100, ( $col_watts / $charge_w ) * 100 ) )
 						: 0;
+					$is_past_hour = ( 'yesterday' === $plan_day ) || ( $is_today && $h < $now_hour );
+					$is_live_now_charge = $is_now && $live_charging && ! $asleep;
+					$charge_tone = function_exists( 'gaming_hub_tesla_plan_charge_bar_tone' )
+						? gaming_hub_tesla_plan_charge_bar_tone(
+							$slot,
+							$is_charge,
+							$is_past_hour,
+							$is_live_now_charge,
+							(string) ( $plan['input_type'] ?? '' )
+						)
+						: 'plan';
+					$charge_bar_class = 'ecoflow-plan-charge-bar';
+					if ( $is_charge && $asleep ) {
+						$charge_bar_class .= ' is-deferred';
+					} elseif ( $is_charge && 'plan' !== $charge_tone ) {
+						$charge_bar_class .= ' is-input-' . sanitize_html_class( $charge_tone );
+					}
 					$col_class = 'ecoflow-rate-col ecoflow-plan-col is-' . sanitize_html_class( $mode );
 					if ( $is_now ) {
 						$col_class .= ' is-now';
@@ -266,6 +284,13 @@ $input_type = (string) ( $plan['input_type'] ?? 'none' );
 					}
 					if ( $is_charge ) {
 						$tip[] = number_format_i18n( $col_watts ) . ' W';
+						if ( 'plan' !== $charge_tone ) {
+							$tip[] = gaming_hub_tesla_charge_input_label( $charge_tone );
+						} elseif ( $is_past_hour ) {
+							$tip[] = __( '自宅 AC', 'gaming-hub' );
+						} else {
+							$tip[] = __( '充電予定', 'gaming-hub' );
+						}
 						if ( $asleep ) {
 							$tip[] = __( '計画のみ（未実行）', 'gaming-hub' );
 						}
@@ -282,8 +307,9 @@ $input_type = (string) ( $plan['input_type'] ?? 'none' );
 							<span class="ecoflow-rate-now-pip<?php echo $asleep ? ' is-sleep' : ''; ?>"><?php echo esc_html( $asleep ? __( 'SLEEP', 'gaming-hub' ) : __( 'NOW', 'gaming-hub' ) ); ?></span>
 						<?php endif; ?>
 						<span
-							class="ecoflow-plan-charge-bar<?php echo ( $is_charge && $asleep ) ? ' is-deferred' : ''; ?>"
+							class="<?php echo esc_attr( $charge_bar_class ); ?>"
 							data-tesla-plan-charge-bar
+							data-charge-tone="<?php echo esc_attr( $charge_tone ); ?>"
 							style="height: <?php echo esc_attr( (string) round( $charge_h, 1 ) ); ?>%;"
 							<?php echo $is_charge ? '' : 'hidden'; ?>
 						></span>
@@ -327,7 +353,7 @@ $input_type = (string) ( $plan['input_type'] ?? 'none' );
 		echo esc_html(
 			$asleep
 				? __( '灰棒: スリープ中の固定残量 · 薄い金帯: 計画充電（未実行）· 朱橙線: 走行見込み · 青緑線: 請求単価', 'gaming-hub' )
-				: __( '黄棒: Model 3 残量 · 金の帯: 自宅充電（計画）· 朱橙線: 走行見込み · 青緑線: 請求単価', 'gaming-hub' )
+				: __( '黄棒: 残量 · 金帯: 充電予定 · 色帯: 実績（自宅/外出先/DC）· 朱橙線: 走行 · 青緑線: 単価', 'gaming-hub' )
 		);
 		?>
 	</p>
