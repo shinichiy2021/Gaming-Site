@@ -211,6 +211,80 @@ function gaming_hub_tesla_plan_charge_label() {
 }
 
 /**
+ * Live charge input type for AI PLAN (home AC / away AC / DC).
+ *
+ * @param array<string, mixed>|null $status Live status bundle.
+ * @return array{type: string, label: string, watts: int, plugged: bool, charging: bool}
+ */
+function gaming_hub_tesla_plan_input_state( $status = null ) {
+	$status   = is_array( $status ) ? $status : array();
+	$flow     = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$model3   = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$kind     = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+	$at_home  = array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null;
+	$plugged  = ! empty( $model3['plugged'] ) || in_array( $kind, array( 'home', 'supercharger' ), true );
+	$charging = ! empty( $flow['is_charging'] ) || ! empty( $model3['is_charging'] );
+	$wall_w   = (int) ( $flow['wall_w'] ?? 0 );
+	$super_w  = (int) ( $flow['super_w'] ?? 0 );
+	$watts    = max( $wall_w, $super_w, (int) ( $model3['watts'] ?? 0 ) );
+
+	if ( 'supercharger' === $kind ) {
+		return array(
+			'type'     => 'dc',
+			'label'    => __( 'DC 入力', 'gaming-hub' ),
+			'watts'    => $charging ? max( $super_w, $watts ) : 0,
+			'plugged'  => true,
+			'charging' => $charging,
+		);
+	}
+
+	if ( $plugged || 'home' === $kind ) {
+		if ( false === $at_home ) {
+			return array(
+				'type'     => 'away_ac',
+				'label'    => __( '外出先 AC', 'gaming-hub' ),
+				'watts'    => $charging ? max( $wall_w, $watts ) : 0,
+				'plugged'  => true,
+				'charging' => $charging,
+			);
+		}
+
+		return array(
+			'type'     => 'home_ac',
+			'label'    => __( '自宅 AC', 'gaming-hub' ),
+			'watts'    => $charging ? max( $wall_w, $watts ) : 0,
+			'plugged'  => $plugged || 'home' === $kind,
+			'charging' => $charging,
+		);
+	}
+
+	return array(
+		'type'     => 'none',
+		'label'    => __( '未接続', 'gaming-hub' ),
+		'watts'    => 0,
+		'plugged'  => false,
+		'charging' => false,
+	);
+}
+
+/**
+ * Sub-label for the AI PLAN input HUD stat.
+ *
+ * @param array<string, mixed> $input Input state from gaming_hub_tesla_plan_input_state().
+ */
+function gaming_hub_tesla_plan_input_sub_label( array $input ) {
+	if ( ! empty( $input['charging'] ) && ! empty( $input['watts'] ) ) {
+		return number_format_i18n( (int) $input['watts'] ) . ' W';
+	}
+
+	if ( ! empty( $input['plugged'] ) ) {
+		return __( '接続中', 'gaming-hub' );
+	}
+
+	return '—';
+}
+
+/**
  * Typical commute hours used when no hourly odometer log exists.
  *
  * @return array<int, int>
@@ -1286,6 +1360,13 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$plan['geofence_distance_m'] = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
 		? (int) $model3['geofence_distance_m']
 		: null;
+	$input                       = gaming_hub_tesla_plan_input_state( $status );
+	$plan['input_type']          = (string) $input['type'];
+	$plan['input_label']         = (string) $input['label'];
+	$plan['input_watts']         = (int) $input['watts'];
+	$plan['input_plugged']       = ! empty( $input['plugged'] );
+	$plan['input_charging']      = ! empty( $input['charging'] );
+	$plan['input_sub_label']     = gaming_hub_tesla_plan_input_sub_label( $input );
 
 	if ( $asleep ) {
 		$live_soc = isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] )

@@ -5233,10 +5233,31 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-plan {
+	--tesla-plan-accent: #d4af37;
 	border-color: rgba(232, 33, 39, 0.32);
 	background:
 		radial-gradient(ellipse at 0% 0%, rgba(232, 33, 39, 0.1), transparent 50%),
 		rgba(8, 7, 15, 0.72);
+}
+
+.tesla-plan .ecoflow-plan-hud {
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.tesla-plan .ecoflow-plan-stat-input.is-home_ac strong {
+	color: #00f5d4;
+}
+
+.tesla-plan .ecoflow-plan-stat-input.is-away_ac strong {
+	color: #7dd3fc;
+}
+
+.tesla-plan .ecoflow-plan-stat-input.is-dc strong {
+	color: #ff6b6b;
+}
+
+.tesla-plan .ecoflow-plan-stat-input.is-none strong {
+	color: var(--color-text-muted);
 }
 
 .tesla-plan.is-asleep {
@@ -5984,6 +6005,10 @@ body.home .site-header.is-scrolled {
 
 @media (max-width: 640px) {
 	.ecoflow-rates-hud {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.tesla-plan .ecoflow-plan-hud {
 		grid-template-columns: repeat(2, 1fr);
 	}
 

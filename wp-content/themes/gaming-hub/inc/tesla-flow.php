@@ -325,6 +325,25 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	$eta_mode    = $pack['eta_mode'];
 	$eta_label   = $pack['remain_time_label'];
 	$eta_display = $pack['remain_time_display'];
+	$input       = function_exists( 'gaming_hub_tesla_plan_input_state' )
+		? gaming_hub_tesla_plan_input_state(
+			array(
+				'model3'     => $model3,
+				'tesla_flow' => array(
+					'supply_kind' => $kind,
+					'wall_w'      => $wall_w,
+					'super_w'     => $super_w,
+					'is_charging' => $charging,
+				),
+			)
+		)
+		: array(
+			'type'     => 'none',
+			'label'    => '',
+			'watts'    => 0,
+			'plugged'  => false,
+			'charging' => false,
+		);
 
 	return array(
 		'wall_w'          => $wall_w,
@@ -362,6 +381,12 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'vehicle_name'    => (string) ( $model3['vehicle_name'] ?? 'Model 3' ),
 		'supply_kind'     => $kind,
 		'supply_label'    => (string) ( $model3['supply_label'] ?? '' ),
+		'at_home'         => array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null,
+		'input_type'      => (string) ( $input['type'] ?? 'none' ),
+		'input_label'     => (string) ( $input['label'] ?? '' ),
+		'input_watts'     => (int) ( $input['watts'] ?? 0 ),
+		'input_plugged'   => ! empty( $input['plugged'] ),
+		'input_charging'  => ! empty( $input['charging'] ),
 		'range_label'     => $asleep ? '' : (string) ( $model3['range_label'] ?? '' ),
 		'odometer_km'     => isset( $model3['odometer_km'] ) && is_numeric( $model3['odometer_km'] )
 			? (float) $model3['odometer_km']
