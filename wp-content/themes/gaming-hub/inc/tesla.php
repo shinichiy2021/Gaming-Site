@@ -16,6 +16,8 @@ define( 'GAMING_HUB_TESLA_REFRESH_TOKEN_OPTION', 'gaming_hub_tesla_refresh_token
 define( 'GAMING_HUB_TESLA_SCOPES_OPTION', 'gaming_hub_tesla_token_scopes' );
 define( 'GAMING_HUB_TESLA_LOCATION_DENIED_OPTION', 'gaming_hub_tesla_location_denied' );
 define( 'GAMING_HUB_TESLA_LAST_COORD_OPTION', 'gaming_hub_tesla_last_coord_v1' );
+/** Last confirmed at-home geofence; kept until drive or Supercharger clears it. */
+define( 'GAMING_HUB_TESLA_AT_HOME_STICKY_OPTION', 'gaming_hub_tesla_at_home_sticky_v1' );
 /** Reuse recent GPS for geofence when a poll omits location_data. */
 define( 'GAMING_HUB_TESLA_COORD_MAX_AGE', 45 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
@@ -1561,6 +1563,181 @@ function gaming_hub_tesla_geofence_status( array $data ) {
 }
 
 /**
+ * Whether the sticky at-home flag is active.
+ */
+function gaming_hub_tesla_at_home_sticky_active() {
+	$saved = get_option( GAMING_HUB_TESLA_AT_HOME_STICKY_OPTION, null );
+
+	return is_array( $saved ) && ! empty( $saved['active'] );
+}
+
+/**
+ * Remember a GPS-confirmed home geofence hit.
+ */
+function gaming_hub_tesla_at_home_sticky_mark() {
+	update_option(
+		GAMING_HUB_TESLA_AT_HOME_STICKY_OPTION,
+		array(
+			'active' => true,
+			'at'     => time(),
+		),
+		false
+	);
+}
+
+/**
+ * Drop sticky at-home after drive, Supercharger, or a confirmed away fix.
+ */
+function gaming_hub_tesla_at_home_sticky_clear() {
+	delete_option( GAMING_HUB_TESLA_AT_HOME_STICKY_OPTION );
+}
+
+/**
+ * Resolve at_home from GPS geofence plus sticky last-known-home fallback.
+ *
+ * @param array{at_home: bool|null, distance_m: int|null, known: bool} $geofence     Raw geofence.
+ * @param bool                                                        $moving       Driving now.
+ * @param bool                                                        $supercharger Supercharger context.
+ * @return array{at_home: bool|null, geofence_known: bool, geofence_distance_m: int|null, at_home_sticky: bool}
+ */
+function gaming_hub_tesla_at_home_resolve( array $geofence, $moving, $supercharger ) {
+	if ( $moving || $supercharger ) {
+		gaming_hub_tesla_at_home_sticky_clear();
+
+		return array(
+			'at_home'             => ! empty( $geofence['known'] ) ? $geofence['at_home'] : false,
+			'geofence_known'      => ! empty( $geofence['known'] ),
+			'geofence_distance_m' => $geofence['distance_m'] ?? null,
+			'at_home_sticky'      => false,
+		);
+	}
+
+	if ( ! empty( $geofence['known'] ) ) {
+		if ( true === $geofence['at_home'] ) {
+			gaming_hub_tesla_at_home_sticky_mark();
+		} else {
+			gaming_hub_tesla_at_home_sticky_clear();
+		}
+
+		return array(
+			'at_home'             => $geofence['at_home'],
+			'geofence_known'      => true,
+			'geofence_distance_m' => $geofence['distance_m'] ?? null,
+			'at_home_sticky'      => false,
+		);
+	}
+
+	if ( gaming_hub_tesla_at_home_sticky_active() ) {
+		return array(
+			'at_home'             => true,
+			'geofence_known'      => false,
+			'geofence_distance_m' => null,
+			'at_home_sticky'      => true,
+		);
+	}
+
+	return array(
+		'at_home'             => null,
+		'geofence_known'      => false,
+		'geofence_distance_m' => null,
+		'at_home_sticky'      => false,
+	);
+}
+
+/**
+ * Whether a cached Model 3 snapshot indicates driving.
+ *
+ * @param array<string, mixed> $model3 Cached payload.
+ */
+function gaming_hub_tesla_snapshot_is_moving( array $model3 ) {
+	if ( empty( $model3['drive_ready'] ) ) {
+		return false;
+	}
+
+	$shift = strtoupper( (string) ( $model3['shift_state'] ?? '' ) );
+	if ( in_array( $shift, array( 'D', 'R' ), true ) ) {
+		return true;
+	}
+
+	if ( (int) ( $model3['speed_km'] ?? 0 ) >= 3 ) {
+		return true;
+	}
+
+	return (int) ( $model3['drive_w'] ?? 0 ) >= 80;
+}
+
+/**
+ * Whether a cached Model 3 snapshot is at a Supercharger stall.
+ *
+ * @param array<string, mixed> $model3 Cached payload.
+ */
+function gaming_hub_tesla_snapshot_is_supercharger( array $model3 ) {
+	if ( ! empty( $model3['fast_charger_present'] ) ) {
+		return true;
+	}
+
+	return 'supercharger' === (string) ( $model3['supply_kind'] ?? '' );
+}
+
+/**
+ * Reconcile cached at_home with sticky fallback and refresh supply labels.
+ *
+ * @param array<string, mixed> $model3 Cached payload.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_apply_cached_at_home( array $model3 ) {
+	$geofence = array(
+		'at_home'    => ! empty( $model3['geofence_known'] ) && array_key_exists( 'at_home', $model3 )
+			? $model3['at_home']
+			: null,
+		'distance_m' => $model3['geofence_distance_m'] ?? null,
+		'known'      => ! empty( $model3['geofence_known'] ),
+	);
+
+	if ( empty( $geofence['known'] ) ) {
+		$geofence['at_home']    = null;
+		$geofence['distance_m'] = null;
+	}
+
+	$ctx = gaming_hub_tesla_at_home_resolve(
+		$geofence,
+		gaming_hub_tesla_snapshot_is_moving( $model3 ),
+		gaming_hub_tesla_snapshot_is_supercharger( $model3 )
+	);
+
+	$model3['at_home']             = $ctx['at_home'];
+	$model3['geofence_known']      = $ctx['geofence_known'];
+	$model3['geofence_distance_m'] = $ctx['geofence_distance_m'];
+	$model3['at_home_sticky']      = ! empty( $ctx['at_home_sticky'] );
+
+	if ( ! empty( $ctx['at_home_sticky'] ) && ! empty( $model3['location_debug'] ) ) {
+		$sticky_note = __( ' · 直近自宅保持', 'gaming-hub' );
+		if ( false === strpos( (string) $model3['location_debug'], $sticky_note ) ) {
+			$model3['location_debug'] .= $sticky_note;
+		}
+	}
+
+	$kind     = (string) ( $model3['supply_kind'] ?? '' );
+	$charging = ! empty( $model3['is_charging'] );
+	if ( in_array( $kind, array( 'home', 'supercharger' ), true ) || ! empty( $model3['plugged'] ) ) {
+		$supply = gaming_hub_tesla_model3_supply(
+			array(
+				'conn_charge_cable'    => 'supercharger' === $kind ? 'NONE' : 'IEC',
+				'fast_charger_present' => gaming_hub_tesla_snapshot_is_supercharger( $model3 ),
+				'fast_charger_type'    => 'supercharger' === $kind ? 'Supercharger' : '',
+			),
+			$charging,
+			$ctx['at_home']
+		);
+		$model3['supply_kind']  = $supply['kind'];
+		$model3['supply_label'] = $supply['label'];
+		$model3['plugged']      = $supply['plugged'];
+	}
+
+	return $model3;
+}
+
+/**
  * Human-readable location debug line (reverse geocode + geofence distance).
  *
  * @param array{at_home: bool|null, distance_m: int|null, known: bool} $geofence Geofence status.
@@ -2812,6 +2989,7 @@ function gaming_hub_tesla_reconcile_cached_charging( array $model3, $asleep = fa
 function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false ) {
 	$before  = $cached;
 	$cached  = gaming_hub_tesla_reconcile_cached_charging( $cached, $asleep );
+	$cached  = gaming_hub_tesla_apply_cached_at_home( $cached );
 	$cleared = ! empty( $before['is_charging'] ) && empty( $cached['is_charging'] );
 
 	if ( $asleep ) {
@@ -2838,11 +3016,9 @@ function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false )
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
-	$geofence       = gaming_hub_tesla_geofence_status( $data );
-	$at_home        = $geofence['at_home'];
-	$coords         = gaming_hub_tesla_get_vehicle_coordinates( $data );
-	$location_debug = gaming_hub_tesla_location_debug_label( $geofence, $coords );
-	$data           = gaming_hub_tesla_strip_location( $data );
+	$geofence = gaming_hub_tesla_geofence_status( $data );
+	$coords   = gaming_hub_tesla_get_vehicle_coordinates( $data );
+	$data     = gaming_hub_tesla_strip_location( $data );
 
 	$charge_state = isset( $data['charge_state'] ) && is_array( $data['charge_state'] )
 		? $data['charge_state']
@@ -2897,6 +3073,21 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		$scheduled_ts = (int) $charge_state['scheduled_charging_start_time'];
 	}
 
+	$shift     = strtoupper( (string) ( $drive_state['shift_state'] ?? '' ) );
+	$speed_mph = isset( $drive_state['speed'] ) && is_numeric( $drive_state['speed'] )
+		? (float) $drive_state['speed']
+		: 0.0;
+	$speed_km  = $has_drive_slice ? (int) round( $speed_mph * 1.60934 ) : 0;
+	$moving    = $has_drive_slice && ( $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true ) );
+	$super_ctx = ! empty( $charge_state['fast_charger_present'] )
+		|| false !== stripos( (string) ( $charge_state['fast_charger_type'] ?? '' ), 'Supercharger' );
+	$home_ctx  = gaming_hub_tesla_at_home_resolve( $geofence, $moving, $super_ctx );
+	$at_home   = $home_ctx['at_home'];
+	$location_debug = gaming_hub_tesla_location_debug_label( $geofence, $coords );
+	if ( ! empty( $home_ctx['at_home_sticky'] ) ) {
+		$location_debug .= __( ' · 直近自宅保持', 'gaming-hub' );
+	}
+
 	$supply = gaming_hub_tesla_model3_supply( $charge_state, $charging, $at_home );
 	$energy_added = isset( $charge_state['charge_energy_added'] ) && is_numeric( $charge_state['charge_energy_added'] )
 		? max( 0, (float) $charge_state['charge_energy_added'] )
@@ -2912,15 +3103,9 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		$vehicle_name = 'Model 3';
 	}
 
-	$shift     = strtoupper( (string) ( $drive_state['shift_state'] ?? '' ) );
-	$speed_mph = isset( $drive_state['speed'] ) && is_numeric( $drive_state['speed'] )
-		? (float) $drive_state['speed']
-		: 0.0;
-	$speed_km  = $has_drive_slice ? (int) round( $speed_mph * 1.60934 ) : 0;
 	$pack      = gaming_hub_tesla_pack_power( $drive_state, $charge_state );
 	$pack_kw   = $pack['kw'];
 	$has_pack  = null !== $pack_kw;
-	$moving    = $has_drive_slice && ( $speed_km >= 3 || in_array( $shift, array( 'D', 'R' ), true ) );
 	$sentry    = ! empty( $vehicle_state['sentry_mode'] );
 	$climate_on = gaming_hub_tesla_climate_is_on( $climate_state );
 	$temps      = gaming_hub_tesla_climate_temps( $climate_state );
@@ -3001,8 +3186,9 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'fast_charger_present'      => ! empty( $charge_state['fast_charger_present'] ),
 			'plugged'                   => $supply['plugged'],
 			'at_home'                   => $at_home,
-			'geofence_known'            => ! empty( $geofence['known'] ),
-			'geofence_distance_m'       => $geofence['distance_m'],
+			'geofence_known'            => ! empty( $home_ctx['geofence_known'] ),
+			'geofence_distance_m'       => $home_ctx['geofence_distance_m'],
+			'at_home_sticky'            => ! empty( $home_ctx['at_home_sticky'] ),
 			'location_debug'            => $location_debug,
 			'scheduled_charging_ts'     => $scheduled_ts,
 			'odometer_km'               => $odo_stats['odometer_km'],
