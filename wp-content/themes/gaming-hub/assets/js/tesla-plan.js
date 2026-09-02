@@ -90,6 +90,61 @@
 		}
 	}
 
+	function inputSubLabel(input) {
+		if (!input) {
+			return '—';
+		}
+		if (input.charging && input.watts > 0) {
+			return Math.round(input.watts).toLocaleString() + ' W';
+		}
+		if (input.plugged) {
+			return t('接続中');
+		}
+		return '—';
+	}
+
+	function inputFromFlow(status) {
+		if (!status) {
+			return null;
+		}
+		if (status.input_type && status.input_label) {
+			return {
+				type: status.input_type,
+				label: status.input_label,
+				watts: Number(status.input_watts || 0),
+				plugged: !!status.input_plugged,
+				charging: !!status.input_charging,
+			};
+		}
+		const kind = status.supply_kind || '';
+		const charging = !!status.is_charging;
+		const watts = Math.max(Number(status.wall_w || 0), Number(status.super_w || 0));
+		if (kind === 'supercharger') {
+			return { type: 'dc', label: t('DC 入力'), watts: charging ? watts : 0, plugged: true, charging: charging };
+		}
+		if (kind === 'home') {
+			const away = status.supply_label === t('外出先 AC') || status.at_home === false;
+			return {
+				type: away ? 'away_ac' : 'home_ac',
+				label: away ? t('外出先 AC') : t('自宅 AC'),
+				watts: charging ? watts : 0,
+				plugged: true,
+				charging: charging,
+			};
+		}
+		return { type: 'none', label: t('未接続'), watts: 0, plugged: false, charging: false };
+	}
+
+	function paintInputStat(input) {
+		const wrap = root.querySelector('.ecoflow-plan-stat-input');
+		if (!wrap || !input) {
+			return;
+		}
+		wrap.className = 'ecoflow-rates-stat ecoflow-plan-stat-input is-' + (input.type || 'none');
+		setText('[data-tesla-plan-input]', input.label || t('未接続'));
+		setText('[data-tesla-plan-input-sub]', inputSubLabel(input));
+	}
+
 	function paintPlan(plan) {
 		if (!plan) {
 			return;
@@ -103,6 +158,14 @@
 
 		setText('[data-tesla-plan-title]', plan.title || '');
 		setText('[data-tesla-plan-note]', plan.note || '');
+		const inputPlan = (views.today && (views.today.input_type || views.today.input_label)) ? views.today : plan;
+		paintInputStat({
+			type: inputPlan.input_type || 'none',
+			label: inputPlan.input_label || t('未接続'),
+			watts: Number(inputPlan.input_watts || 0),
+			plugged: !!inputPlan.input_plugged,
+			charging: !!inputPlan.input_charging,
+		});
 		const sleepEl = root.querySelector('[data-tesla-plan-sleep]');
 		if (sleepEl) {
 			const asleepNow = !!(plan.asleep && (plan.plan_day || 'today') === 'today');
@@ -411,6 +474,14 @@
 			return;
 		}
 		rememberLiveCharge(event.detail);
+		const flowInput = inputFromFlow(event.detail);
+		if (flowInput && views.today) {
+			views.today.input_type = flowInput.type;
+			views.today.input_label = flowInput.label;
+			views.today.input_watts = flowInput.watts;
+			views.today.input_plugged = flowInput.plugged;
+			views.today.input_charging = flowInput.charging;
+		}
 		if (views.today) {
 			views.today.asleep = !!event.detail.asleep;
 			if (event.detail.asleep && event.detail.battery_percent != null && !Number.isNaN(Number(event.detail.battery_percent))) {

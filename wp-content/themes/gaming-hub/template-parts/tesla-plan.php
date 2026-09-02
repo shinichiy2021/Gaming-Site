@@ -101,6 +101,7 @@ $next_note = $next_charge_labels
 		implode( '、', $next_charge_labels )
 	)
 	: '';
+$input_type = (string) ( $plan['input_type'] ?? 'none' );
 ?>
 
 <section
@@ -174,6 +175,11 @@ $next_note = $next_charge_labels
 				}
 				?>
 			</small>
+		</div>
+		<div class="ecoflow-rates-stat ecoflow-plan-stat-input is-<?php echo esc_attr( sanitize_html_class( $input_type ) ); ?>">
+			<span><?php esc_html_e( 'INPUT', 'gaming-hub' ); ?></span>
+			<strong data-tesla-plan-input><?php echo esc_html( (string) ( $plan['input_label'] ?? __( '未接続', 'gaming-hub' ) ) ); ?></strong>
+			<small data-tesla-plan-input-sub><?php echo esc_html( (string) ( $plan['input_sub_label'] ?? '—' ) ); ?></small>
 		</div>
 		<div class="ecoflow-rates-stat">
 			<span><?php esc_html_e( 'WINDOW', 'gaming-hub' ); ?></span>
