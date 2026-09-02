@@ -88,6 +88,31 @@ function formatInputWatts( value, idle, active ) {
 	return `${ Math.round( Math.max( 0, watts ) ).toLocaleString() } W`;
 }
 
+function HomeChargeIcon() {
+	return (
+		<span className="tesla-charge-icon tesla-charge-icon--home" aria-hidden="true">
+			<svg viewBox="0 0 64 64" focusable="false">
+				<path
+					d="M32 8L10 28v26a4 4 0 0 0 4 4h12V40h12v18h12a4 4 0 0 0 4-4V28L32 8z"
+					fill="currentColor"
+				/>
+			</svg>
+		</span>
+	);
+}
+
+function wallAcContext( status, asleep, charging ) {
+	if ( asleep || status.supply_kind === 'supercharger' ) {
+		return { plugged: false, atHome: false, away: false };
+	}
+
+	const plugged = !! status.plugged || charging || !! status.input_plugged;
+	const atHome = plugged && status.at_home === true;
+	const away = plugged && status.at_home === false;
+
+	return { plugged, atHome, away };
+}
+
 function wallExtras( status, labels ) {
 	if ( ! status.live ) {
 		return [];
@@ -311,6 +336,15 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const cabinOn = ! asleep && isFlowActive( 'cabin', status );
 	const wallOn = ! asleep && ( wallCharging || isFlowActive( 'wall', status ) );
 	const superOn = superConnected || superCharging;
+	const wallCtx = wallAcContext( status, asleep, charging );
+	const wallLabel = wallCtx.atHome
+		? ( labels.homeAc || '自宅 AC' )
+		: ( wallCtx.away ? ( labels.awayAc || '外出先 AC' ) : labels.wall );
+	const wallNote = labels.wallNote;
+	const wallNodeClass = [
+		wallCtx.atHome ? 'is-home-ac' : '',
+		wallCtx.away ? 'is-away-ac' : '',
+	].filter( Boolean ).join( ' ' );
 	const superDisplay = superConnected
 		? ( superCharging || Number( status.super_w ) >= FLOW_THRESHOLD
 			? formatInputWatts( status.super_w, idle, true )
@@ -350,14 +384,16 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 					<div className="ecoflow-input-stack tesla-flow-inputs">
 						<PhotoNode
 							flowId="wall"
-							label={ labels.wall }
-							note={ labels.wallNote }
+							label={ wallLabel }
+							note={ wallNote }
 							watts={ asleep ? 0 : status.wall_w }
-							photo={ images.wall }
+							photo={ wallCtx.atHome ? null : images.wall }
 							photoClass="tesla-photo-wall"
+							className={ wallNodeClass }
 							active={ wallOn }
 							standbyLabel={ idle }
 							display={ wallOn ? formatInputWatts( status.wall_w, idle, true ) : null }
+							overlay={ wallCtx.atHome ? <HomeChargeIcon /> : null }
 							extra={ wallExtras( status, labels ).map( ( line ) => (
 								<small key={ line } className="tesla-gas-saved">{ line }</small>
 							) ) }

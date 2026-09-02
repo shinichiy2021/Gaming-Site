@@ -167,10 +167,11 @@
 			return { type: 'dc', label: t('DC 入力'), watts: charging ? watts : 0, plugged: true, charging: charging };
 		}
 		if (kind === 'home') {
-			const away = status.supply_label === t('外出先 AC') || status.at_home === false;
+			const away = status.at_home === false || status.supply_label === t('外出先 AC');
+			const home = status.at_home === true || status.supply_label === t('自宅 AC');
 			return {
 				type: away ? 'away_ac' : 'home_ac',
-				label: away ? t('外出先 AC') : t('自宅 AC'),
+				label: away ? t('外出先 AC') : (home ? t('自宅 AC') : (status.supply_label || t('拠点補給'))),
 				watts: charging ? watts : 0,
 				plugged: true,
 				charging: charging,

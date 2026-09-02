@@ -1594,9 +1594,12 @@ function gaming_hub_tesla_model3_supply( array $charge_state, $charging, $at_hom
 	}
 
 	if ( $plugged || $charging ) {
-		$label = __( '拠点補給', 'gaming-hub' );
 		if ( false === $at_home ) {
 			$label = __( '外出先 AC', 'gaming-hub' );
+		} elseif ( true === $at_home ) {
+			$label = __( '自宅 AC', 'gaming-hub' );
+		} else {
+			$label = __( '拠点補給', 'gaming-hub' );
 		}
 
 		return array(

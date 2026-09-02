@@ -474,6 +474,8 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'title'      => __( 'Tesla 電力フロー', 'gaming-hub' ),
 			'wall'       => __( '普通充電', 'gaming-hub' ),
 			'wallNote'   => __( '200V', 'gaming-hub' ),
+			'homeAc'     => __( '自宅 AC', 'gaming-hub' ),
+			'awayAc'     => __( '外出先 AC', 'gaming-hub' ),
 			'super'      => __( '急速充電', 'gaming-hub' ),
 			'superNote'  => __( 'Supercharger', 'gaming-hub' ),
 			'tesla'      => __( 'Tesla', 'gaming-hub' ),
