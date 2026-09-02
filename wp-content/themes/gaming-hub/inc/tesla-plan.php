@@ -1281,6 +1281,11 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$plan['live_charge_w'] = $watts;
 	$plan['live_supply']   = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
 	$plan['asleep']        = $asleep;
+	$plan['geofence_known'] = ! empty( $model3['geofence_known'] );
+	$plan['at_home']       = array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null;
+	$plan['geofence_distance_m'] = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
+		? (int) $model3['geofence_distance_m']
+		: null;
 
 	if ( $asleep ) {
 		$live_soc = isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] )
@@ -1354,6 +1359,15 @@ function gaming_hub_tesla_plan_auto_state() {
 function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 	if ( ! empty( $plan['asleep'] ) ) {
 		return __( 'スリープ中のため充電コマンドは送りません。残量表示は入眠時の値のままです。', 'gaming-hub' );
+	}
+
+	$plugged = ! empty( $plan['live_charging'] ) || 'home' === (string) ( $plan['live_supply'] ?? '' );
+	if ( $plugged && empty( $plan['geofence_known'] ) ) {
+		if ( function_exists( 'gaming_hub_tesla_has_location_scope' ) && ! gaming_hub_tesla_has_location_scope() ) {
+			return __( '位置情報スコープがないため自宅判定できません。Tesla タグから再認証してください（vehicle_location が必要です）。', 'gaming-hub' );
+		}
+
+		return __( 'GPS を取得できず自宅扱いのままです。次のポーリングで外出先判定を再試行します。', 'gaming-hub' );
 	}
 
 	$error = (string) ( $auto['error'] ?? '' );
