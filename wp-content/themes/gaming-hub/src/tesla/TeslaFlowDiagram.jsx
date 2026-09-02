@@ -49,6 +49,14 @@ function formatYen( value ) {
 	return `¥${ Math.round( Number( value ) || 0 ).toLocaleString() }`;
 }
 
+function formatBuyYen( value, known, pendingLabel ) {
+	if ( known ) {
+		return formatYen( value );
+	}
+
+	return pendingLabel || '—';
+}
+
 function formatCabinWatts( value, idle, live ) {
 	if ( ! live || value === null || value === undefined || value === '' ) {
 		return idle;
@@ -107,6 +115,37 @@ function wallExtras( status, labels ) {
 
 	// Today's home charging total stays visible while standby so the node is never blank.
 	items.push( `${ todayBuy } ${ ( Number.isFinite( todayKwh ) ? todayKwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( Number.isFinite( todayYen ) ? todayYen : 0 ) }` );
+
+	return items;
+}
+
+function superExtras( status, labels ) {
+	if ( ! status.live ) {
+		return [];
+	}
+
+	const superConnected = isSuperchargerConnected( status );
+	const charging = ! status.asleep && !! status.is_charging && status.supply_kind === 'supercharger';
+	const items = [];
+	const todayBuy = labels.todayBuy || '今日 買電';
+	const session = labels.session || '今回';
+	const total = labels.total || '合計';
+	const todayKwh = Number( status.super_today_kwh );
+	const todayYen = Number( status.super_today_yen );
+	const todayYenKnown = !! status.super_today_yen_known;
+	const sessionKwh = Number( status.super_session_kwh );
+	const spansDays = !! status.super_span_days;
+
+	if ( ( charging || spansDays ) && Number.isFinite( sessionKwh ) && sessionKwh > 0 ) {
+		const range = spansDays && status.super_span_label ? ` (${ status.super_span_label })` : '';
+		items.push( `${ spansDays ? total : session } ${ sessionKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh${ range }` );
+	}
+
+	if ( superConnected || charging || ( Number.isFinite( todayKwh ) && todayKwh > 0 ) || todayYenKnown ) {
+		items.push(
+			`${ todayBuy } ${ ( Number.isFinite( todayKwh ) ? todayKwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatBuyYen( todayYen, todayYenKnown, labels.billPending ) }`
+		);
+	}
 
 	return items;
 }
@@ -327,6 +366,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							active={ superOn }
 							standbyLabel={ idle }
 							display={ superDisplay }
+							extra={ superExtras( status, labels ).map( ( line ) => (
+								<small key={ line } className="tesla-gas-saved">{ line }</small>
+							) ) }
 						/>
 					</div>
 
