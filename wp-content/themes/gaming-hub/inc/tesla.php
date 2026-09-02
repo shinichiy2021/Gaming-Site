@@ -15,6 +15,9 @@ define( 'GAMING_HUB_TESLA_ACCESS_TOKEN_KEY', 'gaming_hub_tesla_access_token' );
 define( 'GAMING_HUB_TESLA_REFRESH_TOKEN_OPTION', 'gaming_hub_tesla_refresh_token' );
 define( 'GAMING_HUB_TESLA_SCOPES_OPTION', 'gaming_hub_tesla_token_scopes' );
 define( 'GAMING_HUB_TESLA_LOCATION_DENIED_OPTION', 'gaming_hub_tesla_location_denied' );
+define( 'GAMING_HUB_TESLA_LAST_COORD_OPTION', 'gaming_hub_tesla_last_coord_v1' );
+/** Reuse recent GPS for geofence when a poll omits location_data. */
+define( 'GAMING_HUB_TESLA_COORD_MAX_AGE', 45 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
 define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v5' );
@@ -764,21 +767,24 @@ function gaming_hub_tesla_has_charging_scope() {
 }
 
 /**
- * Whether this poll should ask Tesla for location_data (unlocks drive_state).
+ * Whether this poll should ask Tesla for location_data (drive_state + home geofence).
  */
 function gaming_hub_tesla_should_request_location_data() {
 	if ( gaming_hub_tesla_has_location_scope() ) {
-		$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
-
-		// Scope already unlocked drive_state — do not keep polling GPS.
-		if ( is_array( $cached ) && ! empty( $cached['drive_ready'] ) ) {
-			return false;
-		}
-
+		// Home vs away charging needs fresh GPS on every poll.
 		return true;
 	}
 
-	return ! get_option( GAMING_HUB_TESLA_LOCATION_DENIED_OPTION, false );
+	if ( get_option( GAMING_HUB_TESLA_LOCATION_DENIED_OPTION, false ) ) {
+		return false;
+	}
+
+	$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
+	if ( is_array( $cached ) && ! empty( $cached['drive_ready'] ) ) {
+		return false;
+	}
+
+	return true;
 }
 
 /**
@@ -1453,19 +1459,73 @@ function gaming_hub_tesla_geodesic_distance_m( $lat1, $lon1, $lat2, $lon2 ) {
 }
 
 /**
- * Whether the vehicle is within the home geofence.
+ * Persist the last known vehicle coordinates for geofence fallback.
+ *
+ * @param array{lat: float, lon: float} $coords Coordinates.
+ */
+function gaming_hub_tesla_store_last_coordinates( array $coords ) {
+	update_option(
+		GAMING_HUB_TESLA_LAST_COORD_OPTION,
+		array(
+			'lat' => (float) $coords['lat'],
+			'lon' => (float) $coords['lon'],
+			'at'  => time(),
+		),
+		false
+	);
+}
+
+/**
+ * Vehicle coordinates from the current poll or a recent cached fix.
  *
  * @param array<string, mixed> $data vehicle_data.
- * @return bool|null True at home, false away, null if unknown.
+ * @return array{lat: float, lon: float}|null
  */
-function gaming_hub_tesla_is_at_home( array $data ) {
-	if ( ! gaming_hub_tesla_has_location_scope() ) {
+function gaming_hub_tesla_get_vehicle_coordinates( array $data ) {
+	$coords = gaming_hub_tesla_vehicle_coordinates( $data );
+	if ( $coords ) {
+		gaming_hub_tesla_store_last_coordinates( $coords );
+
+		return $coords;
+	}
+
+	$saved = get_option( GAMING_HUB_TESLA_LAST_COORD_OPTION, null );
+	if ( ! is_array( $saved ) || ! isset( $saved['lat'], $saved['lon'], $saved['at'] ) ) {
 		return null;
 	}
 
-	$coords = gaming_hub_tesla_vehicle_coordinates( $data );
-	if ( ! $coords ) {
+	if ( time() - (int) $saved['at'] > GAMING_HUB_TESLA_COORD_MAX_AGE ) {
 		return null;
+	}
+
+	return array(
+		'lat' => (float) $saved['lat'],
+		'lon' => (float) $saved['lon'],
+	);
+}
+
+/**
+ * Home geofence status from vehicle_data.
+ *
+ * @param array<string, mixed> $data vehicle_data.
+ * @return array{at_home: bool|null, distance_m: int|null, known: bool}
+ */
+function gaming_hub_tesla_geofence_status( array $data ) {
+	if ( ! gaming_hub_tesla_has_location_scope() ) {
+		return array(
+			'at_home'    => null,
+			'distance_m' => null,
+			'known'      => false,
+		);
+	}
+
+	$coords = gaming_hub_tesla_get_vehicle_coordinates( $data );
+	if ( ! $coords ) {
+		return array(
+			'at_home'    => null,
+			'distance_m' => null,
+			'known'      => false,
+		);
 	}
 
 	$home = gaming_hub_tesla_home_geofence();
@@ -1476,7 +1536,23 @@ function gaming_hub_tesla_is_at_home( array $data ) {
 		$home['lon']
 	);
 
-	return $dist <= (float) $home['radius_m'];
+	return array(
+		'at_home'    => $dist <= (float) $home['radius_m'],
+		'distance_m' => (int) round( $dist ),
+		'known'      => true,
+	);
+}
+
+/**
+ * Whether the vehicle is within the home geofence.
+ *
+ * @param array<string, mixed> $data vehicle_data.
+ * @return bool|null True at home, false away, null if unknown.
+ */
+function gaming_hub_tesla_is_at_home( array $data ) {
+	$status = gaming_hub_tesla_geofence_status( $data );
+
+	return $status['at_home'];
 }
 
 /**
@@ -2637,8 +2713,9 @@ function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false )
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
-	$at_home = gaming_hub_tesla_is_at_home( $data );
-	$data    = gaming_hub_tesla_strip_location( $data );
+	$geofence = gaming_hub_tesla_geofence_status( $data );
+	$at_home  = $geofence['at_home'];
+	$data     = gaming_hub_tesla_strip_location( $data );
 
 	$charge_state = isset( $data['charge_state'] ) && is_array( $data['charge_state'] )
 		? $data['charge_state']
@@ -2796,6 +2873,8 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'supply_label'              => $supply['label'],
 			'plugged'                   => $supply['plugged'],
 			'at_home'                   => $at_home,
+			'geofence_known'            => ! empty( $geofence['known'] ),
+			'geofence_distance_m'       => $geofence['distance_m'],
 			'scheduled_charging_ts'     => $scheduled_ts,
 			'odometer_km'               => $odo_stats['odometer_km'],
 			'today_km'                  => $odo_stats['today_km'],

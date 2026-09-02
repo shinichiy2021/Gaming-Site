@@ -401,6 +401,8 @@ return array(
 	'外出先 AC' => 'Away AC',
 	'外出先充電: 100%% まで常時充電中です。' => 'Away charging: charging to 100%% continuously.',
 	'外出先充電: 100%% まで常時充電中。直近は %s に充電オンです。' => 'Away charging: to 100%% continuously. Last started at %s.',
+	'位置情報スコープがないため自宅判定できません。Tesla タグから再認証してください（vehicle_location が必要です）。' => 'Cannot detect home without the location scope. Re-authenticate from the Tesla tag page (vehicle_location required).',
+	'GPS を取得できず自宅扱いのままです。次のポーリングで外出先判定を再試行します。' => 'GPS fix missing — still treated as home. The next poll will retry away detection.',
 	'未接続' => 'Unplugged',
 	'次レイド %s' => 'Next raid %s',
 	'残MP %s km' => 'MP left %s km',
