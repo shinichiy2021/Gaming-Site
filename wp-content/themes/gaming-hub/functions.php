@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.13.2' );
+define( 'GAMING_HUB_VERSION', '1.13.3' );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
@@ -777,6 +777,72 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 			'description' => __( 'Tesla タグの「Tesla で認証」後に自動保存。手動設定も可。', 'gaming-hub' ),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'password',
+		)
+	);
+
+	$wp_customize->add_setting(
+		'tesla_home_lat',
+		array(
+			'default'           => 35.3409,
+			'sanitize_callback' => static function ( $value ) {
+				return is_numeric( $value ) ? (float) $value : 35.3409;
+			},
+		)
+	);
+	$wp_customize->add_control(
+		'tesla_home_lat',
+		array(
+			'label'       => __( '自宅 緯度（AI PLAN ジオフェンス）', 'gaming-hub' ),
+			'description' => __( 'デフォルト: 多治見市脇之島町6-47-4。vehicle_location スコープが必要です。', 'gaming-hub' ),
+			'section'     => 'gaming_hub_tesla_api',
+			'type'        => 'number',
+			'input_attrs' => array(
+				'step' => '0.000001',
+			),
+		)
+	);
+
+	$wp_customize->add_setting(
+		'tesla_home_lon',
+		array(
+			'default'           => 137.1264,
+			'sanitize_callback' => static function ( $value ) {
+				return is_numeric( $value ) ? (float) $value : 137.1264;
+			},
+		)
+	);
+	$wp_customize->add_control(
+		'tesla_home_lon',
+		array(
+			'label'   => __( '自宅 経度（AI PLAN ジオフェンス）', 'gaming-hub' ),
+			'section' => 'gaming_hub_tesla_api',
+			'type'    => 'number',
+			'input_attrs' => array(
+				'step' => '0.000001',
+			),
+		)
+	);
+
+	$wp_customize->add_setting(
+		'tesla_home_radius_m',
+		array(
+			'default'           => 200,
+			'sanitize_callback' => static function ( $value ) {
+				return max( 50, (int) $value );
+			},
+		)
+	);
+	$wp_customize->add_control(
+		'tesla_home_radius_m',
+		array(
+			'label'   => __( '自宅 半径（m）', 'gaming-hub' ),
+			'section' => 'gaming_hub_tesla_api',
+			'type'    => 'number',
+			'input_attrs' => array(
+				'min'  => 50,
+				'max'  => 1000,
+				'step' => 10,
+			),
 		)
 	);
 }

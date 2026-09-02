@@ -1382,13 +1382,112 @@ function gaming_hub_tesla_model3_hud_state( $state, $charging ) {
 }
 
 /**
- * Classify charge supply for the HUD (home vs Supercharger). Never uses GPS.
+ * Home geofence for AI PLAN (default: 多治見市脇之島町6-47-4).
+ *
+ * @return array{lat: float, lon: float, radius_m: float, name: string}
+ */
+function gaming_hub_tesla_home_geofence() {
+	return array(
+		'lat'      => (float) get_theme_mod( 'tesla_home_lat', 35.3409 ),
+		'lon'      => (float) get_theme_mod( 'tesla_home_lon', 137.1264 ),
+		'radius_m' => max( 50, (float) get_theme_mod( 'tesla_home_radius_m', 200 ) ),
+		'name'     => (string) get_theme_mod( 'tesla_home_name', '多治見市脇之島町6-47-4' ),
+	);
+}
+
+/**
+ * Read vehicle coordinates from vehicle_data (before location is stripped).
+ *
+ * @param array<string, mixed> $data vehicle_data.
+ * @return array{lat: float, lon: float}|null
+ */
+function gaming_hub_tesla_vehicle_coordinates( array $data ) {
+	$slices = array();
+	if ( isset( $data['drive_state'] ) && is_array( $data['drive_state'] ) ) {
+		$slices[] = $data['drive_state'];
+	}
+	if ( isset( $data['location_data'] ) && is_array( $data['location_data'] ) ) {
+		$slices[] = $data['location_data'];
+	}
+
+	foreach ( $slices as $slice ) {
+		foreach (
+			array(
+				array( 'corrected_latitude', 'corrected_longitude' ),
+				array( 'latitude', 'longitude' ),
+				array( 'native_latitude', 'native_longitude' ),
+			) as $pair
+		) {
+			$lat = $slice[ $pair[0] ] ?? null;
+			$lon = $slice[ $pair[1] ] ?? null;
+			if ( ! is_numeric( $lat ) || ! is_numeric( $lon ) ) {
+				continue;
+			}
+			$lat = (float) $lat;
+			$lon = (float) $lon;
+			if ( abs( $lat ) > 0.001 && abs( $lon ) > 0.001 ) {
+				return array(
+					'lat' => $lat,
+					'lon' => $lon,
+				);
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Great-circle distance in metres.
+ */
+function gaming_hub_tesla_geodesic_distance_m( $lat1, $lon1, $lat2, $lon2 ) {
+	$lat1 = deg2rad( (float) $lat1 );
+	$lon1 = deg2rad( (float) $lon1 );
+	$lat2 = deg2rad( (float) $lat2 );
+	$lon2 = deg2rad( (float) $lon2 );
+	$dlat = $lat2 - $lat1;
+	$dlon = $lon2 - $lon1;
+	$a    = sin( $dlat / 2 ) ** 2 + cos( $lat1 ) * cos( $lat2 ) * sin( $dlon / 2 ) ** 2;
+
+	return 6371000 * 2 * atan2( sqrt( $a ), sqrt( 1 - $a ) );
+}
+
+/**
+ * Whether the vehicle is within the home geofence.
+ *
+ * @param array<string, mixed> $data vehicle_data.
+ * @return bool|null True at home, false away, null if unknown.
+ */
+function gaming_hub_tesla_is_at_home( array $data ) {
+	if ( ! gaming_hub_tesla_has_location_scope() ) {
+		return null;
+	}
+
+	$coords = gaming_hub_tesla_vehicle_coordinates( $data );
+	if ( ! $coords ) {
+		return null;
+	}
+
+	$home = gaming_hub_tesla_home_geofence();
+	$dist = gaming_hub_tesla_geodesic_distance_m(
+		$coords['lat'],
+		$coords['lon'],
+		$home['lat'],
+		$home['lon']
+	);
+
+	return $dist <= (float) $home['radius_m'];
+}
+
+/**
+ * Classify charge supply for the HUD (home AC vs Supercharger). Geofence refines AC labels.
  *
  * @param array<string, mixed> $charge_state Tesla charge_state.
  * @param bool                 $charging     Live charging.
+ * @param bool|null            $at_home      Geofence result.
  * @return array{kind: string, label: string, plugged: bool}
  */
-function gaming_hub_tesla_model3_supply( array $charge_state, $charging ) {
+function gaming_hub_tesla_model3_supply( array $charge_state, $charging, $at_home = null ) {
 	$cable = strtoupper( (string) ( $charge_state['conn_charge_cable'] ?? '' ) );
 	$fast  = ! empty( $charge_state['fast_charger_present'] );
 	$plugged = $fast || ( '' !== $cable && 'NONE' !== $cable && '<INVALID>' !== $cable );
@@ -1402,9 +1501,14 @@ function gaming_hub_tesla_model3_supply( array $charge_state, $charging ) {
 	}
 
 	if ( $plugged || $charging ) {
+		$label = __( '拠点補給', 'gaming-hub' );
+		if ( false === $at_home ) {
+			$label = __( '外出先 AC', 'gaming-hub' );
+		}
+
 		return array(
 			'kind'    => 'home',
-			'label'   => __( '拠点補給', 'gaming-hub' ),
+			'label'   => $label,
 			'plugged' => true,
 		);
 	}
@@ -2533,7 +2637,8 @@ function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false )
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
-	$data = gaming_hub_tesla_strip_location( $data );
+	$at_home = gaming_hub_tesla_is_at_home( $data );
+	$data    = gaming_hub_tesla_strip_location( $data );
 
 	$charge_state = isset( $data['charge_state'] ) && is_array( $data['charge_state'] )
 		? $data['charge_state']
@@ -2588,7 +2693,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 		$scheduled_ts = (int) $charge_state['scheduled_charging_start_time'];
 	}
 
-	$supply = gaming_hub_tesla_model3_supply( $charge_state, $charging );
+	$supply = gaming_hub_tesla_model3_supply( $charge_state, $charging, $at_home );
 	$energy_added = isset( $charge_state['charge_energy_added'] ) && is_numeric( $charge_state['charge_energy_added'] )
 		? max( 0, (float) $charge_state['charge_energy_added'] )
 		: 0;
@@ -2690,6 +2795,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'supply_kind'               => $supply['kind'],
 			'supply_label'              => $supply['label'],
 			'plugged'                   => $supply['plugged'],
+			'at_home'                   => $at_home,
 			'scheduled_charging_ts'     => $scheduled_ts,
 			'odometer_km'               => $odo_stats['odometer_km'],
 			'today_km'                  => $odo_stats['today_km'],
