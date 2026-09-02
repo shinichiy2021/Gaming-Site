@@ -2728,7 +2728,7 @@ function gaming_hub_rest_ecoflow_status() {
  * Enqueue EcoFlow dashboard script on EcoFlow pages.
  */
 function gaming_hub_ecoflow_scripts() {
-	$is_ecoflow = is_tag( 'ecoflow' );
+	$is_ecoflow = is_tag( 'ecoflow' ) || ( function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_hub_spa_page() );
 	$is_energy  = $is_ecoflow;
 
 	if ( ! $is_ecoflow ) {

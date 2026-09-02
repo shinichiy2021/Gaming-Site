@@ -2138,7 +2138,7 @@ function gaming_hub_rest_tesla_plan() {
  * Enqueue Tesla plan script.
  */
 function gaming_hub_tesla_plan_scripts() {
-	if ( ! is_tag( 'tesla' ) && ! is_page( 'powerwall' ) ) {
+	if ( ! is_tag( 'tesla' ) && ! is_page( 'powerwall' ) && ! ( function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_hub_spa_page() ) ) {
 		return;
 	}
 

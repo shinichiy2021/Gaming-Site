@@ -896,7 +896,7 @@ function gaming_hub_rest_tesla_charges( WP_REST_Request $request ) {
  * Enqueue Tesla charge-log script.
  */
 function gaming_hub_tesla_charge_log_scripts() {
-	if ( ! is_tag( 'tesla' ) && ! is_page( 'powerwall' ) ) {
+	if ( ! is_tag( 'tesla' ) && ! is_page( 'powerwall' ) && ! ( function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_hub_spa_page() ) ) {
 		return;
 	}
 

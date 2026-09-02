@@ -11,7 +11,12 @@ $is_ecoflow = is_tag( 'ecoflow' );
 $is_tesla   = is_tag( 'tesla' );
 $is_pgo     = is_tag( 'pokemon-go' );
 $is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
+$is_spa     = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_hub_spa_page();
 ?>
+
+<?php if ( $is_spa && function_exists( 'gaming_hub_render_hub_spa_panels' ) ) : ?>
+	<?php gaming_hub_render_hub_spa_panels( gaming_hub_hub_spa_active_slug() ); ?>
+<?php else : ?>
 
 <?php if ( ! $is_dash ) : ?>
 	<div class="archive-header">
@@ -85,6 +90,8 @@ $is_dash    = $is_ecoflow || $is_tesla || $is_pgo;
 	<section class="hub-section hub-pokemon-go">
 		<?php get_template_part( 'template-parts/pokemon-go', 'page' ); ?>
 	</section>
+<?php endif; ?>
+
 <?php endif; ?>
 
 <?php

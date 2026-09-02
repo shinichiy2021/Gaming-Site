@@ -17,8 +17,8 @@ Dashboards live on tag pages: `/tag/ecoflow/`, `/tag/tesla/`, `/tag/pokemon-go/`
 | Feature PHP | `inc/` |
 | Templates | `template-parts/` |
 | Styles | `assets/css/main.css` |
-| React flows | `src/ecoflow/`, `src/powerwall/`, `src/tesla/` |
-| Built JS | `assets/js/*-flow.js` (generated — do not edit) |
+| React flows | `src/ecoflow/`, `src/powerwall/`, `src/tesla/`, `src/hub/` (SPA switcher) |
+| Built JS | `assets/js/*-flow.js`, `assets/js/hub-spa.js` (generated — do not edit) |
 
 ## Dev commands
 
@@ -26,7 +26,8 @@ Dashboards live on tag pages: `/tag/ecoflow/`, `/tag/tesla/`, `/tag/pokemon-go/`
 docker compose up -d
 cd wp-content/themes/gaming-hub && npm install      # first time only
 cd wp-content/themes/gaming-hub && npm run dev:ecoflow   # watch
-cd wp-content/themes/gaming-hub && npm run build:flows   # build all three flows
+cd wp-content/themes/gaming-hub && npm run build:flows   # build flows + hub SPA
+cd wp-content/themes/gaming-hub && npm run build:hub     # hub switcher SPA only
 ```
 
 In Cursor: **Terminal → Run Task**.

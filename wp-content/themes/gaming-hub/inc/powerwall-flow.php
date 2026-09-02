@@ -259,7 +259,7 @@ function gaming_hub_rest_powerwall_flow() {
  * Enqueue Powerwall flow scripts on the Powerwall page.
  */
 function gaming_hub_powerwall_flow_scripts() {
-	if ( ! is_tag( 'tesla' ) && ! is_page( 'powerwall' ) ) {
+	if ( ! is_tag( 'tesla' ) && ! is_page( 'powerwall' ) && ! ( function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_hub_spa_page() ) ) {
 		return;
 	}
 
