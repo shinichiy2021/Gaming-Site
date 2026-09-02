@@ -1650,6 +1650,43 @@ function gaming_hub_tesla_plan_auto_state() {
  */
 function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 	if ( ! empty( $plan['asleep'] ) ) {
+		$slot         = gaming_hub_tesla_plan_current_slot( $plan );
+		$charge_hour  = is_array( $slot ) && 'charge' === (string) ( $slot['mode'] ?? '' ) && empty( $slot['past'] );
+		$home_context = true === ( $plan['at_home'] ?? null )
+			|| ( 'home' === (string) ( $plan['live_supply'] ?? '' ) && null === ( $plan['at_home'] ?? null ) );
+
+		if ( $charge_hour && $home_context ) {
+			$error = (string) ( $auto['error'] ?? '' );
+			if ( '' !== $error ) {
+				return sprintf(
+					/* translators: %s: error */
+					__( '自動制御エラー: %s', 'gaming-hub' ),
+					$error
+				);
+			}
+
+			if ( 'start' === (string) ( $auto['action'] ?? '' ) ) {
+				$when = '';
+				$at   = (string) ( $auto['applied_at'] ?? '' );
+				if ( '' !== $at ) {
+					$ts = strtotime( $at );
+					if ( $ts ) {
+						$when = wp_date( get_option( 'time_format' ), $ts );
+					}
+				}
+
+				return $when
+					? sprintf(
+						/* translators: %s: time */
+						__( '自宅 AI PLAN 充電時間帯 — スリープから起こして充電開始しました（%s）。', 'gaming-hub' ),
+						$when
+					)
+					: __( '自宅 AI PLAN 充電時間帯 — スリープから起こして充電開始を試みます。', 'gaming-hub' );
+			}
+
+			return __( '自宅 AI PLAN 充電時間帯 — スリープのためウェイクして充電開始を試みます。', 'gaming-hub' );
+		}
+
 		return __( 'スリープ中のため充電コマンドは送りません。残量表示は入眠時の値のままです。', 'gaming-hub' );
 	}
 
@@ -1819,7 +1856,10 @@ function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
 		);
 	}
 
-	if ( $plugged && false === $at_home ) {
+	$geofence_known = ! empty( $model3['geofence_known'] );
+
+	// Confirmed away AC only — at home (or GPS unknown) follows AI PLAN hour slots below.
+	if ( $plugged && 'home' === $kind && false === $at_home && $geofence_known ) {
 		$want = true;
 		if ( null !== $soc && $soc >= $away_limit - 0.4 ) {
 			$want = false;

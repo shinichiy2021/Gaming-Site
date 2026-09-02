@@ -170,6 +170,16 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 		? gaming_hub_tesla_link_note( $status )
 		: '';
 
+	if (
+		function_exists( 'gaming_hub_tesla_model3_is_configured' )
+		&& gaming_hub_tesla_model3_is_configured()
+		&& 'tesla' === (string) ( $status['model3_source'] ?? '' )
+		&& function_exists( 'gaming_hub_tesla_plan_auto_apply' )
+	) {
+		// Match AI PLAN charge windows on every live flow rebuild (~90s), not only the 15m cron.
+		gaming_hub_tesla_plan_auto_apply( $status );
+	}
+
 	if ( function_exists( 'gaming_hub_tesla_get_charge_plan' ) ) {
 		$status['tesla_plan'] = gaming_hub_tesla_get_charge_plan( $status );
 	}
