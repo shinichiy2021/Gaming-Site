@@ -115,11 +115,18 @@
 		if (!opts.isCharge) {
 			return 'plan';
 		}
+		const planned = !!(slot && slot.planned_charge);
 		if (opts.isLiveNow && opts.liveInput && opts.liveInput !== 'none') {
+			if (planned && opts.liveInput === 'home_ac') {
+				return 'plan';
+			}
 			return opts.liveInput;
 		}
 		const history = slotChargeHistory(slot, opts.isPast);
 		if (history) {
+			if (planned && history === 'home_ac') {
+				return 'plan';
+			}
 			return history;
 		}
 		return 'plan';
@@ -242,13 +249,6 @@
 			const autoPlan = views.today || plan;
 			autoEl.textContent = autoPlan.auto_note || t('AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。');
 			autoEl.classList.toggle('is-error', !!autoPlan.auto_error);
-		}
-		const locationEl = root.querySelector('[data-tesla-plan-location]');
-		if (locationEl) {
-			const debugPlan = views.today || plan;
-			const debugText = debugPlan.location_debug || '';
-			locationEl.textContent = debugText;
-			locationEl.hidden = !debugText;
 		}
 		setText('[data-tesla-plan-window]', plan.window_label || '—');
 		setText('[data-tesla-plan-window-card]', plan.window_label || '—');
@@ -585,9 +585,6 @@
 		}
 		if (views.today) {
 			views.today.asleep = !!event.detail.asleep;
-			if (event.detail.location_debug) {
-				views.today.location_debug = event.detail.location_debug;
-			}
 			if (event.detail.asleep && event.detail.battery_percent != null && !Number.isNaN(Number(event.detail.battery_percent))) {
 				// Keep the held SOC; do not overwrite with fluctuating projections.
 				if (views.today.soc_now == null) {
@@ -643,34 +640,4 @@
 
 	loadPlan();
 	setInterval(loadPlan, 60000);
-
-	const calibrateBtn = root.querySelector('[data-tesla-calibrate-home-gps]');
-	if (calibrateBtn && window.gamingHubTeslaPlan && gamingHubTeslaPlan.calibrateUrl) {
-		calibrateBtn.addEventListener('click', function () {
-			calibrateBtn.disabled = true;
-			fetch(gamingHubTeslaPlan.calibrateUrl, {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: {
-					'X-WP-Nonce': gamingHubTeslaPlan.restNonce || '',
-				},
-			})
-				.then(function (response) {
-					return response.json();
-				})
-				.then(function (payload) {
-					if (payload && payload.success) {
-						window.location.reload();
-						return;
-					}
-					window.alert((payload && payload.message) ? payload.message : t('GPS 補正に失敗しました。'));
-				})
-				.catch(function () {
-					window.alert(t('GPS 補正に失敗しました。'));
-				})
-				.finally(function () {
-					calibrateBtn.disabled = false;
-				});
-		});
-	}
 })();

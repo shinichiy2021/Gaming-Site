@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.16.7' );
+define( 'GAMING_HUB_VERSION', '1.16.12' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
@@ -797,7 +797,7 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 		'tesla_home_lat',
 		array(
 			'label'       => __( '自宅 緯度（AI PLAN ジオフェンス）', 'gaming-hub' ),
-			'description' => __( 'デフォルト: 多治見市脇之島町6-47-4。vehicle_location スコープが必要です。', 'gaming-hub' ),
+			'description' => __( 'vehicle_location スコープが必要です。', 'gaming-hub' ),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'number',
 			'input_attrs' => array(

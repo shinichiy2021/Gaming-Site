@@ -91,12 +91,34 @@ function formatInputWatts( value, idle, active ) {
 function HomeChargeIcon() {
 	return (
 		<span className="tesla-charge-icon tesla-charge-icon--home" aria-hidden="true">
-			<svg viewBox="0 0 64 64" focusable="false">
+			<span className="tesla-charge-icon__scan" />
+			<span className="tesla-charge-icon__glow" />
+			<svg viewBox="0 0 64 64" focusable="false" className="tesla-charge-icon__svg">
+				<g className="tesla-charge-icon__brackets" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="square">
+					<path d="M8 8v14M8 8h14M56 8H42M56 8v14M56 56V42M56 56H42M8 56h14M8 56V42" />
+				</g>
 				<path
-					d="M32 8L10 28v26a4 4 0 0 0 4 4h12V40h12v18h12a4 4 0 0 0 4-4V28L32 8z"
+					className="tesla-charge-icon__roof"
+					d="M32 11 17 24h30L32 11z"
+					fill="currentColor"
+				/>
+				<path
+					className="tesla-charge-icon__base"
+					d="M21 24h22v15H21V24zm10 6h2v9h-2v-9z"
+					fill="currentColor"
+				/>
+				<path
+					className="tesla-charge-icon__bolt"
+					d="M35 27 25 39h7l-5 11 13-19h-7l2-4z"
+					fill="#fff8e7"
+				/>
+				<path
+					className="tesla-charge-icon__plug"
+					d="M27 42h10v4H27v-4M25 46h4v5h-4v-5M35 46h4v5h-4v-5"
 					fill="currentColor"
 				/>
 			</svg>
+			<span className="tesla-charge-icon__tag">BASE</span>
 		</span>
 	);
 }
@@ -107,8 +129,9 @@ function wallAcContext( status, asleep, charging ) {
 	}
 
 	const plugged = !! status.plugged || charging || !! status.input_plugged;
-	const atHome = plugged && status.at_home === true;
-	const away = plugged && status.at_home === false;
+	const inputType = String( status.input_type || 'none' );
+	const atHome = plugged && ( inputType === 'home_ac' || ( inputType === 'none' && status.at_home === true ) );
+	const away = plugged && ( inputType === 'away_ac' || ( inputType === 'none' && status.at_home === false ) );
 
 	return { plugged, atHome, away };
 }

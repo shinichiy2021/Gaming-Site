@@ -1914,44 +1914,172 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-node-wall.is-home-ac .tesla-charge-icon--home {
+	position: relative;
 	width: 96px;
 	height: 96px;
 	display: grid;
 	place-items: center;
-	border-radius: 14px;
+	border-radius: 4px;
 	color: #ffe600;
+	overflow: hidden;
 	background:
-		radial-gradient(circle at 50% 35%, rgba(255, 230, 0, 0.22), transparent 62%),
-		rgba(12, 10, 6, 0.92);
+		linear-gradient(rgba(255, 230, 0, 0.07) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(255, 230, 0, 0.07) 1px, transparent 1px),
+		radial-gradient(circle at 50% 35%, rgba(255, 230, 0, 0.24), transparent 62%),
+		rgba(12, 10, 6, 0.94);
+	background-size: 8px 8px, 8px 8px, auto, auto;
 	border: 2px solid rgba(255, 230, 0, 0.55);
-	box-shadow: 0 0 18px rgba(255, 230, 0, 0.28);
+	box-shadow:
+		0 0 18px rgba(255, 230, 0, 0.28),
+		inset 0 0 24px rgba(0, 245, 212, 0.08);
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__glow {
+	position: absolute;
+	inset: 12px;
+	border-radius: 2px;
+	background: radial-gradient(circle at 50% 60%, rgba(255, 230, 0, 0.35), transparent 70%);
+	pointer-events: none;
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__scan {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(
+		180deg,
+		transparent 0%,
+		rgba(0, 245, 212, 0.14) 48%,
+		transparent 52%
+	);
+	background-size: 100% 200%;
+	animation: tesla-home-charge-scan 2.8s linear infinite;
+	pointer-events: none;
+	opacity: 0.55;
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__svg {
+	position: relative;
+	z-index: 1;
+	width: 58px;
+	height: 58px;
+	filter: drop-shadow(0 0 6px rgba(255, 230, 0, 0.65));
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__brackets {
+	color: #00f5d4;
+	opacity: 0.92;
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__roof {
+	opacity: 0.95;
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__base {
+	opacity: 0.55;
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__bolt {
+	filter: drop-shadow(0 0 4px rgba(255, 248, 231, 0.85));
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__plug {
+	opacity: 0.88;
+}
+
+.tesla-charge-icon--home .tesla-charge-icon__tag {
+	position: absolute;
+	left: 50%;
+	bottom: 7px;
+	z-index: 2;
+	transform: translateX(-50%);
+	padding: 1px 6px;
+	border-radius: 2px;
+	font-family: var(--font-display);
+	font-size: 0.52rem;
+	font-weight: 700;
+	letter-spacing: 0.14em;
+	line-height: 1.2;
+	color: #0f0c06;
+	background: linear-gradient(180deg, #ffe566 0%, #ffcb05 100%);
+	border: 1px solid rgba(255, 248, 231, 0.65);
+	box-shadow: 0 0 8px rgba(255, 203, 5, 0.55);
 }
 
 .tesla-node-wall.is-home-ac .tesla-charge-icon--home svg {
-	width: 52px;
-	height: 52px;
-}
-
-.tesla-node-wall.is-away-ac .tesla-photo-wall {
-	border-color: rgba(0, 245, 212, 0.55);
-	box-shadow: 0 0 18px rgba(0, 245, 212, 0.24);
+	width: 58px;
+	height: 58px;
 }
 
 .tesla-node-wall.is-home-ac.is-active .tesla-charge-icon--home {
-	border-color: rgba(255, 230, 0, 0.85);
-	box-shadow: 0 0 22px rgba(255, 230, 0, 0.42);
+	border-color: rgba(255, 230, 0, 0.9);
+	animation: tesla-home-charge-pulse 2.2s ease-in-out infinite;
+}
+
+.tesla-node-wall.is-home-ac.is-active .tesla-charge-icon--home .tesla-charge-icon__bolt {
+	animation: tesla-home-charge-bolt 1.4s ease-in-out infinite;
+}
+
+@keyframes tesla-home-charge-pulse {
+	0%,
+	100% {
+		box-shadow:
+			0 0 18px rgba(255, 230, 0, 0.32),
+			inset 0 0 20px rgba(0, 245, 212, 0.08);
+	}
+
+	50% {
+		box-shadow:
+			0 0 28px rgba(255, 230, 0, 0.58),
+			0 0 36px rgba(0, 245, 212, 0.22),
+			inset 0 0 24px rgba(255, 230, 0, 0.12);
+	}
+}
+
+@keyframes tesla-home-charge-scan {
+	0% {
+		background-position: 0 -100%;
+	}
+
+	100% {
+		background-position: 0 100%;
+	}
+}
+
+@keyframes tesla-home-charge-bolt {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	50% {
+		opacity: 0.82;
+		transform: scale(1.06);
+	}
+}
+
+.tesla-plan .ecoflow-plan-stat-input.is-home_ac span:first-child {
+	display: inline-flex;
+	align-items: center;
 }
 
 .tesla-plan .ecoflow-plan-stat-input.is-home_ac span:first-child::before {
 	content: '';
 	display: inline-block;
-	width: 1rem;
-	height: 1rem;
+	flex-shrink: 0;
+	width: 1.05rem;
+	height: 1.05rem;
 	margin-right: 6px;
 	vertical-align: -2px;
 	background-color: #ffe600;
-	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='black' d='M32 8 10 28v26a4 4 0 0 0 4 4h12V40h12v18h12a4 4 0 0 0 4-4V28Z'/%3E%3C/svg%3E") center / contain no-repeat;
-	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='black' d='M32 8 10 28v26a4 4 0 0 0 4 4h12V40h12v18h12a4 4 0 0 0 4-4V28Z'/%3E%3C/svg%3E") center / contain no-repeat;
+	filter: drop-shadow(0 0 4px rgba(255, 230, 0, 0.55));
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='black' d='M8 8v14h3V11h9V8H8zm45 0H46v9h-9v3h12V8zm0 48H46V44h-9v-3h12v12zM8 56V44h3v9h9v3H8zM32 11 17 24h30L32 11zM21 24h22v15H21V24zm10 6h2v9h-2V30zM35 27 25 39h7l-5 11 13-19h-7l2-4zM27 42h10v4H27v-4zm-2 46h4v5h-4v-5zm14 0h4v5h-4v-5z'/%3E%3C/svg%3E") center / contain no-repeat;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='black' d='M8 8v14h3V11h9V8H8zm45 0H46v9h-9v3h12V8zm0 48H46V44h-9v-3h12v12zM8 56V44h3v9h9v3H8zM32 11 17 24h30L32 11zM21 24h22v15H21V24zm10 6h2v9h-2V30zM35 27 25 39h7l-5 11 13-19h-7l2-4zM27 42h10v4H27v-4zm-2 46h4v5h-4v-5zm14 0h4v5h-4v-5z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.tesla-node-wall.is-away-ac .tesla-photo-wall {
+	border-color: rgba(0, 245, 212, 0.55);
+	box-shadow: 0 0 18px rgba(0, 245, 212, 0.24);
 }
 
 .tesla-photo-super {
