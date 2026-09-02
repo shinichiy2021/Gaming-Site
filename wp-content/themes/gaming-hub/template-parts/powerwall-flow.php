@@ -102,15 +102,17 @@ $model3_charging = ! empty( $model3['is_charging'] );
 		data-initial="<?php echo esc_attr( wp_json_encode( $flow ) ); ?>"
 	></div>
 
-	<?php
-	get_template_part(
-		'template-parts/tesla',
-		'model3-unit',
-		array(
-			'status' => $status,
-		)
-	);
-	?>
+	<?php if ( function_exists( 'gaming_hub_model3_unit_enabled' ) && gaming_hub_model3_unit_enabled() ) : ?>
+		<?php
+		get_template_part(
+			'template-parts/tesla',
+			'model3-unit',
+			array(
+				'status' => $status,
+			)
+		);
+		?>
+	<?php endif; ?>
 
 	<div class="pw-flow-stats-grid">
 		<div class="pw-flow-stat-card">
