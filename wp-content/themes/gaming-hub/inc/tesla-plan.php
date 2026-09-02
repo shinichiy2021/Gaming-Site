@@ -1736,7 +1736,11 @@ function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 			return __( '位置情報スコープがないため自宅判定できません。Tesla タグから再認証してください（vehicle_location が必要です）。', 'gaming-hub' );
 		}
 
-		return __( 'GPS を取得できず自宅扱いのままです。次のポーリングで外出先判定を再試行します。', 'gaming-hub' );
+		if ( true === ( $plan['at_home'] ?? null ) ) {
+			return __( 'GPS 未取得 — 直近の自宅判定を保持中です。走行または Supercharger で解除されます。', 'gaming-hub' );
+		}
+
+		return __( 'GPS を取得できず自宅判定できません。次のポーリングで再試行します。', 'gaming-hub' );
 	}
 
 	$error = (string) ( $auto['error'] ?? '' );
