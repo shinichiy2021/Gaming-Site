@@ -1,6 +1,6 @@
 <?php
 /**
- * Mobile EcoFlow / Tesla hub switcher.
+ * Mobile EcoFlow / Tesla hub switcher (React SPA shell mount).
  *
  * @package Gaming_Hub
  */
@@ -61,7 +61,7 @@ function gaming_hub_mobile_hub_switcher_items() {
 }
 
 /**
- * Render sticky mobile EcoFlow / Tesla segmented control.
+ * Render sticky mobile EcoFlow / Tesla control (React mount).
  */
 function gaming_hub_render_mobile_hub_switcher() {
 	if ( ! gaming_hub_should_show_mobile_hub_switcher() ) {
@@ -80,13 +80,18 @@ function gaming_hub_render_mobile_hub_switcher() {
 			break;
 		}
 	}
+
+	$spa = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_hub_spa_page();
 	?>
 	<nav
+		id="hub-spa-root"
 		class="hub-switcher"
 		aria-label="<?php esc_attr_e( 'ダッシュボード切替', 'gaming-hub' ); ?>"
 		data-hub-swipe="1"
+		data-hub-spa="<?php echo $spa ? '1' : '0'; ?>"
 		<?php echo $active !== '' ? ' data-active="' . esc_attr( $active ) . '"' : ''; ?>
 	>
+		<?php /* React HubApp hydrates tabs here. Fallback links for no-JS. */ ?>
 		<div class="hub-switcher-track" role="tablist">
 			<?php foreach ( $items as $item ) : ?>
 				<?php

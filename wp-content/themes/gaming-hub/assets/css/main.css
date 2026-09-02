@@ -138,6 +138,14 @@ a:hover {
 	display: none;
 }
 
+.hub-panel[hidden] {
+	display: none !important;
+}
+
+.hub-spa-panels {
+	min-width: 0;
+}
+
 .nav-menu {
 	display: flex;
 	list-style: none;

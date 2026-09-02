@@ -18,6 +18,10 @@ const entries = {
 		input: 'src/tesla/main.jsx',
 		out: 'tesla-flow.js',
 	},
+	hub: {
+		input: 'src/hub/main.jsx',
+		out: 'hub-spa.js',
+	},
 };
 
 const target = process.env.FLOW_TARGET || 'ecoflow';

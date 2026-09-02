@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.15.3' );
+define( 'GAMING_HUB_VERSION', '1.16.0' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
@@ -87,6 +87,7 @@ require get_template_directory() . '/inc/pokemon-go-raids.php';
 require get_template_directory() . '/inc/ecoflow.php';
 require get_template_directory() . '/inc/affiliate.php';
 require get_template_directory() . '/inc/hub-switcher.php';
+require get_template_directory() . '/inc/hub-spa.php';
 require get_template_directory() . '/inc/rank-math-setup.php';
 require get_template_directory() . '/inc/seed-posts.php';
 require get_template_directory() . '/inc/switchbot.php';
