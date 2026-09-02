@@ -130,6 +130,22 @@ function gaming_hub_tesla_charge_log_shape( array $row ) {
 	$supply_label = 'supercharger' === $supply
 		? __( '急速充電', 'gaming-hub' )
 		: __( '自宅充電', 'gaming-hub' );
+	$charge_input = (string) ( $row['charge_input'] ?? '' );
+	if ( '' === $charge_input && function_exists( 'gaming_hub_tesla_session_charge_input' ) ) {
+		$charge_input = gaming_hub_tesla_session_charge_input(
+			$supply,
+			is_array( $row['session_gps'] ?? null ) ? $row['session_gps'] : null
+		);
+	}
+	if ( 'dc' === $charge_input ) {
+		$supply_label = __( '急速充電', 'gaming-hub' );
+	} elseif ( 'away_ac' === $charge_input ) {
+		$supply_label = function_exists( 'gaming_hub_tesla_plan_charge_label' )
+			? gaming_hub_tesla_plan_charge_label()
+			: __( '200V 普通充電', 'gaming-hub' );
+	} elseif ( 'home_ac' === $charge_input ) {
+		$supply_label = __( '自宅充電', 'gaming-hub' );
+	}
 
 	return array(
 		'id'             => (string) ( $row['id'] ?? (string) $start_ts ),
@@ -150,6 +166,7 @@ function gaming_hub_tesla_charge_log_shape( array $row ) {
 		'duration_label' => $duration,
 		'supply'         => $supply,
 		'supply_label'   => $supply_label,
+		'charge_input'   => $charge_input,
 		'site_name'      => (string) ( $row['site_name'] ?? '' ),
 		'fleet_session_id' => (string) ( $row['fleet_session_id'] ?? '' ),
 		'peak_w'         => isset( $row['peak_w'] ) && is_numeric( $row['peak_w'] )
@@ -198,19 +215,24 @@ function gaming_hub_tesla_charge_log_archive_session( array $saved, array $meta 
 			: null );
 
 	$id_prefix = 'supercharger' === $supply ? 's' : 'c';
+	$session_gps = is_array( $saved['session_gps'] ?? null ) ? $saved['session_gps'] : null;
 	$session   = array(
-		'id'         => $id_prefix . $start_ts,
-		'start_ts'   => $start_ts,
-		'end_ts'     => $end_ts,
-		'start_date' => (string) ( $saved['session_date'] ?? wp_date( 'Y-m-d', $start_ts ) ),
-		'end_date'   => (string) ( $saved['session_end_date'] ?? wp_date( 'Y-m-d', $end_ts ) ),
-		'kwh'        => round( $kwh, 2 ),
-		'yen'        => 'supercharger' === $supply ? null : round( $yen, 2 ),
-		'start_soc'  => $start_soc,
-		'end_soc'    => $end_soc,
-		'limit_soc'  => $limit,
-		'supply'     => $supply,
-		'peak_w'     => isset( $saved['session_peak_w'] ) ? max( 0, (int) $saved['session_peak_w'] ) : null,
+		'id'           => $id_prefix . $start_ts,
+		'start_ts'     => $start_ts,
+		'end_ts'       => $end_ts,
+		'start_date'   => (string) ( $saved['session_date'] ?? wp_date( 'Y-m-d', $start_ts ) ),
+		'end_date'     => (string) ( $saved['session_end_date'] ?? wp_date( 'Y-m-d', $end_ts ) ),
+		'kwh'          => round( $kwh, 2 ),
+		'yen'          => 'supercharger' === $supply ? null : round( $yen, 2 ),
+		'start_soc'    => $start_soc,
+		'end_soc'      => $end_soc,
+		'limit_soc'    => $limit,
+		'supply'       => $supply,
+		'charge_input' => function_exists( 'gaming_hub_tesla_session_charge_input' )
+			? gaming_hub_tesla_session_charge_input( $supply, $session_gps )
+			: ( 'supercharger' === $supply ? 'dc' : 'home_ac' ),
+		'session_gps'  => $session_gps,
+		'peak_w'       => isset( $saved['session_peak_w'] ) ? max( 0, (int) $saved['session_peak_w'] ) : null,
 	);
 
 	$sessions = gaming_hub_tesla_charge_log_sessions();
@@ -271,19 +293,26 @@ function gaming_hub_tesla_charge_log_current() {
 		}
 
 		$row = array(
-			'id'         => $cand['id'],
-			'start_ts'   => $start_ts,
-			'end_ts'     => time(),
-			'start_date' => (string) ( $saved['session_date'] ?? wp_date( 'Y-m-d', $start_ts ) ),
-			'end_date'   => wp_date( 'Y-m-d' ),
-			'kwh'        => $kwh,
-			'yen'        => 'supercharger' === $cand['supply'] ? null : $yen,
-			'start_soc'  => $saved['session_start_soc'] ?? null,
-			'end_soc'    => $saved['session_end_soc'] ?? null,
-			'limit_soc'  => $saved['session_limit_soc'] ?? null,
-			'supply'     => $cand['supply'],
-			'peak_w'     => $saved['session_peak_w'] ?? null,
-			'active'     => true,
+			'id'           => $cand['id'],
+			'start_ts'     => $start_ts,
+			'end_ts'       => time(),
+			'start_date'   => (string) ( $saved['session_date'] ?? wp_date( 'Y-m-d', $start_ts ) ),
+			'end_date'     => wp_date( 'Y-m-d' ),
+			'kwh'          => $kwh,
+			'yen'          => 'supercharger' === $cand['supply'] ? null : $yen,
+			'start_soc'    => $saved['session_start_soc'] ?? null,
+			'end_soc'      => $saved['session_end_soc'] ?? null,
+			'limit_soc'    => $saved['session_limit_soc'] ?? null,
+			'supply'       => $cand['supply'],
+			'charge_input' => function_exists( 'gaming_hub_tesla_session_charge_input' )
+				? gaming_hub_tesla_session_charge_input(
+					$cand['supply'],
+					is_array( $saved['session_gps'] ?? null ) ? $saved['session_gps'] : null
+				)
+				: ( 'supercharger' === $cand['supply'] ? 'dc' : 'home_ac' ),
+			'session_gps'  => is_array( $saved['session_gps'] ?? null ) ? $saved['session_gps'] : null,
+			'peak_w'       => $saved['session_peak_w'] ?? null,
+			'active'       => true,
 		);
 
 		return gaming_hub_tesla_charge_log_shape( $row );
@@ -691,6 +720,7 @@ function gaming_hub_tesla_charge_log_sync_from_fleet( $force = false ) {
 			if ( '' !== $event['session_id'] ) {
 				$session['fleet_session_id'] = $event['session_id'];
 			}
+			$session['charge_input'] = 'dc';
 			$sessions[ $i ] = $session;
 			$changed        = true;
 			break;
@@ -732,6 +762,7 @@ function gaming_hub_tesla_charge_log_sync_from_fleet( $force = false ) {
 				'end_soc'          => null,
 				'limit_soc'        => null,
 				'supply'           => 'supercharger',
+				'charge_input'     => 'dc',
 				'site_name'        => $event['site_name'],
 				'fleet_session_id' => $event['session_id'],
 				'peak_w'           => null,

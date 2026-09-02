@@ -187,11 +187,21 @@ function gaming_hub_tesla_charge_input_log_from_sessions( $date ) {
 		}
 
 		$supply = (string) ( $row['supply'] ?? 'home' );
-		if ( 'supercharger' === $supply ) {
-			$type = 'dc';
-		} elseif ( 'home' === $supply ) {
-			$type = 'home_ac';
-		} else {
+		$type   = (string) ( $row['charge_input'] ?? '' );
+		if ( '' === $type ) {
+			if ( 'supercharger' === $supply ) {
+				$type = 'dc';
+			} elseif ( 'home' === $supply ) {
+				$gps  = is_array( $row['session_gps'] ?? null ) ? $row['session_gps'] : null;
+				$type = function_exists( 'gaming_hub_tesla_session_charge_input' )
+					? gaming_hub_tesla_session_charge_input( $supply, $gps )
+					: 'home_ac';
+			} else {
+				continue;
+			}
+		}
+
+		if ( ! in_array( $type, gaming_hub_tesla_charge_input_types(), true ) ) {
 			continue;
 		}
 
@@ -227,9 +237,7 @@ function gaming_hub_tesla_charge_input_log_for_date( $date ) {
 	}
 
 	foreach ( gaming_hub_tesla_charge_input_log_from_sessions( $date ) as $hour => $type ) {
-		if ( ! isset( $out[ $hour ] ) ) {
-			$out[ $hour ] = $type;
-		}
+		$out[ (int) $hour ] = $type;
 	}
 
 	ksort( $out );
@@ -289,12 +297,22 @@ function gaming_hub_tesla_plan_charge_bar_tone( array $slot, $is_charge, $is_pas
 		return 'plan';
 	}
 
+	$planned = ! empty( $slot['planned_charge'] );
+
 	if ( $is_live_now && in_array( $live_input, gaming_hub_tesla_charge_input_types(), true ) ) {
+		if ( $planned && 'home_ac' === $live_input ) {
+			return 'plan';
+		}
+
 		return $live_input;
 	}
 
 	$history = gaming_hub_tesla_plan_slot_charge_history( $slot, $is_past );
 	if ( '' !== $history ) {
+		if ( $planned && 'home_ac' === $history ) {
+			return 'plan';
+		}
+
 		return $history;
 	}
 
@@ -453,7 +471,9 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 	$flow     = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
 	$model3   = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
 	$kind     = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
-	$at_home  = array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null;
+	$at_home  = function_exists( 'gaming_hub_tesla_model3_input_at_home' )
+		? gaming_hub_tesla_model3_input_at_home( $model3 )
+		: ( array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null );
 	$plugged  = ! empty( $model3['plugged'] ) || in_array( $kind, array( 'home', 'supercharger' ), true );
 	$charging = ! empty( $flow['is_charging'] ) || ! empty( $model3['is_charging'] );
 	$wall_w   = (int) ( $flow['wall_w'] ?? 0 );
@@ -484,7 +504,7 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 		if ( true === $at_home ) {
 			return array(
 				'type'     => 'home_ac',
-				'label'    => __( '自宅 AC', 'gaming-hub' ),
+				'label'    => gaming_hub_tesla_plan_charge_label(),
 				'watts'    => $charging ? max( $wall_w, $watts ) : 0,
 				'plugged'  => true,
 				'charging' => $charging,
@@ -493,7 +513,7 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 
 		return array(
 			'type'     => 'home_ac',
-			'label'    => __( '拠点補給', 'gaming-hub' ),
+			'label'    => gaming_hub_tesla_plan_charge_label(),
 			'watts'    => $charging ? max( $wall_w, $watts ) : 0,
 			'plugged'  => $plugged || 'home' === $kind,
 			'charging' => $charging,
@@ -1243,12 +1263,13 @@ function gaming_hub_tesla_plan_slots( $date, $day, array $drive_km, array $picke
 	$slots = array();
 	$input_log = gaming_hub_tesla_charge_input_log_for_date( $date );
 	for ( $h = 0; $h < 24; $h++ ) {
-		$key      = $date . '-' . $h;
-		$is_chg   = isset( $charge[ $key ] );
-		$is_past  = ( $is_today && $h < $now ) || ( 'yesterday' === $day );
-		$logged   = $input_log[ $h ] ?? null;
-		$km       = (float) ( $drive_km[ $h ] ?? 0 );
-		$mode     = 'idle';
+		$key           = $date . '-' . $h;
+		$is_plan_chg   = isset( $charge[ $key ] );
+		$is_chg        = $is_plan_chg;
+		$is_past       = ( $is_today && $h < $now ) || ( 'yesterday' === $day );
+		$logged        = $input_log[ $h ] ?? null;
+		$km            = (float) ( $drive_km[ $h ] ?? 0 );
+		$mode          = 'idle';
 		if ( $is_past ) {
 			$mode = $is_chg ? 'charge' : ( $km >= 0.2 ? 'drive' : 'past' );
 		} elseif ( $is_chg ) {
@@ -1263,16 +1284,17 @@ function gaming_hub_tesla_plan_slots( $date, $day, array $drive_km, array $picke
 		}
 
 		$slots[] = array(
-			'id'           => $date . 'T' . sprintf( '%02d', $h ),
-			'date'         => $date,
-			'hour'         => $h,
-			'label'        => gaming_hub_tesla_plan_hour_range_label( $h, $h ),
-			'mode'         => $mode,
-			'watts'        => $is_chg && ! $is_past ? GAMING_HUB_TESLA_PLAN_CHARGE_W : ( $is_chg ? GAMING_HUB_TESLA_PLAN_CHARGE_W : null ),
-			'drive_km'     => $km > 0 ? $km : null,
-			'yen'          => isset( $yen_map[ $h ] ) ? (float) $yen_map[ $h ] : null,
-			'past'         => $is_past,
-			'charge_input' => is_string( $logged ) ? $logged : null,
+			'id'             => $date . 'T' . sprintf( '%02d', $h ),
+			'date'           => $date,
+			'hour'           => $h,
+			'label'          => gaming_hub_tesla_plan_hour_range_label( $h, $h ),
+			'mode'           => $mode,
+			'watts'          => $is_chg && ! $is_past ? GAMING_HUB_TESLA_PLAN_CHARGE_W : ( $is_chg ? GAMING_HUB_TESLA_PLAN_CHARGE_W : null ),
+			'drive_km'       => $km > 0 ? $km : null,
+			'yen'            => isset( $yen_map[ $h ] ) ? (float) $yen_map[ $h ] : null,
+			'past'           => $is_past,
+			'planned_charge' => $is_plan_chg,
+			'charge_input'   => is_string( $logged ) ? $logged : null,
 		);
 	}
 
@@ -1607,10 +1629,6 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$plan['asleep']        = $asleep;
 	$plan['geofence_known'] = ! empty( $model3['geofence_known'] );
 	$plan['at_home']       = array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null;
-	$plan['geofence_distance_m'] = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
-		? (int) $model3['geofence_distance_m']
-		: null;
-	$plan['location_debug']      = (string) ( $model3['location_debug'] ?? '' );
 	$input                       = gaming_hub_tesla_plan_input_state( $status );
 	$plan['input_type']          = (string) $input['type'];
 	$plan['input_label']         = (string) $input['label'];
@@ -2249,9 +2267,8 @@ function gaming_hub_tesla_plan_scripts() {
 		'gaming-hub-tesla-plan',
 		'gamingHubTeslaPlan',
 		array(
-			'url'          => (string) wp_parse_url( rest_url( 'gaming-hub/v1/tesla/plan' ), PHP_URL_PATH ),
-			'calibrateUrl' => (string) wp_parse_url( rest_url( 'gaming-hub/v1/tesla/calibrate-home-gps' ), PHP_URL_PATH ),
-			'restNonce'    => wp_create_nonce( 'wp_rest' ),
+			'url'       => (string) wp_parse_url( rest_url( 'gaming-hub/v1/tesla/plan' ), PHP_URL_PATH ),
+			'restNonce' => wp_create_nonce( 'wp_rest' ),
 		)
 	);
 }
