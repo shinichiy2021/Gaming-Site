@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { batteryTone, formatPack, formatWatts, isFlowActive, isRegenActive } from './constants';
+import { batteryTone, formatPack, formatWatts, isFlowActive, isRegenActive, isSuperchargerConnected, FLOW_THRESHOLD } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
 
 function PackEta( { status } ) {
@@ -258,13 +258,19 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const hasSoc = status.live && Number.isFinite( soc );
 	const tone = batteryTone( hasSoc ? soc : NaN );
 	const charging = ! asleep && !! status.live && !! status.is_charging;
+	const superConnected = ! asleep && isSuperchargerConnected( status );
 	const wallCharging = charging && status.supply_kind !== 'supercharger';
 	const superCharging = charging && status.supply_kind === 'supercharger';
 	const regenOn = ! asleep && isRegenActive( status );
 	const driveOn = ! asleep && isFlowActive( 'drive', status );
 	const cabinOn = ! asleep && isFlowActive( 'cabin', status );
 	const wallOn = ! asleep && ( wallCharging || isFlowActive( 'wall', status ) );
-	const superOn = ! asleep && ( superCharging || isFlowActive( 'super', status ) );
+	const superOn = superConnected || superCharging || ( ! asleep && isFlowActive( 'super', status ) );
+	const superDisplay = superConnected
+		? ( superCharging || Number( status.super_w ) >= FLOW_THRESHOLD
+			? formatInputWatts( status.super_w, idle, true )
+			: ( labels.connected || '接続中' ) )
+		: null;
 	const teslaActive = ! asleep && ( charging || driveOn || cabinOn );
 	const fullWh = Number( status.capacity_wh );
 	const remainWh = Number.isFinite( Number( status.remain_capacity ) )
@@ -320,7 +326,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							photoClass="tesla-photo-super"
 							active={ superOn }
 							standbyLabel={ idle }
-							display={ superOn && ! isFlowActive( 'super', status ) ? labels.charging : null }
+							display={ superDisplay }
 						/>
 					</div>
 
