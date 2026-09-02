@@ -7164,13 +7164,11 @@ body.home .site-header.is-scrolled {
 		overflow: hidden;
 		max-height: 72px;
 		opacity: 1;
-		transform: translateY(0);
 		transition:
 			max-height 0.28s ease,
-			opacity 0.22s ease,
+			opacity 0.2s ease,
 			padding 0.28s ease,
-			border-color 0.28s ease,
-			transform 0.28s ease;
+			border-color 0.28s ease;
 	}
 
 	.hub-switcher.is-scroll-hidden {
@@ -7179,7 +7177,6 @@ body.home .site-header.is-scrolled {
 		padding-top: 0;
 		padding-bottom: 0;
 		border-top-color: transparent;
-		transform: translateY(-6px);
 		pointer-events: none;
 	}
 
@@ -7197,7 +7194,6 @@ body.home .site-header.is-scrolled {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 8px;
 		min-height: 42px;
 		padding: 0 12px;
 		border-radius: 999px;
@@ -7211,35 +7207,16 @@ body.home .site-header.is-scrolled {
 		-webkit-tap-highlight-color: transparent;
 	}
 
-	.hub-switcher-dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: currentColor;
-		opacity: 0.45;
-		flex-shrink: 0;
-	}
-
 	.hub-switcher-tab--ecoflow.is-active {
 		color: #04140a;
 		background: linear-gradient(135deg, #00c853 0%, #00a844 100%);
 		box-shadow: 0 4px 14px rgba(0, 200, 83, 0.35);
 	}
 
-	.hub-switcher-tab--ecoflow.is-active .hub-switcher-dot {
-		background: #04140a;
-		opacity: 0.85;
-	}
-
 	.hub-switcher-tab--tesla.is-active {
 		color: #fff;
 		background: linear-gradient(135deg, #1a1a1a 0%, #e31937 120%);
 		box-shadow: 0 4px 14px rgba(227, 25, 55, 0.35);
-	}
-
-	.hub-switcher-tab--tesla.is-active .hub-switcher-dot {
-		background: #fff;
-		opacity: 0.95;
 	}
 
 	.hub-switcher-tab:not(.is-active):active {

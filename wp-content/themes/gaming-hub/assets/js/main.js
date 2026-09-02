@@ -93,25 +93,66 @@
 	const hubSwitcher = document.querySelector('.hub-switcher');
 	if (hubSwitcher) {
 		const mobileMq = window.matchMedia('(max-width: 768px)');
+		const HIDE_AFTER_Y = 72;
+		const DELTA_HIDE = 14;
+		const DELTA_SHOW = 14;
+		const MIN_SCROLLABLE = 160;
+		const LOCK_MS = 340;
 		let lastY = window.pageYOffset || 0;
 		let ticking = false;
+		let lockedUntil = 0;
+
+		function scrollableRoom() {
+			return Math.max(
+				0,
+				(document.documentElement.scrollHeight || 0) - (window.innerHeight || 0)
+			);
+		}
+
+		function setHubSwitcherHidden(hidden) {
+			const wasHidden = hubSwitcher.classList.contains('is-scroll-hidden');
+			hubSwitcher.classList.toggle('is-scroll-hidden', hidden);
+			if (wasHidden === hidden) {
+				return;
+			}
+			lockedUntil = performance.now() + LOCK_MS;
+			window.requestAnimationFrame(function () {
+				lastY = window.pageYOffset || 0;
+			});
+		}
 
 		function updateHubSwitcherVisibility() {
 			const y = window.pageYOffset || 0;
+			const now = performance.now();
+
 			if (!mobileMq.matches) {
-				hubSwitcher.classList.remove('is-scroll-hidden');
+				setHubSwitcherHidden(false);
+				lastY = y;
+				ticking = false;
+				return;
+			}
+
+			// Short pages: collapsing the bar shifts scrollY and flickers.
+			if (scrollableRoom() < MIN_SCROLLABLE) {
+				setHubSwitcherHidden(false);
+				lastY = y;
+				ticking = false;
+				return;
+			}
+
+			if (now < lockedUntil) {
 				lastY = y;
 				ticking = false;
 				return;
 			}
 
 			const delta = y - lastY;
-			if (y <= 24) {
-				hubSwitcher.classList.remove('is-scroll-hidden');
-			} else if (delta > 8) {
-				hubSwitcher.classList.add('is-scroll-hidden');
-			} else if (delta < -8) {
-				hubSwitcher.classList.remove('is-scroll-hidden');
+			if (y <= HIDE_AFTER_Y) {
+				setHubSwitcherHidden(false);
+			} else if (delta > DELTA_HIDE) {
+				setHubSwitcherHidden(true);
+			} else if (delta < -DELTA_SHOW) {
+				setHubSwitcherHidden(false);
 			}
 
 			lastY = y;
@@ -129,6 +170,11 @@
 			},
 			{ passive: true }
 		);
+
+		window.addEventListener('resize', function () {
+			lockedUntil = 0;
+			updateHubSwitcherVisibility();
+		}, { passive: true });
 
 		if (typeof mobileMq.addEventListener === 'function') {
 			mobileMq.addEventListener('change', updateHubSwitcherVisibility);
