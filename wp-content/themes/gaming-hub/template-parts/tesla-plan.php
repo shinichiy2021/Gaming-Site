@@ -133,6 +133,13 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 			<p class="tesla-plan-location-debug" data-tesla-plan-location <?php echo empty( $plan['location_debug'] ) ? 'hidden' : ''; ?>>
 				<?php echo esc_html( (string) ( $plan['location_debug'] ?? '' ) ); ?>
 			</p>
+			<?php if ( current_user_can( 'manage_options' ) && function_exists( 'gaming_hub_tesla_has_location_scope' ) && gaming_hub_tesla_has_location_scope() ) : ?>
+				<p class="tesla-plan-location-calibrate">
+					<button type="button" class="tesla-plan-calibrate-gps" data-tesla-calibrate-home-gps>
+						<?php esc_html_e( '今の Tesla GPS を自宅に合わせる', 'gaming-hub' ); ?>
+					</button>
+				</p>
+			<?php endif; ?>
 			<?php if ( ! empty( $plan['needs_charge_auth'] ) ) : ?>
 				<p class="tesla-plan-auto-auth">
 					<?php esc_html_e( '充電操作には再認証が必要です。', 'gaming-hub' ); ?>

@@ -2249,7 +2249,9 @@ function gaming_hub_tesla_plan_scripts() {
 		'gaming-hub-tesla-plan',
 		'gamingHubTeslaPlan',
 		array(
-			'url' => (string) wp_parse_url( rest_url( 'gaming-hub/v1/tesla/plan' ), PHP_URL_PATH ),
+			'url'          => (string) wp_parse_url( rest_url( 'gaming-hub/v1/tesla/plan' ), PHP_URL_PATH ),
+			'calibrateUrl' => (string) wp_parse_url( rest_url( 'gaming-hub/v1/tesla/calibrate-home-gps' ), PHP_URL_PATH ),
+			'restNonce'    => wp_create_nonce( 'wp_rest' ),
 		)
 	);
 }

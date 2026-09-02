@@ -5480,6 +5480,29 @@ body.home .site-header.is-scrolled {
 	border-radius: var(--radius-md, 10px);
 }
 
+.tesla-plan-location-calibrate {
+	margin: 6px 0 0;
+}
+
+.tesla-plan-calibrate-gps {
+	font-size: 0.78rem;
+	padding: 6px 10px;
+	border-radius: var(--radius-md, 10px);
+	border: 1px solid rgba(255, 255, 255, 0.18);
+	background: rgba(255, 255, 255, 0.06);
+	color: #d8deea;
+	cursor: pointer;
+}
+
+.tesla-plan-calibrate-gps:hover:not(:disabled) {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.tesla-plan-calibrate-gps:disabled {
+	opacity: 0.55;
+	cursor: wait;
+}
+
 .tesla-plan-sleep-note {
 	margin: 8px 0 0;
 	padding: 10px 14px;
