@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.16.0' );
+define( 'GAMING_HUB_VERSION', '1.16.1' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
@@ -830,7 +830,7 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 	$wp_customize->add_setting(
 		'tesla_home_radius_m',
 		array(
-			'default'           => 200,
+			'default'           => 400,
 			'sanitize_callback' => static function ( $value ) {
 				return max( 50, (int) $value );
 			},
@@ -839,9 +839,10 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 	$wp_customize->add_control(
 		'tesla_home_radius_m',
 		array(
-			'label'   => __( '自宅 半径（m）', 'gaming-hub' ),
-			'section' => 'gaming_hub_tesla_api',
-			'type'    => 'number',
+			'label'       => __( '自宅 半径（m）', 'gaming-hub' ),
+			'description' => __( 'GPS 誤差を考慮し 300〜500m 推奨。デフォルト 400m。', 'gaming-hub' ),
+			'section'     => 'gaming_hub_tesla_api',
+			'type'        => 'number',
 			'input_attrs' => array(
 				'min'  => 50,
 				'max'  => 1000,

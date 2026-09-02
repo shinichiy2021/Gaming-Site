@@ -1388,6 +1388,23 @@ function gaming_hub_tesla_model3_hud_state( $state, $charging ) {
 }
 
 /**
+ * One-time: widen legacy 200 m home geofence to 400 m.
+ */
+function gaming_hub_bump_tesla_home_radius_v1() {
+	if ( get_option( 'gaming_hub_tesla_home_radius_bump_v1' ) ) {
+		return;
+	}
+
+	$current = (int) get_theme_mod( 'tesla_home_radius_m', 0 );
+	if ( $current <= 0 || 200 === $current ) {
+		set_theme_mod( 'tesla_home_radius_m', 400 );
+	}
+
+	update_option( 'gaming_hub_tesla_home_radius_bump_v1', 1 );
+}
+add_action( 'init', 'gaming_hub_bump_tesla_home_radius_v1', 20 );
+
+/**
  * Home geofence for AI PLAN (default: 多治見市脇之島町6-47-4).
  *
  * @return array{lat: float, lon: float, radius_m: float, name: string}
@@ -1396,7 +1413,7 @@ function gaming_hub_tesla_home_geofence() {
 	return array(
 		'lat'      => (float) get_theme_mod( 'tesla_home_lat', 35.3409 ),
 		'lon'      => (float) get_theme_mod( 'tesla_home_lon', 137.1264 ),
-		'radius_m' => max( 50, (float) get_theme_mod( 'tesla_home_radius_m', 200 ) ),
+		'radius_m' => max( 50, (float) get_theme_mod( 'tesla_home_radius_m', 400 ) ),
 		'name'     => (string) get_theme_mod( 'tesla_home_name', '多治見市脇之島町6-47-4' ),
 	);
 }
