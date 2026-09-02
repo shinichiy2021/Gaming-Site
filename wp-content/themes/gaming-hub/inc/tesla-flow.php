@@ -190,6 +190,12 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'wall_session_yen'=> 0,
 			'wall_span_days'  => false,
 			'wall_span_label' => '',
+			'super_today_kwh' => 0,
+			'super_today_yen' => 0,
+			'super_today_yen_known' => false,
+			'super_session_kwh' => 0,
+			'super_span_days' => false,
+			'super_span_label' => '',
 			'elec_yen_per_kwh'=> 0,
 			'capacity_wh'     => null,
 			'remain_capacity' => null,
@@ -311,15 +317,25 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		: gaming_hub_tesla_wall_energy_empty();
 	$super_on = $charging && 'supercharger' === $kind && ! $asleep;
 	$super_w_num = max( 0, (int) ( $super_w ?? 0 ) );
-	if ( function_exists( 'gaming_hub_tesla_record_super_energy' ) ) {
-		gaming_hub_tesla_record_super_energy( $super_w_num, $super_on, $energy_added, $wall_meta );
-	}
+	$super_energy = function_exists( 'gaming_hub_tesla_record_super_energy' )
+		? gaming_hub_tesla_record_super_energy( $super_w_num, $super_on, $energy_added, $wall_meta )
+		: gaming_hub_tesla_super_energy_empty();
+	$super_yen_today = function_exists( 'gaming_hub_tesla_charge_log_supply_yen_on_date' )
+		? gaming_hub_tesla_charge_log_supply_yen_on_date( 'supercharger' )
+		: array(
+			'yen'       => 0,
+			'yen_known' => false,
+		);
 	$wall_yen_h = $wall_home
 		? (int) round( ( $wall_w_num / 1000.0 ) * $yen_kwh )
 		: 0;
 	$span_days  = ! empty( $wall_energy['session_spans_days'] );
 	$span_label = $span_days
 		? gaming_hub_tesla_date_span_label( $wall_energy['session_start_date'], $wall_energy['session_end_date'] )
+		: '';
+	$super_span_days = ! empty( $super_energy['session_spans_days'] );
+	$super_span_label = $super_span_days
+		? gaming_hub_tesla_date_span_label( $super_energy['session_start_date'], $super_energy['session_end_date'] )
 		: '';
 
 	$pack = gaming_hub_tesla_flow_pack_fields(
@@ -390,6 +406,12 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'wall_session_yen'=> $wall_energy['session_yen'],
 		'wall_span_days'  => $span_days,
 		'wall_span_label' => $span_label,
+		'super_today_kwh' => $super_energy['today_kwh'],
+		'super_today_yen' => (int) ( $super_yen_today['yen'] ?? 0 ),
+		'super_today_yen_known' => ! empty( $super_yen_today['yen_known'] ),
+		'super_session_kwh' => $super_energy['session_kwh'],
+		'super_span_days' => $super_span_days,
+		'super_span_label' => $super_span_label,
 		'elec_yen_per_kwh'=> round( $yen_kwh, 1 ),
 		'capacity_wh'     => $capacity_wh,
 		'remain_capacity' => $remain_wh,
@@ -474,6 +496,7 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'yenPerHour'    => __( '円/時', 'gaming-hub' ),
 			'session'       => __( '今回', 'gaming-hub' ),
 			'total'         => __( '合計', 'gaming-hub' ),
+			'billPending'   => __( '請求確定後', 'gaming-hub' ),
 		),
 		'images' => array(
 			'wall'  => $base . 'tesla-wall-connector-gaming.jpg' . $ver,

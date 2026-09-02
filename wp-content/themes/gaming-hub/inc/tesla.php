@@ -2293,10 +2293,49 @@ function gaming_hub_tesla_record_super_energy( $watts, $accumulate, $energy_adde
 
 	update_option( GAMING_HUB_TESLA_SUPER_ENERGY_OPTION, $saved, false );
 
+	return array_merge(
+		gaming_hub_tesla_super_energy_shape( $saved, $today, $accumulate ),
+		array(
+			'active' => (bool) $accumulate,
+		)
+	);
+}
+
+/**
+ * Empty Supercharger energy totals.
+ *
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_super_energy_empty() {
 	return array(
-		'session_kwh' => round( max( 0, (float) ( $saved['session_wh'] ?? 0 ) ) / 1000.0, 2 ),
-		'today_kwh'   => round( max( 0, (float) ( $saved['wh'] ?? 0 ) ) / 1000.0, 2 ),
-		'active'      => (bool) $accumulate,
+		'today_kwh'          => 0.0,
+		'session_kwh'        => 0.0,
+		'session_start_date' => '',
+		'session_end_date'   => '',
+		'session_spans_days' => false,
+	);
+}
+
+/**
+ * Shape stored Supercharger counters for the flow payload.
+ *
+ * @param array<string, mixed> $saved    Stored counters.
+ * @param string               $today    Y-m-d.
+ * @param bool                 $charging Whether Supercharging is running now.
+ * @return array<string, mixed>
+ */
+function gaming_hub_tesla_super_energy_shape( array $saved, $today, $charging ) {
+	$start_date = (string) ( $saved['session_date'] ?? '' );
+	$end_date   = (string) ( $saved['session_end_date'] ?? '' );
+	$spans      = '' !== $start_date && '' !== $end_date && $start_date !== $end_date;
+	$relevant   = $charging || $end_date === $today;
+
+	return array(
+		'today_kwh'          => round( max( 0, (float) ( $saved['wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'session_kwh'        => round( max( 0, (float) ( $saved['session_wh'] ?? 0 ) ) / 1000.0, 2 ),
+		'session_start_date' => $start_date,
+		'session_end_date'   => $end_date,
+		'session_spans_days' => $spans && $relevant,
 	);
 }
 
@@ -2497,23 +2536,40 @@ function gaming_hub_tesla_drive_watts_from_speed( $speed_km ) {
 /**
  * Live AC/DC charge watts from Tesla charge_state.
  *
- * charger_power is kW when small, W when already > 50.
+ * Fleet API: charger_power is kW (integer, rounded). Legacy owner API sometimes returns watts (e.g. 11500).
+ * charger_voltage / charger_actual_current are AC RMS and are unreliable during DC fast charge.
  *
  * @param array<string, mixed> $charge_state Tesla charge_state.
  */
 function gaming_hub_tesla_charge_watts( array $charge_state ) {
 	$power_raw = (float) ( $charge_state['charger_power'] ?? 0 );
-	$from_kw   = $power_raw > 50
-		? (int) round( $power_raw )
-		: (int) round( $power_raw * 1000 );
+	$fast      = ! empty( $charge_state['fast_charger_present'] )
+		|| false !== stripos( (string) ( $charge_state['fast_charger_type'] ?? '' ), 'Supercharger' );
 
-	$voltage = (float) ( $charge_state['charger_voltage'] ?? 0 );
-	$amps    = (float) ( $charge_state['charger_actual_current'] ?? 0 );
-	$from_va = ( $voltage >= 80 && $amps >= 1 )
-		? (int) round( $voltage * $amps )
-		: 0;
+	$from_charger = 0;
+	if ( $power_raw > 0 ) {
+		// Values above any realistic kW rating are already watts (legacy owner API).
+		if ( $power_raw > 500 ) {
+			$from_charger = (int) round( $power_raw );
+		} else {
+			$from_charger = (int) round( $power_raw * 1000 );
+		}
+	}
 
-	return max( 0, $from_kw, $from_va );
+	$from_va = 0;
+	if ( ! $fast ) {
+		$voltage = (float) ( $charge_state['charger_voltage'] ?? 0 );
+		$amps    = (float) ( $charge_state['charger_actual_current'] ?? 0 );
+		if ( $voltage >= 80 && $amps >= 1 ) {
+			$from_va = (int) round( $voltage * $amps );
+		}
+	}
+
+	if ( $fast && $from_charger >= 80 ) {
+		return $from_charger;
+	}
+
+	return max( 0, $from_charger, $from_va );
 }
 
 /**

@@ -289,6 +289,42 @@ function gaming_hub_tesla_charge_log_current() {
 }
 
 /**
+ * Sum known billing yen for a supply type on one calendar day (archived sessions).
+ *
+ * @param string $supply home|supercharger.
+ * @param string $date   Y-m-d (empty = today).
+ * @return array{yen: int, yen_known: bool}
+ */
+function gaming_hub_tesla_charge_log_supply_yen_on_date( $supply, $date = '' ) {
+	$supply = 'supercharger' === $supply ? 'supercharger' : 'home';
+	$date   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $date ) ? (string) $date : wp_date( 'Y-m-d' );
+	$yen    = 0;
+	$known  = false;
+
+	foreach ( gaming_hub_tesla_charge_log_sessions() as $row ) {
+		if ( (string) ( $row['supply'] ?? 'home' ) !== $supply ) {
+			continue;
+		}
+		if ( (string) ( $row['end_date'] ?? '' ) !== $date ) {
+			continue;
+		}
+
+		$shaped = gaming_hub_tesla_charge_log_shape( $row );
+		if ( empty( $shaped['yen_known'] ) ) {
+			continue;
+		}
+
+		$known = true;
+		$yen  += (int) ( $shaped['yen'] ?? 0 );
+	}
+
+	return array(
+		'yen'       => $yen,
+		'yen_known' => $known,
+	);
+}
+
+/**
  * Sum Supercharger fees into yen (JPY only).
  *
  * @param mixed $fees fees[] from charging history.
