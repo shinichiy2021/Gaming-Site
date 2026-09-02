@@ -2871,6 +2871,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'charge_energy_added'       => $energy_added,
 			'supply_kind'               => $supply['kind'],
 			'supply_label'              => $supply['label'],
+			'fast_charger_present'      => ! empty( $charge_state['fast_charger_present'] ),
 			'plugged'                   => $supply['plugged'],
 			'at_home'                   => $at_home,
 			'geofence_known'            => ! empty( $geofence['known'] ),
