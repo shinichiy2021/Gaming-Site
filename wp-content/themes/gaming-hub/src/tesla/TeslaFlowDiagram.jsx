@@ -304,7 +304,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const driveOn = ! asleep && isFlowActive( 'drive', status );
 	const cabinOn = ! asleep && isFlowActive( 'cabin', status );
 	const wallOn = ! asleep && ( wallCharging || isFlowActive( 'wall', status ) );
-	const superOn = superConnected || superCharging || ( ! asleep && isFlowActive( 'super', status ) );
+	const superOn = superConnected || superCharging;
 	const superDisplay = superConnected
 		? ( superCharging || Number( status.super_w ) >= FLOW_THRESHOLD
 			? formatInputWatts( status.super_w, idle, true )
