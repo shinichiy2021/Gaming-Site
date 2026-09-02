@@ -90,6 +90,50 @@
 		}
 	}
 
+	function chargeBarTone(slot, opts) {
+		if (!opts.isCharge) {
+			return 'plan';
+		}
+		if (opts.isLiveNow && opts.liveInput && opts.liveInput !== 'none') {
+			return opts.liveInput;
+		}
+		if (opts.isPast) {
+			const logged = slot && slot.charge_input ? String(slot.charge_input) : '';
+			if (logged === 'home_ac' || logged === 'away_ac' || logged === 'dc') {
+				return logged;
+			}
+			return 'home_ac';
+		}
+		return 'plan';
+	}
+
+	function chargeInputLabel(tone) {
+		if (tone === 'away_ac') {
+			return t('外出先 AC');
+		}
+		if (tone === 'dc') {
+			return t('DC 入力');
+		}
+		if (tone === 'home_ac') {
+			return t('自宅 AC');
+		}
+		return '';
+	}
+
+	function chargeBarClass(tone, isCharge, asleepNow) {
+		let cls = 'ecoflow-plan-charge-bar';
+		if (!isCharge) {
+			return cls;
+		}
+		if (asleepNow) {
+			return cls + ' is-deferred';
+		}
+		if (tone && tone !== 'plan') {
+			cls += ' is-input-' + tone;
+		}
+		return cls;
+	}
+
 	function inputSubLabel(input) {
 		if (!input) {
 			return '—';
@@ -333,7 +377,7 @@
 		if (legend) {
 			legend.textContent = asleepNow
 				? t('灰棒: スリープ中の固定残量 · 薄い金帯: 計画充電（未実行）· 朱橙線: 走行見込み · 青緑線: 請求単価')
-				: t('黄棒: Model 3 残量 · 金の帯: 自宅充電（計画）· 朱橙線: 走行見込み · 青緑線: 請求単価');
+				: t('黄棒: 残量 · 金帯: 充電予定 · 色帯: 実績（自宅/外出先/DC）· 朱橙線: 走行 · 青緑線: 単価');
 		}
 		if (track) {
 			for (let h = 0; h < 24; h += 1) {
@@ -373,10 +417,20 @@
 					pip.textContent = asleepNow ? t('SLEEP') : t('NOW');
 				}
 				const chargeBar = col.querySelector('[data-tesla-plan-charge-bar]');
+				const liveInput = (views.today && views.today.input_type) ? views.today.input_type : (plan.input_type || '');
+				const isPastHour = (plan.plan_day === 'yesterday') || (isLiveDay && h < hour);
+				const isLiveNowCharge = isNow && !asleepNow && (liveCharge.charging || !!plan.live_charging);
+				const chargeTone = chargeBarTone(slot, {
+					isCharge: isCharge,
+					isPast: isPastHour,
+					isLiveNow: isLiveNowCharge,
+					liveInput: liveInput,
+				});
 				if (chargeBar) {
 					chargeBar.style.height = chargeH.toFixed(1) + '%';
 					chargeBar.hidden = !isCharge;
-					chargeBar.classList.toggle('is-deferred', isCharge && asleepNow);
+					chargeBar.className = chargeBarClass(chargeTone, isCharge, asleepNow);
+					chargeBar.setAttribute('data-charge-tone', chargeTone);
 				}
 				const bar = col.querySelector('[data-tesla-plan-bar]');
 				if (bar) {
@@ -392,6 +446,16 @@
 				}
 				if (isCharge) {
 					tip.push(Math.round(watts).toLocaleString() + ' W');
+					if (chargeTone !== 'plan') {
+						const inputLabel = chargeInputLabel(chargeTone);
+						if (inputLabel) {
+							tip.push(inputLabel);
+						}
+					} else if (isPastHour) {
+						tip.push(t('自宅 AC'));
+					} else {
+						tip.push(t('充電予定'));
+					}
 					if (asleepNow) {
 						tip.push(t('計画のみ（未実行）'));
 					}
@@ -481,6 +545,17 @@
 			views.today.input_watts = flowInput.watts;
 			views.today.input_plugged = flowInput.plugged;
 			views.today.input_charging = flowInput.charging;
+			if (Array.isArray(views.today.slots) && flowInput.charging && flowInput.type && flowInput.type !== 'none') {
+				const hourNow = new Date().getHours();
+				const planDate = views.today.plan_date || '';
+				views.today.slots.forEach(function (slot) {
+					if (!slot || slot.date !== planDate || Number(slot.hour) !== hourNow) {
+						return;
+					}
+					slot.charge_input = flowInput.type;
+					slot.mode = 'charge';
+				});
+			}
 		}
 		if (views.today) {
 			views.today.asleep = !!event.detail.asleep;

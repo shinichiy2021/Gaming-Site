@@ -345,6 +345,13 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'charging' => false,
 		);
 
+	if ( $charging && ! $asleep && function_exists( 'gaming_hub_tesla_charge_input_log_record' ) ) {
+		$input_type = (string) ( $input['type'] ?? '' );
+		if ( in_array( $input_type, gaming_hub_tesla_charge_input_types(), true ) ) {
+			gaming_hub_tesla_charge_input_log_record( $input_type );
+		}
+	}
+
 	return array(
 		'wall_w'          => $wall_w,
 		'super_w'         => $super_w,

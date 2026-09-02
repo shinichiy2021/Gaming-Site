@@ -35,6 +35,9 @@ define( 'GAMING_HUB_TESLA_WAKE_BUDGET_MAX', 4 );
 /** Measured hourly SOC, so the plan chart can show today's past hours. */
 define( 'GAMING_HUB_TESLA_SOC_LOG_OPTION', 'gaming_hub_tesla_soc_log_v1' );
 define( 'GAMING_HUB_TESLA_SOC_LOG_DAYS', 4 );
+/** Hourly charge input type for past bands on the AI PLAN chart. */
+define( 'GAMING_HUB_TESLA_CHARGE_INPUT_LOG_OPTION', 'gaming_hub_tesla_charge_input_log_v1' );
+define( 'GAMING_HUB_TESLA_CHARGE_INPUT_LOG_DAYS', 4 );
 
 /**
  * Record the vehicle SOC against the hour it was measured in.
@@ -67,6 +70,195 @@ function gaming_hub_tesla_soc_log_record( $soc ) {
 	$log = array_slice( $log, 0, GAMING_HUB_TESLA_SOC_LOG_DAYS, true );
 
 	update_option( GAMING_HUB_TESLA_SOC_LOG_OPTION, $log, false );
+}
+
+/**
+ * Valid charge-input keys for the plan chart.
+ *
+ * @return array<int, string>
+ */
+function gaming_hub_tesla_charge_input_types() {
+	return array( 'home_ac', 'away_ac', 'dc' );
+}
+
+/**
+ * Human label for a charge-input key.
+ *
+ * @param string $type home_ac|away_ac|dc.
+ */
+function gaming_hub_tesla_charge_input_label( $type ) {
+	switch ( (string) $type ) {
+		case 'away_ac':
+			return __( '外出先 AC', 'gaming-hub' );
+		case 'dc':
+			return __( 'DC 入力', 'gaming-hub' );
+		case 'home_ac':
+		default:
+			return __( '自宅 AC', 'gaming-hub' );
+	}
+}
+
+/**
+ * Record which input type was charging during this hour.
+ *
+ * @param string $type home_ac|away_ac|dc.
+ */
+function gaming_hub_tesla_charge_input_log_record( $type ) {
+	$type = (string) $type;
+	if ( ! in_array( $type, gaming_hub_tesla_charge_input_types(), true ) ) {
+		return;
+	}
+
+	$today = wp_date( 'Y-m-d' );
+	$hour  = (int) wp_date( 'G' );
+	$log   = get_option( GAMING_HUB_TESLA_CHARGE_INPUT_LOG_OPTION, array() );
+	$log   = is_array( $log ) ? $log : array();
+
+	if ( ! isset( $log[ $today ] ) || ! is_array( $log[ $today ] ) ) {
+		$log[ $today ] = array();
+	}
+
+	$log[ $today ][ $hour ] = $type;
+
+	krsort( $log );
+	$log = array_slice( $log, 0, GAMING_HUB_TESLA_CHARGE_INPUT_LOG_DAYS, true );
+
+	update_option( GAMING_HUB_TESLA_CHARGE_INPUT_LOG_OPTION, $log, false );
+}
+
+/**
+ * Whether a charge session overlaps an hour on a date.
+ *
+ * @param string $date   Y-m-d.
+ * @param int    $hour   0–23.
+ * @param int    $start  Session start (unix).
+ * @param int    $end    Session end (unix).
+ */
+function gaming_hub_tesla_charge_input_hour_overlaps( $date, $hour, $start, $end ) {
+	if ( $start <= 0 || $end <= $start ) {
+		return false;
+	}
+
+	try {
+		$tz         = wp_timezone();
+		$hour_start = new DateTimeImmutable( $date . ' ' . sprintf( '%02d:00:00', max( 0, min( 23, (int) $hour ) ) ), $tz );
+		$hour_end   = $hour_start->modify( '+1 hour' );
+		$sess_start = ( new DateTimeImmutable( '@' . $start ) )->setTimezone( $tz );
+		$sess_end   = ( new DateTimeImmutable( '@' . $end ) )->setTimezone( $tz );
+
+		return $sess_start < $hour_end && $sess_end > $hour_start;
+	} catch ( Exception $e ) {
+		return false;
+	}
+}
+
+/**
+ * Infer hourly input types from archived charge sessions.
+ *
+ * @param string $date Y-m-d.
+ * @return array<int, string>
+ */
+function gaming_hub_tesla_charge_input_log_from_sessions( $date ) {
+	$map = array();
+	if ( ! function_exists( 'gaming_hub_tesla_charge_log_sessions' ) ) {
+		return $map;
+	}
+
+	$sessions = gaming_hub_tesla_charge_log_sessions();
+	$current  = function_exists( 'gaming_hub_tesla_charge_log_current' )
+		? gaming_hub_tesla_charge_log_current()
+		: null;
+	if ( is_array( $current ) && ! empty( $current['start_ts'] ) ) {
+		array_unshift( $sessions, $current );
+	}
+
+	foreach ( $sessions as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+
+		$start_ts = (int) ( $row['start_ts'] ?? 0 );
+		$end_ts   = (int) ( $row['end_ts'] ?? 0 );
+		if ( $start_ts <= 0 ) {
+			continue;
+		}
+		if ( $end_ts <= $start_ts ) {
+			$end_ts = time();
+		}
+
+		$type = 'supercharger' === (string) ( $row['supply'] ?? '' ) ? 'dc' : 'home_ac';
+
+		for ( $h = 0; $h < 24; $h++ ) {
+			if ( gaming_hub_tesla_charge_input_hour_overlaps( $date, $h, $start_ts, $end_ts ) ) {
+				$map[ $h ] = $type;
+			}
+		}
+	}
+
+	return $map;
+}
+
+/**
+ * Hourly charge-input map for a date (logged polls + session backfill).
+ *
+ * @param string $date Y-m-d.
+ * @return array<int, string>
+ */
+function gaming_hub_tesla_charge_input_log_for_date( $date ) {
+	$date = (string) $date;
+	$out  = array();
+	$log  = get_option( GAMING_HUB_TESLA_CHARGE_INPUT_LOG_OPTION, array() );
+	$log  = is_array( $log ) ? $log : array();
+
+	if ( isset( $log[ $date ] ) && is_array( $log[ $date ] ) ) {
+		foreach ( $log[ $date ] as $hour => $type ) {
+			$type = (string) $type;
+			if ( in_array( $type, gaming_hub_tesla_charge_input_types(), true ) ) {
+				$out[ (int) $hour ] = $type;
+			}
+		}
+	}
+
+	foreach ( gaming_hub_tesla_charge_input_log_from_sessions( $date ) as $hour => $type ) {
+		if ( ! isset( $out[ $hour ] ) ) {
+			$out[ $hour ] = $type;
+		}
+	}
+
+	ksort( $out );
+
+	return $out;
+}
+
+/**
+ * Charge-bar tone for a plan slot (plan = future gold, input types = past actual).
+ *
+ * @param array<string, mixed> $slot         Slot row.
+ * @param bool                 $is_charge    Whether the bar is shown.
+ * @param bool                 $is_past      Hour is before now on today.
+ * @param bool                 $is_live_now  Charging right now in this hour.
+ * @param string               $live_input   Live input_type from status.
+ * @return string plan|home_ac|away_ac|dc
+ */
+function gaming_hub_tesla_plan_charge_bar_tone( array $slot, $is_charge, $is_past, $is_live_now, $live_input = '' ) {
+	if ( ! $is_charge ) {
+		return 'plan';
+	}
+
+	if ( $is_live_now && in_array( $live_input, gaming_hub_tesla_charge_input_types(), true ) ) {
+		return $live_input;
+	}
+
+	if ( $is_past ) {
+		$logged = (string) ( $slot['charge_input'] ?? '' );
+		if ( in_array( $logged, gaming_hub_tesla_charge_input_types(), true ) ) {
+			return $logged;
+		}
+
+		return 'home_ac';
+	}
+
+	return 'plan';
 }
 
 /**
@@ -999,10 +1191,12 @@ function gaming_hub_tesla_plan_slots( $date, $day, array $drive_km, array $picke
 	}
 
 	$slots = array();
+	$input_log = gaming_hub_tesla_charge_input_log_for_date( $date );
 	for ( $h = 0; $h < 24; $h++ ) {
 		$key      = $date . '-' . $h;
 		$is_chg   = isset( $charge[ $key ] );
-		$is_past  = $is_today && $h < $now;
+		$is_past  = ( $is_today && $h < $now ) || ( 'yesterday' === $day );
+		$logged   = $input_log[ $h ] ?? null;
 		$km       = (float) ( $drive_km[ $h ] ?? 0 );
 		$mode     = 'idle';
 		if ( $is_past ) {
@@ -1013,16 +1207,22 @@ function gaming_hub_tesla_plan_slots( $date, $day, array $drive_km, array $picke
 			$mode = 'drive';
 		}
 
+		if ( $is_past && $logged && 'charge' !== $mode ) {
+			$mode   = 'charge';
+			$is_chg = true;
+		}
+
 		$slots[] = array(
-			'id'      => $date . 'T' . sprintf( '%02d', $h ),
-			'date'    => $date,
-			'hour'    => $h,
-			'label'   => gaming_hub_tesla_plan_hour_range_label( $h, $h ),
-			'mode'    => $mode,
-			'watts'   => $is_chg && ! $is_past ? GAMING_HUB_TESLA_PLAN_CHARGE_W : ( $is_chg ? GAMING_HUB_TESLA_PLAN_CHARGE_W : null ),
-			'drive_km'=> $km > 0 ? $km : null,
-			'yen'     => isset( $yen_map[ $h ] ) ? (float) $yen_map[ $h ] : null,
-			'past'    => $is_past,
+			'id'           => $date . 'T' . sprintf( '%02d', $h ),
+			'date'         => $date,
+			'hour'         => $h,
+			'label'        => gaming_hub_tesla_plan_hour_range_label( $h, $h ),
+			'mode'         => $mode,
+			'watts'        => $is_chg && ! $is_past ? GAMING_HUB_TESLA_PLAN_CHARGE_W : ( $is_chg ? GAMING_HUB_TESLA_PLAN_CHARGE_W : null ),
+			'drive_km'     => $km > 0 ? $km : null,
+			'yen'          => isset( $yen_map[ $h ] ) ? (float) $yen_map[ $h ] : null,
+			'past'         => $is_past,
+			'charge_input' => is_string( $logged ) ? $logged : null,
 		);
 	}
 
