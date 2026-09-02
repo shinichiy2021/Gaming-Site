@@ -5245,11 +5245,11 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-plan .ecoflow-plan-stat-input.is-home_ac strong {
-	color: #00f5d4;
+	color: #ffe600;
 }
 
 .tesla-plan .ecoflow-plan-stat-input.is-away_ac strong {
-	color: #7dd3fc;
+	color: #00f5d4;
 }
 
 .tesla-plan .ecoflow-plan-stat-input.is-dc strong {
@@ -5408,20 +5408,20 @@ body.home .site-header.is-scrolled {
 	background:
 		repeating-linear-gradient(
 			to top,
-			rgba(0, 245, 212, 0.82) 0 3px,
-			rgba(0, 245, 212, 0.28) 3px 6px
+			rgba(255, 230, 0, 0.82) 0 3px,
+			rgba(255, 159, 28, 0.28) 3px 6px
 		);
-	box-shadow: 0 0 12px rgba(0, 245, 212, 0.45);
+	box-shadow: 0 0 12px rgba(255, 230, 0, 0.5);
 }
 
 .tesla-plan .ecoflow-plan-charge-bar.is-input-away_ac {
 	background:
 		repeating-linear-gradient(
 			to top,
-			rgba(125, 211, 252, 0.88) 0 3px,
-			rgba(125, 211, 252, 0.3) 3px 6px
+			rgba(0, 245, 212, 0.82) 0 3px,
+			rgba(0, 245, 212, 0.28) 3px 6px
 		);
-	box-shadow: 0 0 12px rgba(125, 211, 252, 0.45);
+	box-shadow: 0 0 12px rgba(0, 245, 212, 0.45);
 }
 
 .tesla-plan .ecoflow-plan-charge-bar.is-input-dc {
@@ -5435,11 +5435,11 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-plan .ecoflow-plan-col.is-charge:has(.is-input-home_ac) {
-	background: rgba(0, 245, 212, 0.1);
+	background: rgba(255, 230, 0, 0.12);
 }
 
 .tesla-plan .ecoflow-plan-col.is-charge:has(.is-input-away_ac) {
-	background: rgba(125, 211, 252, 0.1);
+	background: rgba(0, 245, 212, 0.1);
 }
 
 .tesla-plan .ecoflow-plan-col.is-charge:has(.is-input-dc) {
