@@ -1570,6 +1570,7 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$plan['geofence_distance_m'] = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
 		? (int) $model3['geofence_distance_m']
 		: null;
+	$plan['location_debug']      = (string) ( $model3['location_debug'] ?? '' );
 	$input                       = gaming_hub_tesla_plan_input_state( $status );
 	$plan['input_type']          = (string) $input['type'];
 	$plan['input_label']         = (string) $input['label'];

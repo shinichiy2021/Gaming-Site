@@ -225,6 +225,13 @@
 			autoEl.textContent = autoPlan.auto_note || t('AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。');
 			autoEl.classList.toggle('is-error', !!autoPlan.auto_error);
 		}
+		const locationEl = root.querySelector('[data-tesla-plan-location]');
+		if (locationEl) {
+			const debugPlan = views.today || plan;
+			const debugText = debugPlan.location_debug || '';
+			locationEl.textContent = debugText;
+			locationEl.hidden = !debugText;
+		}
 		setText('[data-tesla-plan-window]', plan.window_label || '—');
 		setText('[data-tesla-plan-window-card]', plan.window_label || '—');
 		setText('[data-tesla-plan-window-price]', formatYenPerKwh(plan.window_avg_yen));
@@ -560,6 +567,9 @@
 		}
 		if (views.today) {
 			views.today.asleep = !!event.detail.asleep;
+			if (event.detail.location_debug) {
+				views.today.location_debug = event.detail.location_debug;
+			}
 			if (event.detail.asleep && event.detail.battery_percent != null && !Number.isNaN(Number(event.detail.battery_percent))) {
 				// Keep the held SOC; do not overwrite with fluctuating projections.
 				if (views.today.soc_now == null) {

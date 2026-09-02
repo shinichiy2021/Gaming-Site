@@ -130,6 +130,9 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 			<p class="tesla-plan-auto<?php echo ! empty( $plan['auto_error'] ) ? ' is-error' : ''; ?>" data-tesla-plan-auto>
 				<?php echo esc_html( (string) ( $plan['auto_note'] ?? __( 'AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。', 'gaming-hub' ) ) ); ?>
 			</p>
+			<p class="tesla-plan-location-debug" data-tesla-plan-location <?php echo empty( $plan['location_debug'] ) ? 'hidden' : ''; ?>>
+				<?php echo esc_html( (string) ( $plan['location_debug'] ?? '' ) ); ?>
+			</p>
 			<?php if ( ! empty( $plan['needs_charge_auth'] ) ) : ?>
 				<p class="tesla-plan-auto-auth">
 					<?php esc_html_e( '充電操作には再認証が必要です。', 'gaming-hub' ); ?>
