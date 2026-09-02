@@ -27,6 +27,13 @@ define( 'GAMING_HUB_MODEL3_CHARGE_END', 22.5 );
 /** Stored odometer snapshots for the daily driving quest. */
 define( 'GAMING_HUB_MODEL3_ODO_OPTION', 'gaming_hub_model3_odometer_v1' );
 
+/**
+ * Whether the UNIT · EV card is rendered below energy flow diagrams.
+ */
+function gaming_hub_model3_unit_enabled() {
+	return defined( 'GAMING_HUB_MODEL3_UNIT_ENABLED' ) && GAMING_HUB_MODEL3_UNIT_ENABLED;
+}
+
 /** Parked cabin watt-hours and yen accumulated for today. */
 define( 'GAMING_HUB_TESLA_CABIN_ENERGY_OPTION', 'gaming_hub_tesla_cabin_energy_v1' );
 

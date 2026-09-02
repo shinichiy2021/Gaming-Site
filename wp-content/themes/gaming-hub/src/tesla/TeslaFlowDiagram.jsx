@@ -299,7 +299,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const charging = ! asleep && !! status.live && !! status.is_charging;
 	const superConnected = ! asleep && isSuperchargerConnected( status );
 	const wallCharging = charging && status.supply_kind !== 'supercharger';
-	const superCharging = charging && status.supply_kind === 'supercharger';
+	const superCharging = ! asleep && !! status.super_charging;
 	const regenOn = ! asleep && isRegenActive( status );
 	const driveOn = ! asleep && isFlowActive( 'drive', status );
 	const cabinOn = ! asleep && isFlowActive( 'cabin', status );

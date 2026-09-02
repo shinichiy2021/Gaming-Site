@@ -150,7 +150,7 @@ function drawPath( ctx, path, active, dashOffset, watts ) {
 
 	drawArrow( ctx, from, to, color );
 
-	if ( path.showLabel ) {
+	if ( path.showLabel && watts >= FLOW_THRESHOLD ) {
 		drawWattsLabel( ctx, from, to, watts, color );
 	}
 }

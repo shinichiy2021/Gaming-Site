@@ -113,16 +113,21 @@ export function wattsForFlow( flowId, status ) {
 
 	if ( flowId === 'super' ) {
 		const watts = Number( status.super_w ) || 0;
+
+		if ( ! status.super_charging ) {
+			return 0;
+		}
+
 		if ( watts >= FLOW_THRESHOLD ) {
 			return watts;
 		}
 
-		// Brief API gaps during active DC charge only — not when idle/complete at the stall.
-		if ( status.is_charging && isSuperchargerConnected( status ) ) {
+		// Under-reported watts during an active DC session only (never when the car reports 0).
+		if ( watts > 0 ) {
 			return Math.max( watts, FLOW_THRESHOLD );
 		}
 
-		return watts;
+		return 0;
 	}
 
 	if ( flowId === 'drive' ) {
