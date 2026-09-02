@@ -441,9 +441,19 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 			);
 		}
 
+		if ( true === $at_home ) {
+			return array(
+				'type'     => 'home_ac',
+				'label'    => __( '自宅 AC', 'gaming-hub' ),
+				'watts'    => $charging ? max( $wall_w, $watts ) : 0,
+				'plugged'  => true,
+				'charging' => $charging,
+			);
+		}
+
 		return array(
 			'type'     => 'home_ac',
-			'label'    => __( '自宅 AC', 'gaming-hub' ),
+			'label'    => __( '拠点補給', 'gaming-hub' ),
 			'watts'    => $charging ? max( $wall_w, $watts ) : 0,
 			'plugged'  => $plugged || 'home' === $kind,
 			'charging' => $charging,

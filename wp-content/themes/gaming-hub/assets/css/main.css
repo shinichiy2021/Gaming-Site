@@ -1913,6 +1913,47 @@ body.home .site-header.is-scrolled {
 	box-shadow: 0 0 18px rgba(100, 210, 255, 0.24);
 }
 
+.tesla-node-wall.is-home-ac .tesla-charge-icon--home {
+	width: 96px;
+	height: 96px;
+	display: grid;
+	place-items: center;
+	border-radius: 14px;
+	color: #ffe600;
+	background:
+		radial-gradient(circle at 50% 35%, rgba(255, 230, 0, 0.22), transparent 62%),
+		rgba(12, 10, 6, 0.92);
+	border: 2px solid rgba(255, 230, 0, 0.55);
+	box-shadow: 0 0 18px rgba(255, 230, 0, 0.28);
+}
+
+.tesla-node-wall.is-home-ac .tesla-charge-icon--home svg {
+	width: 52px;
+	height: 52px;
+}
+
+.tesla-node-wall.is-away-ac .tesla-photo-wall {
+	border-color: rgba(0, 245, 212, 0.55);
+	box-shadow: 0 0 18px rgba(0, 245, 212, 0.24);
+}
+
+.tesla-node-wall.is-home-ac.is-active .tesla-charge-icon--home {
+	border-color: rgba(255, 230, 0, 0.85);
+	box-shadow: 0 0 22px rgba(255, 230, 0, 0.42);
+}
+
+.tesla-plan .ecoflow-plan-stat-input.is-home_ac span:first-child::before {
+	content: '';
+	display: inline-block;
+	width: 1rem;
+	height: 1rem;
+	margin-right: 6px;
+	vertical-align: -2px;
+	background-color: #ffe600;
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='black' d='M32 8 10 28v26a4 4 0 0 0 4 4h12V40h12v18h12a4 4 0 0 0 4-4V28Z'/%3E%3C/svg%3E") center / contain no-repeat;
+	-webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='black' d='M32 8 10 28v26a4 4 0 0 0 4 4h12V40h12v18h12a4 4 0 0 0 4-4V28Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
 .tesla-photo-super {
 	width: 96px;
 	height: 96px;
