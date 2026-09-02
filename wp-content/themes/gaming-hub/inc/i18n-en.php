@@ -412,6 +412,8 @@ return array(
 	'接続中' => 'Connected',
 	'充電予定' => 'Scheduled charge',
 	'黄棒: 残量 · 金帯: 充電予定 · 色帯: 実績（自宅/外出先/DC）· 朱橙線: 走行 · 青緑線: 単価' => 'Yellow: SOC · Gold: scheduled charge · Colored bands: actual (home/away/DC) · Orange: driving · Teal: price',
+	'黄棒: 残量 · 黄帯: 自宅充電（実績）· 金帯: 充電予定 · 色帯: 外出先/DC 実績 · 朱橙線: 走行 · 青緑線: 単価' => 'Yellow bar: SOC · Yellow band: home charge (actual) · Gold band: scheduled charge · Colored bands: away/DC actual · Orange: driving · Teal: price',
+	'自宅充電（実績）' => 'Home charge (actual)',
 	'外出先充電: 100%% まで常時充電中です。' => 'Away charging: charging to 100%% continuously.',
 	'外出先充電: 100%% まで常時充電中。直近は %s に充電オンです。' => 'Away charging: to 100%% continuously. Last started at %s.',
 	'Supercharger: 100%% まで充電を開始します。' => 'Supercharger: starting charge toward 100%%.',
