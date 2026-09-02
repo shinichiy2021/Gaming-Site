@@ -7224,6 +7224,21 @@ body.home .site-header.is-scrolled {
 		color: var(--color-text);
 	}
 
+	body.hub-swipe-leave-left .site-main,
+	body.hub-swipe-leave-right .site-main {
+		transition: transform 0.14s ease, opacity 0.14s ease;
+		opacity: 0.55;
+		pointer-events: none;
+	}
+
+	body.hub-swipe-leave-left .site-main {
+		transform: translateX(-18px);
+	}
+
+	body.hub-swipe-leave-right .site-main {
+		transform: translateX(18px);
+	}
+
 	.site-header:has(.hub-switcher) .main-navigation {
 		top: 100%;
 	}
