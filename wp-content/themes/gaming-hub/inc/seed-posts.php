@@ -45,6 +45,13 @@ function gaming_hub_evitara_v2h_post_slug() {
 }
 
 /**
+ * Post slug for the field AC/DC input bugfix article (2026-09-02).
+ */
+function gaming_hub_tesla_field_charge_fix_post_slug() {
+	return 'model3-sotode-ac-dc-input-2026-09-02';
+}
+
+/**
  * Find seeded e Vitara post IDs (canonical slug first, then -2/-3 suffix races).
  *
  * @return int[]
@@ -1529,3 +1536,167 @@ function gaming_hub_refresh_review_article_images() {
 	update_option( 'gaming_hub_review_article_images_v1', 1 );
 }
 add_action( 'init', 'gaming_hub_refresh_review_article_images', 30 );
+
+/**
+ * Article body: field AC / DC input bugfix and test notes (2026-09-02).
+ *
+ * @return string
+ */
+function gaming_hub_seed_tesla_field_charge_fix_content() {
+	$tesla  = esc_url( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) );
+	$plan   = $tesla . '#plan';
+	$charge = $tesla . '#charge';
+	$api    = esc_url( home_url( '/model3-api-jissou/' ) );
+
+	$fig_super = gaming_hub_article_figure( 'tesla-supercharger-gaming.jpg', 'Supercharger（DC 入力）', '急速充電ノード — 接続中 / 充電中の区別と kWh・金額表示' );
+	$fig_wall  = gaming_hub_article_figure( 'tesla-wall-connector-gaming.jpg', '外出先 AC / 自宅 200V', '普通充電ノード — home_ac / away_ac のラベル分け' );
+	$fig_flow  = gaming_hub_article_figure( 'tesla-api-quota-flow.svg', 'Tesla ポーリングと充電制御の流れ', 'vehicle_data → 供給種別判定 → AI PLAN / フロー表示', 'article-figure--diagram' );
+
+	return <<<HTML
+<p>2026-09-02、外出先で Model 3 の <strong>AC（普通充電）</strong> と <strong>DC（Supercharger）</strong> を続けて使い、Gaming-Hub の Tesla ダッシュボード（<a href="{$tesla}">/tag/tesla/</a>）で見つけた表示・制御の不具合と、その日のうちに入れた改修・確認手順をまとめます。製品レビューではなく、<strong>実測バグ報告と修正メモ</strong>です。API 全体像は <a href="{$api}">Model 3 API 実装メモ</a> を参照してください。</p>
+
+{$fig_flow}
+
+<h2>当日の状況</h2>
+<ul>
+<li>自宅ジオフェンス外で充電（外出先 AC → その後 Supercharger DC）</li>
+<li>車側では数十 kW 級の DC 充電が出ているのに、サイト表示が食い違う</li>
+<li>AI PLAN / 電力フロー / 充電履歴の三面で、入力種別・ワット・買電金額の見え方がバラバラだった</li>
+</ul>
+
+{$fig_wall}
+{$fig_super}
+
+<h2>見つかった不具合</h2>
+
+<h3>1. 外出先なのに上限が 80% のまま</h3>
+<p>自宅外で充電しているのに、AI PLAN 側が平日ヘルスバンド（約 80%）のまま止まりかけました。位置情報が取れない／古いと <code>at_home</code> 判定が曖昧になり、外出先 AC の「100% まで常時充電」が効かないことがあります。</p>
+<p><strong>改修:</strong> <code>vehicle_location</code> スコープがあるときは位置を毎回取り、座標キャッシュ（45 分）を併用。<code>at_home === false</code> なら外出先充電として上限 100%・連続充電扱いにする。</p>
+
+<h3>2. INPUT が「何で入っているか」分からない</h3>
+<p>AI PLAN HUD に入力種別が無く、自宅 AC / 外出先 AC / DC の違いがチャート帯の色にも出ていませんでした。</p>
+<p><strong>改修:</strong> INPUT に <code>home_ac</code>（黄）/ <code>away_ac</code>（シアン）/ <code>dc</code>（赤）を表示。過去の充電帯はログした入力種別で色分け、未来の計画帯はゴールドのまま。</p>
+
+<h3>3. Supercharger 接続中なのに充電が始まらない／止める側が動く</h3>
+<p>DC スタンド接続後、アプリの Start Charging が効かない場面もありましたが、サイト側でも DC 文脈で <code>charge_stop</code> しうるロジックが残っていました。また接続直後はフローの Supercharger ノードが「待機」のままでした。</p>
+<p><strong>改修:</strong></p>
+<ul>
+<li>DC（<code>fast_charger_present</code> / Supercharger）では <code>charge_start</code> を送り、自宅向け <code>charge_stop</code> をかけない</li>
+<li>接続中（未充電）でもノードを active にし「接続中」と表示</li>
+</ul>
+<p>※スタンド／充電器側の故障はその日もあったので、サイト修正は予防と UX 改善です。</p>
+
+<h3>4. DC なのに表示が 100 W（実測は約 50 kW）</h3>
+<p>Fleet API の <code>charger_power</code> は <strong>kW の整数</strong>です。旧ロジックは「50 超ならすでに W」とみなし、<code>100</code>（100 kW）を <strong>100 W</strong> と表示していました。DC 中の AC 電圧×電流フォールバックもノイズで約 100 W を拾うことがありました。</p>
+<p><strong>改修:</strong> 基本は kW→×1000。500 超だけレガシー W。DC 時は <code>charger_power</code> 優先で V×A を使わない（v1.14.1）。</p>
+
+<h3>5. 充電完了後も赤いフロー線に 80 W</h3>
+<p>接続中フォールバックでキャンバスが <code>FLOW_THRESHOLD</code>（80 W）を線に載せていました。完了後も <code>is_charging</code> がしばらく true のままだと 80 W が残りました。</p>
+<p><strong>改修:</strong> 実際の DC 充電中フラグ <code>super_charging</code> のときだけ線を動かす。完了・接続待ちは 0 W・数値ラベルなし（v1.14.3〜1.14.4）。</p>
+
+<h3>6. 今日の DC 買電が「請求確定後」のまま</h3>
+<p>kWh は積算できるのに、円は Fleet 充電履歴の請求が来るまで出さず、しかも履歴同期が最大 6 時間ロックされていました。</p>
+<p><strong>改修:</strong> 未請求セッションがあるときは約 10 分ごとに再同期。請求前は過去の Supercharger 単価（なければ約 45 円/kWh）で <strong>¥xxx（見込み）</strong> を表示し、請求到着後に確定額へ切替（v1.14.6）。</p>
+
+<h2>改修バージョン（当日）</h2>
+<table>
+<thead><tr><th>版</th><th>内容</th></tr></thead>
+<tbody>
+<tr><td>1.14.0 前後</td><td>位置・INPUT・帯色・DC auto start・接続中アイコン</td></tr>
+<tr><td>1.14.1</td><td>DC ワット単位（kW）修正</td></tr>
+<tr><td>1.14.2</td><td>Supercharger 今日買電 kWh / 円表示</td></tr>
+<tr><td>1.14.3–1.14.4</td><td>完了後 80 W フロー線の停止</td></tr>
+<tr><td>1.14.5</td><td>UNIT · EV カードを一時非表示</td></tr>
+<tr><td>1.14.6</td><td>DC 円の見込み表示 + 請求待ち時の再同期</td></tr>
+</tbody>
+</table>
+
+<h2>テスト手順（再発確認）</h2>
+<ol>
+<li><a href="{$tesla}">Tesla ダッシュボード</a>を Cmd+Shift+R でハードリロード</li>
+<li><strong>外出先 AC</strong> — INPUT が「外出先 AC」、上限が 100% 側の説明になること。ジオフェンス距離が妥当か確認</li>
+<li><strong>DC 接続のみ</strong> — Supercharger ノードが active / 「接続中」。赤い線に 80 W が付かないこと</li>
+<li><strong>DC 充電中</strong> — ノードと線が実 kW 相当（例: 数万 W）。INPUT が「DC 入力」</li>
+<li><strong>DC 完了</strong> — 線が止まり「接続中」または待機。80 W が残らないこと</li>
+<li><strong>今日買電</strong> — kWh が出る。円は見込みか Fleet 確定額。充電履歴（<a href="{$charge}">#charge</a>）と突合</li>
+<li><strong>AI PLAN</strong>（<a href="{$plan}">#plan</a>）— NOW / INPUT / 過去帯の色が入力種別と一致</li>
+</ol>
+
+<h2>まだ残る注意</h2>
+<ul>
+<li>スタンド／EVSE 側の故障はサイトでは直せない（その日の一部症状は実機側）</li>
+<li>Fleet の請求行は数時間〜遅れることがある。見込み円は目安</li>
+<li>位置スコープが切れていると外出先判定が弱い。Tesla 再認可で <code>vehicle_location</code> を確認</li>
+</ul>
+
+<p>ライブの入出力は引き続き <a href="{$tesla}">Tesla 電力フロー</a> で確認できます。</p>
+HTML;
+}
+
+/**
+ * Create the seeded field AC/DC input bugfix article once.
+ */
+function gaming_hub_seed_tesla_field_charge_fix_post() {
+	if ( get_option( 'gaming_hub_seed_tesla_field_charge_fix_v1' ) ) {
+		return;
+	}
+
+	$slug = gaming_hub_tesla_field_charge_fix_post_slug();
+	$existing = get_posts(
+		array(
+			'name'           => $slug,
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	if ( ! empty( $existing ) ) {
+		update_option( 'gaming_hub_seed_tesla_field_charge_fix_v1', (int) $existing[0] );
+		return;
+	}
+
+	if ( ! term_exists( 'tesla', 'post_tag' ) ) {
+		wp_insert_term(
+			'Tesla',
+			'post_tag',
+			array(
+				'slug' => 'tesla',
+			)
+		);
+	}
+
+	$post_id = wp_insert_post(
+		array(
+			'post_title'   => '外出先 AC / DC 入力の不具合と改修｜2026-09-02 実測メモ',
+			'post_name'    => $slug,
+			'post_status'  => 'publish',
+			'post_type'    => 'post',
+			'post_date'    => '2026-09-02 17:00:00',
+			'post_content' => gaming_hub_seed_tesla_field_charge_fix_content(),
+			'post_excerpt' => '外出先 AC と Supercharger DC で見つかった表示・制御バグ（80%上限、100W表示、完了後80W、請求確定後）と、1.14.x の改修・テスト手順。',
+			'tags_input'   => array( 'tesla' ),
+		),
+		true
+	);
+
+	if ( is_wp_error( $post_id ) || ! $post_id ) {
+		return;
+	}
+
+	update_post_meta( $post_id, 'rank_math_title', '外出先 AC / DC 入力の不具合と改修｜Model 3 実測 2026-09-02' );
+	update_post_meta( $post_id, 'rank_math_description', 'Tesla Model 3 の外出先 AC・Supercharger で起きた入力表示・充電制御・買電金額の不具合と Gaming-Hub 1.14.x の改修・確認手順。' );
+	update_post_meta( $post_id, 'rank_math_focus_keyword', 'Supercharger 表示' );
+	update_post_meta( $post_id, 'rank_math_robots', array( 'index' ) );
+
+	$att_id = gaming_hub_ensure_theme_image_attachment( 'tesla-supercharger-gaming.jpg' );
+	if ( ! $att_id ) {
+		$att_id = gaming_hub_ensure_theme_image_attachment( 'tesla-model3-gaming.jpg' );
+	}
+	if ( $att_id ) {
+		set_post_thumbnail( $post_id, $att_id );
+	}
+
+	update_option( 'gaming_hub_seed_tesla_field_charge_fix_v1', (int) $post_id );
+}
+add_action( 'init', 'gaming_hub_seed_tesla_field_charge_fix_post', 25 );
