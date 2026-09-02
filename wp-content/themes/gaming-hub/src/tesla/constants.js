@@ -117,12 +117,9 @@ export function wattsForFlow( flowId, status ) {
 			return watts;
 		}
 
+		// Brief API gaps during active DC charge only — not when idle/complete at the stall.
 		if ( status.is_charging && isSuperchargerConnected( status ) ) {
 			return Math.max( watts, FLOW_THRESHOLD );
-		}
-
-		if ( isSuperchargerConnected( status ) ) {
-			return FLOW_THRESHOLD;
 		}
 
 		return watts;
