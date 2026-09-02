@@ -17,9 +17,21 @@
 		</div>
 		<div class="post-card-body">
 			<div class="post-card-meta">
-				<?php the_category( ', ' ); ?>
+				<?php
+				$categories = get_the_category();
+				if ( ! empty( $categories ) ) :
+					foreach ( $categories as $category ) :
+						?>
+						<span class="post-card-cat"><?php echo esc_html( $category->name ); ?></span>
+						<?php
+					endforeach;
+				endif;
+				?>
 				<?php if ( gaming_hub_has_ecoflow_tag() ) : ?>
-					<?php gaming_hub_render_ecoflow_tag_badge(); ?>
+					<span class="ecoflow-tag-badge"><?php esc_html_e( 'EcoFlow', 'gaming-hub' ); ?></span>
+				<?php endif; ?>
+				<?php if ( has_tag( 'tesla' ) ) : ?>
+					<span class="ecoflow-tag-badge tesla-tag-badge">Tesla</span>
 				<?php endif; ?>
 				<time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>"><?php echo esc_html( get_the_date() ); ?></time>
 			</div>

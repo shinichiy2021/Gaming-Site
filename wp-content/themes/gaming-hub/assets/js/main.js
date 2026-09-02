@@ -89,4 +89,51 @@
 		updateHeader();
 		window.addEventListener('scroll', updateHeader, { passive: true });
 	}
+
+	const hubSwitcher = document.querySelector('.hub-switcher');
+	if (hubSwitcher) {
+		const mobileMq = window.matchMedia('(max-width: 768px)');
+		let lastY = window.pageYOffset || 0;
+		let ticking = false;
+
+		function updateHubSwitcherVisibility() {
+			const y = window.pageYOffset || 0;
+			if (!mobileMq.matches) {
+				hubSwitcher.classList.remove('is-scroll-hidden');
+				lastY = y;
+				ticking = false;
+				return;
+			}
+
+			const delta = y - lastY;
+			if (y <= 24) {
+				hubSwitcher.classList.remove('is-scroll-hidden');
+			} else if (delta > 8) {
+				hubSwitcher.classList.add('is-scroll-hidden');
+			} else if (delta < -8) {
+				hubSwitcher.classList.remove('is-scroll-hidden');
+			}
+
+			lastY = y;
+			ticking = false;
+		}
+
+		window.addEventListener(
+			'scroll',
+			function () {
+				if (ticking) {
+					return;
+				}
+				ticking = true;
+				window.requestAnimationFrame(updateHubSwitcherVisibility);
+			},
+			{ passive: true }
+		);
+
+		if (typeof mobileMq.addEventListener === 'function') {
+			mobileMq.addEventListener('change', updateHubSwitcherVisibility);
+		} else if (typeof mobileMq.addListener === 'function') {
+			mobileMq.addListener(updateHubSwitcherVisibility);
+		}
+	}
 })();

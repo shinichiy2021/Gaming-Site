@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">ランサーズ Web制作・API実装パッケージ</title>
+  <desc id="desc">ベーシック3万円、スタンダード8万円、プレミアム15万円の3プラン</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#120e08"/>
+      <stop offset="55%" stop-color="#1a140c"/>
+      <stop offset="100%" stop-color="#0c0a08"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffcb05"/>
+      <stop offset="100%" stop-color="#f5a623"/>
+    </linearGradient>
+    <linearGradient id="cardA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c1812"/>
+      <stop offset="100%" stop-color="#12100c"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="560" rx="28" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1152" height="512" rx="22" fill="none" stroke="rgba(255,203,5,0.28)" stroke-width="2"/>
+
+  <text x="72" y="92" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" letter-spacing="4">LANCERS PACKAGE</text>
+  <text x="72" y="142" fill="#f4f1ea" font-family="ui-sans-serif, system-ui, sans-serif" font-size="42" font-weight="800">Web制作・API実装</text>
+  <text x="72" y="186" fill="#a89f8f" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22">ダッシュボード / Fleet API / 紹介サイト</text>
+
+  <!-- Basic -->
+  <g transform="translate(72,230)">
+    <rect width="320" height="250" rx="20" fill="url(#cardA)" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+    <rect x="0" y="0" width="320" height="8" rx="4" fill="#6a6a74"/>
+    <text x="28" y="58" fill="#cfc7b8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">ベーシック</text>
+    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥30,000</text>
+    <text x="28" y="160" fill="#8a8478" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">税込目安</text>
+    <text x="28" y="210" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">軽微修正・1ページ</text>
+  </g>
+
+  <!-- Standard -->
+  <g transform="translate(440,230)" filter="url(#glow)">
+    <rect width="320" height="250" rx="20" fill="url(#cardA)" stroke="#ffcb05" stroke-width="3"/>
+    <rect x="0" y="0" width="320" height="8" rx="4" fill="url(#gold)"/>
+    <text x="28" y="58" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">スタンダード</text>
+    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥80,000</text>
+    <text x="28" y="160" fill="#8a8478" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">税込目安・おすすめ</text>
+    <text x="28" y="210" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">LP 1枚・要件整理込み</text>
+  </g>
+
+  <!-- Premium -->
+  <g transform="translate(808,230)">
+    <rect width="320" height="250" rx="20" fill="url(#cardA)" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+    <rect x="0" y="0" width="320" height="8" rx="4" fill="#e31937"/>
+    <text x="28" y="58" fill="#ff8a80" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">プレミアム</text>
+    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥150,000</text>
+    <text x="28" y="160" fill="#8a8478" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">税込目安</text>
+    <text x="28" y="210" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">紹介サイト 3〜5ページ</text>
+  </g>
+</svg>
