@@ -81,7 +81,12 @@ function gaming_hub_render_mobile_hub_switcher() {
 		}
 	}
 	?>
-	<nav class="hub-switcher" aria-label="<?php esc_attr_e( 'ダッシュボード切替', 'gaming-hub' ); ?>"<?php echo $active !== '' ? ' data-active="' . esc_attr( $active ) . '"' : ''; ?>>
+	<nav
+		class="hub-switcher"
+		aria-label="<?php esc_attr_e( 'ダッシュボード切替', 'gaming-hub' ); ?>"
+		data-hub-swipe="1"
+		<?php echo $active !== '' ? ' data-active="' . esc_attr( $active ) . '"' : ''; ?>
+	>
 		<div class="hub-switcher-track" role="tablist">
 			<?php foreach ( $items as $item ) : ?>
 				<?php
@@ -96,6 +101,7 @@ function gaming_hub_render_mobile_hub_switcher() {
 					href="<?php echo esc_url( $item['url'] ); ?>"
 					role="tab"
 					aria-selected="<?php echo $is_current ? 'true' : 'false'; ?>"
+					data-hub-slug="<?php echo esc_attr( (string) $item['slug'] ); ?>"
 					<?php echo $is_current ? 'aria-current="page"' : ''; ?>
 				>
 					<span class="hub-switcher-label"><?php echo esc_html( $item['label'] ); ?></span>
