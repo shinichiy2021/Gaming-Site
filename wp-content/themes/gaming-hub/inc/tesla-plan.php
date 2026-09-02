@@ -1376,6 +1376,16 @@ function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 	}
 
 	if ( 'start' === $action ) {
+		if ( 'away' === (string) ( $auto['reason'] ?? '' ) ) {
+			return $when
+				? sprintf(
+					/* translators: %s: time */
+					__( '外出先充電: 100%% まで常時充電中。直近は %s に充電オンです。', 'gaming-hub' ),
+					$when
+				)
+				: __( '外出先充電: 100%% まで常時充電中です。', 'gaming-hub' );
+		}
+
 		return $when
 			? sprintf(
 				/* translators: %s: time */
@@ -1426,18 +1436,59 @@ function gaming_hub_tesla_plan_current_slot( array $plan ) {
  *
  * @param array<string, mixed>      $plan   Plan.
  * @param array<string, mixed>|null $status Live status.
- * @return array{want: bool, limit: int, hold: bool, reason: string}
+ * @return array{want: bool, limit: int, hold: bool, apply_limit: bool, reason: string}
  */
 function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
 	$status  = is_array( $status ) ? $status : array();
 	$model3  = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
 	$flow    = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
 	$kind    = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+	$at_home = array_key_exists( 'at_home', $model3 )
+		? $model3['at_home']
+		: ( array_key_exists( 'at_home', $flow ) ? $flow['at_home'] : null );
+	$plugged = 'home' === $kind || ! empty( $model3['plugged'] );
+	$away_limit = GAMING_HUB_TESLA_PLAN_SATURDAY_SOC;
 	$limit   = (int) ( $plan['target_soc'] ?? GAMING_HUB_TESLA_PLAN_TARGET_SOC );
 	$limit   = max( GAMING_HUB_TESLA_PLAN_TARGET_SOC, min( 100, $limit ) );
 	$soc     = isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] )
 		? (float) $model3['battery_percent']
 		: null;
+
+	if ( function_exists( 'gaming_hub_tesla_is_driving_now' ) && gaming_hub_tesla_is_driving_now() ) {
+		return array(
+			'want'         => false,
+			'limit'        => $limit,
+			'hold'         => true,
+			'apply_limit'  => false,
+			'reason'       => 'drive',
+		);
+	}
+
+	if ( 'supercharger' === $kind ) {
+		return array(
+			'want'         => false,
+			'limit'        => $away_limit,
+			'hold'         => true,
+			'apply_limit'  => true,
+			'reason'       => 'supercharger',
+		);
+	}
+
+	if ( $plugged && false === $at_home ) {
+		$want = true;
+		if ( null !== $soc && $soc >= $away_limit - 0.4 ) {
+			$want = false;
+		}
+
+		return array(
+			'want'         => $want,
+			'limit'        => $away_limit,
+			'hold'         => false,
+			'apply_limit'  => true,
+			'reason'       => 'away',
+		);
+	}
+
 	$slot    = gaming_hub_tesla_plan_current_slot( $plan );
 	$mode    = (string) ( $slot['mode'] ?? 'idle' );
 	$want    = 'charge' === $mode && empty( $slot['past'] );
@@ -1446,29 +1497,12 @@ function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
 		$want = false;
 	}
 
-	if ( function_exists( 'gaming_hub_tesla_is_driving_now' ) && gaming_hub_tesla_is_driving_now() ) {
-		return array(
-			'want'   => false,
-			'limit'  => $limit,
-			'hold'   => true,
-			'reason' => 'drive',
-		);
-	}
-
-	if ( 'supercharger' === $kind ) {
-		return array(
-			'want'   => false,
-			'limit'  => $limit,
-			'hold'   => true,
-			'reason' => 'supercharger',
-		);
-	}
-
 	return array(
-		'want'   => $want,
-		'limit'  => $limit,
-		'hold'   => false,
-		'reason' => $want ? 'charge' : 'idle',
+		'want'         => $want,
+		'limit'        => $limit,
+		'hold'         => false,
+		'apply_limit'  => true,
+		'reason'       => $want ? 'charge' : 'idle',
 	);
 }
 
@@ -1494,22 +1528,35 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 	$plan = is_array( $plan ) ? $plan : array();
 
 	$desired = gaming_hub_tesla_plan_auto_desired( $plan, $status );
-	if ( ! empty( $desired['hold'] ) ) {
+	$model3   = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$flow     = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$car_limit = isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
+		? (int) $model3['charge_limit_percent']
+		: 0;
+	$limit    = (int) $desired['limit'];
+	$hold     = ! empty( $desired['hold'] );
+	$apply_limit = ! empty( $desired['apply_limit'] );
+
+	if ( $hold ) {
+		if ( $apply_limit && $car_limit > 0 && $car_limit !== $limit && function_exists( 'gaming_hub_tesla_send_signed_command' ) && ! get_transient( GAMING_HUB_TESLA_PLAN_AUTO_LOCK ) ) {
+			set_transient( GAMING_HUB_TESLA_PLAN_AUTO_LOCK, 1, 40 );
+			gaming_hub_tesla_send_signed_command(
+				'set_charge_limit',
+				array( 'percent' => $limit ),
+				false,
+				true
+			);
+		}
+
 		return true;
 	}
 
-	$model3   = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
-	$flow     = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
 	$asleep   = ! empty( $flow['asleep'] ) || ! empty( $model3['asleep'] );
 	$charging = ( ! empty( $flow['is_charging'] ) || ! empty( $model3['is_charging'] ) ) && ! $asleep;
 	$kind     = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
 	$plugged  = 'home' === $kind || ! empty( $model3['plugged'] );
-	$car_limit = isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
-		? (int) $model3['charge_limit_percent']
-		: 0;
 	$hour_key = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
 	$want     = ! empty( $desired['want'] );
-	$limit    = (int) $desired['limit'];
 	$action   = $want ? 'start' : 'stop';
 
 	$saved = gaming_hub_tesla_plan_auto_state();
@@ -1557,7 +1604,7 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 		return true;
 	}
 
-	if ( $want && $car_limit > 0 && $car_limit !== $limit ) {
+	if ( $apply_limit && $car_limit > 0 && $car_limit !== $limit ) {
 		$set = gaming_hub_tesla_send_signed_command(
 			'set_charge_limit',
 			array( 'percent' => $limit ),
@@ -1599,6 +1646,7 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 	$saved['error']      = '';
 	$saved['action']     = $action;
 	$saved['limit']      = $limit;
+	$saved['reason']     = (string) ( $desired['reason'] ?? '' );
 	$saved['hour_key']   = $hour_key;
 	$saved['applied_at'] = wp_date( 'c' );
 	update_option( GAMING_HUB_TESLA_PLAN_AUTO_OPTION, $saved, false );
