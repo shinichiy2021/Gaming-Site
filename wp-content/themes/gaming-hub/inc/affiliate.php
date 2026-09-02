@@ -186,18 +186,21 @@ function gaming_hub_affiliate_tesla_kit_items() {
 			'role'    => __( '走行ログ・充電ログで実測中の車両', 'gaming-hub' ),
 			'primary' => 'tesla_model3',
 			'amazon'  => 'amazon_tesla_model3',
+			'image'   => 'tesla-model3-gaming.jpg',
 		),
 		array(
 			'name'    => __( '充電（Wall Connector など）', 'gaming-hub' ),
 			'role'    => __( '自宅・外出先の充電まわり', 'gaming-hub' ),
 			'primary' => 'tesla_charging',
 			'amazon'  => 'amazon_tesla_charge',
+			'image'   => 'tesla-wall-connector-gaming.jpg',
 		),
 		array(
 			'name'    => 'Powerwall',
 			'role'    => __( '家庭用蓄電（関連ダッシュボードあり）', 'gaming-hub' ),
 			'primary' => 'tesla_powerwall',
 			'amazon'  => '',
+			'image'   => 'tesla-powerwall-gaming.jpg',
 		),
 	);
 

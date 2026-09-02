@@ -876,7 +876,8 @@ body.home .site-header.is-scrolled {
 	margin-bottom: 8px;
 }
 
-.post-card-meta a {
+.post-card-meta a,
+.post-card-cat {
 	color: var(--color-secondary);
 	font-size: 0.8rem;
 }
@@ -1238,7 +1239,7 @@ body.home .site-header.is-scrolled {
 
 .footer-grid {
 	display: grid;
-	grid-template-columns: 2fr 1fr 1fr 1.2fr;
+	grid-template-columns: 1.6fr 1fr 1fr 1.5fr;
 	gap: 40px;
 	margin-bottom: 40px;
 }
@@ -2032,6 +2033,10 @@ body.home .site-header.is-scrolled {
 	.ecoflow-system-delta .ecoflow-node.is-active .ecoflow-node-banner-art {
 		animation: none;
 	}
+
+	.hub-switcher {
+		transition: none;
+	}
 }
 
 .tesla-shift {
@@ -2116,13 +2121,16 @@ body.home .site-header.is-scrolled {
 	.tesla-flow-inputs,
 	.tesla-flow-outputs {
 		max-width: none;
-		flex-direction: row;
-		flex-wrap: wrap;
-		justify-content: center;
+		flex-direction: column;
+		flex-wrap: nowrap;
+		justify-content: flex-start;
+		align-items: stretch;
 	}
 
 	.tesla-flow-system [data-flow-id="tesla"] {
-		justify-self: center;
+		justify-self: stretch;
+		width: 100%;
+		max-width: 100%;
 	}
 }
 
@@ -3870,6 +3878,68 @@ body.home .site-header.is-scrolled {
 	color: #e31937;
 }
 
+.tesla-kit-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.tesla-kit-card {
+	display: flex;
+	flex-direction: column;
+	flex-wrap: nowrap;
+	align-items: stretch;
+	justify-content: flex-start;
+	gap: 0;
+	padding: 0;
+	overflow: hidden;
+}
+
+.tesla-kit-card-media {
+	position: relative;
+	display: block;
+	width: 100%;
+	aspect-ratio: 16 / 10;
+	overflow: hidden;
+	background: #120e10;
+}
+
+.tesla-kit-card-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	transition: transform 0.35s ease;
+}
+
+.tesla-kit-card-media:hover img {
+	transform: scale(1.04);
+}
+
+.tesla-kit-card-badge {
+	position: absolute;
+	left: 10px;
+	top: 10px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-family: var(--font-display);
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	color: #fff;
+	background: rgba(227, 25, 55, 0.92);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.tesla-kit-card-copy {
+	padding: 14px 16px 4px;
+}
+
+.tesla-kit-card .ecoflow-kit-actions {
+	padding: 8px 16px 16px;
+	width: 100%;
+}
+
 .tesla-kit-btn {
 	background: #111;
 	border-color: #111;
@@ -3895,6 +3965,92 @@ body.home .site-header.is-scrolled {
 
 .tesla-kit .ecoflow-kit-foot a {
 	color: #e31937;
+}
+
+.lancers-promo {
+	display: grid;
+	grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+	gap: 18px;
+	align-items: center;
+	margin: 28px 0 8px;
+	padding: 14px;
+	border: 1px solid rgba(255, 203, 5, 0.28);
+	border-radius: var(--radius-lg);
+	background:
+		radial-gradient(ellipse at 12% 0%, rgba(255, 203, 5, 0.12), transparent 55%),
+		var(--color-bg-card);
+}
+
+.lancers-promo-media {
+	display: block;
+	overflow: hidden;
+	border-radius: 14px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: #0c0a08;
+}
+
+.lancers-promo-media img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.lancers-promo-eyebrow {
+	margin: 0 0 6px;
+	font-size: 0.72rem;
+	letter-spacing: 0.12em;
+	font-weight: 700;
+	color: var(--pika-yellow);
+}
+
+.lancers-promo-title {
+	margin: 0 0 10px;
+	font-family: var(--font-display);
+	font-size: 1.2rem;
+	font-weight: 700;
+}
+
+.lancers-promo-lead {
+	margin: 0 0 16px;
+	font-size: 0.92rem;
+	line-height: 1.55;
+	color: var(--color-text-muted);
+}
+
+.lancers-promo-cta {
+	display: inline-flex;
+}
+
+.lancers-promo--footer {
+	margin: 0;
+	padding: 12px;
+	grid-template-columns: 1fr;
+}
+
+.lancers-promo--tesla-kit {
+	margin-top: 22px;
+}
+
+.lancers-promo-figure {
+	margin: 18px 0;
+}
+
+.lancers-promo-figure a {
+	display: block;
+}
+
+.footer-lancers .lancers-promo-title {
+	font-size: 1.05rem;
+}
+
+@media (max-width: 900px) {
+	.tesla-kit-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.lancers-promo {
+		grid-template-columns: 1fr;
+	}
 }
 
 .tesla-tag-badge {
@@ -7005,6 +7161,26 @@ body.home .site-header.is-scrolled {
 		padding: 0 16px 10px;
 		border-top: 1px solid rgba(255, 255, 255, 0.06);
 		background: rgba(15, 12, 6, 0.96);
+		overflow: hidden;
+		max-height: 72px;
+		opacity: 1;
+		transform: translateY(0);
+		transition:
+			max-height 0.28s ease,
+			opacity 0.22s ease,
+			padding 0.28s ease,
+			border-color 0.28s ease,
+			transform 0.28s ease;
+	}
+
+	.hub-switcher.is-scroll-hidden {
+		max-height: 0;
+		opacity: 0;
+		padding-top: 0;
+		padding-bottom: 0;
+		border-top-color: transparent;
+		transform: translateY(-6px);
+		pointer-events: none;
 	}
 
 	.hub-switcher-track {
@@ -7498,6 +7674,125 @@ body.home .site-header.is-scrolled {
 
 	.pw-flow-node strong {
 		font-size: 0.82rem;
+	}
+}
+
+/* Tesla energy flow — mobile stack (must follow EcoFlow .ecoflow-system mobile rules). */
+@media (max-width: 800px) {
+	.tesla-flow-map {
+		padding: 12px 8px 10px;
+		overflow: hidden;
+	}
+
+	.tesla-flow-map .tesla-flow-canvas,
+	.tesla-flow-map .ecoflow-energy-canvas {
+		display: none;
+	}
+
+	.ecoflow-system.tesla-flow-system {
+		display: grid;
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			"title"
+			"inputs"
+			"device"
+			"output";
+		gap: 10px;
+		padding: 12px 10px;
+		align-items: stretch;
+		justify-items: stretch;
+	}
+
+	.tesla-flow-title {
+		grid-area: title;
+		text-align: left;
+		font-size: 0.95rem;
+		letter-spacing: 0.06em;
+	}
+
+	.tesla-flow-inputs,
+	.tesla-flow-outputs {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		justify-content: flex-start;
+		gap: 8px;
+		width: 100%;
+		max-width: none;
+		justify-self: stretch;
+	}
+
+	.tesla-flow-system .ecoflow-node-banner {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		width: 100%;
+		max-width: none;
+		min-width: 0;
+		flex: none;
+		padding: 0;
+		text-align: left;
+		overflow: hidden;
+	}
+
+	.tesla-flow-system .ecoflow-node-banner .ecoflow-node-photo,
+	.tesla-flow-system .tesla-photo-wall,
+	.tesla-flow-system .tesla-photo-super,
+	.tesla-flow-system .tesla-photo-cabin {
+		width: 100%;
+		height: 118px;
+		max-width: none;
+		border-radius: 12px 12px 0 0;
+		object-fit: cover;
+	}
+
+	.tesla-flow-system .tesla-shift {
+		width: 100%;
+		height: 118px;
+		max-width: none;
+		border-radius: 12px 12px 0 0;
+	}
+
+	.tesla-flow-system .ecoflow-node-banner .ecoflow-node-label {
+		padding: 10px 12px 0;
+		align-self: flex-start;
+	}
+
+	.tesla-flow-system .ecoflow-node-banner > small,
+	.tesla-flow-system .ecoflow-node-banner .tesla-gas-saved {
+		padding: 0 12px;
+		margin: 0;
+		align-self: flex-start;
+		text-align: left;
+	}
+
+	.tesla-flow-system .ecoflow-node-banner strong {
+		padding: 2px 12px 12px;
+		font-size: 1.25rem;
+		align-self: flex-start;
+		justify-self: start;
+	}
+
+	.tesla-flow-system [data-flow-id="tesla"] {
+		grid-area: device;
+		justify-self: stretch;
+		align-self: stretch;
+		width: 100%;
+		max-width: 100%;
+		padding: 12px 10px 14px;
+	}
+
+	.tesla-flow-system [data-flow-id="tesla"] .tesla-photo-car {
+		width: min(176px, 58vw);
+		height: min(176px, 58vw);
+		border-radius: 14px;
+	}
+
+	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-label,
+	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-pack,
+	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-state,
+	.tesla-flow-system [data-flow-id="tesla"] .tesla-card-vitals {
+		text-align: center;
 	}
 }
 

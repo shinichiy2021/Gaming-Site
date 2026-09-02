@@ -257,17 +257,73 @@ function gaming_hub_lancers_url() {
 }
 
 /**
+ * Theme image URL for the Lancers packages diagram.
+ *
+ * @return string
+ */
+function gaming_hub_lancers_packages_image_url() {
+	return function_exists( 'gaming_hub_theme_image_url' )
+		? gaming_hub_theme_image_url( 'lancers-packages.svg' )
+		: trailingslashit( get_template_directory_uri() ) . 'assets/images/lancers-packages.svg';
+}
+
+/**
+ * Visual Lancers promo card (image + CTA).
+ *
+ * @param string $context Optional modifier class suffix (e.g. footer, tesla-kit).
+ */
+function gaming_hub_render_lancers_promo( $context = '' ) {
+	$url   = gaming_hub_lancers_url();
+	$img   = gaming_hub_lancers_packages_image_url();
+	$class = 'lancers-promo';
+	if ( '' !== $context ) {
+		$class .= ' lancers-promo--' . sanitize_html_class( $context );
+	}
+	?>
+	<div class="<?php echo esc_attr( $class ); ?>">
+		<a class="lancers-promo-media" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener noreferrer">
+			<img
+				src="<?php echo esc_url( $img ); ?>"
+				alt="<?php esc_attr_e( 'ランサーズ Web制作・API実装パッケージ（3〜15万円）', 'gaming-hub' ); ?>"
+				width="1200"
+				height="560"
+				loading="lazy"
+				decoding="async"
+			/>
+		</a>
+		<div class="lancers-promo-copy">
+			<p class="lancers-promo-eyebrow"><?php esc_html_e( 'LANCERS', 'gaming-hub' ); ?></p>
+			<h3 class="lancers-promo-title"><?php esc_html_e( 'Web制作・API実装のご相談', 'gaming-hub' ); ?></h3>
+			<p class="lancers-promo-lead">
+				<?php esc_html_e( 'ベーシック 3万円 / スタンダード 8万円 / プレミアム 15万円。取引はランサーズ経由のみです。', 'gaming-hub' ); ?>
+			</p>
+			<a class="btn btn-primary lancers-promo-cta" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php esc_html_e( 'ランサーズで詳細・相談', 'gaming-hub' ); ?>
+			</a>
+		</div>
+	</div>
+	<?php
+}
+
+/**
  * Lancers package + URL block for API implementation articles.
  *
  * @return string
  */
 function gaming_hub_article_lancers_section() {
 	$url = esc_url( gaming_hub_lancers_url() );
+	$img = esc_url( gaming_hub_lancers_packages_image_url() );
 
 	return <<<HTML
 <h2>同種の実装をご依頼の方</h2>
 <div class="article-lancers">
 <p>この記事と同様の <strong>Web アプリ・API 連携・ダッシュボード</strong> のご相談は、<a href="{$url}" target="_blank" rel="noopener noreferrer">ランサーズ</a> からお問い合わせください。取引はランサーズ経由のみ対応しています。</p>
+<figure class="article-figure article-figure--diagram lancers-promo-figure">
+<a href="{$url}" target="_blank" rel="noopener noreferrer">
+<img src="{$img}" alt="ランサーズ Web制作・API実装パッケージ（ベーシック3万円 / スタンダード8万円 / プレミアム15万円）" width="1200" height="560" loading="lazy" decoding="async" />
+</a>
+<figcaption>料金プランの目安。画像タップでランサーズのパッケージ詳細へ。</figcaption>
+</figure>
 <table>
 <thead>
 <tr><th>プラン</th><th>料金（税込目安）</th><th>内容</th></tr>
@@ -1480,6 +1536,48 @@ function gaming_hub_refresh_api_articles_lancers_v1() {
 	update_option( 'gaming_hub_api_articles_lancers_v1', 1 );
 }
 add_action( 'init', 'gaming_hub_refresh_api_articles_lancers_v1', 33 );
+
+/**
+ * Refresh API articles with visual Lancers packages diagram.
+ */
+function gaming_hub_refresh_lancers_visual_v1() {
+	if ( get_option( 'gaming_hub_lancers_visual_v1' ) ) {
+		return;
+	}
+
+	$map = array(
+		gaming_hub_delta_pro3_api_post_slug() => 'gaming_hub_seed_delta_pro3_api_content',
+		gaming_hub_tesla_api_post_slug()      => 'gaming_hub_seed_tesla_api_content',
+	);
+
+	foreach ( $map as $slug => $content_fn ) {
+		if ( ! function_exists( $content_fn ) ) {
+			continue;
+		}
+		$posts = get_posts(
+			array(
+				'name'           => $slug,
+				'post_type'      => 'post',
+				'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+			)
+		);
+		if ( empty( $posts ) ) {
+			continue;
+		}
+
+		wp_update_post(
+			array(
+				'ID'           => (int) $posts[0],
+				'post_content' => call_user_func( $content_fn ),
+			)
+		);
+	}
+
+	update_option( 'gaming_hub_lancers_visual_v1', 1 );
+}
+add_action( 'init', 'gaming_hub_refresh_lancers_visual_v1', 34 );
 
 /**
  * Refresh seeded review posts with inline figures + featured images.
