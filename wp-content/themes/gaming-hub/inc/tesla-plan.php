@@ -1671,6 +1671,16 @@ function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 	}
 
 	if ( 'start' === $action ) {
+		if ( 'supercharger' === (string) ( $auto['reason'] ?? '' ) ) {
+			return $when
+				? sprintf(
+					/* translators: %s: time */
+					__( 'Supercharger: 100%% まで充電開始。直近は %s に充電オンです。', 'gaming-hub' ),
+					$when
+				)
+				: __( 'Supercharger: 100%% まで充電を開始します。', 'gaming-hub' );
+		}
+
 		if ( 'away' === (string) ( $auto['reason'] ?? '' ) ) {
 			return $when
 				? sprintf(
@@ -1727,6 +1737,33 @@ function gaming_hub_tesla_plan_current_slot( array $plan ) {
 }
 
 /**
+ * Resolve supply kind, treating fast-charger flags as Supercharger even before the label updates.
+ *
+ * @param array<string, mixed>|null $status Live status.
+ */
+function gaming_hub_tesla_status_supply_kind( $status = null ) {
+	$status = is_array( $status ) ? $status : array();
+	$model3 = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$flow   = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$kind   = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+
+	if ( 'supercharger' === $kind || ! empty( $model3['fast_charger_present'] ) ) {
+		return 'supercharger';
+	}
+
+	return $kind;
+}
+
+/**
+ * Whether AI PLAN should treat this snapshot as Supercharger DC input.
+ *
+ * @param array<string, mixed>|null $status Live status.
+ */
+function gaming_hub_tesla_is_supercharger_context( $status = null ) {
+	return 'supercharger' === gaming_hub_tesla_status_supply_kind( $status );
+}
+
+/**
  * Whether this hour's AI PLAN wants home charging.
  *
  * @param array<string, mixed>      $plan   Plan.
@@ -1736,12 +1773,9 @@ function gaming_hub_tesla_plan_current_slot( array $plan ) {
 function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
 	$status  = is_array( $status ) ? $status : array();
 	$model3  = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
-	$flow    = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
-	$kind    = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
-	$at_home = array_key_exists( 'at_home', $model3 )
-		? $model3['at_home']
-		: ( array_key_exists( 'at_home', $flow ) ? $flow['at_home'] : null );
-	$plugged = 'home' === $kind || ! empty( $model3['plugged'] );
+	$kind    = gaming_hub_tesla_status_supply_kind( $status );
+	$at_home = array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null;
+	$plugged = in_array( $kind, array( 'home', 'supercharger' ), true ) || ! empty( $model3['plugged'] );
 	$away_limit = GAMING_HUB_TESLA_PLAN_SATURDAY_SOC;
 	$limit   = (int) ( $plan['target_soc'] ?? GAMING_HUB_TESLA_PLAN_TARGET_SOC );
 	$limit   = max( GAMING_HUB_TESLA_PLAN_TARGET_SOC, min( 100, $limit ) );
@@ -1760,10 +1794,15 @@ function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
 	}
 
 	if ( 'supercharger' === $kind ) {
+		$want = $plugged;
+		if ( null !== $soc && $soc >= $away_limit - 0.4 ) {
+			$want = false;
+		}
+
 		return array(
-			'want'         => false,
+			'want'         => $want,
 			'limit'        => $away_limit,
-			'hold'         => true,
+			'hold'         => false,
 			'apply_limit'  => true,
 			'reason'       => 'supercharger',
 		);
@@ -1825,6 +1864,7 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 	$desired = gaming_hub_tesla_plan_auto_desired( $plan, $status );
 	$model3   = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
 	$flow     = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$kind     = gaming_hub_tesla_status_supply_kind( $status );
 	$car_limit = isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
 		? (int) $model3['charge_limit_percent']
 		: 0;
@@ -1848,11 +1888,15 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 
 	$asleep   = ! empty( $flow['asleep'] ) || ! empty( $model3['asleep'] );
 	$charging = ( ! empty( $flow['is_charging'] ) || ! empty( $model3['is_charging'] ) ) && ! $asleep;
-	$kind     = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
-	$plugged  = 'home' === $kind || ! empty( $model3['plugged'] );
+	$plugged  = in_array( $kind, array( 'home', 'supercharger' ), true ) || ! empty( $model3['plugged'] );
 	$hour_key = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
 	$want     = ! empty( $desired['want'] );
 	$action   = $want ? 'start' : 'stop';
+
+	// Never stop home AC logic while a DC stall is connected (misclassification window).
+	if ( gaming_hub_tesla_is_supercharger_context( $status ) ) {
+		$kind = 'supercharger';
+	}
 
 	$saved = gaming_hub_tesla_plan_auto_state();
 	$same  = ( $saved['action'] ?? '' ) === $action
@@ -1918,7 +1962,7 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 	}
 
 	$need_start = $want && ! $charging;
-	$need_stop  = ! $want && $charging && 'home' === $kind;
+	$need_stop  = ! $want && $charging && 'home' === $kind && ! gaming_hub_tesla_is_supercharger_context( $status );
 
 	if ( $need_start || $need_stop ) {
 		$sent = gaming_hub_tesla_send_signed_command(

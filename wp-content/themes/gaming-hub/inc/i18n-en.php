@@ -406,6 +406,8 @@ return array(
 	'黄棒: 残量 · 金帯: 充電予定 · 色帯: 実績（自宅/外出先/DC）· 朱橙線: 走行 · 青緑線: 単価' => 'Yellow: SOC · Gold: scheduled charge · Colored bands: actual (home/away/DC) · Orange: driving · Teal: price',
 	'外出先充電: 100%% まで常時充電中です。' => 'Away charging: charging to 100%% continuously.',
 	'外出先充電: 100%% まで常時充電中。直近は %s に充電オンです。' => 'Away charging: to 100%% continuously. Last started at %s.',
+	'Supercharger: 100%% まで充電を開始します。' => 'Supercharger: starting charge toward 100%%.',
+	'Supercharger: 100%% まで充電開始。直近は %s に充電オンです。' => 'Supercharger: charge started toward 100%%. Last started at %s.',
 	'位置情報スコープがないため自宅判定できません。Tesla タグから再認証してください（vehicle_location が必要です）。' => 'Cannot detect home without the location scope. Re-authenticate from the Tesla tag page (vehicle_location required).',
 	'GPS を取得できず自宅扱いのままです。次のポーリングで外出先判定を再試行します。' => 'GPS fix missing — still treated as home. The next poll will retry away detection.',
 	'未接続' => 'Unplugged',
