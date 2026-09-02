@@ -748,6 +748,7 @@ return array(
 	'今回' => 'Session',
 	'合計' => 'Total',
 	'請求確定後' => 'Billed later',
+	'見込み' => 'est.',
 	'充電オン' => 'Charge on',
 	'テスト用。ケーブル接続中の充電オン／オフを Tesla に送ります。' => 'Test control. Sends charge on/off to Tesla while the cable is plugged in.',
 	'充電操作には再認証が必要です。' => 'Charge control needs a new Tesla authorization.',

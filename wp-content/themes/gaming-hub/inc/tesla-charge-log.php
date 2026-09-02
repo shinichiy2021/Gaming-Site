@@ -13,6 +13,10 @@ define( 'GAMING_HUB_TESLA_CHARGE_LOG_OPTION', 'gaming_hub_tesla_charge_sessions_
 define( 'GAMING_HUB_TESLA_CHARGE_LOG_MAX', 90 );
 define( 'GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_KEY', 'gaming_hub_tesla_charge_history_sync' );
 define( 'GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_TTL', 6 * HOUR_IN_SECONDS );
+/** Faster Fleet history pulls while a Supercharger bill is still pending. */
+define( 'GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_PENDING_TTL', 10 * MINUTE_IN_SECONDS );
+/** Fallback 円/kWh when no billed Supercharger sessions exist yet (JP membership ballpark). */
+define( 'GAMING_HUB_TESLA_SUPER_YEN_PER_KWH_FALLBACK', 45.0 );
 
 /**
  * Load stored charge sessions (newest first).
@@ -289,38 +293,148 @@ function gaming_hub_tesla_charge_log_current() {
 }
 
 /**
- * Sum known billing yen for a supply type on one calendar day (archived sessions).
+ * Whether any recent Supercharger session is still waiting on Fleet billing.
  *
- * @param string $supply home|supercharger.
- * @param string $date   Y-m-d (empty = today).
- * @return array{yen: int, yen_known: bool}
+ * @param int $within_seconds Look-back window.
  */
-function gaming_hub_tesla_charge_log_supply_yen_on_date( $supply, $date = '' ) {
+function gaming_hub_tesla_charge_log_has_pending_super_yen( $within_seconds = DAY_IN_SECONDS ) {
+	$cutoff = time() - max( HOUR_IN_SECONDS, (int) $within_seconds );
+	foreach ( gaming_hub_tesla_charge_log_sessions() as $row ) {
+		if ( 'supercharger' !== (string) ( $row['supply'] ?? '' ) ) {
+			continue;
+		}
+		$end_ts = (int) ( $row['end_ts'] ?? ( $row['start_ts'] ?? 0 ) );
+		if ( $end_ts < $cutoff ) {
+			continue;
+		}
+		$shaped = gaming_hub_tesla_charge_log_shape( $row );
+		if ( empty( $shaped['yen_known'] ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Average billed Supercharger 円/kWh from recent sessions (for estimates).
+ *
+ * @return float
+ */
+function gaming_hub_tesla_supercharger_avg_yen_per_kwh() {
+	$sum_yen = 0.0;
+	$sum_kwh = 0.0;
+	$count   = 0;
+
+	foreach ( gaming_hub_tesla_charge_log_sessions() as $row ) {
+		if ( 'supercharger' !== (string) ( $row['supply'] ?? '' ) ) {
+			continue;
+		}
+		$shaped = gaming_hub_tesla_charge_log_shape( $row );
+		if ( empty( $shaped['yen_known'] ) ) {
+			continue;
+		}
+		$kwh = (float) ( $shaped['kwh'] ?? 0 );
+		if ( $kwh < 0.5 ) {
+			continue;
+		}
+		$sum_yen += (float) ( $shaped['yen'] ?? 0 );
+		$sum_kwh += $kwh;
+		++$count;
+		if ( $count >= 12 ) {
+			break;
+		}
+	}
+
+	if ( $sum_kwh >= 1.0 ) {
+		return max( 1.0, $sum_yen / $sum_kwh );
+	}
+
+	$fallback = defined( 'GAMING_HUB_TESLA_SUPER_YEN_PER_KWH_FALLBACK' )
+		? (float) GAMING_HUB_TESLA_SUPER_YEN_PER_KWH_FALLBACK
+		: 45.0;
+
+	return max( 1.0, $fallback );
+}
+
+/**
+ * Sum billing yen for a supply type on one calendar day.
+ *
+ * Supercharger yen comes from Fleet charging history. Until Tesla posts the
+ * invoice, estimate from recent billed 円/kWh × today's metered kWh.
+ *
+ * @param string     $supply   home|supercharger.
+ * @param string     $date     Y-m-d (empty = today).
+ * @param float|null $live_kwh Optional live today kWh (energy accumulator) for estimates.
+ * @return array{yen: int, yen_known: bool, yen_estimated: bool}
+ */
+function gaming_hub_tesla_charge_log_supply_yen_on_date( $supply, $date = '', $live_kwh = null ) {
 	$supply = 'supercharger' === $supply ? 'supercharger' : 'home';
 	$date   = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $date ) ? (string) $date : wp_date( 'Y-m-d' );
-	$yen    = 0;
-	$known  = false;
+
+	if ( 'supercharger' === $supply && function_exists( 'gaming_hub_tesla_charge_log_sync_from_fleet' ) ) {
+		gaming_hub_tesla_charge_log_sync_from_fleet();
+	}
+
+	$yen       = 0;
+	$known     = false;
+	$billed_kwh = 0.0;
+	$session_kwh = 0.0;
 
 	foreach ( gaming_hub_tesla_charge_log_sessions() as $row ) {
 		if ( (string) ( $row['supply'] ?? 'home' ) !== $supply ) {
 			continue;
 		}
-		if ( (string) ( $row['end_date'] ?? '' ) !== $date ) {
+		$start_date = (string) ( $row['start_date'] ?? '' );
+		$end_date   = (string) ( $row['end_date'] ?? '' );
+		if ( $end_date !== $date && $start_date !== $date ) {
 			continue;
 		}
 
 		$shaped = gaming_hub_tesla_charge_log_shape( $row );
+		$session_kwh += (float) ( $shaped['kwh'] ?? 0 );
 		if ( empty( $shaped['yen_known'] ) ) {
 			continue;
 		}
 
 		$known = true;
 		$yen  += (int) ( $shaped['yen'] ?? 0 );
+		$billed_kwh += (float) ( $shaped['kwh'] ?? 0 );
 	}
 
+	if ( $known ) {
+		return array(
+			'yen'           => $yen,
+			'yen_known'     => true,
+			'yen_estimated' => false,
+		);
+	}
+
+	if ( 'supercharger' !== $supply ) {
+		return array(
+			'yen'           => 0,
+			'yen_known'     => false,
+			'yen_estimated' => false,
+		);
+	}
+
+	$kwh = null !== $live_kwh && is_numeric( $live_kwh )
+		? max( 0.0, (float) $live_kwh )
+		: $session_kwh;
+	if ( $kwh < 0.05 ) {
+		return array(
+			'yen'           => 0,
+			'yen_known'     => false,
+			'yen_estimated' => false,
+		);
+	}
+
+	$rate = gaming_hub_tesla_supercharger_avg_yen_per_kwh();
+
 	return array(
-		'yen'       => $yen,
-		'yen_known' => $known,
+		'yen'           => (int) round( $kwh * $rate ),
+		'yen_known'     => true,
+		'yen_estimated' => true,
 	);
 }
 
@@ -488,11 +602,19 @@ function gaming_hub_tesla_charge_log_session_matches_event( array $session, arra
  * @return bool True when a sync attempt ran.
  */
 function gaming_hub_tesla_charge_log_sync_from_fleet( $force = false ) {
-	if ( ! $force && get_transient( GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_KEY ) ) {
+	$pending = gaming_hub_tesla_charge_log_has_pending_super_yen( 2 * DAY_IN_SECONDS );
+	$ttl     = $pending
+		? ( defined( 'GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_PENDING_TTL' )
+			? (int) GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_PENDING_TTL
+			: ( 10 * MINUTE_IN_SECONDS ) )
+		: (int) GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_TTL;
+	$last = (int) get_option( 'gaming_hub_tesla_charge_history_sync_at', 0 );
+	if ( ! $force && $last > 0 && ( time() - $last ) < max( MINUTE_IN_SECONDS, $ttl ) ) {
 		return false;
 	}
 
-	set_transient( GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_KEY, 1, GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_TTL );
+	update_option( 'gaming_hub_tesla_charge_history_sync_at', time(), false );
+	delete_transient( GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_KEY );
 
 	if ( ! function_exists( 'gaming_hub_tesla_has_charging_scope' ) || ! gaming_hub_tesla_has_charging_scope() ) {
 		return false;

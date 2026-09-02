@@ -49,9 +49,14 @@ function formatYen( value ) {
 	return `¥${ Math.round( Number( value ) || 0 ).toLocaleString() }`;
 }
 
-function formatBuyYen( value, known, pendingLabel ) {
+function formatBuyYen( value, known, pendingLabel, estimated, estimateLabel ) {
 	if ( known ) {
-		return formatYen( value );
+		const yen = formatYen( value );
+		if ( estimated ) {
+			return `${ yen }（${ estimateLabel || '見込み' }）`;
+		}
+
+		return yen;
 	}
 
 	return pendingLabel || '—';
@@ -133,6 +138,7 @@ function superExtras( status, labels ) {
 	const todayKwh = Number( status.super_today_kwh );
 	const todayYen = Number( status.super_today_yen );
 	const todayYenKnown = !! status.super_today_yen_known;
+	const todayYenEstimated = !! status.super_today_yen_estimated;
 	const sessionKwh = Number( status.super_session_kwh );
 	const spansDays = !! status.super_span_days;
 
@@ -143,7 +149,7 @@ function superExtras( status, labels ) {
 
 	if ( superConnected || charging || ( Number.isFinite( todayKwh ) && todayKwh > 0 ) || todayYenKnown ) {
 		items.push(
-			`${ todayBuy } ${ ( Number.isFinite( todayKwh ) ? todayKwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatBuyYen( todayYen, todayYenKnown, labels.billPending ) }`
+			`${ todayBuy } ${ ( Number.isFinite( todayKwh ) ? todayKwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatBuyYen( todayYen, todayYenKnown, labels.billPending, todayYenEstimated, labels.billEstimate ) }`
 		);
 	}
 
