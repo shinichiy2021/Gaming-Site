@@ -1561,6 +1561,55 @@ function gaming_hub_tesla_geofence_status( array $data ) {
 }
 
 /**
+ * Human-readable location debug line (reverse geocode + geofence distance).
+ *
+ * @param array{at_home: bool|null, distance_m: int|null, known: bool} $geofence Geofence status.
+ * @param array{lat: float, lon: float}|null                         $coords     Vehicle coordinates.
+ * @return string
+ */
+function gaming_hub_tesla_location_debug_label( array $geofence, $coords = null ) {
+	if ( ! gaming_hub_tesla_has_location_scope() ) {
+		return __( '位置デバッグ（試験）: vehicle_location スコープなし', 'gaming-hub' );
+	}
+
+	if ( ! is_array( $coords ) || ! isset( $coords['lat'], $coords['lon'] ) ) {
+		return __( '位置デバッグ（試験）: GPS 未取得', 'gaming-hub' );
+	}
+
+	$lat   = (float) $coords['lat'];
+	$lon   = (float) $coords['lon'];
+	$place = function_exists( 'gaming_hub_tesla_reverse_geocode' )
+		? gaming_hub_tesla_reverse_geocode( $lat, $lon )
+		: '';
+
+	if ( '' === $place ) {
+		$place = sprintf( '%.5f, %.5f', $lat, $lon );
+	}
+
+	$line = sprintf(
+		/* translators: %s: reverse-geocoded place label or coordinates */
+		__( '位置デバッグ（試験）: %s', 'gaming-hub' ),
+		$place
+	);
+
+	if ( ! empty( $geofence['known'] ) && null !== ( $geofence['distance_m'] ?? null ) ) {
+		$line .= true === $geofence['at_home']
+			? sprintf(
+				/* translators: %d: metres from home geofence centre */
+				__( ' · 自宅圏内 · 自宅から %d m', 'gaming-hub' ),
+				(int) $geofence['distance_m']
+			)
+			: sprintf(
+				/* translators: %d: metres from home geofence centre */
+				__( ' · 自宅外 · 自宅から %d m', 'gaming-hub' ),
+				(int) $geofence['distance_m']
+			);
+	}
+
+	return $line;
+}
+
+/**
  * Whether the vehicle is within the home geofence.
  *
  * @param array<string, mixed> $data vehicle_data.
@@ -2789,9 +2838,11 @@ function gaming_hub_tesla_finish_cached_model3( array $cached, $asleep = false )
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
-	$geofence = gaming_hub_tesla_geofence_status( $data );
-	$at_home  = $geofence['at_home'];
-	$data     = gaming_hub_tesla_strip_location( $data );
+	$geofence       = gaming_hub_tesla_geofence_status( $data );
+	$at_home        = $geofence['at_home'];
+	$coords         = gaming_hub_tesla_get_vehicle_coordinates( $data );
+	$location_debug = gaming_hub_tesla_location_debug_label( $geofence, $coords );
+	$data           = gaming_hub_tesla_strip_location( $data );
 
 	$charge_state = isset( $data['charge_state'] ) && is_array( $data['charge_state'] )
 		? $data['charge_state']
@@ -2952,6 +3003,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 			'at_home'                   => $at_home,
 			'geofence_known'            => ! empty( $geofence['known'] ),
 			'geofence_distance_m'       => $geofence['distance_m'],
+			'location_debug'            => $location_debug,
 			'scheduled_charging_ts'     => $scheduled_ts,
 			'odometer_km'               => $odo_stats['odometer_km'],
 			'today_km'                  => $odo_stats['today_km'],

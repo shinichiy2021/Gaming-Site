@@ -5469,6 +5469,17 @@ body.home .site-header.is-scrolled {
 	border-color: rgba(154, 163, 181, 0.45);
 }
 
+.tesla-plan-location-debug {
+	margin: 8px 0 0;
+	padding: 8px 12px;
+	font-size: 0.82rem;
+	line-height: 1.45;
+	color: #a8b0c0;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px dashed rgba(255, 255, 255, 0.16);
+	border-radius: var(--radius-md, 10px);
+}
+
 .tesla-plan-sleep-note {
 	margin: 8px 0 0;
 	padding: 10px 14px;

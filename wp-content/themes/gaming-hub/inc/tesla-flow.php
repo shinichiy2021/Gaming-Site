@@ -433,6 +433,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'at_home'         => array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null,
 		'input_type'      => (string) ( $input['type'] ?? 'none' ),
 		'input_label'     => (string) ( $input['label'] ?? '' ),
+		'location_debug'  => (string) ( $model3['location_debug'] ?? '' ),
 		'input_watts'     => (int) ( $input['watts'] ?? 0 ),
 		'input_plugged'   => ! empty( $input['plugged'] ),
 		'input_charging'  => ! empty( $input['charging'] ),
