@@ -350,6 +350,7 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 			<?php endforeach; ?>
 		</div>
 	</div>
+	<p class="ecoflow-plan-chart-hint"><?php esc_html_e( 'グラフは左右にスワイプできます', 'gaming-hub' ); ?></p>
 	<p class="ecoflow-rate-legend" data-tesla-plan-legend>
 		<?php
 		echo esc_html(

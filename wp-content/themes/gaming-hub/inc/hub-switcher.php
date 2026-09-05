@@ -87,7 +87,6 @@ function gaming_hub_render_mobile_hub_switcher() {
 		id="hub-spa-root"
 		class="hub-switcher"
 		aria-label="<?php esc_attr_e( 'ダッシュボード切替', 'gaming-hub' ); ?>"
-		data-hub-swipe="1"
 		data-hub-spa="<?php echo $spa ? '1' : '0'; ?>"
 		<?php echo $active !== '' ? ' data-active="' . esc_attr( $active ) . '"' : ''; ?>
 	>

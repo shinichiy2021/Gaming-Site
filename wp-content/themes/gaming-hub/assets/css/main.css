@@ -6455,18 +6455,18 @@ body.home .site-header.is-scrolled {
 		padding-top: 4px;
 	}
 
-	/* EcoFlow AI PLAN: taller, swipeable 24h plot so bars and lines stay readable. */
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) {
+	/* AI PLAN: taller, swipeable 24h plot so bars and lines stay readable. */
+	.ecoflow-plan:not(.ecoflow-cal) {
 		padding: 16px 10px 14px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-plan-chart {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-plan-chart {
 		grid-template-columns: 30px minmax(0, 1fr) 38px;
 		column-gap: 4px;
 		margin-top: 8px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-plot {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-plot {
 		overflow-x: auto;
 		overflow-y: hidden;
 		-webkit-overflow-scrolling: touch;
@@ -6476,55 +6476,59 @@ body.home .site-header.is-scrolled {
 		padding-bottom: 4px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-track,
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-hours {
+	.tesla-plan:not(.ecoflow-cal) .ecoflow-rate-plot {
+		scrollbar-color: rgba(212, 175, 55, 0.7) rgba(0, 0, 0, 0.28);
+	}
+
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-track,
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-hours {
 		min-width: 38.5rem;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-track,
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-y {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-track,
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-y {
 		height: 200px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-y {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-y {
 		font-size: 0.7rem;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-y-unit {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-y-unit {
 		font-size: 0.62rem;
 		top: -14px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-soc-stack .ecoflow-rate-bar,
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-bar {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-soc-stack .ecoflow-rate-bar,
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-bar {
 		width: 16px;
 		max-width: 16px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-hour {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-hour {
 		font-size: 0.72rem;
 		height: 20px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-now-pip {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-now-pip {
 		font-size: 0.64rem;
 		letter-spacing: 0.04em;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-solar-line polyline,
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-price-line polyline {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-solar-line polyline,
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-price-line polyline {
 		stroke-width: 3.1px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-ac-line polyline.ecoflow-ac-line-under {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-ac-line polyline.ecoflow-ac-line-under {
 		stroke-width: 6.5px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-ac-line polyline.ecoflow-ac-line-over {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-ac-line polyline.ecoflow-ac-line-over {
 		stroke-width: 3.3px;
 	}
 
-	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-legend {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-legend {
 		font-size: 0.78rem;
 		line-height: 1.45;
 	}
@@ -7534,21 +7538,6 @@ body.home .site-header.is-scrolled {
 	.hub-switcher-tab:not(.is-active):active {
 		background: rgba(255, 255, 255, 0.08);
 		color: var(--color-text);
-	}
-
-	body.hub-swipe-leave-left .site-main,
-	body.hub-swipe-leave-right .site-main {
-		transition: transform 0.14s ease, opacity 0.14s ease;
-		opacity: 0.55;
-		pointer-events: none;
-	}
-
-	body.hub-swipe-leave-left .site-main {
-		transform: translateX(-18px);
-	}
-
-	body.hub-swipe-leave-right .site-main {
-		transform: translateX(18px);
 	}
 
 	.site-header:has(.hub-switcher) .main-navigation {

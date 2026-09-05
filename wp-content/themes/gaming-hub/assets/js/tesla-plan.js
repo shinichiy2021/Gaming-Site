@@ -517,6 +517,18 @@
 		root.querySelectorAll('[data-tesla-plan-drive-line]').forEach(function (line) {
 			line.setAttribute('points', wattsLinePoints(plan.drive_chart, plan.drive_chart_cap));
 		});
+		scrollPlanChartToNow();
+	}
+
+	function scrollPlanChartToNow() {
+		const plot = root.querySelector('.ecoflow-rate-plot');
+		const nowCol = root.querySelector('.ecoflow-plan-col.is-now');
+		if (!plot || !nowCol || plot.scrollWidth <= plot.clientWidth + 8) {
+			return;
+		}
+
+		const left = nowCol.offsetLeft - (plot.clientWidth / 2) + (nowCol.offsetWidth / 2);
+		plot.scrollLeft = Math.max(0, left);
 	}
 
 	function applyBundle(plan) {
