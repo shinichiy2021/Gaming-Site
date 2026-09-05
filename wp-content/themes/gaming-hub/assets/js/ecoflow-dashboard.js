@@ -1168,8 +1168,8 @@
 	}
 
 	function scrollPlanChartToNow() {
-		const plot = dashboard.querySelector('.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-plot');
-		const nowCol = dashboard.querySelector('.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-plan-col.is-now');
+		const plot = dashboard.querySelector('.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-plot');
+		const nowCol = dashboard.querySelector('.ecoflow-plan:not(.ecoflow-cal) .ecoflow-plan-col.is-now');
 		if (!plot || !nowCol || plot.scrollWidth <= plot.clientWidth + 8) {
 			return;
 		}
