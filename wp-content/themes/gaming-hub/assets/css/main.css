@@ -6427,6 +6427,10 @@ body.home .site-header.is-scrolled {
 	color: var(--color-text-muted);
 }
 
+.ecoflow-plan-chart-hint {
+	display: none;
+}
+
 @media (max-width: 640px) {
 	.ecoflow-rates-hud {
 		grid-template-columns: repeat(2, 1fr);
@@ -6449,6 +6453,88 @@ body.home .site-header.is-scrolled {
 		margin-top: 0;
 		padding-right: 0;
 		padding-top: 4px;
+	}
+
+	/* EcoFlow AI PLAN: taller, swipeable 24h plot so bars and lines stay readable. */
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) {
+		padding: 16px 10px 14px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-plan-chart {
+		grid-template-columns: 30px minmax(0, 1fr) 38px;
+		column-gap: 4px;
+		margin-top: 8px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-plot {
+		overflow-x: auto;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior-x: contain;
+		scrollbar-width: thin;
+		scrollbar-color: rgba(0, 245, 212, 0.55) rgba(0, 0, 0, 0.28);
+		padding-bottom: 4px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-track,
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-hours {
+		min-width: 38.5rem;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-track,
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-y {
+		height: 200px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-y {
+		font-size: 0.7rem;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-y-unit {
+		font-size: 0.62rem;
+		top: -14px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-soc-stack .ecoflow-rate-bar,
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-bar {
+		width: 16px;
+		max-width: 16px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-hour {
+		font-size: 0.72rem;
+		height: 20px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-now-pip {
+		font-size: 0.64rem;
+		letter-spacing: 0.04em;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-solar-line polyline,
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-price-line polyline {
+		stroke-width: 3.1px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-ac-line polyline.ecoflow-ac-line-under {
+		stroke-width: 6.5px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-ac-line polyline.ecoflow-ac-line-over {
+		stroke-width: 3.3px;
+	}
+
+	.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-legend {
+		font-size: 0.78rem;
+		line-height: 1.45;
+	}
+
+	.ecoflow-plan-chart-hint {
+		display: block;
+		margin: 6px 0 0;
+		font-size: 0.72rem;
+		letter-spacing: 0.04em;
+		color: rgba(0, 245, 212, 0.78);
 	}
 }
 

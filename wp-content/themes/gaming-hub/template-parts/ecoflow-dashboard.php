@@ -289,6 +289,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 					<?php endforeach; ?>
 				</div>
 			</div>
+			<p class="ecoflow-plan-chart-hint"><?php esc_html_e( 'グラフは左右にスワイプできます', 'gaming-hub' ); ?></p>
 			<p class="ecoflow-rate-legend"><?php echo $show_delta_soc
 				? esc_html__( '黄棒: Pro 残量W · 橙棒: 1500 残量W · 棒の高さ: 合算容量に対する割合 · 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 朱橙線: AC出力見込み · 青緑線: 請求単価', 'gaming-hub' )
 				: esc_html__( '黄棒: Pro 残量 · 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 朱橙線: AC出力見込み · 青緑線: 請求単価', 'gaming-hub' ); ?></p>
