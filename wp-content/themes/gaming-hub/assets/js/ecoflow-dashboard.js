@@ -1163,6 +1163,19 @@
 				el.textContent = (max - (span * i / 4)).toFixed(1);
 			});
 		}
+
+		scrollPlanChartToNow();
+	}
+
+	function scrollPlanChartToNow() {
+		const plot = dashboard.querySelector('.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-rate-plot');
+		const nowCol = dashboard.querySelector('.ecoflow-plan:not(.tesla-plan):not(.ecoflow-cal) .ecoflow-plan-col.is-now');
+		if (!plot || !nowCol || plot.scrollWidth <= plot.clientWidth + 8) {
+			return;
+		}
+
+		const left = nowCol.offsetLeft - (plot.clientWidth / 2) + (nowCol.offsetWidth / 2);
+		plot.scrollLeft = Math.max(0, left);
 	}
 
 	let planViewDay = 'today';
@@ -1719,6 +1732,7 @@
 	bindSendToast();
 	bindPlanDayNav();
 	paintPlanDayNav();
+	scrollPlanChartToNow();
 	refreshDashboard();
 	bindPlanActions();
 	bindCalendarNav();

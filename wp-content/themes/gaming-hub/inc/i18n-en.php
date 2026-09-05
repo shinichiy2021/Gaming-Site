@@ -647,6 +647,7 @@ return array(
 	' W · ' => ' W · ',
 	' kWh（AC ' => ' kWh (AC ',
 	'黄棒: Pro 残量 · 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 朱橙線: AC出力見込み · 青緑線: 請求単価' => 'Yellow: Pro SOC · Gold band: planned grid charge · Orange band: generation forecast Pro 800 W + 1500 500 W · Vermilion line: AC-out forecast · Teal: billed rate',
+	'グラフは左右にスワイプできます' => 'Swipe the chart sideways',
 	'合算%' => 'Share %',
 	'合算 %1$s / %2$s W（%3$s%%）' => 'Total %1$s / %2$s W (%3$s%%)',
 	'合算 ' => 'Total ',
