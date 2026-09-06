@@ -2026,6 +2026,85 @@ function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
 }
 
 /**
+ * Whether the live status snapshot says the vehicle is asleep.
+ *
+ * @param array<string, mixed>|null $status Live status.
+ */
+function gaming_hub_tesla_plan_status_asleep( $status = null ) {
+	$status = is_array( $status ) ? $status : array();
+	$model3 = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$flow   = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$asleep = ( ! empty( $flow['asleep'] ) || ! empty( $model3['asleep'] ) || ! empty( $status['tesla_asleep'] ) )
+		&& empty( $model3['is_charging'] )
+		&& empty( $flow['is_charging'] );
+	if ( ! $asleep && function_exists( 'gaming_hub_tesla_api_skip_reason' ) && 'asleep' === gaming_hub_tesla_api_skip_reason() ) {
+		$asleep = empty( $model3['is_charging'] ) && empty( $flow['is_charging'] );
+	}
+
+	return $asleep;
+}
+
+/**
+ * Home AI PLAN context — asleep wake should only run when the car is expected at home.
+ *
+ * @param array<string, mixed>      $plan   Plan.
+ * @param array<string, mixed>|null $status Live status.
+ */
+function gaming_hub_tesla_plan_home_charge_context( array $plan, $status = null ) {
+	if ( gaming_hub_tesla_is_supercharger_context( $status ) ) {
+		return false;
+	}
+
+	$status = is_array( $status ) ? $status : array();
+	$model3 = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$flow   = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+
+	if ( true === ( $model3['at_home'] ?? null ) || ! empty( $model3['at_home_sticky'] ) ) {
+		return true;
+	}
+
+	$kind = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+	if ( 'home' === $kind ) {
+		return true;
+	}
+
+	if ( function_exists( 'gaming_hub_tesla_home_plugged_recent' ) && gaming_hub_tesla_home_plugged_recent() ) {
+		return true;
+	}
+
+	return null === ( $model3['at_home'] ?? null ) && 'home' === (string) ( $plan['live_supply'] ?? '' );
+}
+
+/**
+ * Plugged inference for AI PLAN auto-apply (cache is stale while asleep).
+ *
+ * @param array<string, mixed>|null $status Live status.
+ * @param bool                      $want   AI PLAN wants charging.
+ * @param array<string, mixed>      $plan   Plan payload.
+ */
+function gaming_hub_tesla_plan_auto_plugged( $status, $want, array $plan = array() ) {
+	$status  = is_array( $status ) ? $status : array();
+	$model3  = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
+	$flow    = is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array();
+	$kind    = gaming_hub_tesla_status_supply_kind( $status );
+	$plugged = in_array( $kind, array( 'home', 'supercharger' ), true )
+		|| ! empty( $model3['plugged'] )
+		|| ! empty( $flow['plugged'] );
+
+	if ( $plugged ) {
+		return true;
+	}
+
+	if ( function_exists( 'gaming_hub_tesla_home_plugged_recent' ) && gaming_hub_tesla_home_plugged_recent() ) {
+		return true;
+	}
+
+	return $want
+		&& gaming_hub_tesla_plan_status_asleep( $status )
+		&& gaming_hub_tesla_plan_home_charge_context( $plan, $status );
+}
+
+/**
  * Apply this hour's AI PLAN: home charge on/off and charge-limit SOC.
  *
  * @param array<string, mixed>|null $status Live status.
@@ -2071,9 +2150,9 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 		return true;
 	}
 
-	$asleep   = ! empty( $flow['asleep'] ) || ! empty( $model3['asleep'] );
+	$asleep   = gaming_hub_tesla_plan_status_asleep( $status );
 	$charging = ( ! empty( $flow['is_charging'] ) || ! empty( $model3['is_charging'] ) ) && ! $asleep;
-	$plugged  = in_array( $kind, array( 'home', 'supercharger' ), true ) || ! empty( $model3['plugged'] );
+	$plugged  = gaming_hub_tesla_plan_auto_plugged( $status, ! empty( $desired['want'] ), $plan );
 	$hour_key = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
 	$want     = ! empty( $desired['want'] );
 	$action   = $want ? 'start' : 'stop';
@@ -2095,6 +2174,10 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 		}
 		if ( ! $want && ! $charging ) {
 			return true;
+		}
+		// Asleep in a charge hour: keep retrying wake + charge_start until charging begins.
+		if ( $want && $asleep && gaming_hub_tesla_plan_home_charge_context( $plan, $status ) ) {
+			$same = false;
 		}
 	}
 
@@ -2133,7 +2216,7 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 			'set_charge_limit',
 			array( 'percent' => $limit ),
 			false,
-			true
+			$asleep && $want
 		);
 		if ( is_wp_error( $set ) ) {
 			$saved['error']    = $set->get_error_message();
