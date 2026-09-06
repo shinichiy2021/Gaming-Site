@@ -52,6 +52,13 @@ function gaming_hub_tesla_field_charge_fix_post_slug() {
 }
 
 /**
+ * Post slug for the 2026-09-06 V2H / 10 kW solar site-survey memo.
+ */
+function gaming_hub_v2h_survey_20260906_post_slug() {
+	return 'v2h-solar-10kw-genchi-2026-09-06';
+}
+
+/**
  * Find seeded e Vitara post IDs (canonical slug first, then -2/-3 suffix races).
  *
  * @return int[]
@@ -143,12 +150,28 @@ function gaming_hub_is_evitara_v2h_post( $post_id = null ) {
 }
 
 /**
+ * Whether the current (or given) post is the 2026-09-06 V2H site-survey memo.
+ *
+ * @param int|null $post_id Post ID.
+ */
+function gaming_hub_is_v2h_survey_20260906_post( $post_id = null ) {
+	$post_id = $post_id ? (int) $post_id : (int) get_the_ID();
+	if ( ! $post_id ) {
+		return false;
+	}
+
+	return gaming_hub_v2h_survey_20260906_post_slug() === get_post_field( 'post_name', $post_id );
+}
+
+/**
  * Whether the current (or given) post uses a theme SVG diagram for hero/card.
  *
  * @param int|null $post_id Post ID.
  */
 function gaming_hub_is_diagram_article_post( $post_id = null ) {
-	return gaming_hub_is_api_diagram_post( $post_id ) || gaming_hub_is_evitara_v2h_post( $post_id );
+	return gaming_hub_is_api_diagram_post( $post_id )
+		|| gaming_hub_is_evitara_v2h_post( $post_id )
+		|| gaming_hub_is_v2h_survey_20260906_post( $post_id );
 }
 
 /**
@@ -204,12 +227,23 @@ function gaming_hub_evitara_v2h_hero_image_url() {
 }
 
 /**
- * Hero image URL for diagram-style articles (API + e Vitara).
+ * Hero image URL for the 2026-09-06 V2H site-survey memo.
+ */
+function gaming_hub_v2h_survey_20260906_hero_image_url() {
+	return gaming_hub_theme_image_url( 'v2h-miraiz-cycle.svg' );
+}
+
+/**
+ * Hero image URL for diagram-style articles (API + e Vitara + site survey).
  *
  * @param int|null $post_id Post ID.
  * @return string
  */
 function gaming_hub_diagram_hero_image_url( $post_id = null ) {
+	if ( gaming_hub_is_v2h_survey_20260906_post( $post_id ) ) {
+		return gaming_hub_v2h_survey_20260906_hero_image_url();
+	}
+
 	if ( gaming_hub_is_evitara_v2h_post( $post_id ) ) {
 		return gaming_hub_evitara_v2h_hero_image_url();
 	}
@@ -232,6 +266,10 @@ function gaming_hub_api_diagram_hero_image_url( $post_id = null ) {
  * @return string
  */
 function gaming_hub_diagram_hero_alt( $post_id = null ) {
+	if ( gaming_hub_is_v2h_survey_20260906_post( $post_id ) ) {
+		return __( '屋根太陽光 10kW × V2H 運用サイクル', 'gaming-hub' );
+	}
+
 	if ( gaming_hub_is_evitara_v2h_post( $post_id ) ) {
 		return __( 'e Vitara × ニチコン V2H 系統図', 'gaming-hub' );
 	}
@@ -1798,3 +1836,166 @@ function gaming_hub_seed_tesla_field_charge_fix_post() {
 	update_option( 'gaming_hub_seed_tesla_field_charge_fix_v1', (int) $post_id );
 }
 add_action( 'init', 'gaming_hub_seed_tesla_field_charge_fix_post', 25 );
+
+/**
+ * Article body: 2026-09-06 V2H / 10 kW solar site-survey memo.
+ *
+ * @return string
+ */
+function gaming_hub_seed_v2h_survey_20260906_content() {
+	$ecoflow = esc_url( function_exists( 'gaming_hub_ecoflow_url' ) ? gaming_hub_ecoflow_url() : home_url( '/tag/ecoflow/' ) );
+	$tesla   = esc_url( function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() : home_url( '/tag/tesla/' ) );
+	$plan    = $tesla . '#plan';
+	$energy  = $ecoflow . '#energy';
+	$evitara = esc_url( home_url( '/e-vitara-v2h-2026/' ) );
+
+	$fig_cycle = gaming_hub_article_figure( 'v2h-miraiz-cycle.svg', '屋根太陽光 10kW × V2H 運用サイクル', '夜間は夜トク想定で充電、昼は太陽光、高い時間は V2H 放電', 'article-figure--diagram' );
+	$fig_solar = gaming_hub_article_figure( 'tesla-solar-gaming.jpg', '屋根太陽光のイメージ', '約 10 kW 積載を前提にした現地調査' );
+	$fig_wall  = gaming_hub_article_figure( 'tesla-wall-connector-gaming.jpg', '自宅 200V / V2H 充電', 'Tesla への充放電と同時負荷を見る' );
+	$fig_grid  = gaming_hub_article_figure( 'ecoflow-grid-pole.jpg', '引込・グリッド側', '主幹容量と引込線の確認が必要' );
+
+	return <<<HTML
+<p>2026-09-06 の現地調査で、屋根太陽光 <strong>約 10 kW</strong> とニチコン <strong>トライブリッド T5</strong>、Tesla への V2H 充放電を前提にした論点を整理しました。製品カタログではなく、<strong>その場で固まった制約と次に確認すること</strong>のメモです。いまの Looop 市場連動＋EcoFlow 運用は <a href="{$ecoflow}">EcoFlow ダッシュボード</a>と <a href="{$energy}">発電ログ</a>、Model 3 の時間帯充電は <a href="{$plan}">AI PLAN</a> で見ています。</p>
+
+{$fig_cycle}
+
+<h2>1. 電気料金プランの見直し（Looopでんき → 中部電力ミライズ）</h2>
+<h3>現状の課題（市場連動型）</h3>
+<p>Looopでんきなどの市場連動型は、単価の振れが大きく、<strong>「夜間の最安でためて昼使う」</strong>を安定させにくいです。V2H の充放電タイミングを単価に合わせたいほど、市場スパイクの影響を受けます。いまの EcoFlow AI PLAN もスマートタイムONE前提なので、プランが変われば充電窓の前提も作り直す必要があります。</p>
+
+<h3>ミライズの夜トク・時間帯別への変更案</h3>
+<p>中部電力ミライズの夜トク／時間帯別（夜間単価 <strong>約 16 円/kWh 想定</strong>）へ移すと、次のサイクルが一番経済的になりやすい、というのが当日の結論です。</p>
+<ul>
+<li><strong>夜間</strong> — 安い帯で Tesla へ充電</li>
+<li><strong>昼間</strong> — 屋根の太陽光（約 10 kW）を自家消費し、余剰は車へ充電</li>
+<li><strong>夕方〜夜の高い帯</strong> — Tesla から家へ放電（V2H）</li>
+</ul>
+{$fig_solar}
+{$fig_wall}
+<p>先に書いた <a href="{$evitara}">e Vitara × V2H の構成メモ</a> は定置蓄電池なしの方向です。今回はトライブリッド T5 ＋ 10 kW 積載＋既存 Model 3 を、現地の屋根と分電盤の制約に合わせて詰める段階です。夜間単価 16 円は想定値なので、見積・約款の確定単価で再計算します。</p>
+
+<h2>2. 分電盤・契約アンペア（ブレーカー落ち対策）</h2>
+{$fig_grid}
+<h3>現状の設備</h3>
+<p>主開閉器（ヒューズ／ブレーカー）は <strong>40 A</strong>。単相3線なら 100 V 換算で 40 A × 2 ＝ <strong>8 kVA</strong>、主幹としてはおおよそ 4〜8 kVA クラスです。</p>
+
+<h3>V2H 導入時の注意</h3>
+<p>トライブリッド T5 は最大およそ <strong>6 kW（200 V・30 A）</strong> で充放電できます。エアコン、IH、電子レンジなどと V2H の急速充電が重なると、現状の契約・主幹ではトリップしやすいです。</p>
+<p>見積に次が入っているか、当日の確認事項です。</p>
+<ul>
+<li>契約を <strong>60 A</strong> へ上げること</li>
+<li>主幹 60 A〜75 A 対応の分電盤改修</li>
+<li>必要なら引込線の張り替え</li>
+</ul>
+<p>本体価格だけ見て、幹線工事が後から足されると総額がずれます。</p>
+
+<h2>3. 足場の再調査と屋根形状</h2>
+<p>屋根が段違い・下屋などで重なっており、標準的な足場では足りません。入念な再現地調査が必要です。</p>
+<p>葺き替え（ガルバリウム鋼板など）を行うなら、<strong>屋根工事用の足場と太陽光設置用の足場を共用できるか</strong>がコストの大きな分かれ目です。二重に組むと足場代がそのまま増えます。</p>
+
+<h2>次のアクション</h2>
+<table>
+<thead><tr><th>優先度</th><th>項目</th><th>具体的なアクション</th></tr></thead>
+<tbody>
+<tr>
+<td>高</td>
+<td>工務店（曽根材木店様）への相談</td>
+<td>① 築35年の屋根葺き替え（ガルバリウム鋼板等）と 10 kW 積載時の構造耐荷重<br>② 屋根リフォーム＋太陽光の自治体・国の補助金<br>③ 工務店側の現地調査日程</td>
+</tr>
+<tr>
+<td>高</td>
+<td>業者からの初回見積</td>
+<td>① システム本体（トライブリッド T5 ＋ PV 約 10 kW）<br>② 分電盤改修・主幹アンペア増設に伴う電気幹線工事<br>③ 複雑な屋根形状の足場概算</td>
+</tr>
+<tr>
+<td>中</td>
+<td>足場の共用</td>
+<td>葺き替えする場合、工務店の足場を太陽光業者と共用できないか双方に確認（二重計上を防ぐ）</td>
+</tr>
+<tr>
+<td>中</td>
+<td>補助金スケジュール</td>
+<td>トライブリッド T5 の補助金対象登録時期（次年度公募）と、事前申請〜着工までのタイムライン</td>
+</tr>
+</tbody>
+</table>
+
+<p>見積と工務店調査が入ったら、夜間単価・主幹容量・足場の前提を更新して、このメモを改訂します。ライブの発電と充電計画はこれまで通り <a href="{$ecoflow}">EcoFlow</a> / <a href="{$tesla}">Tesla</a> のダッシュボードで追います。</p>
+
+<h2>関連リンク</h2>
+<ul>
+<li><a href="{$ecoflow}">EcoFlow ダッシュボード</a></li>
+<li><a href="{$energy}">発電ログ</a></li>
+<li><a href="{$plan}">AI PLAN（Model 3 充電計画）</a></li>
+<li><a href="{$evitara}">e Vitara × ニチコン V2H（定置蓄電池なしの検討）</a></li>
+</ul>
+HTML;
+}
+
+/**
+ * Create the seeded 2026-09-06 V2H site-survey memo once.
+ */
+function gaming_hub_seed_v2h_survey_20260906_post() {
+	if ( get_option( 'gaming_hub_seed_v2h_survey_20260906_v1' ) ) {
+		return;
+	}
+
+	$slug     = gaming_hub_v2h_survey_20260906_post_slug();
+	$existing = get_posts(
+		array(
+			'name'           => $slug,
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	if ( ! empty( $existing ) ) {
+		update_option( 'gaming_hub_seed_v2h_survey_20260906_v1', (int) $existing[0] );
+		return;
+	}
+
+	if ( ! term_exists( 'ecoflow', 'post_tag' ) ) {
+		wp_insert_term(
+			'EcoFlow',
+			'post_tag',
+			array(
+				'slug' => 'ecoflow',
+			)
+		);
+	}
+
+	$post_id = wp_insert_post(
+		array(
+			'post_title'   => 'V2H・太陽光10kWの現地調査｜2026-09-06 料金・主幹・足場',
+			'post_name'    => $slug,
+			'post_status'  => 'publish',
+			'post_type'    => 'post',
+			'post_date'    => '2026-09-06 16:00:00',
+			'post_content' => gaming_hub_seed_v2h_survey_20260906_content(),
+			'post_excerpt' => '現地調査で固まった3点。Looop市場連動からミライズ夜トクへの見直し、主幹40AとV2H 6kW同時負荷、段違い屋根の足場再調査。工務店・見積・補助金の次アクション。',
+			'tags_input'   => array( 'ecoflow' ),
+		),
+		true
+	);
+
+	if ( is_wp_error( $post_id ) || ! $post_id ) {
+		return;
+	}
+
+	update_post_meta( $post_id, 'rank_math_title', 'V2H・太陽光10kWの現地調査｜ミライズ・主幹40A・足場 2026-09-06' );
+	update_post_meta( $post_id, 'rank_math_description', '2026-09-06現地調査。Looopから中部電力ミライズ夜トクへの見直し、主幹40AとトライブリッドT5（約6kW）の同時負荷、段違い屋根の足場共用と次アクション。' );
+	update_post_meta( $post_id, 'rank_math_focus_keyword', 'V2H 現地調査' );
+	update_post_meta( $post_id, 'rank_math_robots', array( 'index' ) );
+
+	$att_id = gaming_hub_ensure_theme_image_attachment( 'v2h-miraiz-cycle.svg' );
+	if ( ! $att_id ) {
+		$att_id = gaming_hub_ensure_theme_image_attachment( 'tesla-solar-gaming.jpg' );
+	}
+	if ( $att_id ) {
+		set_post_thumbnail( $post_id, $att_id );
+	}
+
+	update_option( 'gaming_hub_seed_v2h_survey_20260906_v1', (int) $post_id );
+}
+add_action( 'init', 'gaming_hub_seed_v2h_survey_20260906_post', 26 );
