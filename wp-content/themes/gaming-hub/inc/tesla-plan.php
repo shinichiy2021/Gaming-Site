@@ -12,8 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'GAMING_HUB_TESLA_PLAN_VOLTS', 200 );
 define( 'GAMING_HUB_TESLA_PLAN_AMPS', 15 );
 define( 'GAMING_HUB_TESLA_PLAN_CHARGE_W', GAMING_HUB_TESLA_PLAN_VOLTS * GAMING_HUB_TESLA_PLAN_AMPS );
-/** Daily charge cap: lithium-ion health band (do not sit at 100%). */
-define( 'GAMING_HUB_TESLA_PLAN_TARGET_SOC', 80 );
+/** Daily charge cap (weekdays included). */
+define( 'GAMING_HUB_TESLA_PLAN_TARGET_SOC', 100 );
 /** Avoid regular deep discharge. */
 define( 'GAMING_HUB_TESLA_PLAN_MIN_SOC', 20 );
 /** Weekly calibration / weekend full charge. */
@@ -23,7 +23,7 @@ define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR', 6 );
 /** Friday hour when the overnight boost window opens. */
 define( 'GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR', 22 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v9_' );
+define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v10_' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_OPTION', 'gaming_hub_tesla_plan_auto_v1' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_LOCK', 'gaming_hub_tesla_plan_auto_lock' );
 /** Max automatic wakes per day (AI PLAN cron). Manual ON/OFF is not limited. */
@@ -647,7 +647,7 @@ function gaming_hub_tesla_plan_is_saturday( $date ) {
 /**
  * Operating charge cap for a date/hour.
  *
- * Weekdays stay in the 20–80% health band. Saturday before 07:00 aims at 100%.
+ * Daily cap is 100%. Saturday before 07:00 also aims at 100%.
  *
  * @param string $date      Y-m-d.
  * @param int    $from_hour First hour still in play.
@@ -945,10 +945,9 @@ function gaming_hub_tesla_plan_drive_profile( $day, $date, $today_km ) {
 }
 
 /**
- * Charge-hour candidates for daily 80% fill or the Saturday 100% boost.
+ * Charge-hour candidates for the daily 100% fill or the Saturday 100% boost.
  *
- * Daily fill stays in the health band. Boost hours are Friday 22:00–Saturday 07:00
- * only, so the pack does not sit at 100% all Friday.
+ * Daily fill uses cheap hours. Boost hours are Friday 22:00–Saturday 07:00.
  *
  * @param string             $date      Y-m-d.
  * @param string             $day       yesterday|today|tomorrow.
@@ -1456,7 +1455,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		$deficit_label = __( '推奨だった充電', 'gaming-hub' );
 	} elseif ( 'tomorrow' === $day ) {
 		if ( ! $needs_grid ) {
-			$note = __( '明日の走行見込みでは追加のグリッド充電は不要です。残量は 20–80% を目安にしています。', 'gaming-hub' );
+			$note = __( '明日の走行見込みでは追加のグリッド充電は不要です。充電上限は 100% です。', 'gaming-hub' );
 		} elseif ( $is_sat_am ) {
 			$note = sprintf(
 				/* translators: 1: km, 2: window, 3: Saturday hour */
@@ -1468,14 +1467,14 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} elseif ( $is_friday ) {
 			$note = sprintf(
 				/* translators: 1: km, 2: window */
-				__( '明日（金曜）は電池に負担をかけないよう約 80%% まで。金曜夜〜土曜朝の最安時間（%2$s）に 100%% へ上げます。予想走行 %1$s km。', 'gaming-hub' ),
+				__( '明日（金曜）は充電上限 100%% まで。金曜夜〜土曜朝の最安時間（%2$s）にも充電します。予想走行 %1$s km。', 'gaming-hub' ),
 				number_format_i18n( $drive['km'], 0 ),
 				$window
 			);
 		} else {
 			$note = sprintf(
 				/* translators: 1: km, 2: window */
-				__( '明日の %1$s km 走行を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間（%2$s）に 200V 普通充電します。', 'gaming-hub' ),
+				__( '明日の %1$s km 走行を踏まえ、充電上限 100%% まで、スマートタイムONEの最安時間（%2$s）に 200V 普通充電します。', 'gaming-hub' ),
 				number_format_i18n( $drive['km'], 0 ),
 				$window
 			);
@@ -1491,7 +1490,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		if ( ! $needs_grid ) {
 			$note = $is_sat_am
 				? __( 'いまの残量で土曜朝 100% に届く見込みです。追加のグリッド充電は不要です。', 'gaming-hub' )
-				: __( 'いまの残量と残りの走行では、追加のグリッド充電は不要です。残量は 20–80% を目安にしています。', 'gaming-hub' );
+				: __( 'いまの残量と残りの走行では、追加のグリッド充電は不要です。充電上限は 100% です。', 'gaming-hub' );
 		} elseif ( $is_sat_am ) {
 			$note = sprintf(
 				/* translators: 1: kW, 2: Saturday hour, 3: window */
@@ -1503,7 +1502,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} elseif ( $is_friday ) {
 			$note = sprintf(
 				/* translators: 1: kW, 2: remaining km, 3: window, 4: Saturday hour */
-				__( '残りの走行 %2$s km。平日は約 80%% まで、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）に 100%% へ上げます（200V 普通充電 %1$s kW）。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
+				__( '残りの走行 %2$s km。平日の充電上限は 100%%、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）にも充電します（200V 普通充電 %1$s kW）。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
 				number_format_i18n( $drive['remaining_km'], 1 ),
 				$window,
@@ -1511,11 +1510,10 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 			);
 		} else {
 			$note = sprintf(
-				/* translators: 1: charge kW, 2: remaining km, 3: Saturday hour */
-				__( '残りの走行 %2$s km を踏まえ、電池に負担をかけない約 80%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。土曜 %3$s 時までに 100%% になります。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
+				/* translators: 1: charge kW, 2: remaining km */
+				__( '残りの走行 %2$s km を踏まえ、充電上限 100%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
-				number_format_i18n( $drive['remaining_km'], 1 ),
-				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
+				number_format_i18n( $drive['remaining_km'], 1 )
 			);
 		}
 		$note         .= $cap_note;
@@ -1534,9 +1532,8 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 			number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
 		)
 		: sprintf(
-			/* translators: 1: min SOC, 2: daily target */
-			__( '電池ケア %1$s–%2$s%%', 'gaming-hub' ),
-			number_format_i18n( GAMING_HUB_TESLA_PLAN_MIN_SOC ),
+			/* translators: %s: charge limit */
+			__( '充電上限 %s%%', 'gaming-hub' ),
 			number_format_i18n( $daily_soc )
 		);
 
