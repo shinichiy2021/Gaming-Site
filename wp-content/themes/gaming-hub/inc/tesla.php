@@ -25,6 +25,8 @@ define( 'GAMING_HUB_TESLA_HOME_LAT_LEGACY', 35.3409 );
 define( 'GAMING_HUB_TESLA_HOME_LON_LEGACY', 137.1264 );
 /** Last confirmed at-home geofence; kept until drive or Supercharger clears it. */
 define( 'GAMING_HUB_TESLA_AT_HOME_STICKY_OPTION', 'gaming_hub_tesla_at_home_sticky_v1' );
+define( 'GAMING_HUB_TESLA_HOME_PLUGGED_OPTION', 'gaming_hub_tesla_home_plugged_v1' );
+define( 'GAMING_HUB_TESLA_WAKE_GRACE_KEY', 'gaming_hub_tesla_wake_grace_v1' );
 /** Reuse recent GPS for geofence when a poll omits location_data. */
 define( 'GAMING_HUB_TESLA_COORD_MAX_AGE', 45 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
@@ -1039,6 +1041,7 @@ function gaming_hub_tesla_clear_api_skip() {
 function gaming_hub_tesla_store_model3( array $model3 ) {
 	$model3['asleep']     = false;
 	$model3['fetched_at'] = time();
+	gaming_hub_tesla_remember_home_plugged( $model3 );
 	set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $model3, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
 	if ( function_exists( 'gaming_hub_tesla_sleep_soc_clear' ) ) {
 		gaming_hub_tesla_sleep_soc_clear();
@@ -1054,6 +1057,7 @@ function gaming_hub_tesla_store_model3( array $model3 ) {
  */
 function gaming_hub_tesla_store_model3_snapshot( array $model3, $asleep = false ) {
 	$model3['asleep'] = (bool) $asleep;
+	gaming_hub_tesla_remember_home_plugged( $model3 );
 	if ( $asleep ) {
 		$model3['is_charging']               = false;
 		$model3['watts']                     = 0;
@@ -1242,6 +1246,61 @@ function gaming_hub_tesla_consume_wake_budget() {
 }
 
 /**
+ * Remember the last time the car was plugged in at home (for asleep AI PLAN).
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ */
+function gaming_hub_tesla_remember_home_plugged( array $model3 ) {
+	$kind = (string) ( $model3['supply_kind'] ?? '' );
+	if ( ! empty( $model3['plugged'] ) && 'home' === $kind ) {
+		update_option( GAMING_HUB_TESLA_HOME_PLUGGED_OPTION, time(), false );
+
+		return;
+	}
+
+	if ( ! empty( $model3['plugged'] ) ) {
+		return;
+	}
+
+	if ( in_array( $kind, array( '', 'none' ), true ) ) {
+		delete_option( GAMING_HUB_TESLA_HOME_PLUGGED_OPTION );
+	}
+}
+
+/**
+ * Whether the car was plugged at home recently (cache may be stale while asleep).
+ */
+function gaming_hub_tesla_home_plugged_recent() {
+	$at = (int) get_option( GAMING_HUB_TESLA_HOME_PLUGGED_OPTION, 0 );
+
+	return $at > 0 && ( time() - $at ) < 14 * DAY_IN_SECONDS;
+}
+
+/**
+ * Retry a vehicle command after wake with short backoff until online or timeout.
+ *
+ * @param Gaming_Hub_Tesla_API $api     API client.
+ * @param string               $vin     Vehicle VIN.
+ * @param string               $command Command name.
+ * @param array<string, mixed> $payload Command body.
+ * @return array<string, mixed>|WP_Error
+ */
+function gaming_hub_tesla_retry_command_after_wake( $api, $vin, $command, $payload ) {
+	$result = null;
+	foreach ( array( 8, 10, 12 ) as $delay ) {
+		sleep( $delay );
+		$result = $api->send_vehicle_command( $vin, $command, $payload );
+		if ( ! is_wp_error( $result ) || 'tesla_vehicle_asleep' !== $result->get_error_code() ) {
+			return $result;
+		}
+	}
+
+	return $result instanceof WP_Error
+		? $result
+		: new WP_Error( 'tesla_vehicle_asleep', __( 'Tesla vehicle is asleep.', 'gaming-hub' ) );
+}
+
+/**
  * Send a signed Tesla vehicle command, waking the car once if it is asleep.
  *
  * @param string               $command  charge_start|charge_stop|set_charge_limit.
@@ -1281,27 +1340,31 @@ function gaming_hub_tesla_send_signed_command( $command, $payload = array(), $re
 
 	$result = $api->send_vehicle_command( $vin, $command, $payload );
 	if ( is_wp_error( $result ) && 'tesla_vehicle_asleep' === $result->get_error_code() ) {
-		// Cron auto-apply uses wait_wake=true; cap daily wakes to limit Fleet Wake spend.
-		if ( $wait_wake && function_exists( 'gaming_hub_tesla_consume_wake_budget' ) && ! gaming_hub_tesla_consume_wake_budget() ) {
-			return new WP_Error(
-				'tesla_wake_budget',
-				__( '本日の自動ウェイク上限に達しました。車はスリープのままです。', 'gaming-hub' )
-			);
-		}
-
-		$wake = $api->wake_vehicle( $vin );
-		if ( is_wp_error( $wake ) ) {
-			return new WP_Error( $wake->get_error_code(), gaming_hub_tesla_charge_command_error_message( $wake ) );
-		}
-
-		if ( $wait_wake ) {
-			sleep( 12 );
-			$result = $api->send_vehicle_command( $vin, $command, $payload );
+		if ( $wait_wake && get_transient( GAMING_HUB_TESLA_WAKE_GRACE_KEY ) ) {
+			$result = gaming_hub_tesla_retry_command_after_wake( $api, $vin, $command, $payload );
 		} else {
-			return new WP_Error(
-				'tesla_waking',
-				__( '車を起こしています。数秒後にもう一度押してください。', 'gaming-hub' )
-			);
+			// Cron auto-apply uses wait_wake=true; cap daily wakes to limit Fleet Wake spend.
+			if ( $wait_wake && function_exists( 'gaming_hub_tesla_consume_wake_budget' ) && ! gaming_hub_tesla_consume_wake_budget() ) {
+				return new WP_Error(
+					'tesla_wake_budget',
+					__( '本日の自動ウェイク上限に達しました。車はスリープのままです。', 'gaming-hub' )
+				);
+			}
+
+			$wake = $api->wake_vehicle( $vin );
+			if ( is_wp_error( $wake ) ) {
+				return new WP_Error( $wake->get_error_code(), gaming_hub_tesla_charge_command_error_message( $wake ) );
+			}
+
+			if ( $wait_wake ) {
+				set_transient( GAMING_HUB_TESLA_WAKE_GRACE_KEY, 1, 90 );
+				$result = gaming_hub_tesla_retry_command_after_wake( $api, $vin, $command, $payload );
+			} else {
+				return new WP_Error(
+					'tesla_waking',
+					__( '車を起こしています。数秒後にもう一度押してください。', 'gaming-hub' )
+				);
+			}
 		}
 	}
 
