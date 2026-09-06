@@ -23,9 +23,9 @@ define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR', 6 );
 /** Friday hour when the overnight boost window opens. */
 define( 'GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR', 22 );
 /** Only charge within this many ¥/kWh of the look-ahead minimum (skip peak slots). */
-define( 'GAMING_HUB_TESLA_PLAN_CHEAP_YEN_PREMIUM', 8.0 );
+define( 'GAMING_HUB_TESLA_PLAN_CHEAP_YEN_PREMIUM', 10.0 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v11_' );
+define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v12_' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_OPTION', 'gaming_hub_tesla_plan_auto_v1' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_LOCK', 'gaming_hub_tesla_plan_auto_lock' );
 /** Max automatic wakes per day (AI PLAN cron). Manual ON/OFF is not limited. */
@@ -1109,7 +1109,7 @@ function gaming_hub_tesla_plan_cheap_yen_ceiling( array $candidates ) {
 	$min_yen = min( array_column( $candidates, 'yen' ) );
 	$premium = defined( 'GAMING_HUB_TESLA_PLAN_CHEAP_YEN_PREMIUM' )
 		? (float) GAMING_HUB_TESLA_PLAN_CHEAP_YEN_PREMIUM
-		: 8.0;
+		: 10.0;
 
 	return (float) $min_yen + max( 0.0, $premium );
 }
