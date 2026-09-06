@@ -13,7 +13,7 @@ define( 'GAMING_HUB_TESLA_PLAN_VOLTS', 200 );
 define( 'GAMING_HUB_TESLA_PLAN_AMPS', 15 );
 define( 'GAMING_HUB_TESLA_PLAN_CHARGE_W', GAMING_HUB_TESLA_PLAN_VOLTS * GAMING_HUB_TESLA_PLAN_AMPS );
 /** Daily charge cap (weekdays included). */
-define( 'GAMING_HUB_TESLA_PLAN_TARGET_SOC', 90 );
+define( 'GAMING_HUB_TESLA_PLAN_TARGET_SOC', 100 );
 /** Avoid regular deep discharge. */
 define( 'GAMING_HUB_TESLA_PLAN_MIN_SOC', 20 );
 /** Weekly calibration / weekend full charge. */
@@ -25,7 +25,7 @@ define( 'GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR', 22 );
 /** Only charge within this many ¥/kWh of the look-ahead minimum (skip peak slots). */
 define( 'GAMING_HUB_TESLA_PLAN_CHEAP_YEN_PREMIUM', 10.0 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v13_' );
+define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v14_' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_OPTION', 'gaming_hub_tesla_plan_auto_v1' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_LOCK', 'gaming_hub_tesla_plan_auto_lock' );
 /** Max automatic wakes per day (AI PLAN cron). Manual ON/OFF is not limited. */
@@ -649,7 +649,7 @@ function gaming_hub_tesla_plan_is_saturday( $date ) {
 /**
  * Operating charge cap for a date/hour.
  *
- * Daily cap is 90%. Saturday before 07:00 also aims at 100%.
+ * Daily cap is 100%. Saturday before 07:00 also aims at 100%.
  *
  * @param string $date      Y-m-d.
  * @param int    $from_hour First hour still in play.
