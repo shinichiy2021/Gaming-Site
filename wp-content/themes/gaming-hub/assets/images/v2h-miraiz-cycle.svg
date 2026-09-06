@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-label="10 kW rooftop solar and V2H daily cycle">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0c0c0e"/>
+      <stop offset="100%" stop-color="#101410"/>
+    </linearGradient>
+    <linearGradient id="box" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1c1c20"/>
+      <stop offset="100%" stop-color="#121214"/>
+    </linearGradient>
+    <marker id="arrow-night" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#5b8cff"/>
+    </marker>
+    <marker id="arrow-day" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#4ade80"/>
+    </marker>
+    <marker id="arrow-eve" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#ffcb05"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1152" height="627" rx="16" fill="none" stroke="#2a2a30" stroke-width="1"/>
+
+  <text x="48" y="58" fill="#4ade80" font-family="ui-monospace, Menlo, monospace" font-size="13" letter-spacing="2">SITE SURVEY 2026-09-06</text>
+  <text x="48" y="92" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700">PV 10 kW + Nichicon Tribrid T5 + Tesla V2H</text>
+  <text x="48" y="124" fill="#8a8a98" font-family="Inter, Arial, sans-serif" font-size="15">Night Miraiz off-peak charge / day self-consume / evening V2H discharge</text>
+
+  <g transform="translate(48,156)">
+    <rect width="352" height="420" rx="14" fill="#0a1018" stroke="#2a3850"/>
+    <text x="24" y="36" fill="#5b8cff" font-family="ui-monospace, Menlo, monospace" font-size="13">1. NIGHT</text>
+    <text x="24" y="72" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700">Off-peak import</text>
+    <text x="24" y="108" fill="#a8b4c8" font-family="Inter, Arial, sans-serif" font-size="14">Chubu Miraiz night rate (about 16 yen/kWh)</text>
+    <rect x="24" y="136" width="304" height="88" rx="10" fill="url(#box)" stroke="#5b8cff"/>
+    <text x="176" y="172" text-anchor="middle" fill="#5b8cff" font-family="ui-monospace, Menlo, monospace" font-size="13">GRID ~16 yen/kWh</text>
+    <text x="176" y="198" text-anchor="middle" fill="#c8c8d0" font-family="Inter, Arial, sans-serif" font-size="13">Buy cheap overnight</text>
+    <line x1="176" y1="224" x2="176" y2="268" stroke="#5b8cff" stroke-width="2" marker-end="url(#arrow-night)"/>
+    <rect x="24" y="276" width="304" height="112" rx="10" fill="url(#box)" stroke="#e31937"/>
+    <text x="176" y="320" text-anchor="middle" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">Charge Tesla</text>
+    <text x="176" y="350" text-anchor="middle" fill="#8a8a98" font-family="Inter, Arial, sans-serif" font-size="13">V2H up to about 6 kW (200 V / 30 A)</text>
+  </g>
+
+  <g transform="translate(424,156)">
+    <rect width="352" height="420" rx="14" fill="#0a100c" stroke="#2a4030"/>
+    <text x="24" y="36" fill="#4ade80" font-family="ui-monospace, Menlo, monospace" font-size="13">2. DAY</text>
+    <text x="24" y="72" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700">Rooftop solar</text>
+    <text x="24" y="108" fill="#a8c8b0" font-family="Inter, Arial, sans-serif" font-size="14">About 10 kW array, house first</text>
+    <rect x="24" y="136" width="304" height="88" rx="10" fill="url(#box)" stroke="#4ade80"/>
+    <text x="176" y="172" text-anchor="middle" fill="#4ade80" font-family="ui-monospace, Menlo, monospace" font-size="13">ROOF PV ~10 kW</text>
+    <text x="176" y="198" text-anchor="middle" fill="#c8c8d0" font-family="Inter, Arial, sans-serif" font-size="13">Confirm load after reroof</text>
+    <line x1="176" y1="224" x2="176" y2="268" stroke="#4ade80" stroke-width="2" marker-end="url(#arrow-day)"/>
+    <rect x="24" y="276" width="304" height="112" rx="10" fill="url(#box)" stroke="#4ade80"/>
+    <text x="176" y="320" text-anchor="middle" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">House + car</text>
+    <text x="176" y="350" text-anchor="middle" fill="#8a8a98" font-family="Inter, Arial, sans-serif" font-size="13">Surplus via Tribrid T5</text>
+  </g>
+
+  <g transform="translate(800,156)">
+    <rect width="352" height="420" rx="14" fill="#141208" stroke="#40382a"/>
+    <text x="24" y="36" fill="#ffcb05" font-family="ui-monospace, Menlo, monospace" font-size="13">3. EVENING</text>
+    <text x="24" y="72" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="700">Peak hours</text>
+    <text x="24" y="108" fill="#c8b888" font-family="Inter, Arial, sans-serif" font-size="14">Avoid import with V2H discharge</text>
+    <rect x="24" y="136" width="304" height="88" rx="10" fill="url(#box)" stroke="#e31937"/>
+    <text x="176" y="172" text-anchor="middle" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">Tesla to house</text>
+    <text x="176" y="198" text-anchor="middle" fill="#8a8a98" font-family="Inter, Arial, sans-serif" font-size="13">V2H discharge</text>
+    <line x1="176" y1="224" x2="176" y2="268" stroke="#ffcb05" stroke-width="2" marker-end="url(#arrow-eve)"/>
+    <rect x="24" y="276" width="304" height="112" rx="10" fill="url(#box)" stroke="#ffcb05"/>
+    <text x="176" y="320" text-anchor="middle" fill="#e8e8ec" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">Cover home loads</text>
+    <text x="176" y="350" text-anchor="middle" fill="#8a8a98" font-family="Inter, Arial, sans-serif" font-size="13">Watch 40 A main + simultaneous loads</text>
+  </g>
+</svg>

@@ -77,6 +77,7 @@ return array(
 	'プレミアム 150,000円' => 'Premium ¥150,000',
 	'ランサーズで詳細・相談' => 'Details & inquiry on Lancers',
 	'EcoFlow 連携アーキテクチャ図' => 'EcoFlow architecture diagram',
+	'屋根太陽光 10kW × V2H 運用サイクル' => '10 kW rooftop solar × V2H daily cycle',
 	'Driving Log' => 'Driving Log',
 	'EcoFlow ダッシュボード' => 'EcoFlow dashboard',
 	'ポータブル電源' => 'Portable power',
