@@ -22,8 +22,10 @@ define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_SOC', 100 );
 define( 'GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR', 6 );
 /** Friday hour when the overnight boost window opens. */
 define( 'GAMING_HUB_TESLA_PLAN_BOOST_START_HOUR', 22 );
+/** Only charge within this many ¥/kWh of the look-ahead minimum (skip peak slots). */
+define( 'GAMING_HUB_TESLA_PLAN_CHEAP_YEN_PREMIUM', 8.0 );
 define( 'GAMING_HUB_TESLA_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v10_' );
+define( 'GAMING_HUB_TESLA_PLAN_CACHE_PREFIX', 'gaming_hub_tesla_plan_v11_' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_OPTION', 'gaming_hub_tesla_plan_auto_v1' );
 define( 'GAMING_HUB_TESLA_PLAN_AUTO_LOCK', 'gaming_hub_tesla_plan_auto_lock' );
 /** Max automatic wakes per day (AI PLAN cron). Manual ON/OFF is not limited. */
@@ -1095,7 +1097,44 @@ function gaming_hub_tesla_plan_finalize_picks( array $picked ) {
 }
 
 /**
+ * Max ¥/kWh for a charge slot: look-ahead minimum plus CHEAP_YEN_PREMIUM.
+ *
+ * @param array<int, array<string, mixed>> $candidates Hours to consider.
+ */
+function gaming_hub_tesla_plan_cheap_yen_ceiling( array $candidates ) {
+	if ( empty( $candidates ) ) {
+		return null;
+	}
+
+	$min_yen = min( array_column( $candidates, 'yen' ) );
+	$premium = defined( 'GAMING_HUB_TESLA_PLAN_CHEAP_YEN_PREMIUM' )
+		? (float) GAMING_HUB_TESLA_PLAN_CHEAP_YEN_PREMIUM
+		: 8.0;
+
+	return (float) $min_yen + max( 0.0, $premium );
+}
+
+/**
+ * Whether an hour is cheap enough to charge (within the look-ahead ceiling).
+ *
+ * @param string                           $date       Y-m-d.
+ * @param int                              $hour       0–23.
+ * @param array<int, array<string, mixed>> $candidates Same pool used for planning.
+ */
+function gaming_hub_tesla_plan_hour_is_cheap( $date, $hour, array $candidates ) {
+	$ceiling = gaming_hub_tesla_plan_cheap_yen_ceiling( $candidates );
+	if ( null === $ceiling ) {
+		return true;
+	}
+
+	return gaming_hub_tesla_plan_yen_for_date( $date, (int) $hour ) <= $ceiling + 0.05;
+}
+
+/**
  * Pick cheapest parked hours from a candidate list.
+ *
+ * Only hours within CHEAP_YEN_PREMIUM of the look-ahead minimum are used, so
+ * expensive peak slots are skipped when overnight cheap windows exist.
  *
  * @param array<int, array<string, mixed>> $candidates Hours to consider.
  * @param float                            $deficit_kwh Energy to buy.
@@ -1111,6 +1150,19 @@ function gaming_hub_tesla_plan_pick_from_candidates( array $candidates, $deficit
 			'avg_yen' => null,
 			'picked'  => array(),
 		);
+	}
+
+	$ceiling = gaming_hub_tesla_plan_cheap_yen_ceiling( $candidates );
+	if ( null !== $ceiling ) {
+		$eligible = array();
+		foreach ( $candidates as $row ) {
+			if ( (float) ( $row['yen'] ?? 0 ) <= $ceiling + 0.05 ) {
+				$eligible[] = $row;
+			}
+		}
+		if ( $eligible ) {
+			$candidates = $eligible;
+		}
 	}
 
 	usort(
@@ -1936,6 +1988,17 @@ function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
 	$slot    = gaming_hub_tesla_plan_current_slot( $plan );
 	$mode    = (string) ( $slot['mode'] ?? 'idle' );
 	$want    = 'charge' === $mode && empty( $slot['past'] );
+
+	if ( $want ) {
+		$dates     = gaming_hub_tesla_plan_dates();
+		$date      = $dates['today'] ?? wp_date( 'Y-m-d' );
+		$hour      = (int) wp_date( 'G' );
+		$mode_key  = gaming_hub_tesla_plan_needs_saturday_boost( $date, $hour ) ? 'boost' : 'daily';
+		$pool      = gaming_hub_tesla_plan_charge_candidates( $date, 'today', $hour, $mode_key );
+		if ( ! gaming_hub_tesla_plan_hour_is_cheap( $date, $hour, $pool ) ) {
+			$want = false;
+		}
+	}
 
 	if ( $want && null !== $soc && $soc >= $limit - 0.4 ) {
 		$want = false;
