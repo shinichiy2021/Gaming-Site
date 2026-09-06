@@ -407,7 +407,7 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 			<div class="ecoflow-plan-card">
 				<span class="ecoflow-stat-label"><?php esc_html_e( '目標残量', 'gaming-hub' ); ?></span>
 				<strong data-tesla-plan-target><?php echo esc_html( isset( $plan['target_soc'] ) ? number_format_i18n( (int) $plan['target_soc'] ) . '%' : '—' ); ?></strong>
-				<small data-tesla-plan-target-note><?php echo esc_html( (string) ( $plan['target_note'] ?? __( '電池ケア 20–80%', 'gaming-hub' ) ) ); ?></small>
+				<small data-tesla-plan-target-note><?php echo esc_html( (string) ( $plan['target_note'] ?? __( '充電上限 100%', 'gaming-hub' ) ) ); ?></small>
 			</div>
 			<div class="ecoflow-plan-card">
 				<span class="ecoflow-stat-label"><?php esc_html_e( '推奨充電ウィンドウ', 'gaming-hub' ); ?></span>
