@@ -1247,9 +1247,13 @@ body.home .site-header.is-scrolled {
 
 .footer-grid {
 	display: grid;
-	grid-template-columns: 1.6fr 1fr 1fr 1.5fr;
+	grid-template-columns: 1.6fr 1fr 1fr;
 	gap: 40px;
-	margin-bottom: 40px;
+	margin-bottom: 32px;
+}
+
+.footer-grid--compact {
+	grid-template-columns: 1.6fr 1fr;
 }
 
 .footer-tagline {
@@ -1259,8 +1263,7 @@ body.home .site-header.is-scrolled {
 }
 
 .footer-widget-title,
-.footer-links h4,
-.footer-lancers h4 {
+.footer-links h4 {
 	font-family: var(--font-display);
 	font-size: 0.9rem;
 	text-transform: uppercase;
@@ -1269,35 +1272,44 @@ body.home .site-header.is-scrolled {
 	color: var(--color-primary);
 }
 
-.footer-lancers-lead {
-	color: var(--color-text-muted);
+.footer-lancers-bar {
+	margin-bottom: 36px;
+}
+
+.footer-lancers-bar .lancers-promo--footer {
+	margin: 0;
+	padding: 14px 16px;
+	border: 1px solid rgba(255, 203, 5, 0.28);
+	border-radius: var(--radius-lg);
+	background:
+		radial-gradient(ellipse at 8% 0%, rgba(255, 203, 5, 0.12), transparent 52%),
+		var(--color-bg-card);
+	grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+	gap: 20px;
+	align-items: center;
+}
+
+.footer-lancers-bar .lancers-promo-media {
+	border-radius: 12px;
+}
+
+.footer-lancers-bar .lancers-promo-media img {
+	width: 100%;
+	height: auto;
+}
+
+.footer-lancers-bar .lancers-promo-copy {
+	padding: 4px 0;
+}
+
+.footer-lancers-bar .lancers-promo-title {
+	font-size: clamp(1rem, 1.6vw, 1.2rem);
+	margin-bottom: 8px;
+}
+
+.footer-lancers-bar .lancers-promo-lead {
+	margin-bottom: 14px;
 	font-size: 0.88rem;
-	line-height: 1.5;
-	margin: 0 0 12px;
-}
-
-.footer-lancers-plans {
-	list-style: none;
-	margin: 0 0 14px;
-	padding: 0;
-}
-
-.footer-lancers-plans li {
-	color: var(--color-text-muted);
-	font-size: 0.88rem;
-	margin-bottom: 6px;
-}
-
-.footer-lancers-cta a {
-	color: var(--color-primary);
-	font-size: 0.9rem;
-	font-weight: 600;
-	text-decoration: underline;
-	text-underline-offset: 2px;
-}
-
-.footer-lancers-cta a:hover {
-	opacity: 0.88;
 }
 
 .footer-menu {
@@ -4263,38 +4275,8 @@ body.home .site-header.is-scrolled {
 	display: inline-flex;
 }
 
-.lancers-promo--footer {
-	margin: 0;
-	padding: 12px;
-	grid-template-columns: 1fr;
-}
-
-.lancers-promo--tesla-kit {
-	margin-top: 22px;
-}
-
-.lancers-promo--article {
-	margin-top: 0;
-}
-
-.single-post-tesla .tesla-article-lancers {
-	margin-top: 36px;
-}
-
-.single-post-tesla .tesla-article-lancers .lancers-promo {
-	border-color: rgba(227, 25, 55, 0.28);
-	background:
-		radial-gradient(ellipse at 12% 0%, rgba(227, 25, 55, 0.1), transparent 55%),
-		var(--color-bg-card);
-}
-
-.single-post-tesla .tesla-article-lancers .lancers-promo-eyebrow {
-	color: #ff6b7f;
-}
-
-.single-post-tesla .tesla-article-lancers .lancers-promo-cta {
-	background: linear-gradient(135deg, #e31937 0%, #b01025 100%);
-	border-color: transparent;
+.ecoflow-kit-section {
+	padding: 8px 0 32px;
 }
 
 .lancers-promo-figure {
@@ -4305,16 +4287,13 @@ body.home .site-header.is-scrolled {
 	display: block;
 }
 
-.footer-lancers .lancers-promo-title {
-	font-size: 1.05rem;
-}
-
 @media (max-width: 900px) {
 	.tesla-kit-grid {
 		grid-template-columns: 1fr;
 	}
 
-	.lancers-promo {
+	.lancers-promo,
+	.footer-lancers-bar .lancers-promo--footer {
 		grid-template-columns: 1fr;
 	}
 }

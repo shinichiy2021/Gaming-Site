@@ -56,9 +56,7 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 		<div class="pgo-sources">
 			<p class="pgo-source-note">
 				<?php esc_html_e( '情報源:', 'gaming-hub' ); ?>
-				<a href="https://pokemongohub.net/" target="_blank" rel="noopener noreferrer">Pokémon GO Hub</a>
-				|
-				<a href="https://pokemongolive.com/ja/news/" target="_blank" rel="noopener noreferrer"><?php esc_html_e( '公式サイト（日本語）', 'gaming-hub' ); ?></a>
+				<a href="https://pokemongo.com/ja/news/" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Pokémon GO 公式ニュース', 'gaming-hub' ); ?></a>
 			</p>
 			<p class="pgo-updated-note">
 				<?php esc_html_e( '30分ごとに自動更新', 'gaming-hub' ); ?>
@@ -68,7 +66,7 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 		<div class="pgo-error">
 			<p><?php esc_html_e( '最新情報を取得できませんでした。しばらくしてから再度お試しください。', 'gaming-hub' ); ?></p>
 			<p>
-				<a href="https://pokemongolive.com/ja/news/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+				<a href="https://pokemongo.com/ja/news/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
 					<?php esc_html_e( '公式サイトで確認する', 'gaming-hub' ); ?>
 				</a>
 			</p>

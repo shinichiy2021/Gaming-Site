@@ -63,15 +63,6 @@ get_header();
 						<span class="post-date"><?php echo esc_html( get_the_date() ); ?></span>
 						<span class="post-author"><?php the_author(); ?></span>
 					</div>
-					<?php if ( $is_ecoflow ) : ?>
-						<p class="post-ecoflow-links">
-							<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>"><?php esc_html_e( 'EcoFlow ダッシュボード', 'gaming-hub' ); ?></a>
-							<span aria-hidden="true">·</span>
-							<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>#energy"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
-							<span aria-hidden="true">·</span>
-							<a href="<?php echo esc_url( gaming_hub_ecoflow_url() ); ?>#kit"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
-						</p>
-					<?php endif; ?>
 				</header>
 			</div>
 		<?php endif; ?>
@@ -80,12 +71,6 @@ get_header();
 			<div class="content-wrapper">
 				<?php the_content(); ?>
 			</div>
-
-			<?php if ( $is_tesla && function_exists( 'gaming_hub_render_lancers_promo' ) ) : ?>
-				<aside class="tesla-article-lancers" aria-label="<?php esc_attr_e( 'ランサーズ Web制作・API実装パッケージ（3〜15万円）', 'gaming-hub' ); ?>">
-					<?php gaming_hub_render_lancers_promo( 'article' ); ?>
-				</aside>
-			<?php endif; ?>
 
 			<?php if ( $meta['genre'] ) : ?>
 				<div class="game-info-box">

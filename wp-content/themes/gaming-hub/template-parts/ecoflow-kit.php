@@ -18,6 +18,9 @@ $items = gaming_hub_affiliate_ecoflow_kit_items();
 $rel   = gaming_hub_affiliate_rel();
 $yen   = (int) round( (float) $stats['saved_yen'] );
 $solar = (float) $stats['solar_kwh'];
+$energy = function_exists( 'gaming_hub_ecoflow_url' ) ? gaming_hub_ecoflow_url() . '#energy' : '#energy';
+$img_base = trailingslashit( get_template_directory_uri() ) . 'assets/images/';
+$img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) GAMING_HUB_VERSION ) : '';
 ?>
 <section id="kit" class="ecoflow-kit" aria-label="<?php esc_attr_e( 'うちの実測構成', 'gaming-hub' ); ?>">
 	<header class="ecoflow-kit-head">
@@ -39,7 +42,7 @@ $solar = (float) $stats['solar_kwh'];
 		</p>
 	</header>
 
-	<ul class="ecoflow-kit-list">
+	<ul class="ecoflow-kit-list tesla-kit-grid">
 		<?php foreach ( $items as $item ) : ?>
 			<?php
 			$primary = gaming_hub_affiliate_url( $item['primary'] ?? '' );
@@ -47,9 +50,24 @@ $solar = (float) $stats['solar_kwh'];
 			if ( '' === $primary && '' === $amazon ) {
 				continue;
 			}
+			$image   = (string) ( $item['image'] ?? '' );
+			$img_url = '' !== $image ? $img_base . ltrim( $image, '/' ) . $img_ver : '';
+			$href    = $primary ? $primary : $amazon;
 			?>
-			<li class="ecoflow-kit-item">
-				<div class="ecoflow-kit-copy">
+			<li class="ecoflow-kit-item tesla-kit-card">
+				<?php if ( $href ) : ?>
+					<a class="tesla-kit-card-media" href="<?php echo esc_url( $href ); ?>" target="_blank" rel="<?php echo esc_attr( $rel ); ?>">
+						<?php if ( $img_url ) : ?>
+							<img src="<?php echo esc_url( $img_url ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" width="640" height="360" loading="lazy" decoding="async" />
+						<?php endif; ?>
+						<span class="tesla-kit-card-badge"><?php esc_html_e( '公式', 'gaming-hub' ); ?></span>
+					</a>
+				<?php elseif ( $img_url ) : ?>
+					<div class="tesla-kit-card-media" aria-hidden="true">
+						<img src="<?php echo esc_url( $img_url ); ?>" alt="" width="640" height="360" loading="lazy" decoding="async" />
+					</div>
+				<?php endif; ?>
+				<div class="ecoflow-kit-copy tesla-kit-card-copy">
 					<h3 class="ecoflow-kit-name"><?php echo esc_html( $item['name'] ); ?></h3>
 					<p class="ecoflow-kit-role"><?php echo esc_html( $item['role'] ); ?></p>
 				</div>
@@ -69,11 +87,7 @@ $solar = (float) $stats['solar_kwh'];
 		<?php endforeach; ?>
 	</ul>
 
-	<?php if ( function_exists( 'gaming_hub_render_ecoflow_a8_banner' ) ) : ?>
-		<?php gaming_hub_render_ecoflow_a8_banner(); ?>
-	<?php endif; ?>
-
 	<p class="ecoflow-kit-foot">
-		<a href="#energy"><?php esc_html_e( '発電ログで数字を確認 →', 'gaming-hub' ); ?></a>
+		<a href="<?php echo esc_url( $energy ); ?>"><?php esc_html_e( '発電ログで数字を確認 →', 'gaming-hub' ); ?></a>
 	</p>
 </section>

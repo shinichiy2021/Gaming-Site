@@ -94,10 +94,6 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 		<?php endforeach; ?>
 	</ul>
 
-	<?php if ( function_exists( 'gaming_hub_render_lancers_promo' ) ) : ?>
-		<?php gaming_hub_render_lancers_promo( 'tesla-kit' ); ?>
-	<?php endif; ?>
-
 	<p class="ecoflow-kit-foot">
 		<a href="<?php echo esc_url( $drive ); ?>"><?php esc_html_e( 'Driving Log で数字を確認 →', 'gaming-hub' ); ?></a>
 	</p>

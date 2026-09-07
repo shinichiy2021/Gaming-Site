@@ -2737,7 +2737,7 @@ function gaming_hub_render_ecoflow_hub_dashboard_sections() {
 			?>
 		</div>
 	</section>
-	<section class="ecoflow-hub-section">
+	<section class="ecoflow-hub-section ecoflow-kit-section">
 		<div class="container ecoflow-dashboard-wrap">
 			<?php get_template_part( 'template-parts/ecoflow', 'kit' ); ?>
 		</div>

@@ -151,18 +151,21 @@ function gaming_hub_affiliate_ecoflow_kit_items() {
 			'role'    => __( 'ハイボルト発電・リビングエアコン他の主電源', 'gaming-hub' ),
 			'primary' => 'ecoflow_delta_pro3',
 			'amazon'  => 'amazon_delta_pro3',
+			'image'   => 'ecoflow-pro-gaming.jpg',
 		),
 		array(
 			'name'    => 'DELTA 3 1500',
 			'role'    => __( 'UPS・補充電・Low Volt 連携', 'gaming-hub' ),
 			'primary' => 'ecoflow_delta_1500',
 			'amazon'  => 'amazon_delta_1500',
+			'image'   => 'ecoflow-delta1500-gaming.jpg',
 		),
 		array(
 			'name'    => __( 'ソーラーパネル', 'gaming-hub' ),
 			'role'    => __( '発電ログの入力源', 'gaming-hub' ),
 			'primary' => 'ecoflow_solar',
 			'amazon'  => '',
+			'image'   => 'ecoflow-solar-gaming.jpg',
 		),
 	);
 
