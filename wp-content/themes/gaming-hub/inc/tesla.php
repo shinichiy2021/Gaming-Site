@@ -4053,3 +4053,201 @@ function gaming_hub_tesla_cron_schedules( $schedules ) {
 	return $schedules;
 }
 add_filter( 'cron_schedules', 'gaming_hub_tesla_cron_schedules' );
+
+/**
+ * Tesla hub section anchor targets for sticky sub-nav.
+ *
+ * @return array<int, array{id: string, label: string}>
+ */
+function gaming_hub_tesla_hub_nav_items() {
+	return array(
+		array(
+			'id'    => 'tesla-live',
+			'label' => __( 'ライブ', 'gaming-hub' ),
+		),
+		array(
+			'id'    => 'charge',
+			'label' => __( '充電履歴', 'gaming-hub' ),
+		),
+		array(
+			'id'    => 'drive',
+			'label' => __( '走行ログ', 'gaming-hub' ),
+		),
+		array(
+			'id'    => 'tesla-kit',
+			'label' => __( '実測構成', 'gaming-hub' ),
+		),
+		array(
+			'id'    => 'tesla-posts',
+			'label' => __( '記事', 'gaming-hub' ),
+		),
+	);
+}
+
+/**
+ * Sticky in-page nav (live · charge · drive · kit · articles).
+ */
+function gaming_hub_render_tesla_hub_nav() {
+	$items = gaming_hub_tesla_hub_nav_items();
+	if ( ! $items ) {
+		return;
+	}
+	?>
+	<nav class="tesla-hub-nav" aria-label="<?php esc_attr_e( 'Tesla セクション', 'gaming-hub' ); ?>">
+		<div class="container tesla-hub-nav-inner">
+			<?php foreach ( $items as $item ) : ?>
+				<a class="tesla-hub-nav-link" href="#<?php echo esc_attr( (string) $item['id'] ); ?>">
+					<?php echo esc_html( (string) $item['label'] ); ?>
+				</a>
+			<?php endforeach; ?>
+		</div>
+	</nav>
+	<?php
+}
+
+/**
+ * Section heading inside the Tesla hub.
+ *
+ * @param string $title Section title.
+ * @param string $desc  Optional lead line.
+ */
+function gaming_hub_render_tesla_section_head( $title, $desc = '' ) {
+	?>
+	<header class="tesla-hub-section-head">
+		<h2 class="tesla-hub-section-title"><?php echo esc_html( (string) $title ); ?></h2>
+		<?php if ( '' !== (string) $desc ) : ?>
+			<p class="tesla-hub-section-desc"><?php echo esc_html( (string) $desc ); ?></p>
+		<?php endif; ?>
+	</header>
+	<?php
+}
+
+/**
+ * Tesla tag intro (badge + description + sticky section nav).
+ */
+function gaming_hub_render_tesla_hub_intro() {
+	?>
+	<div class="archive-header tesla-archive-header tesla-archive-header--hub">
+		<div class="container">
+			<span class="tesla-tag-badge tesla-tag-badge-lg">Tesla</span>
+			<p class="tesla-archive-desc"><?php esc_html_e( 'Model 3 の電力フローと充電', 'gaming-hub' ); ?></p>
+		</div>
+	</div>
+	<?php
+	gaming_hub_render_tesla_hub_nav();
+}
+
+/**
+ * Live dashboard, logs, and kit blocks (before articles).
+ */
+function gaming_hub_render_tesla_hub_dashboard_sections() {
+	$status = gaming_hub_get_powerwall_flow_status();
+	?>
+	<div class="powerwall-page">
+		<section id="tesla-live" class="tesla-hub-section section tesla-flow-section">
+			<div class="container">
+				<?php
+				gaming_hub_render_tesla_section_head(
+					__( 'ライブ', 'gaming-hub' ),
+					__( '電力フロー図・AI PLAN・充電ステータス', 'gaming-hub' )
+				);
+				get_template_part(
+					'template-parts/tesla',
+					'flow',
+					array(
+						'status' => $status,
+					)
+				);
+				if ( function_exists( 'gaming_hub_render_tesla_plan' ) ) {
+					gaming_hub_render_tesla_plan( $status );
+				}
+				?>
+			</div>
+		</section>
+		<section class="tesla-hub-section section">
+			<div class="container">
+				<?php
+				gaming_hub_render_tesla_section_head(
+					__( '充電履歴', 'gaming-hub' ),
+					__( '月別の充電セッションと電気代', 'gaming-hub' )
+				);
+				if ( function_exists( 'gaming_hub_render_tesla_charge_log' ) ) {
+					gaming_hub_render_tesla_charge_log( $status );
+				}
+				?>
+			</div>
+		</section>
+		<section class="tesla-hub-section section">
+			<div class="container">
+				<?php
+				gaming_hub_render_tesla_section_head(
+					__( '走行ログ', 'gaming-hub' ),
+					__( '日別の走行とガソリン比較節約', 'gaming-hub' )
+				);
+				if ( function_exists( 'gaming_hub_render_tesla_gas_log' ) ) {
+					gaming_hub_render_tesla_gas_log( $status );
+				}
+				?>
+			</div>
+		</section>
+		<section class="tesla-hub-section section tesla-kit-section">
+			<div class="container">
+				<?php get_template_part( 'template-parts/tesla', 'kit' ); ?>
+			</div>
+		</section>
+	</div>
+	<?php
+}
+
+/**
+ * Render Tesla-tagged posts with hub section chrome.
+ */
+function gaming_hub_render_tesla_hub_posts_section() {
+	if ( have_posts() ) :
+		?>
+		<section id="tesla-posts" class="tesla-hub-section">
+			<div class="container content-area content-area--hub-top">
+				<?php
+				gaming_hub_render_tesla_section_head(
+					__( '記事', 'gaming-hub' ),
+					__( '実測レビュー・運用メモ', 'gaming-hub' )
+				);
+				?>
+				<div class="posts-grid">
+					<?php
+					while ( have_posts() ) :
+						the_post();
+						get_template_part( 'template-parts/content', get_post_type() );
+					endwhile;
+					?>
+				</div>
+
+				<?php
+				the_posts_pagination(
+					array(
+						'prev_text' => '&larr; ' . __( 'Previous', 'gaming-hub' ),
+						'next_text' => __( 'Next', 'gaming-hub' ) . ' &rarr;',
+					)
+				);
+				?>
+			</div>
+		</section>
+		<?php
+		return;
+	endif;
+	?>
+	<section id="tesla-posts" class="tesla-hub-section">
+		<div class="container content-area content-area--hub-top">
+			<?php
+			gaming_hub_render_tesla_section_head(
+				__( '記事', 'gaming-hub' ),
+				__( '実測レビュー・運用メモ', 'gaming-hub' )
+			);
+			?>
+			<div class="ecoflow-empty">
+				<p><?php esc_html_e( 'Tesla タグの記事はまだありません。上の実測構成・充電ログから確認できます。', 'gaming-hub' ); ?></p>
+			</div>
+		</div>
+	</section>
+	<?php
+}

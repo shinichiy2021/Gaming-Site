@@ -75,6 +75,11 @@ $is_spa     = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_h
 	</section>
 	<?php endif; ?>
 
+<?php elseif ( $is_tesla ) : ?>
+	<?php gaming_hub_render_tesla_hub_intro(); ?>
+	<?php gaming_hub_render_tesla_hub_dashboard_sections(); ?>
+	<?php gaming_hub_render_tesla_hub_posts_section(); ?>
+
 <?php elseif ( have_posts() ) : ?>
 	<div class="container content-area <?php echo $is_dash ? 'content-area--hub-top' : ''; ?>">
 		<div class="posts-grid">
@@ -104,11 +109,7 @@ $is_spa     = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_h
 	</div>
 <?php endif; ?>
 
-<?php if ( $is_tesla ) : ?>
-	<section class="hub-section hub-tesla">
-		<?php get_template_part( 'template-parts/powerwall', 'page' ); ?>
-	</section>
-<?php elseif ( $is_pgo ) : ?>
+<?php if ( $is_pgo ) : ?>
 	<section class="hub-section hub-pokemon-go">
 		<?php get_template_part( 'template-parts/pokemon-go', 'page' ); ?>
 	</section>

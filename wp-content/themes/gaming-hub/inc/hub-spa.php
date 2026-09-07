@@ -81,10 +81,17 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
 	if ( $query->have_posts() ) {
 		if ( 'ecoflow' === $tag_slug ) {
 			echo '<section id="ecoflow-posts" class="ecoflow-hub-section">';
+		} elseif ( 'tesla' === $tag_slug ) {
+			echo '<section id="tesla-posts" class="tesla-hub-section">';
 		}
 		echo '<div class="container content-area content-area--hub-top">';
 		if ( 'ecoflow' === $tag_slug && function_exists( 'gaming_hub_render_ecoflow_section_head' ) ) {
 			gaming_hub_render_ecoflow_section_head(
+				__( '記事', 'gaming-hub' ),
+				__( '実測レビュー・運用メモ', 'gaming-hub' )
+			);
+		} elseif ( 'tesla' === $tag_slug && function_exists( 'gaming_hub_render_tesla_section_head' ) ) {
+			gaming_hub_render_tesla_section_head(
 				__( '記事', 'gaming-hub' ),
 				__( '実測レビュー・運用メモ', 'gaming-hub' )
 			);
@@ -95,7 +102,7 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
 			get_template_part( 'template-parts/content', get_post_type() );
 		}
 		echo '</div></div>';
-		if ( 'ecoflow' === $tag_slug ) {
+		if ( in_array( $tag_slug, array( 'ecoflow', 'tesla' ), true ) ) {
 			echo '</section>';
 		}
 		wp_reset_postdata();
@@ -114,6 +121,21 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
 		echo '<div class="ecoflow-empty"><p>';
 		esc_html_e( 'EcoFlow タグの記事はまだありません。上の実測構成・発電ログから機材を確認できます。', 'gaming-hub' );
 		echo '</p></div></div></section>';
+		return;
+	}
+
+	if ( 'tesla' === $tag_slug ) {
+		echo '<section id="tesla-posts" class="tesla-hub-section">';
+		echo '<div class="container content-area content-area--hub-top">';
+		if ( function_exists( 'gaming_hub_render_tesla_section_head' ) ) {
+			gaming_hub_render_tesla_section_head(
+				__( '記事', 'gaming-hub' ),
+				__( '実測レビュー・運用メモ', 'gaming-hub' )
+			);
+		}
+		echo '<div class="ecoflow-empty"><p>';
+		esc_html_e( 'Tesla タグの記事はまだありません。上の実測構成・充電ログから確認できます。', 'gaming-hub' );
+		echo '</p></div></div></section>';
 	}
 }
 
@@ -128,11 +150,7 @@ function gaming_hub_render_hub_panel_ecoflow_body() {
  * Tesla hub panel body.
  */
 function gaming_hub_render_hub_panel_tesla_body() {
-	?>
-	<section class="hub-section hub-tesla">
-		<?php get_template_part( 'template-parts/powerwall', 'page' ); ?>
-	</section>
-	<?php
+	get_template_part( 'template-parts/powerwall', 'page' );
 }
 
 /**
@@ -163,8 +181,9 @@ function gaming_hub_render_hub_spa_panels( $active ) {
 			aria-hidden="<?php echo 'tesla' === $active ? 'false' : 'true'; ?>"
 		>
 			<?php
-			gaming_hub_render_hub_panel_posts( 'tesla' );
+			gaming_hub_render_tesla_hub_intro();
 			gaming_hub_render_hub_panel_tesla_body();
+			gaming_hub_render_hub_panel_posts( 'tesla' );
 			?>
 		</div>
 	</div>

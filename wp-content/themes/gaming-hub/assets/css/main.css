@@ -4295,6 +4295,87 @@ body.home .site-header.is-scrolled {
 	}
 }
 
+.tesla-tag-badge-lg {
+	font-size: 0.8rem;
+	padding: 4px 14px;
+	border-radius: 20px;
+	margin-bottom: 12px;
+}
+
+.tesla-archive-header {
+	background: linear-gradient(180deg, #1a0a0c 0%, var(--color-bg-secondary) 100%);
+}
+
+.tesla-archive-header--hub {
+	padding-bottom: 0;
+}
+
+.tesla-archive-desc {
+	color: var(--color-text-muted);
+	margin-top: 8px;
+}
+
+.tesla-hub-nav {
+	position: sticky;
+	top: 70px;
+	z-index: 90;
+	background: rgba(26, 10, 12, 0.94);
+	backdrop-filter: blur(10px);
+	border-bottom: 1px solid rgba(227, 25, 55, 0.22);
+}
+
+.tesla-hub-nav-inner {
+	display: flex;
+	gap: 8px;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none;
+	padding: 10px 0 12px;
+}
+
+.tesla-hub-nav-inner::-webkit-scrollbar {
+	display: none;
+}
+
+.tesla-hub-nav-link {
+	flex: 0 0 auto;
+	padding: 8px 14px;
+	border-radius: 999px;
+	border: 1px solid rgba(227, 25, 55, 0.4);
+	color: #ff6b7f;
+	font-size: 0.85rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	transition: var(--transition);
+}
+
+.tesla-hub-nav-link:hover {
+	background: rgba(227, 25, 55, 0.12);
+	color: #ff6b7f;
+}
+
+.tesla-hub-section {
+	scroll-margin-top: 88px;
+}
+
+.tesla-hub-section-head {
+	margin-bottom: 20px;
+}
+
+.tesla-hub-section-title {
+	font-family: var(--font-display);
+	font-size: clamp(1.25rem, 3vw, 1.5rem);
+	color: var(--color-text);
+	margin: 0 0 6px;
+}
+
+.tesla-hub-section-desc {
+	color: var(--color-text-muted);
+	font-size: 0.92rem;
+	margin: 0;
+}
+
 .tesla-tag-badge {
 	background: #111;
 	color: #fff;
@@ -4340,7 +4421,10 @@ body.home .site-header.is-scrolled {
 #kit,
 #ecoflow-posts,
 #ecoflow-live,
+#tesla-posts,
+#tesla-live,
 #tesla-kit,
+#charge,
 #drive {
 	scroll-margin-top: 88px;
 }
@@ -7569,6 +7653,15 @@ body.home .site-header.is-scrolled {
 	}
 
 	.site-header:has(.hub-switcher.is-scroll-hidden) ~ .site-main .ecoflow-hub-nav {
+		top: 70px;
+	}
+
+	.tesla-hub-nav {
+		top: 122px;
+		transition: top 0.28s ease;
+	}
+
+	.site-header:has(.hub-switcher.is-scroll-hidden) ~ .site-main .tesla-hub-nav {
 		top: 70px;
 	}
 

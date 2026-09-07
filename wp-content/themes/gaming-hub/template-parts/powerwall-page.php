@@ -1,9 +1,14 @@
 <?php
 /**
- * Full Powerwall section used on the one-page hub.
+ * Full Tesla hub section used on the tag page and hub SPA.
  *
  * @package Gaming_Hub
  */
+
+if ( function_exists( 'gaming_hub_render_tesla_hub_dashboard_sections' ) ) {
+	gaming_hub_render_tesla_hub_dashboard_sections();
+	return;
+}
 ?>
 <div class="powerwall-page">
 	<?php $energy_status = gaming_hub_get_powerwall_flow_status(); ?>
