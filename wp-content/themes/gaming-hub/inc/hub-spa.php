@@ -112,7 +112,7 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
 			);
 		}
 		echo '<div class="ecoflow-empty"><p>';
-		esc_html_e( 'EcoFlow タグの記事はまだありません。下の実測構成・発電ログから機材を確認できます。', 'gaming-hub' );
+		esc_html_e( 'EcoFlow タグの記事はまだありません。上の実測構成・発電ログから機材を確認できます。', 'gaming-hub' );
 		echo '</p></div></div></section>';
 	}
 }
@@ -152,8 +152,8 @@ function gaming_hub_render_hub_spa_panels( $active ) {
 		>
 			<?php
 			gaming_hub_render_ecoflow_hub_intro();
-			gaming_hub_render_hub_panel_posts( 'ecoflow' );
 			gaming_hub_render_hub_panel_ecoflow_body();
+			gaming_hub_render_hub_panel_posts( 'ecoflow' );
 			?>
 		</div>
 		<div

@@ -29,21 +29,54 @@ $is_spa     = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_h
 
 <?php if ( $is_ecoflow ) : ?>
 	<?php gaming_hub_render_ecoflow_hub_intro(); ?>
-<?php endif; ?>
+	<?php gaming_hub_render_ecoflow_hub_dashboard_sections(); ?>
 
-<?php if ( have_posts() ) : ?>
-	<?php if ( $is_ecoflow ) : ?>
+	<?php if ( have_posts() ) : ?>
 	<section id="ecoflow-posts" class="ecoflow-hub-section">
-	<?php endif; ?>
-	<div class="container content-area <?php echo $is_dash ? 'content-area--hub-top' : ''; ?>">
-		<?php if ( $is_ecoflow ) : ?>
+		<div class="container content-area content-area--hub-top">
 			<?php
 			gaming_hub_render_ecoflow_section_head(
 				__( '記事', 'gaming-hub' ),
 				__( '実測レビュー・運用メモ', 'gaming-hub' )
 			);
 			?>
-		<?php endif; ?>
+			<div class="posts-grid">
+				<?php
+				while ( have_posts() ) :
+					the_post();
+					get_template_part( 'template-parts/content', get_post_type() );
+				endwhile;
+				?>
+			</div>
+
+			<?php
+			the_posts_pagination(
+				array(
+					'prev_text' => '&larr; ' . __( 'Previous', 'gaming-hub' ),
+					'next_text' => __( 'Next', 'gaming-hub' ) . ' &rarr;',
+				)
+			);
+			?>
+		</div>
+	</section>
+	<?php else : ?>
+	<section id="ecoflow-posts" class="ecoflow-hub-section">
+		<div class="container content-area content-area--hub-top">
+			<?php
+			gaming_hub_render_ecoflow_section_head(
+				__( '記事', 'gaming-hub' ),
+				__( '実測レビュー・運用メモ', 'gaming-hub' )
+			);
+			?>
+			<div class="ecoflow-empty">
+				<p><?php esc_html_e( 'EcoFlow タグの記事はまだありません。上の実測構成・発電ログから機材を確認できます。', 'gaming-hub' ); ?></p>
+			</div>
+		</div>
+	</section>
+	<?php endif; ?>
+
+<?php elseif ( have_posts() ) : ?>
+	<div class="container content-area <?php echo $is_dash ? 'content-area--hub-top' : ''; ?>">
 		<div class="posts-grid">
 			<?php
 			while ( have_posts() ) :
@@ -62,23 +95,6 @@ $is_spa     = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_h
 		);
 		?>
 	</div>
-	<?php if ( $is_ecoflow ) : ?>
-	</section>
-	<?php endif; ?>
-<?php elseif ( $is_ecoflow ) : ?>
-	<section id="ecoflow-posts" class="ecoflow-hub-section">
-	<div class="container content-area content-area--hub-top">
-		<?php
-		gaming_hub_render_ecoflow_section_head(
-			__( '記事', 'gaming-hub' ),
-			__( '実測レビュー・運用メモ', 'gaming-hub' )
-		);
-		?>
-		<div class="ecoflow-empty">
-			<p><?php esc_html_e( 'EcoFlow タグの記事はまだありません。下の実測構成・発電ログから機材を確認できます。', 'gaming-hub' ); ?></p>
-		</div>
-	</div>
-	</section>
 <?php elseif ( ! $is_dash ) : ?>
 	<div class="container content-area">
 		<div class="no-results">
@@ -88,9 +104,7 @@ $is_spa     = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_h
 	</div>
 <?php endif; ?>
 
-<?php if ( $is_ecoflow ) : ?>
-	<?php gaming_hub_render_ecoflow_hub_dashboard_sections(); ?>
-<?php elseif ( $is_tesla ) : ?>
+<?php if ( $is_tesla ) : ?>
 	<section class="hub-section hub-tesla">
 		<?php get_template_part( 'template-parts/powerwall', 'page' ); ?>
 	</section>

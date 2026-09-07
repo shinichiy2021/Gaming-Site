@@ -2639,10 +2639,6 @@ function gaming_hub_render_ecoflow_energy_page() {
 function gaming_hub_ecoflow_hub_nav_items() {
 	return array(
 		array(
-			'id'    => 'ecoflow-posts',
-			'label' => __( '記事', 'gaming-hub' ),
-		),
-		array(
 			'id'    => 'ecoflow-live',
 			'label' => __( 'ライブ', 'gaming-hub' ),
 		),
@@ -2654,11 +2650,15 @@ function gaming_hub_ecoflow_hub_nav_items() {
 			'id'    => 'kit',
 			'label' => __( '実測構成', 'gaming-hub' ),
 		),
+		array(
+			'id'    => 'ecoflow-posts',
+			'label' => __( '記事', 'gaming-hub' ),
+		),
 	);
 }
 
 /**
- * Sticky in-page nav (articles · live · energy log · kit).
+ * Sticky in-page nav (live · energy log · kit · articles).
  */
 function gaming_hub_render_ecoflow_hub_nav() {
 	$items = gaming_hub_ecoflow_hub_nav_items();
@@ -2711,7 +2711,7 @@ function gaming_hub_render_ecoflow_hub_intro() {
 }
 
 /**
- * Live dashboard, generation log, and kit blocks (after articles).
+ * Live dashboard, generation log, and kit blocks (before articles).
  */
 function gaming_hub_render_ecoflow_hub_dashboard_sections() {
 	?>
