@@ -9,8 +9,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_POKEMON_GO_FEED', 'https://pokemongohub.net/feed/' );
-define( 'GAMING_HUB_POKEMON_GO_CACHE_KEY', 'gaming_hub_pokemon_go_news_v2' );
+define( 'GAMING_HUB_POKEMON_GO_FEED', 'https://pokemongo.com/feed' );
+define( 'GAMING_HUB_POKEMON_GO_CACHE_KEY', 'gaming_hub_pokemon_go_news_v3' );
 define( 'GAMING_HUB_POKEMON_GO_CACHE_TTL', 30 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_POKEMON_GO_TAG_SLUG', 'pokemon-go' );
 
@@ -75,11 +75,16 @@ function gaming_hub_fetch_pokemon_go_feed( $max_items = 20 ) {
 	$feed = fetch_feed( GAMING_HUB_POKEMON_GO_FEED );
 
 	if ( is_wp_error( $feed ) ) {
+		$feed = gaming_hub_fetch_pokemon_go_feed_via_http();
+	}
+
+	if ( is_wp_error( $feed ) ) {
 		return array();
 	}
 
-	$items   = array();
-	$count   = min( $max_items, $feed->get_item_quantity( $max_items ) );
+	$items      = array();
+	$count      = min( $max_items, $feed->get_item_quantity( $max_items ) );
+	$enrich_cap = 10;
 
 	for ( $i = 0; $i < $count; $i++ ) {
 		$item = $feed->get_item( $i );
@@ -88,29 +93,167 @@ function gaming_hub_fetch_pokemon_go_feed( $max_items = 20 ) {
 			continue;
 		}
 
-		$categories = array();
-		foreach ( (array) $item->get_categories() as $category ) {
-			if ( is_object( $category ) && method_exists( $category, 'get_term' ) ) {
-				$term = $category->get_term();
-				if ( $term ) {
-					$categories[] = $term;
-				}
-			}
-		}
+		$link = gaming_hub_pokemon_go_localize_link( $item->get_permalink() );
+		$title = wp_strip_all_tags( $item->get_title() );
+		$categories = gaming_hub_pokemon_go_infer_categories( $title );
 
-		$items[] = array(
-			'title'        => wp_strip_all_tags( $item->get_title() ),
-			'link'         => esc_url_raw( $item->get_permalink() ),
+		$news_item = array(
+			'title'        => $title,
+			'link'         => esc_url_raw( $link ),
 			'date'         => $item->get_date( 'Y-m-d H:i:s' ),
 			'date_display' => $item->get_date( get_option( 'date_format' ) ),
 			'excerpt'      => wp_trim_words( wp_strip_all_tags( $item->get_description() ), 28, '...' ),
 			'image'        => gaming_hub_extract_feed_item_image( $item ),
 			'categories'   => $categories,
-			'source'       => 'Pokémon GO Hub',
+			'source'       => __( 'Pokémon GO 公式', 'gaming-hub' ),
 		);
+
+		if ( $i < $enrich_cap ) {
+			$news_item = gaming_hub_pokemon_go_enrich_item_from_page( $news_item );
+		}
+
+		$items[] = $news_item;
 	}
 
 	return $items;
+}
+
+/**
+ * Fallback RSS fetch when fetch_feed() fails (redirects, user-agent blocks, etc.).
+ *
+ * @return WP_Feed|WP_Error
+ */
+function gaming_hub_fetch_pokemon_go_feed_via_http() {
+	require_once ABSPATH . WPINC . '/class-simplepie.php';
+
+	$response = wp_remote_get(
+		GAMING_HUB_POKEMON_GO_FEED,
+		array(
+			'timeout'     => 15,
+			'redirection' => 5,
+			'headers'     => array(
+				'User-Agent' => 'GamingHub/1.0 (+https://shinichiy-gaming-hub.com)',
+				'Accept'     => 'application/rss+xml, application/xml, text/xml, */*',
+			),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return $response;
+	}
+
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	if ( $code < 200 || $code >= 300 ) {
+		return new WP_Error( 'pokemon_go_feed_http', 'Pokémon GO feed HTTP ' . $code );
+	}
+
+	$body = wp_remote_retrieve_body( $response );
+	if ( '' === $body ) {
+		return new WP_Error( 'pokemon_go_feed_empty', 'Pokémon GO feed body empty' );
+	}
+
+	$simplepie = new SimplePie();
+	$simplepie->set_raw_data( $body );
+	$simplepie->enable_cache( false );
+	$simplepie->init();
+
+	if ( $simplepie->error() ) {
+		return new WP_Error( 'pokemon_go_feed_parse', $simplepie->error() );
+	}
+
+	require_once ABSPATH . WPINC . '/feed.php';
+
+	return new WP_Feed( $simplepie );
+}
+
+/**
+ * Point official news links at the Japanese locale.
+ *
+ * @param string $link Feed permalink.
+ */
+function gaming_hub_pokemon_go_localize_link( $link ) {
+	$link = (string) $link;
+
+	if ( preg_match( '#https://pokemongo\.com/news/([^/?]+)#', $link, $matches ) ) {
+		return 'https://pokemongo.com/ja/news/' . $matches[1];
+	}
+
+	if ( preg_match( '#https://pokemongolive\.com/(?:en/)?news/([^/?]+)#', $link, $matches ) ) {
+		return 'https://pokemongo.com/ja/news/' . $matches[1];
+	}
+
+	return $link;
+}
+
+/**
+ * Infer display categories from an English RSS title.
+ *
+ * @param string $title Item title.
+ * @return array<int, string>
+ */
+function gaming_hub_pokemon_go_infer_categories( $title ) {
+	$haystack = strtolower( (string) $title );
+
+	if ( false !== strpos( $haystack, 'community day' ) || false !== strpos( $haystack, 'raid day' ) || false !== strpos( $haystack, 'celebration event' ) || false !== strpos( $haystack, 'fest' ) ) {
+		return array( 'Events' );
+	}
+
+	if ( false !== strpos( $haystack, 'go battle league' ) || false !== strpos( $haystack, 'update' ) ) {
+		return array( 'Updates' );
+	}
+
+	if ( false !== strpos( $haystack, 'raid' ) ) {
+		return array( 'Events' );
+	}
+
+	return array( 'News' );
+}
+
+/**
+ * Pull Japanese title and hero image from the localized news page.
+ *
+ * @param array<string, mixed> $item Normalized news item.
+ * @return array<string, mixed>
+ */
+function gaming_hub_pokemon_go_enrich_item_from_page( $item ) {
+	$link = isset( $item['link'] ) ? (string) $item['link'] : '';
+	if ( '' === $link ) {
+		return $item;
+	}
+
+	$response = wp_remote_get(
+		$link,
+		array(
+			'timeout' => 2,
+			'headers' => array(
+				'User-Agent' => 'GamingHub/1.0 (+https://shinichiy-gaming-hub.com)',
+				'Accept'     => 'text/html',
+			),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return $item;
+	}
+
+	$body = wp_remote_retrieve_body( $response );
+	if ( '' === $body ) {
+		return $item;
+	}
+
+	if ( preg_match( '/property="og:title"\s+content="([^"]+)"/', $body, $matches ) ) {
+		$title = html_entity_decode( $matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$title = preg_replace( '/\s*[—–-]\s*Pokémon GO\s*$/u', '', $title );
+		if ( '' !== $title ) {
+			$item['title'] = wp_strip_all_tags( $title );
+		}
+	}
+
+	if ( empty( $item['image'] ) && preg_match( '/property="og:image"\s+content="([^"]+)"/', $body, $matches ) ) {
+		$item['image'] = esc_url_raw( html_entity_decode( $matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+	}
+
+	return $item;
 }
 
 /**
@@ -210,6 +353,7 @@ function gaming_hub_pokemon_go_url( $query = array() ) {
  */
 function gaming_hub_clear_pokemon_go_cache() {
 	delete_transient( GAMING_HUB_POKEMON_GO_CACHE_KEY );
+	delete_transient( 'gaming_hub_pokemon_go_news_v2' );
 	gaming_hub_clear_pokemon_go_youtube_cache();
 }
 
