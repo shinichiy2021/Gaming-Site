@@ -4273,6 +4273,30 @@ body.home .site-header.is-scrolled {
 	margin-top: 22px;
 }
 
+.lancers-promo--article {
+	margin-top: 0;
+}
+
+.single-post-tesla .tesla-article-lancers {
+	margin-top: 36px;
+}
+
+.single-post-tesla .tesla-article-lancers .lancers-promo {
+	border-color: rgba(227, 25, 55, 0.28);
+	background:
+		radial-gradient(ellipse at 12% 0%, rgba(227, 25, 55, 0.1), transparent 55%),
+		var(--color-bg-card);
+}
+
+.single-post-tesla .tesla-article-lancers .lancers-promo-eyebrow {
+	color: #ff6b7f;
+}
+
+.single-post-tesla .tesla-article-lancers .lancers-promo-cta {
+	background: linear-gradient(135deg, #e31937 0%, #b01025 100%);
+	border-color: transparent;
+}
+
 .lancers-promo-figure {
 	margin: 18px 0;
 }
