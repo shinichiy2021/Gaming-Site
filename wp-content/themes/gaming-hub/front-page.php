@@ -9,24 +9,34 @@ get_header();
 ?>
 
 <section id="ecoflow" class="hub-section hub-ecoflow">
-	<div class="container">
-		<div class="hub-section-intro">
-			<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">EcoFlow</span>
-			<div class="ecoflow-official-links">
-				<a href="#energy" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
-				<a href="#kit" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
-			</div>
+	<?php gaming_hub_render_ecoflow_hub_intro(); ?>
+	<section id="ecoflow-live" class="ecoflow-hub-section">
+		<div class="container ecoflow-dashboard-wrap">
+			<?php
+			gaming_hub_render_ecoflow_section_head(
+				__( 'ライブ', 'gaming-hub' ),
+				__( '電力フロー図・AI PLAN・機器ステータス', 'gaming-hub' )
+			);
+			gaming_hub_render_ecoflow_dashboard();
+			?>
 		</div>
-		<div class="ecoflow-dashboard-wrap">
-			<?php gaming_hub_render_ecoflow_dashboard(); ?>
+	</section>
+	<section id="energy" class="ecoflow-hub-section">
+		<div class="container ecoflow-dashboard-wrap">
+			<?php
+			gaming_hub_render_ecoflow_section_head(
+				__( '発電ログ', 'gaming-hub' ),
+				__( '日別・時間別の発電量と節約額', 'gaming-hub' )
+			);
+			gaming_hub_render_ecoflow_energy_page();
+			?>
 		</div>
-		<div id="energy" class="ecoflow-dashboard-wrap">
-			<?php gaming_hub_render_ecoflow_energy_page(); ?>
-		</div>
-		<div class="ecoflow-dashboard-wrap">
+	</section>
+	<section class="ecoflow-hub-section">
+		<div class="container ecoflow-dashboard-wrap">
 			<?php get_template_part( 'template-parts/ecoflow', 'kit' ); ?>
 		</div>
-	</div>
+	</section>
 </section>
 
 <?php

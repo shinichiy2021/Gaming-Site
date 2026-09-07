@@ -79,22 +79,41 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
 	);
 
 	if ( $query->have_posts() ) {
+		if ( 'ecoflow' === $tag_slug ) {
+			echo '<section id="ecoflow-posts" class="ecoflow-hub-section">';
+		}
 		echo '<div class="container content-area content-area--hub-top">';
+		if ( 'ecoflow' === $tag_slug && function_exists( 'gaming_hub_render_ecoflow_section_head' ) ) {
+			gaming_hub_render_ecoflow_section_head(
+				__( '記事', 'gaming-hub' ),
+				__( '実測レビュー・運用メモ', 'gaming-hub' )
+			);
+		}
 		echo '<div class="posts-grid">';
 		while ( $query->have_posts() ) {
 			$query->the_post();
 			get_template_part( 'template-parts/content', get_post_type() );
 		}
 		echo '</div></div>';
+		if ( 'ecoflow' === $tag_slug ) {
+			echo '</section>';
+		}
 		wp_reset_postdata();
 		return;
 	}
 
 	if ( 'ecoflow' === $tag_slug ) {
+		echo '<section id="ecoflow-posts" class="ecoflow-hub-section">';
 		echo '<div class="container content-area content-area--hub-top">';
+		if ( function_exists( 'gaming_hub_render_ecoflow_section_head' ) ) {
+			gaming_hub_render_ecoflow_section_head(
+				__( '記事', 'gaming-hub' ),
+				__( '実測レビュー・運用メモ', 'gaming-hub' )
+			);
+		}
 		echo '<div class="ecoflow-empty"><p>';
 		esc_html_e( 'EcoFlow タグの記事はまだありません。下の実測構成・発電ログから機材を確認できます。', 'gaming-hub' );
-		echo '</p></div></div>';
+		echo '</p></div></div></section>';
 	}
 }
 
@@ -102,27 +121,7 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
  * EcoFlow hub panel body (archive chrome + dashboard + energy + kit).
  */
 function gaming_hub_render_hub_panel_ecoflow_body() {
-	?>
-	<div class="archive-header ecoflow-archive-header ecoflow-archive-header--below-posts">
-		<div class="container">
-			<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">EcoFlow</span>
-			<p class="ecoflow-archive-desc"><?php esc_html_e( 'ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事', 'gaming-hub' ); ?></p>
-			<div class="ecoflow-official-links">
-				<a href="#energy" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></a>
-				<a href="#kit" class="btn btn-outline ecoflow-btn-outline"><?php esc_html_e( '実測構成', 'gaming-hub' ); ?></a>
-			</div>
-		</div>
-	</div>
-	<div class="container ecoflow-dashboard-wrap">
-		<?php gaming_hub_render_ecoflow_dashboard(); ?>
-	</div>
-	<div id="energy" class="container ecoflow-dashboard-wrap">
-		<?php gaming_hub_render_ecoflow_energy_page(); ?>
-	</div>
-	<div class="container ecoflow-dashboard-wrap">
-		<?php get_template_part( 'template-parts/ecoflow', 'kit' ); ?>
-	</div>
-	<?php
+	gaming_hub_render_ecoflow_hub_dashboard_sections();
 }
 
 /**
@@ -152,6 +151,7 @@ function gaming_hub_render_hub_spa_panels( $active ) {
 			aria-hidden="<?php echo 'ecoflow' === $active ? 'false' : 'true'; ?>"
 		>
 			<?php
+			gaming_hub_render_ecoflow_hub_intro();
 			gaming_hub_render_hub_panel_posts( 'ecoflow' );
 			gaming_hub_render_hub_panel_ecoflow_body();
 			?>

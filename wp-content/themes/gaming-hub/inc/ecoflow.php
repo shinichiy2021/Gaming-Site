@@ -2632,6 +2632,120 @@ function gaming_hub_render_ecoflow_energy_page() {
 }
 
 /**
+ * EcoFlow hub section anchor targets for sticky sub-nav.
+ *
+ * @return array<int, array{id: string, label: string}>
+ */
+function gaming_hub_ecoflow_hub_nav_items() {
+	return array(
+		array(
+			'id'    => 'ecoflow-posts',
+			'label' => __( '記事', 'gaming-hub' ),
+		),
+		array(
+			'id'    => 'ecoflow-live',
+			'label' => __( 'ライブ', 'gaming-hub' ),
+		),
+		array(
+			'id'    => 'energy',
+			'label' => __( '発電ログ', 'gaming-hub' ),
+		),
+		array(
+			'id'    => 'kit',
+			'label' => __( '実測構成', 'gaming-hub' ),
+		),
+	);
+}
+
+/**
+ * Sticky in-page nav (articles · live · energy log · kit).
+ */
+function gaming_hub_render_ecoflow_hub_nav() {
+	$items = gaming_hub_ecoflow_hub_nav_items();
+	if ( ! $items ) {
+		return;
+	}
+	?>
+	<nav class="ecoflow-hub-nav" aria-label="<?php esc_attr_e( 'EcoFlow セクション', 'gaming-hub' ); ?>">
+		<div class="container ecoflow-hub-nav-inner">
+			<?php foreach ( $items as $item ) : ?>
+				<a class="ecoflow-hub-nav-link" href="#<?php echo esc_attr( (string) $item['id'] ); ?>">
+					<?php echo esc_html( (string) $item['label'] ); ?>
+				</a>
+			<?php endforeach; ?>
+		</div>
+	</nav>
+	<?php
+}
+
+/**
+ * Section heading inside the EcoFlow hub.
+ *
+ * @param string $title Section title.
+ * @param string $desc  Optional lead line.
+ */
+function gaming_hub_render_ecoflow_section_head( $title, $desc = '' ) {
+	?>
+	<header class="ecoflow-hub-section-head">
+		<h2 class="ecoflow-hub-section-title"><?php echo esc_html( (string) $title ); ?></h2>
+		<?php if ( '' !== (string) $desc ) : ?>
+			<p class="ecoflow-hub-section-desc"><?php echo esc_html( (string) $desc ); ?></p>
+		<?php endif; ?>
+	</header>
+	<?php
+}
+
+/**
+ * EcoFlow tag intro (badge + description + sticky section nav).
+ */
+function gaming_hub_render_ecoflow_hub_intro() {
+	?>
+	<div class="archive-header ecoflow-archive-header ecoflow-archive-header--hub">
+		<div class="container">
+			<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">EcoFlow</span>
+			<p class="ecoflow-archive-desc"><?php esc_html_e( 'ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事', 'gaming-hub' ); ?></p>
+		</div>
+	</div>
+	<?php
+	gaming_hub_render_ecoflow_hub_nav();
+}
+
+/**
+ * Live dashboard, generation log, and kit blocks (after articles).
+ */
+function gaming_hub_render_ecoflow_hub_dashboard_sections() {
+	?>
+	<section id="ecoflow-live" class="ecoflow-hub-section">
+		<div class="container ecoflow-dashboard-wrap">
+			<?php
+			gaming_hub_render_ecoflow_section_head(
+				__( 'ライブ', 'gaming-hub' ),
+				__( '電力フロー図・AI PLAN・機器ステータス', 'gaming-hub' )
+			);
+			gaming_hub_render_ecoflow_dashboard();
+			?>
+		</div>
+	</section>
+	<section id="energy" class="ecoflow-hub-section">
+		<div class="container ecoflow-dashboard-wrap">
+			<?php
+			gaming_hub_render_ecoflow_section_head(
+				__( '発電ログ', 'gaming-hub' ),
+				__( '日別・時間別の発電量と節約額', 'gaming-hub' )
+			);
+			gaming_hub_render_ecoflow_energy_page();
+			?>
+		</div>
+	</section>
+	<section class="ecoflow-hub-section">
+		<div class="container ecoflow-dashboard-wrap">
+			<?php get_template_part( 'template-parts/ecoflow', 'kit' ); ?>
+		</div>
+	</section>
+	<?php
+}
+
+/**
  * Render Smart Time ONE rate HUD on the EcoFlow dashboard.
  */
 function gaming_hub_render_ecoflow_rates( $extra = array() ) {

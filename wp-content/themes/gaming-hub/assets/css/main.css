@@ -3810,6 +3810,71 @@ body.home .site-header.is-scrolled {
 	border-top: 1px solid rgba(0, 200, 83, 0.18);
 }
 
+.ecoflow-archive-header--hub {
+	padding-bottom: 0;
+}
+
+.ecoflow-hub-nav {
+	position: sticky;
+	top: 70px;
+	z-index: 90;
+	background: rgba(10, 26, 15, 0.94);
+	backdrop-filter: blur(10px);
+	border-bottom: 1px solid rgba(0, 200, 83, 0.2);
+}
+
+.ecoflow-hub-nav-inner {
+	display: flex;
+	gap: 8px;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none;
+	padding: 10px 0 12px;
+}
+
+.ecoflow-hub-nav-inner::-webkit-scrollbar {
+	display: none;
+}
+
+.ecoflow-hub-nav-link {
+	flex: 0 0 auto;
+	padding: 8px 14px;
+	border-radius: 999px;
+	border: 1px solid rgba(0, 200, 83, 0.35);
+	color: var(--ecoflow-green);
+	font-size: 0.85rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	transition: var(--transition);
+}
+
+.ecoflow-hub-nav-link:hover {
+	background: rgba(0, 200, 83, 0.12);
+	color: var(--ecoflow-green);
+}
+
+.ecoflow-hub-section {
+	scroll-margin-top: 88px;
+}
+
+.ecoflow-hub-section-head {
+	margin-bottom: 20px;
+}
+
+.ecoflow-hub-section-title {
+	font-family: var(--font-display);
+	font-size: clamp(1.25rem, 3vw, 1.5rem);
+	color: var(--color-text);
+	margin: 0 0 6px;
+}
+
+.ecoflow-hub-section-desc {
+	color: var(--color-text-muted);
+	font-size: 0.92rem;
+	margin: 0;
+}
+
 .ecoflow-archive-desc {
 	color: var(--color-text-muted);
 	margin-top: 8px;
@@ -4273,9 +4338,11 @@ body.home .site-header.is-scrolled {
 #youtube,
 #energy,
 #kit,
+#ecoflow-posts,
+#ecoflow-live,
 #tesla-kit,
 #drive {
-	scroll-margin-top: 80px;
+	scroll-margin-top: 88px;
 }
 
 .hub-section-intro {
@@ -7494,6 +7561,15 @@ body.home .site-header.is-scrolled {
 		padding-bottom: 0;
 		border-top-color: transparent;
 		pointer-events: none;
+	}
+
+	.ecoflow-hub-nav {
+		top: 122px;
+		transition: top 0.28s ease;
+	}
+
+	.site-header:has(.hub-switcher.is-scroll-hidden) ~ .site-main .ecoflow-hub-nav {
+		top: 70px;
 	}
 
 	.hub-switcher-track {
