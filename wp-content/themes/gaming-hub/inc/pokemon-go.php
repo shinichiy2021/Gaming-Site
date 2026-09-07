@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'GAMING_HUB_POKEMON_GO_FEED', 'https://pokemongo.com/feed' );
-define( 'GAMING_HUB_POKEMON_GO_CACHE_KEY', 'gaming_hub_pokemon_go_news_v3' );
+define( 'GAMING_HUB_POKEMON_GO_CACHE_KEY', 'gaming_hub_pokemon_go_news_v4' );
 define( 'GAMING_HUB_POKEMON_GO_CACHE_TTL', 30 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_POKEMON_GO_TAG_SLUG', 'pokemon-go' );
 
@@ -84,7 +84,7 @@ function gaming_hub_fetch_pokemon_go_feed( $max_items = 20 ) {
 
 	$items      = array();
 	$count      = min( $max_items, $feed->get_item_quantity( $max_items ) );
-	$enrich_cap = 10;
+	$enrich_cap = 15;
 
 	for ( $i = 0; $i < $count; $i++ ) {
 		$item = $feed->get_item( $i );
@@ -210,6 +210,62 @@ function gaming_hub_pokemon_go_infer_categories( $title ) {
 }
 
 /**
+ * Read a meta tag value regardless of attribute order.
+ *
+ * @param string $body     HTML document.
+ * @param string $property Meta property or name.
+ */
+function gaming_hub_pokemon_go_extract_html_meta( $body, $property ) {
+	$body     = (string) $body;
+	$property = (string) $property;
+	$quoted   = preg_quote( $property, '/' );
+
+	if ( preg_match( '/property="' . $quoted . '"[^>]*\scontent="([^"]+)"/', $body, $matches ) ) {
+		return html_entity_decode( $matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+
+	if ( preg_match( '/content="([^"]+)"[^>]*\sproperty="' . $quoted . '"/', $body, $matches ) ) {
+		return html_entity_decode( $matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+
+	if ( preg_match( '/name="' . $quoted . '"[^>]*\scontent="([^"]+)"/', $body, $matches ) ) {
+		return html_entity_decode( $matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+
+	if ( preg_match( '/content="([^"]+)"[^>]*\sname="' . $quoted . '"/', $body, $matches ) ) {
+		return html_entity_decode( $matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
+
+	return '';
+}
+
+/**
+ * Best-effort hero image URL from an official news page.
+ *
+ * @param string $body HTML document.
+ */
+function gaming_hub_pokemon_go_extract_news_image_from_html( $body ) {
+	$body = (string) $body;
+
+	foreach ( array( 'og:image', 'twitter:image' ) as $property ) {
+		$image = gaming_hub_pokemon_go_extract_html_meta( $body, $property );
+		if ( '' !== $image ) {
+			return esc_url_raw( $image );
+		}
+	}
+
+	if ( preg_match( '/"@type":"NewsArticle"[^}]*"image":"([^"]+)"/', $body, $matches ) ) {
+		return esc_url_raw( $matches[1] );
+	}
+
+	if ( preg_match( '/"@type":"NewsArticle"[\s\S]*?"image"\s*:\s*"([^"]+)"/', $body, $matches ) ) {
+		return esc_url_raw( $matches[1] );
+	}
+
+	return '';
+}
+
+/**
  * Pull Japanese title and hero image from the localized news page.
  *
  * @param array<string, mixed> $item Normalized news item.
@@ -224,7 +280,7 @@ function gaming_hub_pokemon_go_enrich_item_from_page( $item ) {
 	$response = wp_remote_get(
 		$link,
 		array(
-			'timeout' => 2,
+			'timeout' => 5,
 			'headers' => array(
 				'User-Agent' => 'GamingHub/1.0 (+https://shinichiy-gaming-hub.com)',
 				'Accept'     => 'text/html',
@@ -241,16 +297,19 @@ function gaming_hub_pokemon_go_enrich_item_from_page( $item ) {
 		return $item;
 	}
 
-	if ( preg_match( '/property="og:title"\s+content="([^"]+)"/', $body, $matches ) ) {
-		$title = html_entity_decode( $matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	$title = gaming_hub_pokemon_go_extract_html_meta( $body, 'og:title' );
+	if ( '' !== $title ) {
 		$title = preg_replace( '/\s*[—–-]\s*Pokémon GO\s*$/u', '', $title );
 		if ( '' !== $title ) {
 			$item['title'] = wp_strip_all_tags( $title );
 		}
 	}
 
-	if ( empty( $item['image'] ) && preg_match( '/property="og:image"\s+content="([^"]+)"/', $body, $matches ) ) {
-		$item['image'] = esc_url_raw( html_entity_decode( $matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+	if ( empty( $item['image'] ) ) {
+		$image = gaming_hub_pokemon_go_extract_news_image_from_html( $body );
+		if ( '' !== $image ) {
+			$item['image'] = $image;
+		}
 	}
 
 	return $item;
@@ -353,6 +412,7 @@ function gaming_hub_pokemon_go_url( $query = array() ) {
  */
 function gaming_hub_clear_pokemon_go_cache() {
 	delete_transient( GAMING_HUB_POKEMON_GO_CACHE_KEY );
+	delete_transient( 'gaming_hub_pokemon_go_news_v3' );
 	delete_transient( 'gaming_hub_pokemon_go_news_v2' );
 	gaming_hub_clear_pokemon_go_youtube_cache();
 }

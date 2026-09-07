@@ -1428,6 +1428,7 @@ body.home .site-header.is-scrolled {
 
 .pgo-card-image img,
 .pgo-news-image img {
+	display: block;
 	width: 100%;
 	height: 100%;
 }
@@ -3824,6 +3825,7 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-archive-header--hub {
 	padding-bottom: 0;
+	display: none; /* Temporary: hide hub archive chrome; sticky nav remains. */
 }
 
 .ecoflow-hub-nav {
@@ -4311,6 +4313,7 @@ body.home .site-header.is-scrolled {
 
 .tesla-archive-header--hub {
 	padding-bottom: 0;
+	display: none; /* Temporary: hide hub archive chrome; sticky nav remains. */
 }
 
 .tesla-archive-desc {
@@ -4367,8 +4370,10 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-hub-section-title {
-	font-family: var(--font-display);
+	font-family: var(--font-body);
 	font-size: clamp(1.25rem, 3vw, 1.5rem);
+	font-weight: 600;
+	letter-spacing: 0.02em;
 	color: var(--color-text);
 	margin: 0 0 6px;
 }
@@ -7248,7 +7253,7 @@ body.home .site-header.is-scrolled {
 .pgo-news-list {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 20px;
 }
 
 .pgo-news-item {
@@ -7256,6 +7261,7 @@ body.home .site-header.is-scrolled {
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-lg);
 	transition: var(--transition);
+	overflow: hidden;
 }
 
 .pgo-news-item:hover {
@@ -7265,8 +7271,9 @@ body.home .site-header.is-scrolled {
 
 .pgo-news-link {
 	display: flex;
-	gap: 20px;
-	padding: 20px;
+	flex-direction: column;
+	gap: 0;
+	padding: 0;
 	color: inherit;
 }
 
@@ -7276,14 +7283,41 @@ body.home .site-header.is-scrolled {
 
 .pgo-news-image {
 	flex-shrink: 0;
-	width: 200px;
+	width: 100%;
 	aspect-ratio: 16 / 9;
-	border-radius: var(--radius);
+	min-height: 200px;
+	border-radius: 0;
+}
+
+.pgo-news-image img {
+	object-fit: cover;
+}
+
+.pgo-news-image .pgo-image-artwork {
+	object-fit: cover;
+	padding: 0;
+}
+
+.pgo-news-image.pgo-card-image-placeholder {
+	min-height: 200px;
+	font-size: 3.5rem;
 }
 
 .pgo-news-content {
 	flex: 1;
 	min-width: 0;
+	padding: 18px 20px 20px;
+}
+
+@media (min-width: 768px) {
+	.pgo-news-image {
+		aspect-ratio: 21 / 9;
+		min-height: 260px;
+	}
+
+	.pgo-news-image.pgo-card-image-placeholder {
+		min-height: 260px;
+	}
 }
 
 .pgo-news-meta {
@@ -7314,7 +7348,7 @@ body.home .site-header.is-scrolled {
 
 .pgo-news-title {
 	font-family: var(--font-display);
-	font-size: 1.15rem;
+	font-size: clamp(1.05rem, 2vw, 1.25rem);
 	font-weight: 700;
 	line-height: 1.4;
 	margin-bottom: 8px;
@@ -7791,12 +7825,8 @@ body.home .site-header.is-scrolled {
 		align-self: flex-start;
 	}
 
-	.pgo-news-link {
-		flex-direction: column;
-	}
-
 	.pgo-news-image {
-		width: 100%;
+		min-height: 160px;
 	}
 
 	.ecoflow-dashboard {
