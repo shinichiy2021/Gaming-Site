@@ -29,7 +29,7 @@ jobs:
 
       - name: Build theme assets
         working-directory: wp-content/themes/gaming-hub
-        run: npm ci && npm run build:flows
+        run: npm ci && npm run i18n:build && npm run build:flows
 
       - name: Deploy to EC2
         env:

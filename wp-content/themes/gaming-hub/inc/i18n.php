@@ -1,8 +1,9 @@
 <?php
 /**
- * JA / EN language switcher for the public site.
+ * JA / EN language switcher — WordPress standard locale + theme textdomain.
  *
- * English msgids in code; Japanese via languages/ja.mo (WordPress standard i18n).
+ * English msgids in PHP; Japanese via languages/gaming-hub-ja.mo.
+ * Browser JS uses inc/i18n-ja.php via gamingHubT().
  *
  * @package Gaming_Hub
  */
@@ -12,9 +13,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'GAMING_HUB_LANG_COOKIE', 'gaming_hub_lang' );
+define( 'GAMING_HUB_TEXT_DOMAIN', 'gaming-hub' );
+define( 'GAMING_HUB_LOCALE_EN', 'en_US' );
+define( 'GAMING_HUB_LOCALE_JA', 'ja' );
 
 /**
- * Active public language: ja or en.
+ * Active public language code: ja or en.
  */
 function gaming_hub_lang() {
 	static $lang = null;
@@ -64,7 +68,7 @@ function gaming_hub_persist_lang() {
 add_action( 'template_redirect', 'gaming_hub_persist_lang', 0 );
 
 /**
- * Front-end locale follows the switcher. wp-admin stays on the site language.
+ * Front-end locale follows the JA/EN switcher. wp-admin stays on the site language.
  *
  * @param string $locale Current locale.
  */
@@ -73,32 +77,40 @@ function gaming_hub_filter_locale( $locale ) {
 		return $locale;
 	}
 
-	return 'en' === gaming_hub_lang() ? 'en_US' : 'ja';
+	return 'en' === gaming_hub_lang() ? GAMING_HUB_LOCALE_EN : GAMING_HUB_LOCALE_JA;
 }
 add_filter( 'locale', 'gaming_hub_filter_locale', 1 );
 add_filter( 'determine_locale', 'gaming_hub_filter_locale', 1 );
 
 /**
- * Japanese strings stored in the DB (menus, site title) → English when lang=en.
- *
- * @param string $text Stored value.
+ * Load theme translations after locale is resolved (WordPress standard).
  */
-function gaming_hub_translate_db_string( $text ) {
-	if ( 'en' !== gaming_hub_lang() || '' === $text ) {
-		return $text;
+function gaming_hub_load_textdomain() {
+	load_theme_textdomain( GAMING_HUB_TEXT_DOMAIN, get_template_directory() . '/languages' );
+}
+add_action( 'after_setup_theme', 'gaming_hub_load_textdomain' );
+
+/**
+ * Japanese DB strings (menus, site title) → English when lang=en.
+ *
+ * Built from i18n-en.php via scripts/build-i18n-standard.py.
+ *
+ * @return array<string, string>
+ */
+function gaming_hub_db_en_map() {
+	static $map = null;
+
+	if ( null !== $map ) {
+		return $map;
 	}
 
-	static $ja_to_en = null;
-
-	if ( null === $ja_to_en ) {
-		$file     = get_template_directory() . '/inc/i18n-en.php';
-		$ja_to_en = is_readable( $file ) ? include $file : array();
-		if ( ! is_array( $ja_to_en ) ) {
-			$ja_to_en = array();
-		}
+	$file = get_template_directory() . '/inc/i18n-db-en.php';
+	$map  = is_readable( $file ) ? include $file : array();
+	if ( ! is_array( $map ) ) {
+		$map = array();
 	}
 
-	return isset( $ja_to_en[ $text ] ) ? $ja_to_en[ $text ] : $text;
+	return $map;
 }
 
 /**
@@ -123,6 +135,21 @@ function gaming_hub_japanese_map() {
 }
 
 /**
+ * Japanese strings stored in the DB → English when lang=en.
+ *
+ * @param string $text Stored value.
+ */
+function gaming_hub_translate_db_string( $text ) {
+	if ( 'en' !== gaming_hub_lang() || '' === $text ) {
+		return $text;
+	}
+
+	$map = gaming_hub_db_en_map();
+
+	return isset( $map[ $text ] ) ? $map[ $text ] : $text;
+}
+
+/**
  * Translate nav labels stored in the database.
  *
  * @param string $title Menu title.
@@ -133,7 +160,7 @@ function gaming_hub_translate_menu_title( $title ) {
 add_filter( 'nav_menu_item_title', 'gaming_hub_translate_menu_title' );
 
 /**
- * Translate site title / tagline when Japanese is on.
+ * Translate site title / tagline when lang=en.
  *
  * @param string $output Bloginfo value.
  * @param string $show   Field name.
@@ -167,7 +194,7 @@ function gaming_hub_language_switcher() {
 	$ja   = esc_url( add_query_arg( 'lang', 'ja' ) );
 	$en   = esc_url( add_query_arg( 'lang', 'en' ) );
 	?>
-	<nav class="lang-switch" aria-label="<?php esc_attr_e('Language', 'gaming-hub'); ?>">
+	<nav class="lang-switch" aria-label="<?php esc_attr_e( 'Language', 'gaming-hub' ); ?>">
 		<a href="<?php echo $ja; ?>" class="<?php echo 'ja' === $lang ? 'is-active' : ''; ?>" lang="ja" hreflang="ja">JA</a>
 		<span class="lang-switch-sep" aria-hidden="true">/</span>
 		<a href="<?php echo $en; ?>" class="<?php echo 'en' === $lang ? 'is-active' : ''; ?>" lang="en" hreflang="en">EN</a>
