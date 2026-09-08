@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.17.0' );
+define( 'GAMING_HUB_VERSION', '1.17.1' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
@@ -341,8 +341,6 @@ function gaming_hub_ecoflow_tag_includes_energy( $query ) {
 add_action( 'pre_get_posts', 'gaming_hub_ecoflow_tag_includes_energy' );
 
 function gaming_hub_setup() {
-	load_theme_textdomain( 'gaming-hub', get_template_directory() . '/languages' );
-
 	add_theme_support( 'title-tag' );
 	add_theme_support( 'post-thumbnails' );
 	add_theme_support( 'html5', array( 'search-form', 'comment-form', 'comment-list', 'gallery', 'caption', 'style', 'script' ) );
