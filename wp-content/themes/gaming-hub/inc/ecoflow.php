@@ -56,7 +56,7 @@ function gaming_hub_setup_ecoflow_tag() {
 			'post_tag',
 			array(
 				'slug'        => GAMING_HUB_ENERGY_TAG_SLUG,
-				'description' => __( 'EcoFlow 発電量・入出力の実測ログ', 'gaming-hub' ),
+				'description' => __('EcoFlow measured generation and I/O log', 'gaming-hub'),
 			)
 		);
 	}
@@ -118,7 +118,7 @@ function gaming_hub_get_ecoflow_status( $force_refresh = false ) {
 	if ( ! gaming_hub_ecoflow_is_configured() ) {
 		return new WP_Error(
 			'ecoflow_not_configured',
-			__( 'EcoFlow API が未設定です。', 'gaming-hub' )
+			__('EcoFlow API is not configured.', 'gaming-hub')
 		);
 	}
 
@@ -285,13 +285,13 @@ function gaming_hub_fetch_ecoflow_device_status( $api, $devices, $device_sn, $pr
 				$device_sn,
 				$device_name,
 				$online,
-				__( 'Delta 3 系は Developer API 非対応', 'gaming-hub' )
+				__('Delta 3 line does not support the Developer API', 'gaming-hub')
 			);
 		}
 
 		return new WP_Error(
 			'ecoflow_app_only',
-			__( 'Delta 3 系デバイスは Developer API に未対応です。ECOFLOW_APP_EMAIL / ECOFLOW_APP_PASSWORD を設定するか、Pro 3 と連携してください。', 'gaming-hub' )
+			__('Delta 3 devices do not support the Developer API. Set ECOFLOW_APP_EMAIL / ECOFLOW_APP_PASSWORD or pair with Pro 3.', 'gaming-hub')
 		);
 	}
 
@@ -621,14 +621,14 @@ function gaming_hub_ecoflow_has_live_lv( array $status ) {
  */
 function gaming_hub_ecoflow_solar_delta_label( $source ) {
 	if ( 'unavailable' === $source || 'theoretical_lv' === $source || '' === $source ) {
-		return __( 'Low Volt 入力 (未取得)', 'gaming-hub' );
+		return __('Low Volt in (n/a)', 'gaming-hub');
 	}
 
 	if ( 'mqtt' === $source || 'device' === $source ) {
-		return __( 'Low Volt 入力 (実測)', 'gaming-hub' );
+		return __('Low Volt in (live)', 'gaming-hub');
 	}
 
-	return __( 'Low Volt 入力 (実測)', 'gaming-hub' );
+	return __('Low Volt in (live)', 'gaming-hub');
 }
 
 /**
@@ -638,14 +638,14 @@ function gaming_hub_ecoflow_solar_delta_label( $source ) {
  */
 function gaming_hub_ecoflow_pack_capacity_label( array $device ) {
 	if ( 'unavailable' === (string) ( $device['soc_source'] ?? '' ) ) {
-		return __( '残容量 (1500 · 未取得)', 'gaming-hub' );
+		return __('Remaining (1500 · n/a)', 'gaming-hub');
 	}
 
 	if ( ! empty( $device['capacity_source'] ) && 'default' !== $device['capacity_source'] ) {
-		return __( '残容量 (1500 · 実測)', 'gaming-hub' );
+		return __('Remaining (1500 · live)', 'gaming-hub');
 	}
 
-	return __( '残容量 (1500)', 'gaming-hub' );
+	return __('Remaining (1500)', 'gaming-hub');
 }
 
 /**
@@ -655,18 +655,18 @@ function gaming_hub_ecoflow_pack_capacity_label( array $device ) {
  */
 function gaming_hub_ecoflow_extra_capacity_label( array $extra ) {
 	if ( ! gaming_hub_ecoflow_extra_has_mqtt_soc( $extra ) ) {
-		return __( '残容量 (Extra · 未取得)', 'gaming-hub' );
+		return __('Remaining (Extra · n/a)', 'gaming-hub');
 	}
 
 	if ( 'stale' === ( $extra['capacity_source'] ?? '' ) ) {
-		return __( '残容量 (Extra · 最終値)', 'gaming-hub' );
+		return __('Remaining (Extra · last)', 'gaming-hub');
 	}
 
 	if ( 'mqtt' === ( $extra['capacity_source'] ?? '' ) ) {
-		return __( '残容量 (Extra · MQTT)', 'gaming-hub' );
+		return __('Remaining (Extra · MQTT)', 'gaming-hub');
 	}
 
-	return __( '残容量 (Extra · 実測)', 'gaming-hub' );
+	return __('Remaining (Extra · live)', 'gaming-hub');
 }
 
 /**
@@ -1450,20 +1450,20 @@ function gaming_hub_ecoflow_estimate_pack_eta( array $pack, $reported_min = null
 	$est  = null;
 	$mode = $charging ? 'charge' : 'discharge';
 	if ( $charging ) {
-		$label = __( '満タンまで', 'gaming-hub' );
+		$label = __('Until full', 'gaming-hub');
 		if ( $soc >= 99.5 ) {
 			return array(
 				'mode'    => $mode,
 				'minutes' => 0,
 				'label'   => $label,
-				'display' => __( '満タン', 'gaming-hub' ),
+				'display' => __('Full', 'gaming-hub'),
 			);
 		}
 		if ( $charge_w > 0 && $to_full_wh > 0 ) {
 			$est = (int) round( $to_full_wh / $charge_w * 60 );
 		}
 	} else {
-		$label = __( '0%まで', 'gaming-hub' );
+		$label = __('Until 0%', 'gaming-hub');
 		if ( $soc <= 0.5 ) {
 			return array(
 				'mode'    => $mode,
@@ -1684,9 +1684,9 @@ function gaming_hub_ecoflow_independent_delta1500( $device_sn = '' ) {
 		'mqtt_live'       => false,
 		'soc_source'      => 'unavailable',
 		'solar_in_source' => 'unavailable',
-		'charge_state'    => __( '未取得', 'gaming-hub' ),
+		'charge_state'    => __('n/a', 'gaming-hub'),
 		'inferred'        => true,
-		'inferred_note'   => __( 'Pro とは独立。Low Volt ソーラーは 1500 へ入力。Extra Battery 1kW 接続。合算 2.5 kWh。ライブ計測は MQTT ブリッジ待ち。', 'gaming-hub' ),
+		'inferred_note'   => __('Independent from Pro. Low Volt solar feeds the 1500. Extra Battery 1 kWh attached. Combined 2.5 kWh. Live meters wait on the MQTT bridge.', 'gaming-hub'),
 		'updated_at'      => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
 		'extra'           => gaming_hub_ecoflow_extra_battery_slice(),
 	);
@@ -1839,7 +1839,7 @@ function gaming_hub_ecoflow_ups_source( array $status ) {
  * Label for values that require live MQTT.
  */
 function gaming_hub_ecoflow_unavailable_label() {
-	return __( '未取得', 'gaming-hub' );
+	return __('n/a', 'gaming-hub');
 }
 
 /**
@@ -1907,10 +1907,10 @@ function gaming_hub_format_ecoflow_delta_solar( array $status ) {
  */
 function gaming_hub_ecoflow_pack_soc_label( array $device ) {
 	if ( 'unavailable' === (string) ( $device['soc_source'] ?? '' ) ) {
-		return __( '残量 (1500 · 未取得)', 'gaming-hub' );
+		return __('SOC (1500 · n/a)', 'gaming-hub');
 	}
 
-	return __( '残量 (1500 · 実測)', 'gaming-hub' );
+	return __('SOC (1500 · live)', 'gaming-hub');
 }
 
 /**
@@ -2002,7 +2002,7 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 		$delta['capacity_source']   = 'default';
 		$delta['is_charging']       = false;
 		$delta['is_discharging']    = false;
-		$delta['charge_state']      = __( '未取得', 'gaming-hub' );
+		$delta['charge_state']      = __('n/a', 'gaming-hub');
 		$delta['extra']             = gaming_hub_ecoflow_resolve_extra_battery( $delta );
 		if ( 'mqtt' === ( $delta['source'] ?? '' ) ) {
 			$delta['source'] = '';
@@ -2110,7 +2110,7 @@ function gaming_hub_ecoflow_sync_device_activity( array $device ) {
 	$device['is_discharging'] = true;
 	$state                    = (string) ( $device['charge_state'] ?? '' );
 	if ( '' === $state || false !== strpos( $state, '待機' ) || 0 === strcasecmp( $state, 'Idle' ) || 0 === strcasecmp( $state, 'Standby' ) ) {
-		$device['charge_state'] = __( '放電中', 'gaming-hub' );
+		$device['charge_state'] = __('Discharging', 'gaming-hub');
 	}
 
 	return $device;
@@ -2459,27 +2459,27 @@ function gaming_hub_ecoflow_charge_state_label( $quota, $is_charging, $is_discha
 		$hv_w    = (float) ( $hv_in ?? 0 );
 		$solar_w = (float) ( $solar ?? 0 );
 		if ( $grid_w >= 50 ) {
-			return __( 'グリッド充電中', 'gaming-hub' );
+			return __('Grid charging', 'gaming-hub');
 		}
 		if ( $hv_w >= 50 ) {
-			return __( 'ハイボルト充電中', 'gaming-hub' );
+			return __('High-volt charging', 'gaming-hub');
 		}
 		if ( $solar_w >= 50 ) {
-			return __( 'ソーラー充電中', 'gaming-hub' );
+			return __('Solar charging', 'gaming-hub');
 		}
-		return __( '充電中', 'gaming-hub' );
+		return __('Charging', 'gaming-hub');
 	}
 
 	$out_w = ( null !== $output && is_numeric( $output ) ) ? (float) $output : 0.0;
 	if ( 1 === (int) $chg_dsg_state || $is_discharging || $out_w >= GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W ) {
-		return __( '放電中', 'gaming-hub' );
+		return __('Discharging', 'gaming-hub');
 	}
 
 	if ( null !== $input && $input > 0 ) {
-		return __( '入力中', 'gaming-hub' );
+		return __('Inputting', 'gaming-hub');
 	}
 
-	return __( '待機中', 'gaming-hub' );
+	return __('Idle', 'gaming-hub');
 }
 
 /**
@@ -2494,7 +2494,7 @@ function gaming_hub_format_ecoflow_watts( $value ) {
 
 	$watts = (int) round( (float) $value );
 	if ( 0 === $watts ) {
-		return __( '待機', 'gaming-hub' );
+		return __('Standby', 'gaming-hub');
 	}
 
 	return number_format_i18n( $watts, 0 ) . ' W';
@@ -2564,7 +2564,7 @@ function gaming_hub_format_ecoflow_minutes( $minutes ) {
 	if ( $hours > 0 ) {
 		return sprintf(
 			/* translators: 1: hours, 2: minutes */
-			__( '%1$d時間%2$d分', 'gaming-hub' ),
+			__('%1$d h %2$d m', 'gaming-hub'),
 			$hours,
 			$mins
 		);
@@ -2572,7 +2572,7 @@ function gaming_hub_format_ecoflow_minutes( $minutes ) {
 
 	return sprintf(
 		/* translators: %d: minutes */
-		__( '%d分', 'gaming-hub' ),
+		__('%d min', 'gaming-hub'),
 		$mins
 	);
 }
@@ -2584,11 +2584,11 @@ function gaming_hub_render_ecoflow_setup_instructions() {
 	?>
 	<div class="ecoflow-setup-steps">
 		<ol>
-			<li><?php esc_html_e( 'EcoFlow Developer Platform で Access Key / Secret Key を取得', 'gaming-hub' ); ?></li>
-			<li><?php esc_html_e( 'デバイスのシリアル番号 (SN) を確認', 'gaming-hub' ); ?></li>
-			<li><?php esc_html_e( '.env または 外観 → カスタマイズ → EcoFlow API に設定', 'gaming-hub' ); ?></li>
-			<li><?php esc_html_e( 'Delta 3 1500 を連携する場合は ECOFLOW_DEVICE_SN_2 も設定', 'gaming-hub' ); ?></li>
-			<li><?php esc_html_e( 'Delta 3 の MQTT: 日本のアカウントは API Region を Asia にする。Googleログインのみならアプリで「ログインパスワード」を設定', 'gaming-hub' ); ?></li>
+			<li><?php esc_html_e('Get Access Key / Secret Key from the EcoFlow Developer Platform', 'gaming-hub'); ?></li>
+			<li><?php esc_html_e('Check the device serial number (SN)', 'gaming-hub'); ?></li>
+			<li><?php esc_html_e('Set them in .env or Appearance → Customize → EcoFlow API', 'gaming-hub'); ?></li>
+			<li><?php esc_html_e('Also set ECOFLOW_DEVICE_SN_2 to pair a Delta 3 1500', 'gaming-hub'); ?></li>
+			<li><?php esc_html_e('Delta 3 MQTT: Japan accounts should use API Region Asia. Google-only logins need an app login password.', 'gaming-hub'); ?></li>
 		</ol>
 		<p>
 			<a href="https://developer.ecoflow.com/us/" target="_blank" rel="noopener noreferrer">
@@ -2621,7 +2621,7 @@ function gaming_hub_render_ecoflow_energy_page() {
 		? $status['energy']
 		: null;
 
-	echo '<section class="ecoflow-dashboard ecoflow-energy-page" aria-label="' . esc_attr__( '発電ログ', 'gaming-hub' ) . '">';
+	echo '<section class="ecoflow-dashboard ecoflow-energy-page" aria-label="' . esc_attr__('Generation log', 'gaming-hub') . '">';
 	gaming_hub_render_ecoflow_calendar(
 		array(
 			'status' => is_wp_error( $status ) ? null : $status,
@@ -2640,19 +2640,19 @@ function gaming_hub_ecoflow_hub_nav_items() {
 	return array(
 		array(
 			'id'    => 'ecoflow-live',
-			'label' => __( 'ライブ', 'gaming-hub' ),
+			'label' => __('Live', 'gaming-hub'),
 		),
 		array(
 			'id'    => 'energy',
-			'label' => __( '発電ログ', 'gaming-hub' ),
+			'label' => __('Generation log', 'gaming-hub'),
 		),
 		array(
 			'id'    => 'kit',
-			'label' => __( '実測構成', 'gaming-hub' ),
+			'label' => __('Live kit', 'gaming-hub'),
 		),
 		array(
 			'id'    => 'ecoflow-posts',
-			'label' => __( '記事', 'gaming-hub' ),
+			'label' => __('Articles', 'gaming-hub'),
 		),
 	);
 }
@@ -2666,7 +2666,7 @@ function gaming_hub_render_ecoflow_hub_nav() {
 		return;
 	}
 	?>
-	<nav class="ecoflow-hub-nav" aria-label="<?php esc_attr_e( 'EcoFlow セクション', 'gaming-hub' ); ?>">
+	<nav class="ecoflow-hub-nav" aria-label="<?php esc_attr_e('EcoFlow sections', 'gaming-hub'); ?>">
 		<div class="container ecoflow-hub-nav-inner">
 			<?php foreach ( $items as $item ) : ?>
 				<a class="ecoflow-hub-nav-link" href="#<?php echo esc_attr( (string) $item['id'] ); ?>">
@@ -2703,7 +2703,7 @@ function gaming_hub_render_ecoflow_hub_intro() {
 	<div class="archive-header ecoflow-archive-header ecoflow-archive-header--hub">
 		<div class="container">
 			<span class="ecoflow-tag-badge ecoflow-tag-badge-lg">EcoFlow</span>
-			<p class="ecoflow-archive-desc"><?php esc_html_e( 'ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-archive-desc"><?php esc_html_e('Portable power, solar, disaster-prep, and camping articles', 'gaming-hub'); ?></p>
 		</div>
 	</div>
 	<?php
@@ -2719,8 +2719,8 @@ function gaming_hub_render_ecoflow_hub_dashboard_sections() {
 		<div class="container ecoflow-dashboard-wrap">
 			<?php
 			gaming_hub_render_ecoflow_section_head(
-				__( 'ライブ', 'gaming-hub' ),
-				__( '電力フロー図・AI PLAN・機器ステータス', 'gaming-hub' )
+				__('Live', 'gaming-hub'),
+				__('Energy flow diagram, AI PLAN, and device status', 'gaming-hub')
 			);
 			gaming_hub_render_ecoflow_dashboard();
 			?>
@@ -2730,8 +2730,8 @@ function gaming_hub_render_ecoflow_hub_dashboard_sections() {
 		<div class="container ecoflow-dashboard-wrap">
 			<?php
 			gaming_hub_render_ecoflow_section_head(
-				__( '発電ログ', 'gaming-hub' ),
-				__( '日別・時間別の発電量と節約額', 'gaming-hub' )
+				__('Generation log', 'gaming-hub'),
+				__('Daily and hourly generation with savings', 'gaming-hub')
 			);
 			gaming_hub_render_ecoflow_energy_page();
 			?>
@@ -2864,31 +2864,31 @@ function gaming_hub_ecoflow_scripts() {
 			array(
 				'labels' => array(
 					'solar'       => __( 'Low Volt', 'gaming-hub' ),
-					'hv'          => __( 'ハイボルト', 'gaming-hub' ),
-					'grid'        => __( 'グリッド', 'gaming-hub' ),
-					'gridCharge'  => __( 'グリッド補充電', 'gaming-hub' ),
-					'gridIdle'    => __( '待機', 'gaming-hub' ),
-					'deltaGrid'    => __( 'グリッド AC 入力', 'gaming-hub' ),
-					'acInMeasured' => __( '実測 · MQTT', 'gaming-hub' ),
-					'home'        => __( 'リビングエアコン他', 'gaming-hub' ),
-					'ups'         => __( '常時稼働エリア (UPS)', 'gaming-hub' ),
-					'battery'     => __( 'バッテリー', 'gaming-hub' ),
+					'hv'          => __('High volt', 'gaming-hub'),
+					'grid'        => __('Grid', 'gaming-hub'),
+					'gridCharge'  => __('Grid top-up', 'gaming-hub'),
+					'gridIdle'    => __('Standby', 'gaming-hub'),
+					'deltaGrid'    => __('Grid AC in', 'gaming-hub'),
+					'acInMeasured' => __('Live · MQTT', 'gaming-hub'),
+					'home'        => __('Living AC & others', 'gaming-hub'),
+					'ups'         => __('Always-on area (UPS)', 'gaming-hub'),
+					'battery'     => __('Battery', 'gaming-hub'),
 					'pro'         => __( 'Delta Pro 3', 'gaming-hub' ),
 					'delta'       => __( 'Delta 3 1500', 'gaming-hub' ),
 					'extra'       => __( 'Extra Battery 1kW', 'gaming-hub' ),
 					'dcLink'      => __( 'DC 12V', 'gaming-hub' ),
 					'acLink'      => __( 'DC 12V', 'gaming-hub' ),
-					'acOut'       => __( 'AC 出力', 'gaming-hub' ),
-					'acOutMeasured' => __( '実測 · MQTT', 'gaming-hub' ),
+					'acOut'       => __('AC out', 'gaming-hub'),
+					'acOutMeasured' => __('Live · MQTT', 'gaming-hub'),
 					'upsPlug'     => __( 'SwitchBot Plug', 'gaming-hub' ),
-					'lvMeasured'  => __( '実測 · MQTT', 'gaming-hub' ),
-					'flow'        => __( '電力フロー', 'gaming-hub' ),
-					'inputTotal'  => __( '入力合計', 'gaming-hub' ),
-					'outputTotal' => __( '出力合計', 'gaming-hub' ),
-					'todaySave'   => __( '今日 節約', 'gaming-hub' ),
-					'todayBuy'    => __( '今日 買電', 'gaming-hub' ),
-					'todayGen'    => __( '今日 発電', 'gaming-hub' ),
-					'todayUse'    => __( '今日 使用', 'gaming-hub' ),
+					'lvMeasured'  => __('Live · MQTT', 'gaming-hub'),
+					'flow'        => __('Energy flow', 'gaming-hub'),
+					'inputTotal'  => __('Total in', 'gaming-hub'),
+					'outputTotal' => __('Total out', 'gaming-hub'),
+					'todaySave'   => __('Saved today', 'gaming-hub'),
+					'todayBuy'    => __('Import today', 'gaming-hub'),
+					'todayGen'    => __('Generated today', 'gaming-hub'),
+					'todayUse'    => __('Used today', 'gaming-hub'),
 				),
 				'images' => array(
 					'solar' => gaming_hub_ecoflow_image_url( 'ecoflow-solar-gaming.jpg' ),

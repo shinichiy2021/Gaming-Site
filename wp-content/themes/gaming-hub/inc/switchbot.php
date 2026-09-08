@@ -128,7 +128,7 @@ function gaming_hub_switchbot_fetch_ups_status() {
 	if ( '' === $device_id ) {
 		return new WP_Error(
 			'switchbot_no_plug',
-			__( 'SwitchBot Plug Mini が見つかりません。デバイス ID を Customizer に入力してください。', 'gaming-hub' )
+			__('SwitchBot Plug Mini not found. Enter the device ID in the Customizer.', 'gaming-hub')
 		);
 	}
 
@@ -179,7 +179,7 @@ function gaming_hub_switchbot_resolve_ups_device( Gaming_Hub_Switchbot_Api $api 
 	if ( ! $picked ) {
 		return new WP_Error(
 			'switchbot_no_plug',
-			__( 'SwitchBot Plug Mini が見つかりません。', 'gaming-hub' )
+			__('SwitchBot Plug Mini not found.', 'gaming-hub')
 		);
 	}
 
@@ -251,7 +251,7 @@ function gaming_hub_customize_register_switchbot( $wp_customize ) {
 		array(
 			'title'       => __( 'SwitchBot API (UPS Plug)', 'gaming-hub' ),
 			'priority'    => 38,
-			'description' => __( '常時稼働エリア (UPS) の AC 出力 W に Plug Mini の実測を使います。Token と Secret は開発者向けオプションから。デバイス ID は空なら Plug Mini を自動選択します。', 'gaming-hub' ),
+			'description' => __('Use Plug Mini measured watts for always-on UPS AC output. Token and Secret come from developer options. Leave device ID empty to auto-pick a Plug Mini.', 'gaming-hub'),
 		)
 	);
 
@@ -298,7 +298,7 @@ function gaming_hub_customize_register_switchbot( $wp_customize ) {
 		'switchbot_ups_device_id',
 		array(
 			'label'       => __( 'UPS Plug device ID (optional)', 'gaming-hub' ),
-			'description' => __( '空欄ならアカウント内の Plug Mini を自動選択します。', 'gaming-hub' ),
+			'description' => __('Leave blank to auto-select a Plug Mini on the account.', 'gaming-hub'),
 			'section'     => 'gaming_hub_switchbot_api',
 			'type'        => 'text',
 		)

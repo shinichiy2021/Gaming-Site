@@ -267,11 +267,11 @@ function gaming_hub_api_diagram_hero_image_url( $post_id = null ) {
  */
 function gaming_hub_diagram_hero_alt( $post_id = null ) {
 	if ( gaming_hub_is_v2h_survey_20260906_post( $post_id ) ) {
-		return __( '屋根太陽光 10kW × V2H 運用サイクル', 'gaming-hub' );
+		return __('10 kW rooftop solar × V2H daily cycle', 'gaming-hub');
 	}
 
 	if ( gaming_hub_is_evitara_v2h_post( $post_id ) ) {
-		return __( 'e Vitara × ニチコン V2H 系統図', 'gaming-hub' );
+		return __('e Vitara × Nichicon V2H system diagram', 'gaming-hub');
 	}
 
 	return gaming_hub_api_diagram_hero_alt( $post_id );
@@ -279,10 +279,10 @@ function gaming_hub_diagram_hero_alt( $post_id = null ) {
 
 function gaming_hub_api_diagram_hero_alt( $post_id = null ) {
 	if ( gaming_hub_is_tesla_api_post( $post_id ) ) {
-		return __( 'Tesla Fleet API 連携アーキテクチャ図', 'gaming-hub' );
+		return __('Tesla Fleet API architecture diagram', 'gaming-hub');
 	}
 
-	return __( 'EcoFlow 連携アーキテクチャ図', 'gaming-hub' );
+	return __('EcoFlow architecture diagram', 'gaming-hub');
 }
 
 /**
@@ -322,7 +322,7 @@ function gaming_hub_render_lancers_promo( $context = '' ) {
 		<a class="lancers-promo-media" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener noreferrer">
 			<img
 				src="<?php echo esc_url( $img ); ?>"
-				alt="<?php esc_attr_e( 'ランサーズ Web制作・API実装パッケージ（3〜15万円）', 'gaming-hub' ); ?>"
+				alt="<?php esc_attr_e('Lancers web & API packages (¥30k–¥150k)', 'gaming-hub'); ?>"
 				width="1200"
 				height="560"
 				loading="lazy"
@@ -331,12 +331,12 @@ function gaming_hub_render_lancers_promo( $context = '' ) {
 		</a>
 		<div class="lancers-promo-copy">
 			<p class="lancers-promo-eyebrow"><?php esc_html_e( 'LANCERS', 'gaming-hub' ); ?></p>
-			<h3 class="lancers-promo-title"><?php esc_html_e( 'Web制作・API実装のご相談', 'gaming-hub' ); ?></h3>
+			<h3 class="lancers-promo-title"><?php esc_html_e('Web & API implementation inquiries', 'gaming-hub'); ?></h3>
 			<p class="lancers-promo-lead">
-				<?php esc_html_e( 'ベーシック 3万円 / スタンダード 8万円 / プレミアム 15万円。取引はランサーズ経由のみです。', 'gaming-hub' ); ?>
+				<?php esc_html_e('Basic ¥30k / Standard ¥80k / Premium ¥150k. Inquiries via Lancers only.', 'gaming-hub'); ?>
 			</p>
 			<a class="btn btn-primary lancers-promo-cta" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener noreferrer">
-				<?php esc_html_e( 'ランサーズで詳細・相談', 'gaming-hub' ); ?>
+				<?php esc_html_e('Details & inquiry on Lancers', 'gaming-hub'); ?>
 			</a>
 		</div>
 	</div>

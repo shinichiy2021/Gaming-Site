@@ -1,0 +1,3136 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Gaming Hub\n"
+"POT-Creation-Date: 2026-09-08 14:01+0000\n"
+"PO-Revision-Date: 2026-09-08 14:01+0000\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid " (24h simulation)"
+msgstr "（24時間シミュレーション）"
+
+msgid " (AC "
+msgstr "（AC "
+
+msgid " + other "
+msgstr " + その他 "
+
+msgid " W ("
+msgstr " W（"
+
+msgid " W start / "
+msgstr " W開始 / "
+
+msgid " W · "
+msgstr " W · "
+
+msgid " W · set "
+msgstr " W · 設定 "
+
+msgid " W · weekdays on above 28°C"
+msgstr " W · 平日は 28℃超でオン"
+
+msgid " as of"
+msgstr " 時点"
+
+msgid " as of · "
+msgstr " 時点 · "
+
+msgid " kW fixed"
+msgstr " kW 固定"
+
+msgid " kWh (AC "
+msgstr " kWh（AC "
+
+msgid " too"
+msgstr " も充電"
+
+msgid " until full"
+msgstr "頃完了"
+
+msgid " yen"
+msgstr " 円"
+
+msgid " yen/kWh"
+msgstr " 円/kWh"
+
+msgid " · GPS offset applied"
+msgstr " · GPS 補正あり"
+
+msgid " · JMA sunshine normals + weather · "
+msgstr " · 気象庁日照平年値 + 天気連動 · "
+
+msgid " · at home · %d m from home"
+msgstr " · 自宅圏内 · 自宅から %d m"
+
+msgid " · away · %d m from home"
+msgstr " · 自宅外 · 自宅から %d m"
+
+msgid " · charge ~"
+msgstr " · 充電約 "
+
+msgid " · contract "
+msgstr " · 契約 "
+
+msgid " · held at home (last fix)"
+msgstr " · 直近自宅保持"
+
+msgid " · solar self-use "
+msgstr " · ソーラー自家消費 "
+
+msgid " · updates hourly"
+msgstr " · 1時間ごとに更新"
+
+msgid " · ~"
+msgstr " · 1日約 "
+
+msgid "%"
+msgstr "%"
+
+msgid "% less"
+msgstr "% 削減"
+
+msgid "%1$d h %2$d m"
+msgstr "%1$d時間%2$d分"
+
+msgid "%1$s %2$s yen/L"
+msgstr "%1$s %2$s 円/L"
+
+msgid "%1$s / %2$s km"
+msgstr "%1$s / %2$s km"
+
+msgid "%1$s / %2$s trainers"
+msgstr "%1$s / %2$s 人"
+
+msgid "%1$s gasoline-vs-EV savings: ¥%2$s · distance %3$s km. The Tesla powering this site’s logs."
+msgstr "%1$sのガソリン比較節約 %2$s円 · 走行 %3$s km。このサイトで動かしている Tesla です。"
+
+msgid "%1$s km / day avg"
+msgstr "1日平均 %1$s km"
+
+msgid "%1$s savings: ¥%2$s · generation %3$s kWh. Gear running this site’s dashboards."
+msgstr "%1$sの節約 %2$s円 · 発電 %3$s kWh。このサイトで動かしている機材です。"
+
+msgid "%1$s · contract %2$s kW · %3$s (24h simulation)"
+msgstr "%1$s · 契約 %2$s kW · %3$s（24時間シミュレーション）"
+
+msgid "%1$s-%2$s"
+msgstr "%1$s年%2$s月"
+
+msgid "%1$sh %2$sm"
+msgstr "%1$s時間%2$s分"
+
+msgid "%1$s–%2$s"
+msgstr "%1$s〜%2$s"
+
+msgid "%2$s km still to drive. Weekday charge limit is %5$s%%; cheapest hours from Friday night to Saturday %4$s:00 (%3$s) also charge (200V AC at %1$s kW). Home charging starts automatically in those hours only."
+msgstr "残りの走行 %2$s km。平日の充電上限は %5$s%%、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）にも充電します（200V 普通充電 %1$s kW）。この時間だけ自宅充電を自動で開始します。"
+
+msgid "%d min"
+msgstr "%d分"
+
+msgid "%s Wh/km"
+msgstr "%s Wh/km"
+
+msgid "%s kW array"
+msgstr "%s kW パネル"
+
+msgid "%s kW fixed"
+msgstr "%s kW 固定"
+
+msgid "%s km/h"
+msgstr "%s km/h"
+
+msgid "%s left"
+msgstr "残り %s"
+
+msgid "%s open now"
+msgstr "募集中 %s 件"
+
+msgid "%s out of 5 stars"
+msgstr "%s / 5 つ星"
+
+msgid "%s%% after plan"
+msgstr "計画後 %s%%"
+
+msgid "%sV AC charging"
+msgstr "%sV 普通充電"
+
+msgid "%sh"
+msgstr "%s時間"
+
+msgid "%sm"
+msgstr "%s分"
+
+msgid "1-star"
+msgstr "1つ星"
+
+msgid "1.5 kW array"
+msgstr "1.5 kW パネル"
+
+msgid "1.5 kW solar, battery, and Model 3 energy flow, plus bill savings simulation."
+msgstr "1.5kW ソーラー・蓄電池・Model 3 の電力フローと、電気代の節約額をシミュレーション。"
+
+msgid "10 kW rooftop solar × V2H daily cycle"
+msgstr "屋根太陽光 10kW × V2H 運用サイクル"
+
+msgid "10 years"
+msgstr "10年"
+
+msgid "100%% by Saturday %s:00"
+msgstr "土曜朝 %s 時までに 100%%"
+
+msgid "1500 DC (always-on)"
+msgstr "1500 DC（常時）"
+
+msgid "1500 grid top-up"
+msgstr "1500 グリッド補充電"
+
+msgid "1500 import today"
+msgstr "今日 1500買電"
+
+msgid "200V"
+msgstr "200V"
+
+msgid "200V AC charging"
+msgstr "200V 普通充電"
+
+msgid "200V AC charging %1$sA · %2$s kW · %3$s km/day · %4$s Wh/km"
+msgstr "200V 普通充電 %1$sA · %2$s kW · 1日 %3$s km · %4$s Wh/km"
+
+msgid "200V AC charging %1$sA · %2$s kW · %3$s km/day · %4$s Wh/km · SOC %5$s–%6$s%% · 100%% by Saturday %7$s:00"
+msgstr "200V 普通充電 %1$sA · %2$s kW · 1日 %3$s km · %4$s Wh/km · 残量 %5$s–%6$s%% · 土曜 %7$s 時までに 100%%"
+
+msgid "24:00 "
+msgstr "24時 "
+
+msgid "24:00 %s%%"
+msgstr "24時 %s%%"
+
+msgid "3-adult household (average)"
+msgstr "大人3人世帯（平均）"
+
+msgid "3-star"
+msgstr "3つ星"
+
+msgid "30 km / day"
+msgstr "1日 30 km"
+
+msgid "30 km/day"
+msgstr "30 km/日"
+
+msgid "5-star"
+msgstr "5つ星"
+
+msgid "A8.net ad banner"
+msgstr "A8.net 広告バナー"
+
+msgid "AC charging"
+msgstr "普通充電"
+
+msgid "AC estimate"
+msgstr "エアコン予想"
+
+msgid "AC in (1500)"
+msgstr "AC 入力 (1500)"
+
+msgid "AC out"
+msgstr "AC 出力"
+
+msgid "AC out · MQTT"
+msgstr "AC 出力 · MQTT"
+
+msgid "AC out → Living AC & others"
+msgstr "AC 出力 → リビングエアコン他"
+
+msgid "AC out → UPS (1500 · MQTT)"
+msgstr "AC 出力 → UPS (1500 · MQTT)"
+
+msgid "AC out → UPS (1500 · live · MQTT)"
+msgstr "AC 出力 → UPS (1500 · 実測 · MQTT)"
+
+msgid "AC out → UPS (n/a)"
+msgstr "AC 出力 → UPS (未取得)"
+
+msgid "AI PLAN"
+msgstr "AI PLAN"
+
+msgid "API Region"
+msgstr "API リージョン"
+
+msgid "About "
+msgstr "約 "
+
+msgid "About %1$s h"
+msgstr "約 %1$s時間"
+
+msgid "About %1$s h %2$s min"
+msgstr "約 %1$s時間%2$s分"
+
+msgid "About %1$s min"
+msgstr "約 %1$s分"
+
+msgid "About %s%% less"
+msgstr "約 %s%% 削減"
+
+msgid "Access Key"
+msgstr "アクセスキー"
+
+msgid "Add missing scopes"
+msgstr "不足スコープを追加"
+
+msgid "Add virtual key"
+msgstr "仮想キーを追加"
+
+msgid "Add widgets here."
+msgstr "ウィジェットをここに追加"
+
+msgid "Advertisement"
+msgstr "広告"
+
+msgid "Affiliate / measured kit"
+msgstr "Affiliate / 実測キット"
+
+msgid "All day "
+msgstr "全日 "
+
+msgid "All features"
+msgstr "特集一覧"
+
+msgid "All rights reserved."
+msgstr "All rights reserved."
+
+msgid "Allow 300–500 m for GPS error. Default 400 m."
+msgstr "GPS 誤差を考慮し 300〜500m 推奨。デフォルト 400m。"
+
+msgid "Also charging next day %s"
+msgstr "翌 %s も充電"
+
+msgid "Also includes evening cheap-hour charging toward %s%% based on solar and load forecasts."
+msgstr "加えて発電・使用見込みから夜間の安い時間に %s%% まで上げる枠も含みます。"
+
+msgid "Also set ECOFLOW_DEVICE_SN_2 to pair a Delta 3 1500"
+msgstr "Delta 3 1500 を連携する場合は ECOFLOW_DEVICE_SN_2 も設定"
+
+msgid "Always-on area (UPS)"
+msgstr "常時稼働エリア (UPS)"
+
+msgid "Amazon"
+msgstr "Amazon"
+
+msgid "App Client ID from developer.tesla.com (or TESLA_CLIENT_ID in .env)"
+msgstr "developer.tesla.com のアプリ Client ID（.env の TESLA_CLIENT_ID でも可）"
+
+msgid "App Login Email (Delta 3)"
+msgstr "アプリログインメール (Delta 3)"
+
+msgid "App Login Password (Delta 3)"
+msgstr "アプリログインパスワード (Delta 3)"
+
+msgid "Approval cancelled. Nothing is sent."
+msgstr "承認を取り消しました。API は送りません。"
+
+msgid "Approval failed"
+msgstr "承認に失敗しました"
+
+msgid "Approve this schedule and send it to Pro 3"
+msgstr "このスケジュールを承認して Pro 3 に送る"
+
+msgid "Approved. Charge cap is sent to Pro 3 on the hour."
+msgstr "承認済み。時間どおりに Pro 3 へ充電上限を送ります。"
+
+msgid "Approved. Last send was charge cap %1$s W · backup reserve %2$s%%."
+msgstr "承認済み。直近の送信は充電上限 %1$s W · 予備残量 %2$s%% です。"
+
+msgid "Approved. Last send was charge cap %s W."
+msgstr "承認済み。直近の送信は充電上限 %s W です。"
+
+msgid "Articles"
+msgstr "記事"
+
+msgid "Asleep"
+msgstr "スリープ中"
+
+msgid "Asleep · held"
+msgstr "スリープ中・固定"
+
+msgid "Asleep — no charge commands. Battery % stays at the pre-sleep value."
+msgstr "スリープ中のため充電コマンドは送りません。残量表示は入眠時の値のままです。"
+
+msgid "Asleep. Battery % is frozen at the pre-sleep value and is not refreshed via API until the car wakes."
+msgstr "スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。"
+
+msgid "At %s%% or below, start grid charge at UPS load + 200 W and hold that floor."
+msgstr "残量 %s%% 以下で UPS 負荷 + 200 W のグリッド充電を始め、それ以上下げません。"
+
+msgid "Attack"
+msgstr "わざ"
+
+msgid "Auto control error: %s"
+msgstr "自動制御エラー: %s"
+
+msgid "Auto-approved. Reviews the plan every 10 minutes and sends only when this hour’s charge command changes. Last charge cap %1$s W · backup reserve %2$s%%."
+msgstr "自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。"
+
+msgid "Auto-approved. Reviews the plan every 10 minutes and sends only when this hour’s charge command changes. Last charge cap %s W."
+msgstr "自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %s W です。"
+
+msgid "Auto-approved. Reviews the plan every 10 minutes and sends to Pro 3 only when this hour’s charge command changes."
+msgstr "自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ Pro 3 に送ります。"
+
+msgid "Auto-approved. Sends only when the charge schedule changes. Last charge cap %1$s W · backup reserve %2$s%%."
+msgstr "自動承認中。充電スケジュールが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。"
+
+msgid "Auto-approved. Sends only when the charge schedule changes. Last charge cap %s W."
+msgstr "自動承認中。充電スケジュールが変わったときだけ送ります。直近は充電上限 %s W です。"
+
+msgid "Auto-approved. Sends to Pro 3 only when the charge schedule changes."
+msgstr "自動承認中。充電スケジュールが変わったときだけ Pro 3 に送ります。"
+
+msgid "Auto-controlling charging to the AI PLAN. Charging is on now."
+msgstr "AI PLAN に合わせて充電を自動制御中。いまは充電オンです。"
+
+msgid "Auto-controlling charging to the AI PLAN. Last charge-off was at %s."
+msgstr "AI PLAN に合わせて充電を自動制御中。直近は %s に充電オフです。"
+
+msgid "Auto-controlling charging to the AI PLAN. Last charge-on was at %s."
+msgstr "AI PLAN に合わせて充電を自動制御中。直近は %s に充電オンです。"
+
+msgid "Auto-controlling charging to the AI PLAN. Outside planned hours, charging stays off."
+msgstr "AI PLAN に合わせて充電を自動制御中。計画時間外は充電しません。"
+
+msgid "Auto-send error: %s"
+msgstr "自動送信エラー: %s"
+
+msgid "Auto-sending per plan. Idle outside grid-charge hours."
+msgstr "充電計画どおり自動送信。グリッド充電時間外は待機です。"
+
+msgid "Auto-sending without approval. Last charge cap %1$s W · backup reserve %2$s%%."
+msgstr "承認なしで自動送信中。直近は充電上限 %1$s W · 予備残量 %2$s%% です。"
+
+msgid "Auto-sending without approval. Last charge cap %s W."
+msgstr "承認なしで自動送信中。直近は充電上限 %s W です。"
+
+msgid "Auto-sends without approval. Charge cap is sent to Pro 3 on the hour."
+msgstr "承認なしで自動送信します。時間どおりに Pro 3 へ充電上限を送ります。"
+
+msgid "Auto-updates every 30 minutes"
+msgstr "30分ごとに自動更新"
+
+msgid "Available as a Lancers package."
+msgstr "ランサーズのパッケージでご相談いただけます。"
+
+msgid "Avg "
+msgstr "平均 "
+
+msgid "Avg %s yen/kWh"
+msgstr "平均 %s 円/kWh"
+
+msgid "Avg ¥/km"
+msgstr "平均単価"
+
+msgid "Away AC"
+msgstr "外出先 AC"
+
+msgid "Away charging: charging to 100%% continuously."
+msgstr "外出先充電: 100%% まで常時充電中です。"
+
+msgid "Away charging: to 100%% continuously. Last started at %s."
+msgstr "外出先充電: 100%% まで常時充電中。直近は %s に充電オンです。"
+
+msgid "BUY"
+msgstr "BUY"
+
+msgid "Back to Pokémon GO"
+msgstr "Pokémon GO へ戻る"
+
+msgid "Backup during outages"
+msgstr "停電時バックアップ"
+
+msgid "Base resupply"
+msgstr "拠点補給"
+
+msgid "Based on that day’s solar and use, about %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Pro near %3$s%%."
+msgstr "その日の発電・使用見込みを踏まえ、スマートタイムONEの最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。"
+
+msgid "Based on tomorrow’s solar and use, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%%."
+msgstr "明日の発電・使用見込みを踏まえ、最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。"
+
+msgid "Basic ¥30,000"
+msgstr "ベーシック 30,000円"
+
+msgid "Basic ¥30k / Standard ¥80k / Premium ¥150k. Inquiries via Lancers only."
+msgstr "ベーシック 3万円 / スタンダード 8万円 / プレミアム 15万円。取引はランサーズ経由のみです。"
+
+msgid "Battery"
+msgstr "バッテリー"
+
+msgid "Battery care %1$s–%2$s%%"
+msgstr "電池ケア %1$s–%2$s%%"
+
+msgid "Battery care 20–80%"
+msgstr "電池ケア 20–80%"
+
+msgid "Battery temp"
+msgstr "バッテリー温度"
+
+msgid "Bill (with solar)"
+msgstr "電気代（ソーラーあり）"
+
+msgid "Billed later"
+msgstr "請求確定後"
+
+msgid "Billed rate = energy + service 7.00 + volumetric wheeling 7.91 + renewable 4.18. Monthly wheeling base and capacity contribution are excluded."
+msgstr "請求単価 = 電源料金 + サービス料 7.00 + 託送従量 7.91 + 再エネ 4.18。託送基本・容量拠出金は月額のため含みません。"
+
+msgid "Billed yen/kWh"
+msgstr "請求単価 円/kWh"
+
+msgid "Bonuses"
+msgstr "ボーナス"
+
+msgid "Boss name"
+msgstr "ボス名"
+
+msgid "Both"
+msgstr "両方"
+
+msgid "Braking / regen"
+msgstr "減速・ブレーキ"
+
+msgid "Built-in hybrid inverter. Manage solar, EV charging, and self-consumption in the Tesla app"
+msgstr "ハイブリッドインバータ内蔵。太陽光・EV充電・自家消費を Tesla アプリで管理"
+
+msgid "CHARGE LOG"
+msgstr "CHARGE LOG"
+
+msgid "Cabin %s°C"
+msgstr "室内 %s℃"
+
+msgid "Cabin power"
+msgstr "車内電力"
+
+msgid "Cabin temp"
+msgstr "室内温度"
+
+msgid "Cabin —"
+msgstr "室内 —"
+
+msgid "Calibrate current Tesla GPS to home"
+msgstr "今の Tesla GPS を自宅に合わせる"
+
+msgid "Cancel approval"
+msgstr "承認を取り消す"
+
+msgid "Cancel failed"
+msgstr "取り消しに失敗しました"
+
+msgid "Cannot detect home without the location scope. Re-authenticate from the Tesla tag page (vehicle_location required)."
+msgstr "位置情報スコープがないため自宅判定できません。Tesla タグから再認証してください（vehicle_location が必要です）。"
+
+msgid "Cannot reach tesla-http-proxy for charge commands."
+msgstr "充電コマンド用の tesla-http-proxy に接続できません。"
+
+msgid "Career"
+msgstr "キャリア"
+
+msgid "Channels:"
+msgstr "登録チャンネル:"
+
+msgid "Charge"
+msgstr "充電"
+
+msgid "Charge cable is unplugged."
+msgstr "充電ケーブルがつながっていません。"
+
+msgid "Charge cap"
+msgstr "チャージキャップ"
+
+msgid "Charge cap "
+msgstr "チャージキャップ "
+
+msgid "Charge cap %s%%"
+msgstr "チャージキャップ %s%%"
+
+msgid "Charge cap sent."
+msgstr "チャージキャップを送りました。"
+
+msgid "Charge command failed."
+msgstr "充電コマンドに失敗しました。"
+
+msgid "Charge commands must be signed. Run tesla-http-proxy and set TESLA_COMMAND_PROXY_URL."
+msgstr "充電コマンドは署名が必要です。tesla-http-proxy を立てて TESLA_COMMAND_PROXY_URL を設定してください。"
+
+msgid "Charge control is not granted. Tap Tesla sign-in and allow charging commands."
+msgstr "充電操作の権限がありません。「Tesla で認証」で充電コマンドを許可してください。"
+
+msgid "Charge control needs a new Tesla authorization."
+msgstr "充電操作には再認証が必要です。"
+
+msgid "Charge history"
+msgstr "充電履歴"
+
+msgid "Charge is already complete."
+msgstr "すでに充電完了です。"
+
+msgid "Charge limit %s%%"
+msgstr "充電上限 %s%%"
+
+msgid "Charge limit 100%"
+msgstr "充電上限 100%"
+
+msgid "Charge now"
+msgstr "いまの残量"
+
+msgid "Charge off"
+msgstr "充電オフ"
+
+msgid "Charge off sent."
+msgstr "充電オフを送りました。"
+
+msgid "Charge on"
+msgstr "充電オン"
+
+msgid "Charge on sent."
+msgstr "充電オンを送りました。"
+
+msgid "Charge plan sent to Pro 3. Charge cap %1$s W · backup reserve %2$s%%"
+msgstr "充電計画を Pro 3 に送りました。充電上限 %1$s W · 予備残量 %2$s%%"
+
+msgid "Charge raid"
+msgstr "チャージレイド"
+
+msgid "Charge rate"
+msgstr "充電速度"
+
+msgid "Charge session history"
+msgstr "充電セッション履歴"
+
+msgid "Charge that was recommended"
+msgstr "推奨だった充電"
+
+msgid "Charge to %s%%"
+msgstr "%s%%までの充電"
+
+msgid "Charge to 90%"
+msgstr "90%までの充電"
+
+msgid "Charge ¥"
+msgstr "充電円"
+
+msgid "Charge, discharge, and self-consumption monitoring"
+msgstr "充放電・自家消費のモニタリング"
+
+msgid "Charged"
+msgstr "充電完了"
+
+msgid "Charging"
+msgstr "充電中"
+
+msgid "Charging %1$s W / otherwise %2$s W · DC 12V→1500 always %3$s W · backup reserve grid on %4$s%% / off %5$s%%"
+msgstr "充電時 %1$s W / それ以外 %2$s W · DC 12V→1500 常時 %3$s W · 予備残量 グリッドOn %4$s%% / Off %5$s%%"
+
+msgid "Charging (Wall Connector, etc.)"
+msgstr "充電（Wall Connector など）"
+
+msgid "Charging Amazon affiliate URL (optional)"
+msgstr "充電関連 Amazonアフィ URL（任意）"
+
+msgid "Charging in cheap hours would push past %s%%, so grid charge is skipped."
+msgstr "安い時間に充電すると %s%% を超えそうなため、グリッド充電は見送ります。"
+
+msgid "Charging in cheap hours would push past 90%, so grid charge is skipped."
+msgstr "安い時間に充電すると 90% を超えそうなため、グリッド充電は見送ります。"
+
+msgid "Cheap-power day"
+msgstr "でんき日和"
+
+msgid "Check the Tesla official site"
+msgstr "Tesla 公式サイトで確認する"
+
+msgid "Check the device serial number (SN)"
+msgstr "デバイスのシリアル番号 (SN) を確認"
+
+msgid "Check the official site"
+msgstr "公式サイトで確認する"
+
+msgid "Check today’s generation, grid import, and savings on the Powerwall dashboard."
+msgstr "Powerwall ダッシュボードで、今日の発電・買電・節約額を確認できます。"
+
+msgid "Choose a boss"
+msgstr "ボスを選んでください"
+
+msgid "Choose charge on or off."
+msgstr "充電オンかオフを指定してください。"
+
+msgid "Chubu Electric area"
+msgstr "中部電力エリア"
+
+msgid "Chubu area. Billed rate = energy + service + volumetric wheeling + renewable surcharge."
+msgstr "中部エリア。請求単価 = 電源料金＋サービス料＋託送従量＋再エネ賦課金。"
+
+msgid "Clear"
+msgstr "快晴"
+
+msgid "Clear ETA"
+msgstr "クリアETA"
+
+msgid "Clear at"
+msgstr "クリア予定"
+
+msgid "Client ID"
+msgstr "Client ID"
+
+msgid "Client Secret"
+msgstr "Client Secret"
+
+msgid "Climate"
+msgstr "エアコン"
+
+msgid "Close"
+msgstr "閉じる"
+
+msgid "Close lobby"
+msgstr "募集終了"
+
+msgid "Cloud cover "
+msgstr "雲量 "
+
+msgid "Cloud cover %s%%"
+msgstr "雲量 %s%%"
+
+msgid "Cloud cover —"
+msgstr "雲量 —"
+
+msgid "Cloudy"
+msgstr "曇り"
+
+msgid "Community Day"
+msgstr "Community Day"
+
+msgid "Connected"
+msgstr "接続中"
+
+msgid "Continuous output"
+msgstr "連続出力"
+
+msgid "Copied"
+msgstr "コピーしました"
+
+msgid "Copy"
+msgstr "コピー"
+
+msgid "Copy codes"
+msgstr "コードをコピー"
+
+msgid "Copy names"
+msgstr "名前をコピー"
+
+msgid "Copy names and accept friend requests"
+msgstr "参加者の名前をコピーしてフレンド承認"
+
+msgid "Cost this month"
+msgstr "今月料金"
+
+msgid "Could not fetch JEPX price data."
+msgstr "JEPX 価格データを取得できませんでした。"
+
+msgid "Could not load YouTube videos. Try again shortly."
+msgstr "YouTube 動画を取得できませんでした。しばらくしてから再度お試しください。"
+
+msgid "Could not load the latest news. Try again shortly."
+msgstr "最新情報を取得できませんでした。しばらくしてから再度お試しください。"
+
+msgid "Could not parse the SwitchBot API response."
+msgstr "SwitchBot API の応答を解析できませんでした。"
+
+msgid "Could not post the lobby"
+msgstr "投稿できませんでした"
+
+msgid "Could not write the charge command."
+msgstr "充電コマンドを書けませんでした。"
+
+msgid "Create an app on developer.tesla.com, enable Vehicle Location, and get a Client ID / Secret. An existing grant will not gain location until you add missing scopes or revoke and re-auth."
+msgstr "developer.tesla.com でアプリを作成し Client ID / Secret を取得。Vehicle Location（車両位置）スコープも有効にする。既存連携では位置スコープは増えないので、不足スコープの追加か連携解除が必要"
+
+msgid "Create an app on developer.tesla.com, get a Client ID / Secret, and enable the Vehicle Location scope"
+msgstr "developer.tesla.com でアプリを作成し Client ID / Secret を取得。Vehicle Location（車両位置）スコープも有効にする"
+
+msgid "Current charge and remaining driving do not need extra grid charging."
+msgstr "いまの残量と残りの走行では、追加のグリッド充電は不要です。"
+
+msgid "Current charge and remaining driving do not need extra grid charging. The charge limit is %s%%."
+msgstr "いまの残量と残りの走行では、追加のグリッド充電は不要です。充電上限は %s%% です。"
+
+msgid "Current charge should already hit 100% Saturday morning. No extra grid charging needed."
+msgstr "いまの残量で土曜朝 100% に届く見込みです。追加のグリッド充電は不要です。"
+
+msgid "DC 12V"
+msgstr "DC 12V"
+
+msgid "DC input"
+msgstr "DC 入力"
+
+msgid "DC out (Pro)"
+msgstr "DC 出力 (Pro)"
+
+msgid "DELTA 3 1500 Amazon affiliate URL (optional)"
+msgstr "DELTA 3 1500 Amazonアフィ URL（任意）"
+
+msgid "DELTA 3 1500 URL (official or affiliate)"
+msgstr "DELTA 3 1500 URL（公式 or アフィ）"
+
+msgid "DELTA Pro 3 Amazon affiliate URL (optional)"
+msgstr "DELTA Pro 3 Amazonアフィ URL（任意）"
+
+msgid "DELTA Pro 3 URL (official or affiliate)"
+msgstr "DELTA Pro 3 URL（公式 or アフィ）"
+
+msgid "DELTA series and product info"
+msgstr "DELTA シリーズなど製品情報"
+
+msgid "DPS"
+msgstr "DPS"
+
+msgid "DRIVING LOG"
+msgstr "DRIVING LOG"
+
+msgid "Daily / weekly summary"
+msgstr "日次／週次サマリー"
+
+msgid "Daily and hourly generation with savings"
+msgstr "日別・時間別の発電量と節約額"
+
+msgid "Daily driving and gasoline comparison savings"
+msgstr "日別の走行とガソリン比較節約"
+
+msgid "Daily quest"
+msgstr "本日クエスト"
+
+msgid "Daily usage"
+msgstr "1日の使用量"
+
+msgid "Dashboard switch"
+msgstr "ダッシュボード切替"
+
+msgid "Day"
+msgstr "日次"
+
+msgid "Daytime"
+msgstr "昼間"
+
+msgid "Debuts and featured Pokémon"
+msgstr "初登場・注目ポケモン"
+
+msgid "Delta 3 1500"
+msgstr "DELTA 3 1500"
+
+msgid "Delta 3 MQTT: Japan accounts should use API Region Asia. Google-only logins need an app login password."
+msgstr "Delta 3 の MQTT: 日本のアカウントは API Region を Asia にする。Googleログインのみならアプリで「ログインパスワード」を設定"
+
+msgid "Delta 3 devices do not support the Developer API. Set ECOFLOW_APP_EMAIL / ECOFLOW_APP_PASSWORD or pair with Pro 3."
+msgstr "Delta 3 系デバイスは Developer API に未対応です。ECOFLOW_APP_EMAIL / ECOFLOW_APP_PASSWORD を設定するか、Pro 3 と連携してください。"
+
+msgid "Delta 3 line does not support the Developer API"
+msgstr "Delta 3 系は Developer API 非対応"
+
+msgid "Delta Pro 3"
+msgstr "DELTA Pro 3"
+
+msgid "Demo data (changes with time)"
+msgstr "デモデータ（時刻に応じて変化）"
+
+msgid "Details & inquiry on Lancers"
+msgstr "ランサーズで詳細・相談"
+
+msgid "Developer API unsupported — Delta 3 needs App Login (MQTT)."
+msgstr "Developer API 非対応 — Delta 3 は App Login (MQTT) が必要です。"
+
+msgid "Device Serial Number (Delta Pro 3)"
+msgstr "シリアル番号 (DELTA Pro 3)"
+
+msgid "Device Serial Number 2 (Delta 3 1500)"
+msgstr "シリアル番号 2 (DELTA 3 1500)"
+
+msgid "Device status"
+msgstr "デバイスステータス"
+
+msgid "Discharging"
+msgstr "放電中"
+
+msgid "Distance driven"
+msgstr "走行実績"
+
+msgid "Distance is compared with a 15 km/L gas car using Tajimi regular prices minus EV electricity (150 Wh/km × LOOOP)."
+msgstr "走行距離を普通車 15 km/L 換算し、多治見のレギュラー単価と EV 電力代（150 Wh/km × LOOOP）の差を節約額にしています。"
+
+msgid "Do this today"
+msgstr "今日やること"
+
+msgid "Drive"
+msgstr "ドライブ"
+
+msgid "Driven this month"
+msgstr "今月走行"
+
+msgid "Driven today"
+msgstr "今日 走行"
+
+msgid "Driving"
+msgstr "走行消費"
+
+msgid "Driving Log"
+msgstr "Driving Log"
+
+msgid "Driving data live"
+msgstr "走行データ取得中"
+
+msgid "Driving data live · gear %s"
+msgstr "走行データ取得中 · シフト %s"
+
+msgid "Driving data live · neutral"
+msgstr "走行データ取得中 · ニュートラル"
+
+msgid "Driving data live · parked"
+msgstr "走行データ取得中 · 駐車中"
+
+msgid "Driving data not available"
+msgstr "走行データ未取得"
+
+msgid "Driving location scope is not granted"
+msgstr "走行用の位置スコープは未許可"
+
+msgid "Driving log"
+msgstr "節約ログ"
+
+msgid "Driving speed and power need Tesla’s location scope. Sign in with Tesla again. Location is not stored."
+msgstr "走行中の速度と消費電力には、Tesla の位置スコープが必要です。もう一度「Tesla で認証」してください。位置情報は保存しません。"
+
+msgid "Drizzle"
+msgstr "霧雨"
+
+msgid "Dynamax"
+msgstr "ダイマックス"
+
+msgid "ETA"
+msgstr "完了予定"
+
+msgid "EXP %s km"
+msgstr "累計EXP %s km"
+
+msgid "EXP —"
+msgstr "累計EXP —"
+
+msgid "EcoFlow"
+msgstr "EcoFlow"
+
+msgid "EcoFlow API"
+msgstr "EcoFlow API"
+
+msgid "EcoFlow API error."
+msgstr "EcoFlow API エラー"
+
+msgid "EcoFlow API is not configured."
+msgstr "EcoFlow API が未設定です。"
+
+msgid "EcoFlow Developer Platform"
+msgstr "EcoFlow Developer Platform"
+
+msgid "EcoFlow Device Status"
+msgstr "EcoFlow 機器ステータス"
+
+msgid "EcoFlow architecture diagram"
+msgstr "EcoFlow 連携アーキテクチャ図"
+
+msgid "EcoFlow dashboard"
+msgstr "EcoFlow ダッシュボード"
+
+msgid "EcoFlow login API is busy (possible 10 MQTT client IDs / day limit). Retrying every 5–30 minutes. Shows n/a while live MQTT is unavailable."
+msgstr "EcoFlow ログイン API が混雑しています（1日10個までの MQTT client ID 制限の可能性）。5〜30分おきに自動再試行します。ライブ MQTT が取れないあいだは未取得と表示します。"
+
+msgid "EcoFlow measured generation and I/O log"
+msgstr "EcoFlow 発電量・入出力の実測ログ"
+
+msgid "EcoFlow official blog URL"
+msgstr "EcoFlow 公式ブログ URL"
+
+msgid "EcoFlow official site"
+msgstr "EcoFlow 公式サイト"
+
+msgid "EcoFlow official top URL"
+msgstr "EcoFlow 公式トップ URL"
+
+msgid "EcoFlow portable power and solar energy content"
+msgstr "EcoFlow ポータブル電源・ソーラー記事"
+
+msgid "EcoFlow sections"
+msgstr "EcoFlow セクション"
+
+msgid "Efficiency badges"
+msgstr "効率バッジ"
+
+msgid "Ended"
+msgstr "終了"
+
+msgid "Energy flow"
+msgstr "電力フロー"
+
+msgid "Energy flow diagram, AI PLAN, and charge status"
+msgstr "電力フロー図・AI PLAN・充電ステータス"
+
+msgid "Energy flow diagram, AI PLAN, and device status"
+msgstr "電力フロー図・AI PLAN・機器ステータス"
+
+msgid "Energy storage industry news"
+msgstr "エネルギーストレージ業界ニュース"
+
+msgid "Energy this month"
+msgstr "今月電力量"
+
+msgid "Energy × Games"
+msgstr "エネルギー × ゲーム"
+
+msgid "Enter a trainer name and friend code"
+msgstr "トレーナー名とフレンドコードを入力してください"
+
+msgid "Estimated remaining"
+msgstr "推定残量"
+
+msgid "Evening peak"
+msgstr "夕方のピーク"
+
+msgid "Event guides"
+msgstr "イベント攻略"
+
+msgid "Event list"
+msgstr "イベント一覧"
+
+msgid "Event strategy guides"
+msgstr "イベントの攻略ガイド"
+
+msgid "Events, Community Day, raids, new Pokémon, and more"
+msgstr "イベント、Community Day、レイド、新ポケモンなど最新ニュースをチェック"
+
+msgid "Events, raids, and videos from featured YouTubers."
+msgstr "イベント・レイド情報と、注目 YouTuber の最新動画。"
+
+msgid "Every 10 minutes"
+msgstr "10分ごと"
+
+msgid "Every 5 minutes"
+msgstr "5分ごと"
+
+msgid "Example: MR51ZJ1APH6S0189"
+msgstr "例: MR51ZJ1APH6S0189"
+
+msgid "Expansion"
+msgstr "拡張"
+
+msgid "Expected drive"
+msgstr "予想走行"
+
+msgid "Expected generation"
+msgstr "発電見込み"
+
+msgid "Extra Battery 1kW"
+msgstr "Extra Battery 1kW"
+
+msgid "Failed to fetch JEPX data (HTTP %d)."
+msgstr "JEPX データの取得に失敗しました (HTTP %d)。"
+
+msgid "Failed to send charge plan: %s"
+msgstr "充電計画の送信に失敗しました: %s"
+
+msgid "Fast"
+msgstr "ノーマル"
+
+msgid "Feature"
+msgstr "特集"
+
+msgid "Feature pages for large events such as GO Fest, Ultra Unlock, Worlds, and Raid Days."
+msgstr "GO Fest、ウルトラアンロック、世界大会、レイドデイなど、大きなイベントのときに攻略用の特集ページを用意します。"
+
+msgid "Featured attacks"
+msgstr "特別なわざ"
+
+msgid "Field resupply"
+msgstr "フィールド補給"
+
+msgid "Field tests and operating notes"
+msgstr "実測レビュー・運用メモ"
+
+msgid "Firmware"
+msgstr "ファーム"
+
+msgid "Fleet API needs partner_accounts (production domain + public key). localhost alone cannot fetch vehicle_data."
+msgstr "Fleet API 利用には partner_accounts 登録が必要です（本番ドメイン + 公開鍵）。localhost だけでは vehicle_data は取得できません。"
+
+msgid "Fog"
+msgstr "霧"
+
+msgid "Footer"
+msgstr "フッター"
+
+msgid "Footer Menu"
+msgstr "フッターメニュー"
+
+msgid "Footer widget area."
+msgstr "フッターウィジェットエリア"
+
+msgid "For European grids"
+msgstr "欧州グリッド向け"
+
+msgid "For Google login, use the Google account email. Set a separate app login password for MQTT."
+msgstr "Googleログインの場合は Google アカウントのメールアドレス。MQTT 用にアプリで別途「ログインパスワード」を設定してください。"
+
+msgid "For tomorrow’s %1$s km and the target SOC, use 200V AC charging in the cheapest Smart Time ONE window (%2$s)."
+msgstr "明日の %1$s km 走行と目標残量を踏まえ、スマートタイムONEの最安時間（%2$s）に 200V 普通充電します。"
+
+msgid "For tomorrow’s %1$s km, use 200V AC charging in the cheapest Smart Time ONE window (%2$s) up to the %3$s%% charge limit."
+msgstr "明日の %1$s km 走行を踏まえ、充電上限 %3$s%% まで、スマートタイムONEの最安時間（%2$s）に 200V 普通充電します。"
+
+msgid "Forecast "
+msgstr "見込み "
+
+msgid "Fri"
+msgstr "金"
+
+msgid "Friend code"
+msgstr "フレンドコード"
+
+msgid "Friend-request the host immediately"
+msgstr "ホストのコードにすぐフレンド申請"
+
+msgid "From firmware 26.26, Powerwall 2 / 3 / Expansion can run on the same system"
+msgstr "ファームウェア 26.26 以降、Powerwall 2 / 3 / Expansion を同一システムで運用可能"
+
+msgid "From home energy flow to the latest Pokémon GO news."
+msgstr "家庭の電力フローから、Pokémon GO の最新情報まで。"
+
+msgid "Full"
+msgstr "満タン"
+
+msgid "GEN LOG"
+msgstr "GEN LOG"
+
+msgid "GPS calibration failed."
+msgstr "GPS 補正に失敗しました。"
+
+msgid "GPS fix missing — cannot detect home yet. The next poll will retry."
+msgstr "GPS を取得できず自宅判定できません。次のポーリングで再試行します。"
+
+msgid "GPS fix missing — keeping the last at-home result until you drive or use a Supercharger."
+msgstr "GPS 未取得 — 直近の自宅判定を保持中です。走行または Supercharger で解除されます。"
+
+msgid "GPS fix missing — still treated as home. The next poll will retry away detection."
+msgstr "GPS を取得できず自宅扱いのままです。次のポーリングで外出先判定を再試行します。"
+
+msgid "GRID"
+msgstr "GRID"
+
+msgid "Game Info"
+msgstr "ゲーム情報"
+
+msgid "Gas avoided"
+msgstr "節約ガソリン"
+
+msgid "Gas avoided this month"
+msgstr "今月 節約ガソリン"
+
+msgid "Gas car 15 km/L"
+msgstr "普通車 15 km/L"
+
+msgid "Gas-car equivalent %1$s L · saved %2$s yen"
+msgstr "普通車換算 %1$s L · 節約 %2$s 円"
+
+msgid "Gas-car equivalent today"
+msgstr "今日 普通車換算"
+
+msgid "Gasoline equivalent"
+msgstr "ガソリン換算"
+
+msgid "Generated today"
+msgstr "今日 発電"
+
+msgid "Generation and I/O log from measured EcoFlow watts."
+msgstr "EcoFlow の実測ワットを積算した発電・入出力ログです。"
+
+msgid "Generation calendar"
+msgstr "発電カレンダー"
+
+msgid "Generation log"
+msgstr "発電ログ"
+
+msgid "Generation log →"
+msgstr "発電ログ →"
+
+msgid "Generation looks short of usage. Grid-charge about %1$s kWh at %2$s W in the cheapest Smart Time ONE hours (daytime included)."
+msgstr "発電が使用量を下回りそうです。スマートタイムONEの最安時間（昼も含む）に %2$s W で約 %1$s kWh をグリッド充電します。"
+
+msgid "Generation now"
+msgstr "いまの発電"
+
+msgid "Genre"
+msgstr "ジャンル"
+
+msgid "Get Access Key / Secret Key from the EcoFlow Developer Platform"
+msgstr "EcoFlow Developer Platform で Access Key / Secret Key を取得"
+
+msgid "Gigantamax"
+msgstr "キョダイマックス"
+
+msgid "Go to Pokémon GO"
+msgstr "Pokémon GO ページへ"
+
+msgid "Go to Powerwall"
+msgstr "Powerwall ページへ"
+
+msgid "Go to dashboard"
+msgstr "ダッシュボードへ"
+
+msgid "Go to news"
+msgstr "最新情報へ"
+
+msgid "Go to status"
+msgstr "ステータスへ"
+
+msgid "Gray bars: held SOC while asleep · faint gold: planned charge (not running) · orange: drive estimate · teal: rate"
+msgstr "灰棒: スリープ中の固定残量 · 薄い金帯: 計画充電（未実行）· 朱橙線: 走行見込み · 青緑線: 請求単価"
+
+msgid "Grid"
+msgstr "グリッド"
+
+msgid "Grid AC in"
+msgstr "グリッド AC 入力"
+
+msgid "Grid charge error: %s"
+msgstr "グリッド充電エラー: %s"
+
+msgid "Grid charging"
+msgstr "グリッド充電"
+
+msgid "Grid charging per plan. Charge cap %s W"
+msgstr "充電計画どおりグリッド充電中。充電上限 %s W"
+
+msgid "Grid charging per plan. Live %s W"
+msgstr "充電計画どおりグリッド充電中。実測 %s W"
+
+msgid "Grid import"
+msgstr "買電"
+
+msgid "Grid is import-only (no export). Powerwall SOC is demo data."
+msgstr "グリッドは買電のみ（売電なし）。Powerwall SOC はデモ。"
+
+msgid "Grid resupply"
+msgstr "グリッド補給"
+
+msgid "Grid top-up"
+msgstr "グリッド補充電"
+
+msgid "Grid top-up %s W"
+msgstr "グリッド補充電中 %s W"
+
+msgid "Guest"
+msgstr "ゲスト"
+
+msgid "HP"
+msgstr "HP"
+
+msgid "HP "
+msgstr "HP "
+
+msgid "HP %s%%"
+msgstr "HP %s%%"
+
+msgid "HP · battery"
+msgstr "HP · バッテリー"
+
+msgid "HV solar input and main supply for living-room AC and more"
+msgstr "ハイボルト発電・リビングエアコン他の主電源"
+
+msgid "Heavy drizzle"
+msgstr "強い霧雨"
+
+msgid "Heavy rain"
+msgstr "強い雨"
+
+msgid "Heavy showers"
+msgstr "激しいにわか雨"
+
+msgid "Heavy snow"
+msgstr "強い雪"
+
+msgid "Held %s%%"
+msgstr "固定 %s%%"
+
+msgid "Held battery %"
+msgstr "固定残量"
+
+msgid "Held battery % while asleep and charge plan"
+msgstr "スリープ中の固定残量と充電計画"
+
+msgid "Hero"
+msgstr "メインビジュアル"
+
+msgid "Hero CTA Text"
+msgstr "ヒーロー CTA テキスト"
+
+msgid "Hero CTA URL"
+msgstr "ヒーロー CTA URL"
+
+msgid "Hero Section"
+msgstr "ヒーローセクション"
+
+msgid "Hero Subtitle"
+msgstr "ヒーロー サブタイトル"
+
+msgid "Hero Title"
+msgstr "ヒーロー タイトル"
+
+msgid "High "
+msgstr "最高 "
+
+msgid "High volt"
+msgstr "ハイボルト"
+
+msgid "High-volt charging"
+msgstr "ハイボルト充電中"
+
+msgid "High-volt in (Pro)"
+msgstr "ハイボルト入力 (Pro)"
+
+msgid "Highlights"
+msgstr "見どころ"
+
+msgid "Home"
+msgstr "ホーム"
+
+msgid "Home %1$s · Super %2$s"
+msgstr "自宅 %1$s · 急速 %2$s"
+
+msgid "Home 200V uses LOOOP rates. Supercharger cost comes from the Tesla Fleet charging history API and stays blank until that history appears."
+msgstr "自宅 200V は LOOOP 単価、急速充電（Supercharger）は Tesla Fleet の充電履歴 API の請求額を使います。履歴に出るまで急速の料金は空欄のままです。"
+
+msgid "Home AC"
+msgstr "自宅 AC"
+
+msgid "Home AI PLAN charge window — waking the car to start charging."
+msgstr "自宅 AI PLAN 充電時間帯 — スリープのためウェイクして充電開始を試みます。"
+
+msgid "Home AI PLAN charge window — woke the car and started charging at %s."
+msgstr "自宅 AI PLAN 充電時間帯 — スリープから起こして充電開始しました（%s）。"
+
+msgid "Home LOOOP only"
+msgstr "自宅 LOOOP のみ"
+
+msgid "Home and on-the-go charging"
+msgstr "自宅・外出先の充電まわり"
+
+msgid "Home charge (actual)"
+msgstr "自宅充電（実績）"
+
+msgid "Home charging"
+msgstr "自宅充電"
+
+msgid "Home charging on/off and the charge cap are sent automatically to match the AI PLAN. Turn off scheduled charging in the Tesla app."
+msgstr "AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。"
+
+msgid "Home energy and the latest games, in one place"
+msgstr "家庭の電力と、ゲームの最新情報をひとつに"
+
+msgid "Home latitude (AI PLAN geofence)"
+msgstr "自宅 緯度（AI PLAN ジオフェンス）"
+
+msgid "Home load"
+msgstr "ホーム消費"
+
+msgid "Home longitude (AI PLAN geofence)"
+msgstr "自宅 経度（AI PLAN ジオフェンス）"
+
+msgid "Home radius (m)"
+msgstr "自宅 半径（m）"
+
+msgid "Home storage (related dashboard available)"
+msgstr "家庭用蓄電（関連ダッシュボードあり）"
+
+msgid "Home: "
+msgstr "ホーム: "
+
+msgid "Home: %1$s · ~%2$s kWh/day · %3$s · as of %4$s"
+msgstr "ホーム: %1$s · 1日約 %2$s kWh · %3$s · %4$s 時点"
+
+msgid "Host"
+msgstr "ホスト"
+
+msgid "Host a raid"
+msgstr "招待する"
+
+msgid "Host action failed"
+msgstr "ホスト操作ができません"
+
+msgid "Host or join a remote raid"
+msgstr "招待レイドを出す / 入る"
+
+msgid "How to get / GO Pass"
+msgstr "入手・パス"
+
+msgid "How-tos and latest news"
+msgstr "活用方法・最新情報"
+
+msgid "I/O"
+msgstr "I/O"
+
+msgid "INPUT"
+msgstr "INPUT"
+
+msgid "Idle"
+msgstr "待機中"
+
+msgid "Import "
+msgstr "買電 "
+
+msgid "Import %1$s kWh · solar self-use %2$s kWh"
+msgstr "買電 %1$s kWh · ソーラー自家消費 %2$s kWh"
+
+msgid "Import only"
+msgstr "買電のみ"
+
+msgid "Import today"
+msgstr "今日 買電"
+
+msgid "In "
+msgstr "入力 "
+
+msgid "In %s kWh"
+msgstr "入力 %s kWh"
+
+msgid "In progress"
+msgstr "進行中"
+
+msgid "Independent from Pro. Low Volt solar feeds the 1500. Extra Battery 1 kWh attached. Combined 2.5 kWh. Live meters wait on the MQTT bridge."
+msgstr "Pro とは独立。Low Volt ソーラーは 1500 へ入力。Extra Battery 1kW 接続。合算 2.5 kWh。ライブ計測は MQTT ブリッジ待ち。"
+
+msgid "Input now"
+msgstr "いまの入力"
+
+msgid "Input source for the generation log"
+msgstr "発電ログの入力源"
+
+msgid "Inputs are AC charging (Wall Connector) and DC fast charging (Supercharger). Driving is converted with Tajimi gasoline prices to show savings versus a gas car."
+msgstr "入力は普通充電（Wall Connector）と急速充電（Supercharger）。走行は多治見のガソリン価格で普通車換算し、節約額を出します。"
+
+msgid "Inputs are AC charging (Wall Connector) and DC fast charging (Supercharger). Outputs are driving and cabin power."
+msgstr "入力は普通充電（Wall Connector）と急速充電（Supercharger）。出力は走行消費と車内電力です。"
+
+msgid "Inputs are home 200V AC charging and DC fast charging (Supercharger). Driving is converted with Tajimi gasoline prices to show savings versus a gas car."
+msgstr "入力は自宅の 200V 普通充電と急速充電（Supercharger）。走行は多治見のガソリン価格で普通車換算し、節約額を出します。"
+
+msgid "Inputting"
+msgstr "入力中"
+
+msgid "Install, operation, and troubleshooting"
+msgstr "設置・運用・トラブルシューティング"
+
+msgid "Invalid EcoFlow API response."
+msgstr "EcoFlow API の応答が不正です"
+
+msgid "Invalid Tesla Fleet API response."
+msgstr "Tesla Fleet API の応答が不正です"
+
+msgid "Invalid Tesla OAuth state."
+msgstr "Tesla OAuth state が不正です"
+
+msgid "Invite from the in-game lobby, then tap Invite started"
+msgstr "ゲームのロビーから招待 → 招待開始"
+
+msgid "Invite slots"
+msgstr "招待人数"
+
+msgid "Invite started"
+msgstr "招待開始"
+
+msgid "Inviting"
+msgstr "招待中"
+
+msgid "It seems we can't find what you're looking for."
+msgstr "お探しのページが見つかりません"
+
+msgid "JEPX data was empty."
+msgstr "JEPX データが空でした。"
+
+msgid "Japan accounts use the NA region: TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.na.vn.cloud.tesla.com"
+msgstr "日本のアカウントは NA リージョン: TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.na.vn.cloud.tesla.com"
+
+msgid "Join"
+msgstr "参加する"
+
+msgid "Join from the in-game invite notification"
+msgstr "ゲームの招待通知からリモート参加"
+
+msgid "Join this raid"
+msgstr "このレイドに参加"
+
+msgid "Joined. Send the friend request now."
+msgstr "参加しました。すぐフレンド申請してください。"
+
+msgid "KM"
+msgstr "KM"
+
+msgid "Keeps critical loads powered if the grid drops. Expand capacity with Expansion"
+msgstr "グリッド断時も重要負荷へ給電。容量は Expansion で拡張"
+
+msgid "Key specs"
+msgstr "主な仕様"
+
+msgid "Kind"
+msgstr "種類"
+
+msgid "LANCERS"
+msgstr "LANCERS"
+
+msgid "LIVE"
+msgstr "LIVE"
+
+msgid "LOOOP Smart Time ONE (lighting)"
+msgstr "LOOOP スマートタイムONE（電灯）"
+
+msgid "LOOOP Smart Time ONE (lighting) billed rate. Energy from JEPX Chubu plus service, volumetric wheeling, and renewable surcharge. Monthly policy fees are excluded."
+msgstr "LOOOP スマートタイムONE（電灯）の請求単価です。JEPX中部エリアから電源料金を算出し、サービス料・託送従量料金・再エネ賦課金を加算しています。月額の制度対応費（託送基本・容量拠出金）は含みません。"
+
+msgid "LOOOP metered"
+msgstr "LOOOP 積算"
+
+msgid "LOOOP-style electricity price forecast for Chubu area"
+msgstr "中部エリアの LOOOP 風電気料金予測"
+
+msgid "LOW"
+msgstr "LOW"
+
+msgid "Lancers web & API packages (¥30k–¥150k)"
+msgstr "ランサーズ Web制作・API実装パッケージ（3〜15万円）"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "Last fetch %s"
+msgstr "最終取得 %s"
+
+msgid "Late night / early morning"
+msgstr "深夜・早朝"
+
+msgid "Latest Powerwall 3 / 3P and home-battery news"
+msgstr "Powerwall 3 / 3P・家庭用蓄電池の最新情報"
+
+msgid "Latest YouTuber videos"
+msgstr "YouTuber 最新動画"
+
+msgid "Latest events, raids, and new Pokémon"
+msgstr "イベント・レイド・新ポケモンの最新ニュース"
+
+msgid "Latest news"
+msgstr "最新ニュース"
+
+msgid "Latest videos from popular Pokémon GO YouTubers"
+msgstr "人気 Pokémon GO 系 YouTuber の最新投稿"
+
+msgid "Leave blank to auto-select a Plug Mini on the account."
+msgstr "空欄ならアカウント内の Plug Mini を自動選択します。"
+
+msgid "Leaving about %2$s%% for solar, the cheap-hour target is %1$s%%. Current SOC is enough, so no grid charge."
+msgstr "発電見込み約 %2$s%% 分を空けるため、安い時間の目標は %1$s%% です。いまの残量で足りるのでグリッド充電は不要です。"
+
+msgid "Leaving about %2$s%% for tomorrow’s solar, the cheap-hour target is %1$s%%. No grid charge needed."
+msgstr "明日の発電見込み約 %2$s%% 分を空けるため、安い時間の目標は %1$s%% です。グリッド充電は不要です。"
+
+msgid "Leaving about %4$s%% for solar, about %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Pro near %3$s%%."
+msgstr "発電見込み約 %4$s%% 分を空け、スマートタイムONEの最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。"
+
+msgid "Leaving about %4$s%% for tomorrow’s solar, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%%."
+msgstr "明日の発電見込み約 %4$s%% 分を空け、最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。"
+
+msgid "Light drizzle"
+msgstr "弱い霧雨"
+
+msgid "Light rain"
+msgstr "弱い雨"
+
+msgid "Light snow"
+msgstr "弱い雪"
+
+msgid "Limit %s%%"
+msgstr "上限 %s%%"
+
+msgid "Link"
+msgstr "連携"
+
+msgid "Live"
+msgstr "ライブ"
+
+msgid "Live Powerwall and EcoFlow dashboards, plus Pokémon GO and game reviews. Check power bills and play, here."
+msgstr "Powerwall・EcoFlow の見える化と、Pokémon GO / ゲームレビュー。毎日の電気代から遊びまで、このサイトでチェック。"
+
+msgid "Live Tesla Fleet API data"
+msgstr "Tesla Fleet API 実データ"
+
+msgid "Live grid in %s W"
+msgstr "実測グリッド入力 %s W"
+
+msgid "Live kit"
+msgstr "実測構成"
+
+msgid "Live · MQTT"
+msgstr "実測 · MQTT"
+
+msgid "Living AC & others"
+msgstr "リビングエアコン他"
+
+msgid "Living AC & others saved today"
+msgstr "今日 リビングエアコン他 節約"
+
+msgid "Loading latest news…"
+msgstr "最新情報を読み込み中..."
+
+msgid "Lobby not found"
+msgstr "募集が見つかりません"
+
+msgid "Location debug (test): %s"
+msgstr "位置デバッグ（試験）: %s"
+
+msgid "Location debug (test): GPS fix missing"
+msgstr "位置デバッグ（試験）: GPS 未取得"
+
+msgid "Location debug (test): vehicle_location scope missing"
+msgstr "位置デバッグ（試験）: vehicle_location スコープなし"
+
+msgid "Location scope granted · waiting for drive slice"
+msgstr "位置スコープあり · 走行スライス待ち"
+
+msgid "Locked"
+msgstr "ロック"
+
+msgid "Login password set in the EcoFlow app (required even for Google-only accounts)"
+msgstr "EcoFlow アプリで設定したログインパスワード（Googleログインのみの場合は未設定のままでは使えません）"
+
+msgid "Logs distance and energy use, then compares against a 15 km/L gas car for savings."
+msgstr "走行距離と消費電力を記録し、普通車 15 km/L 換算との差を節約額にしています。"
+
+msgid "Logs home 200V and Supercharger sessions. Energy uses charge_energy_added. Home cost uses LOOOP rates; Supercharger cost is not priced here."
+msgstr "自宅 200V と急速充電（Supercharger）の開始〜終了を記録します。電力量は車の charge_energy_added。自宅料金のみ LOOOP 単価で積算し、急速は料金非対応です。"
+
+msgid "Logs home 200V charge sessions from start to finish. Energy uses the car’s charge_energy_added counter; cost uses LOOOP rates."
+msgstr "自宅 200V 充電の開始〜終了を記録します。電力量は車の charge_energy_added、料金は LOOOP 単価で積算しています。"
+
+msgid "Low "
+msgstr "最低 "
+
+msgid "Low %1$s°C / high %2$s°C"
+msgstr "最低 %1$s℃ / 最高 %2$s℃"
+
+msgid "Low Volt"
+msgstr "Low Volt"
+
+msgid "Low Volt in (live)"
+msgstr "Low Volt 入力 (実測)"
+
+msgid "Low Volt in (n/a)"
+msgstr "Low Volt 入力 (未取得)"
+
+msgid "MP left "
+msgstr "残MP "
+
+msgid "MP left %s km"
+msgstr "残MP %s km"
+
+msgid "MP · range"
+msgstr "MP · 航続"
+
+msgid "MQTT auth failed. For Japan EcoFlow accounts set Appearance → Customize → EcoFlow API → API Region to Asia, save, then run docker compose restart ecoflow-bridge."
+msgstr "MQTT 認証に失敗しました。日本の EcoFlow アカウントは「外観 → カスタマイズ → EcoFlow API → API Region」を Asia にしてください。保存後、docker compose restart ecoflow-bridge を実行してください。"
+
+msgid "MQTT bridge is missing."
+msgstr "MQTT ブリッジがありません。"
+
+msgid "MQTT send failed"
+msgstr "MQTT 送信に失敗しました"
+
+msgid "Major event features"
+msgstr "大型イベント特集"
+
+msgid "Measured data × shop links"
+msgstr "実測 × 購入リンク"
+
+msgid "Measured generation"
+msgstr "発電実績"
+
+msgid "Mega"
+msgstr "メガ"
+
+msgid "Model 3"
+msgstr "Model 3"
+
+msgid "Model 3 API not set — showing demo data"
+msgstr "Model 3 API 未設定 — Model 3 はデモデータです"
+
+msgid "Model 3 Amazon affiliate URL (optional)"
+msgstr "Model 3 関連 Amazonアフィ URL（任意）"
+
+msgid "Model 3 SOC"
+msgstr "Model 3 SOC"
+
+msgid "Model 3 URL (official or A8)"
+msgstr "Model 3 URL（公式 or A8）"
+
+msgid "Model 3 VIN"
+msgstr "Model 3 VIN"
+
+msgid "Model 3 charge plan, SOC forecast, expected driving, and billed rate"
+msgstr "Model 3 の充電計画・残量予測・走行見込み・請求単価"
+
+msgid "Model 3 charging"
+msgstr "Model 3 充電"
+
+msgid "Model 3 energy flow and charging"
+msgstr "Model 3 の電力フローと充電"
+
+msgid "Model 3 unit"
+msgstr "Model 3 ユニット"
+
+msgid "Model 3: "
+msgstr "Model 3: 1日平均 "
+
+msgid "Model 3: %1$s km/day avg · ~%2$s kWh charge · %3$s · ~%4$s W"
+msgstr "Model 3: 1日平均 %1$s km · 充電約 %2$s kWh · %3$s · 約 %4$s W"
+
+msgid "Model 3: Tesla Fleet API live data"
+msgstr "Model 3: Tesla Fleet API 実データ"
+
+msgid "Mon"
+msgstr "月"
+
+msgid "Month driving"
+msgstr "月計 走行"
+
+msgid "Month generation"
+msgstr "月計 発電"
+
+msgid "Month in"
+msgstr "月計 入力"
+
+msgid "Month out"
+msgstr "月計 出力"
+
+msgid "Monthly charge sessions and electricity cost"
+msgstr "月別の充電セッションと電気代"
+
+msgid "Morning peak"
+msgstr "朝のピーク"
+
+msgid "NET"
+msgstr "NET"
+
+msgid "NOW"
+msgstr "NOW"
+
+msgid "Native 3-phase"
+msgstr "三相ネイティブ"
+
+msgid "Native 3-phase. European rollout from 2026, including Germany"
+msgstr "三相ネイティブ。2026年ドイツなど欧州で展開開始"
+
+msgid "Net today"
+msgstr "今日 差引"
+
+msgid "Neutral"
+msgstr "ニュートラル"
+
+msgid "News"
+msgstr "最新情報"
+
+msgid "News, specs, and official links for Powerwall 3 / 3P"
+msgstr "家庭用蓄電池 Powerwall 3 / 3P のニュース・仕様・公式リンク"
+
+msgid "Next"
+msgstr "次へ"
+
+msgid "Next "
+msgstr "翌 "
+
+msgid "Next date and bonuses"
+msgstr "次回開催日とボーナス内容"
+
+msgid "Next month"
+msgstr "翌月"
+
+msgid "Next raid %s"
+msgstr "次レイド %s"
+
+msgid "No EcoFlow-tagged posts yet."
+msgstr "EcoFlow タグの記事はまだありません。"
+
+msgid "No EcoFlow-tagged posts yet. Check the live kit and generation log above for the gear in use."
+msgstr "EcoFlow タグの記事はまだありません。上の実測構成・発電ログから機材を確認できます。"
+
+msgid "No EcoFlow-tagged posts yet. Check the live kit and generation log below for the gear in use."
+msgstr "EcoFlow タグの記事はまだありません。下の実測構成・発電ログから機材を確認できます。"
+
+msgid "No Energy-tagged posts yet. The chart above is the generation log."
+msgstr "Energy タグの記事はまだありません。上のグラフが発電ログです。"
+
+msgid "No Tesla GPS fix yet. Wait for a poll while the car is awake, then try again."
+msgstr "Tesla の GPS がありません。車が起きている状態でポーリングしてからもう一度試してください。"
+
+msgid "No Tesla-tagged posts yet. Check the live kit and charge log above."
+msgstr "Tesla タグの記事はまだありません。上の実測構成・充電ログから確認できます。"
+
+msgid "No candidate hours"
+msgstr "候補時間なし"
+
+msgid "No charge sessions this month yet. Recording starts on the next home or Supercharger session."
+msgstr "この月の充電セッションはまだありません。次回の自宅／急速充電から記録されます。"
+
+msgid "No charge sessions this month yet. They appear after the next home/Supercharger session or a Fleet history sync."
+msgstr "この月の充電セッションはまだありません。次回の自宅／急速充電、または Fleet 履歴の同期から記録されます。"
+
+msgid "No driving log for this month yet."
+msgstr "この月の走行ログはまだありません。"
+
+msgid "No grid charge needed"
+msgstr "グリッド充電不要"
+
+msgid "No major-event features are live right now. The next large event will appear here."
+msgstr "いま公開中の大型イベント特集はありません。次の大きなイベントのときに、ここに特集が並びます。"
+
+msgid "No open raids right now. You can host one."
+msgstr "いま募集中のレイドはありません。ホストになって投稿できます。"
+
+msgid "No posts found in this archive."
+msgstr "このアーカイブに記事はありません"
+
+msgid "No posts found with this tag."
+msgstr "このタグの記事はありません"
+
+msgid "No rate data"
+msgstr "単価データなし"
+
+msgid "No unofficial game API. Hosts post a lobby; guests send a friend request and the host invites in-game."
+msgstr "ゲーム公式APIは使いません。ホストが募集を出し、参加者がフレンド申請して、ゲーム内で招待する掲示板です。"
+
+msgid "Normal"
+msgstr "通常"
+
+msgid "Not approved. Grid charge is not sent."
+msgstr "未承認のため、グリッド充電は送りません。"
+
+msgid "Not approved. Nothing is sent to Pro 3 until you approve."
+msgstr "未承認です。承認するまで Pro 3 には送りません。"
+
+msgid "Not charging."
+msgstr "充電していません。"
+
+msgid "Note"
+msgstr "ひとこと"
+
+msgid "Nothing Found"
+msgstr "見つかりませんでした"
+
+msgid "Now "
+msgstr "いま "
+
+msgid "Now %1$s W · %3$s W from %2$s°C / 1 kW at %4$s°C+"
+msgstr "いま %1$s W · %2$s℃で %3$s W開始 / %4$s℃以上で 1 kW"
+
+msgid "Now %1$s W · setpoint %2$s°C"
+msgstr "いま %1$s W · 設定 %2$s℃"
+
+msgid "Now %s W · weekdays on above 28°C"
+msgstr "いま %s W · 平日は 28℃超でオン"
+
+msgid "Odometer"
+msgstr "オドメーター"
+
+msgid "Odometer %s km"
+msgstr "オドメーター %s km"
+
+msgid "Odometer —"
+msgstr "オドメーター —"
+
+msgid "Off on weekdays"
+msgstr "平日はオフ"
+
+msgid "Off-peak"
+msgstr "平常時"
+
+msgid "Official"
+msgstr "公式"
+
+msgid "Official blog"
+msgstr "公式ブログ"
+
+msgid "Official details"
+msgstr "公式を見る"
+
+msgid "Official event list"
+msgstr "公式イベント一覧"
+
+msgid "Official news"
+msgstr "公式ニュース"
+
+msgid "Official site (Japanese)"
+msgstr "公式サイト（日本語）"
+
+msgid "Offline"
+msgstr "オフライン"
+
+msgid "Online"
+msgstr "オンライン"
+
+msgid "Only Pokémon caught or evolved during the event learn these."
+msgstr "この期間に捕獲・進化した個体だけが覚えます。"
+
+msgid "Open"
+msgstr "募集中"
+
+msgid "Open Powerwall"
+msgstr "Powerwall を開く"
+
+msgid "Open feature"
+msgstr "特集を見る"
+
+msgid "Open referral link"
+msgstr "紹介リンクで見る"
+
+msgid "Open the feature page"
+msgstr "特集ページを開く"
+
+msgid "Open-Meteo response invalid."
+msgstr "Open-Meteo の応答が不正です"
+
+msgid "Orange bars: generation kWh · Cyan line: output kWh · Teal line: yen saved"
+msgstr "橙棒: 発電 kWh · 水色線: 出力 kWh · 青緑線: 節約円"
+
+msgid "Orange bars: km driven · Teal line: yen saved"
+msgstr "橙棒: 走行 km · 青緑線: 節約円"
+
+msgid "Other"
+msgstr "その他"
+
+msgid "Our measured kit"
+msgstr "うちの実測構成"
+
+msgid "Outdoor temp (Tajimi)"
+msgstr "外気温（多治見）"
+
+msgid "Output now"
+msgstr "いまの出力"
+
+msgid "PR"
+msgstr "PR"
+
+msgid "PV"
+msgstr "PV"
+
+msgid "Park"
+msgstr "パーキング"
+
+msgid "Partly cloudy"
+msgstr "一部曇り"
+
+msgid "Past"
+msgstr "経過"
+
+msgid "Paste A8, Amazon, or official affiliate URLs to update EcoFlow / Tesla kit blocks. Empty fields keep the default official link."
+msgstr "A8・Amazon・メーカー公式アフィのURLを貼ると、EcoFlow / Tesla の「うちの実測構成」と公式ボタンに反映されます。空欄は公式直リンクのままです。"
+
+msgid "Patch %s"
+msgstr "パッチ %s"
+
+msgid "Patch —"
+msgstr "パッチ —"
+
+msgid "Peak output"
+msgstr "ピーク出力"
+
+msgid "Per the approved plan. Idle outside grid-charge hours."
+msgstr "承認済みの計画どおり。グリッド充電時間外は待機です。"
+
+msgid "Pick a boss and remaining time"
+msgstr "ボスと残り時間を選んで投稿"
+
+msgid "Plan date"
+msgstr "計画の日付"
+
+msgid "Planned only (not running)"
+msgstr "計画のみ（未実行）"
+
+msgid "Platform"
+msgstr "プラットフォーム"
+
+msgid "Pokémon"
+msgstr "ポケモン"
+
+msgid "Pokémon GO"
+msgstr "Pokémon GO"
+
+msgid "Pokémon GO Latest News"
+msgstr "Pokémon GO 最新ニュース"
+
+msgid "Pokémon GO YouTuber Videos"
+msgstr "Pokémon GO YouTuber 動画"
+
+msgid "Pokémon GO events, raids, and guides"
+msgstr "イベント・レイド・攻略など Pokémon GO の最新ニュース"
+
+msgid "Pokémon GO events, raids, and news"
+msgstr "Pokémon GO のイベント・レイド・ニュース"
+
+msgid "Pokémon GO features"
+msgstr "Pokémon GO 特集"
+
+msgid "Pokémon GO major event features"
+msgstr "Pokémon GO 大型イベント特集"
+
+msgid "Pokémon GO news"
+msgstr "Pokémon GO 最新情報"
+
+msgid "Pokémon GO official"
+msgstr "Pokémon GO 公式"
+
+msgid "Pokémon GO official news"
+msgstr "Pokémon GO 公式ニュース"
+
+msgid "Portable power"
+msgstr "ポータブル電源"
+
+msgid "Portable power, solar, disaster-prep, and camping articles"
+msgstr "ポータブル電源・ソーラーパネル・防災・キャンプ関連の記事"
+
+msgid "Portable-power I/O, Smart Time ONE hourly rates, and a charge plan."
+msgstr "ポータブル電源の入出力と、スマートタイムONE の時間別単価・充電計画。"
+
+msgid "Post lobby"
+msgstr "募集を出す"
+
+msgid "Power advisory"
+msgstr "でんき注意報"
+
+msgid "Power alert"
+msgstr "でんき警報"
+
+msgid "Power forecast"
+msgstr "でんき予報"
+
+msgid "Powerwall 3"
+msgstr "Powerwall 3"
+
+msgid "Powerwall 3 news"
+msgstr "Powerwall 3 最新情報"
+
+msgid "Powerwall Energy Flow"
+msgstr "Powerwall 電力フロー"
+
+msgid "Powerwall SOC"
+msgstr "Powerwall SOC"
+
+msgid "Powerwall Specifications"
+msgstr "Powerwall 仕様"
+
+msgid "Powerwall URL"
+msgstr "Powerwall URL"
+
+msgid "Powerwall combo"
+msgstr "Powerwallコンボ"
+
+msgid "Powerwall news (English)"
+msgstr "Powerwall 関連ニュース（英語）"
+
+msgid "Powerwall self-use "
+msgstr "Powerwall 自家消費 "
+
+msgid "Powerwall self-use %s kWh"
+msgstr "Powerwall 自家消費 %s kWh"
+
+msgid "Premium ¥150,000"
+msgstr "プレミアム 150,000円"
+
+msgid "Prev month"
+msgstr "前月"
+
+msgid "Previous"
+msgstr "前へ"
+
+msgid "Primary Menu"
+msgstr "メインメニュー"
+
+msgid "Primary Navigation"
+msgstr "メインナビゲーション"
+
+msgid "Pro %1$s W + 1500 %2$s W"
+msgstr "Pro %1$s W + 1500 %2$s W"
+
+msgid "Pro %s W · 1500 %s W"
+msgstr "Pro %s W · 1500 %s W"
+
+msgid "Pro %s%% · 1500 %s%%"
+msgstr "Pro %s%% · 1500 %s%%"
+
+msgid "Pro 800 W + 1500 500 W"
+msgstr "Pro 800 W + 1500 500 W"
+
+msgid "Pro grid top-up"
+msgstr "Pro グリッド補充電"
+
+msgid "Purchases via the referral link may include up to ¥35,000 in benefits."
+msgstr "紹介リンク経由の購入で、最大 35,000 円相当の特典が付く場合があります。"
+
+msgid "Quick Links"
+msgstr "クイックリンク"
+
+msgid "RATE MAP"
+msgstr "RATE MAP"
+
+msgid "ROOM"
+msgstr "ROOM"
+
+msgid "Raid clear"
+msgstr "レイドクリア"
+
+msgid "Raid guides"
+msgstr "レイド攻略"
+
+msgid "Raid invite board"
+msgstr "レイド招待掲示板"
+
+msgid "Raid invites"
+msgstr "レイド招待"
+
+msgid "Raid start"
+msgstr "レイド開始"
+
+msgid "Raids"
+msgstr "レイド"
+
+msgid "Rain"
+msgstr "雨"
+
+msgid "Range ~"
+msgstr "航続距離 約 "
+
+msgid "Range ~%s km"
+msgstr "航続距離 約 %s km"
+
+msgid "Rare"
+msgstr "まれ"
+
+msgid "Rare: %s"
+msgstr "まれ: %s"
+
+msgid "Rating"
+msgstr "評価"
+
+msgid "Read more"
+msgstr "詳しく見る"
+
+msgid "Recommended Pokémon by raid boss"
+msgstr "レイドボス別おすすめポケモン"
+
+msgid "Redirect URI: /wp-json/gaming-hub/v1/tesla/oauth/callback"
+msgstr "Redirect URI: /wp-json/gaming-hub/v1/tesla/oauth/callback"
+
+msgid "Reference values from Tesla public info (varies by region and model)"
+msgstr "Tesla 公開情報に基づく参考値（地域・モデルにより異なります）"
+
+msgid "Referral"
+msgstr "紹介"
+
+msgid "Refresh Token"
+msgstr "Refresh Token"
+
+msgid "Refresh and try again"
+msgstr "更新してやり直してください"
+
+msgid "Regen %s%%"
+msgstr "回生 %s%%"
+
+msgid "Regen charging"
+msgstr "回生充電"
+
+msgid "Regenerating"
+msgstr "回生中"
+
+msgid "Related news"
+msgstr "関連ニュース"
+
+msgid "Remaining (1500 · live)"
+msgstr "残容量 (1500 · 実測)"
+
+msgid "Remaining (1500 · n/a)"
+msgstr "残容量 (1500 · 未取得)"
+
+msgid "Remaining (1500)"
+msgstr "残容量 (1500)"
+
+msgid "Remaining (Extra · MQTT)"
+msgstr "残容量 (Extra · MQTT)"
+
+msgid "Remaining (Extra · last)"
+msgstr "残容量 (Extra · 最終値)"
+
+msgid "Remaining (Extra · live)"
+msgstr "残容量 (Extra · 実測)"
+
+msgid "Remaining (Extra · n/a)"
+msgstr "残容量 (Extra · 未取得)"
+
+msgid "Remaining (Pro)"
+msgstr "残容量 (Pro)"
+
+msgid "Remaining drive"
+msgstr "残り走行"
+
+msgid "Remaining expected Living AC & others use"
+msgstr "残り予想使用（リビングエアコン他）"
+
+msgid "Remaining expected generation"
+msgstr "残り予想発電"
+
+msgid "Request failed"
+msgstr "通信に失敗しました"
+
+msgid "Reverse"
+msgstr "リバース"
+
+msgid "Revoke access"
+msgstr "連携を解除"
+
+msgid "Rime"
+msgstr "霧氷"
+
+msgid "Runtime left"
+msgstr "残り使用時間"
+
+msgid "SAVE"
+msgstr "SAVE"
+
+msgid "SLEEP"
+msgstr "SLEEP"
+
+msgid "SOC"
+msgstr "SOC"
+
+msgid "SOC (1500 · live)"
+msgstr "残量 (1500 · 実測)"
+
+msgid "SOC (1500 · n/a)"
+msgstr "残量 (1500 · 未取得)"
+
+msgid "SOC (Extra Battery)"
+msgstr "残量 (Extra Battery)"
+
+msgid "SOC at or below %3$s%%, so grid charging. UPS load %1$s W + 200 W = %2$s W. Will not go lower."
+msgstr "残量 %3$s%% 以下のためグリッド充電中。UPS 負荷 %1$s W + 200 W = %2$s W。これ以上下げません。"
+
+msgid "SOC forecast"
+msgstr "残量予測"
+
+msgid "SOC is below %1$s%%, so about %4$s kWh at %3$s W during cheap hours until %2$s:00 (ignoring solar forecast)."
+msgstr "残量が %1$s%% 未満のため、%2$s 時までの安い時間帯に（太陽光見込みに関係なく）%3$s W で約 %4$s kWh 充電します。"
+
+msgid "SUMMARY"
+msgstr "SUMMARY"
+
+msgid "Sat"
+msgstr "土"
+
+msgid "Saved"
+msgstr "節約額"
+
+msgid "Saved automatically after Tesla auth on the Powerwall page. Manual entry is also OK."
+msgstr "Powerwall ページの「Tesla で認証」後に自動保存。手動設定も可。"
+
+msgid "Saved automatically after Tesla auth on the Tesla tag. Manual entry is also OK."
+msgstr "Tesla タグの「Tesla で認証」後に自動保存。手動設定も可。"
+
+msgid "Saved this month"
+msgstr "今月の節約"
+
+msgid "Saved today"
+msgstr "今日 節約"
+
+msgid "Saved ¥"
+msgstr "節約円"
+
+msgid "Schedule"
+msgstr "スケジュール"
+
+msgid "Scheduled"
+msgstr "予約"
+
+msgid "Scheduled charge"
+msgstr "充電予定"
+
+msgid "Scroll"
+msgstr "スクロール"
+
+msgid "Second unit on AC 100V with Pro 3"
+msgstr "AC 100V で Pro 3 に接続している 2 台目"
+
+msgid "Secret Key"
+msgstr "シークレットキー"
+
+msgid "See daily numbers"
+msgstr "日ごとの数字を見る"
+
+msgid "See details"
+msgstr "内訳を見る"
+
+msgid "See more"
+msgstr "もっと見る"
+
+msgid "See numbers in the Driving Log →"
+msgstr "Driving Log で数字を確認 →"
+
+msgid "See numbers in the generation log →"
+msgstr "発電ログで数字を確認 →"
+
+msgid "See what it does"
+msgstr "できることを見る"
+
+msgid "See your home energy"
+msgstr "家庭の電力を、見える化する"
+
+msgid "Send error: %s"
+msgstr "送信エラー: %s"
+
+msgid "Sending…"
+msgstr "送信中…"
+
+msgid "Sent."
+msgstr "送りました。"
+
+msgid "Sentry"
+msgstr "Sentry"
+
+msgid "Session"
+msgstr "今回"
+
+msgid "Session drop"
+msgstr "今回ドロップ"
+
+msgid "Sessions"
+msgstr "セッション"
+
+msgid "Sessions this month"
+msgstr "今月回数"
+
+msgid "Set "
+msgstr "設定 "
+
+msgid "Set Client ID / Secret / VIN in .env or Appearance → Customize → Tesla API"
+msgstr ".env または 外観 → カスタマイズ → Tesla API に Client ID / Secret / VIN を設定"
+
+msgid "Set a Client ID to show the auth link"
+msgstr "Client ID を設定すると認証リンクが表示されます"
+
+msgid "Set them in .env or Appearance → Customize → EcoFlow API"
+msgstr ".env または 外観 → カスタマイズ → EcoFlow API に設定"
+
+msgid "Share %"
+msgstr "合算%"
+
+msgid "Shift"
+msgstr "シフト"
+
+msgid "Shift unavailable"
+msgstr "シフト未取得"
+
+msgid "Show EcoFlow A8 banners (300×250)"
+msgstr "EcoFlow A8バナー（300×250）を表示"
+
+msgid "Show EcoFlow measured kit block"
+msgstr "EcoFlow「うちの実測構成」を表示"
+
+msgid "Show Tesla measured kit block"
+msgstr "Tesla「うちの実測構成」を表示"
+
+msgid "Showers"
+msgstr "にわか雨"
+
+msgid "Showing pre-sleep battery %"
+msgstr "入眠時の残量を表示"
+
+msgid "Sidebar"
+msgstr "サイドバー"
+
+msgid "Sign in with Tesla"
+msgstr "Tesla で認証"
+
+msgid "Sleep"
+msgstr "スリープ"
+
+msgid "Smart Time ONE"
+msgstr "スマートタイムONE"
+
+msgid "Smart Time ONE (lighting) · Chubu · billed rate"
+msgstr "スマートタイムONE（電灯）· 中部 · 請求単価"
+
+msgid "Snow"
+msgstr "雪"
+
+msgid "Solar"
+msgstr "太陽光"
+
+msgid "Solar ("
+msgstr "ソーラー ("
+
+msgid "Solar (%1$s): %2$s · JMA sunshine normals + weather · as of %3$s · %4$s · %5$s · updates hourly"
+msgstr "ソーラー (%1$s): %2$s · 気象庁日照平年値 + 天気連動 · %3$s 時点 · %4$s · %5$s · 1時間ごとに更新"
+
+msgid "Solar (1.5 kW)"
+msgstr "ソーラー (1.5kW)"
+
+msgid "Solar (rated)"
+msgstr "ソーラー想定"
+
+msgid "Solar and the battery should cover the rest of today. No grid charge needed."
+msgstr "今日の残りはソーラーと電池で足りる見込みです。グリッド充電は不要です。"
+
+msgid "Solar and use forecasts already land Pro near %s%%. No grid charge needed."
+msgstr "発電と使用の見込みでは Pro が %s%% 付近になるため、グリッド充電は不要です。"
+
+msgid "Solar and use forecasts already land Pro near 90%. No grid charge needed."
+msgstr "発電と使用の見込みでは Pro が 90% 付近になるため、グリッド充電は不要です。"
+
+msgid "Solar charging"
+msgstr "ソーラー充電中"
+
+msgid "Solar charging solutions"
+msgstr "ソーラー充電ソリューション"
+
+msgid "Solar combo"
+msgstr "ソーラーコンボ"
+
+msgid "Solar generation (1.5 kW)"
+msgstr "ソーラー発電 (1.5kW)"
+
+msgid "Solar input"
+msgstr "ソーラー入力"
+
+msgid "Solar panel URL"
+msgstr "ソーラーパネル URL"
+
+msgid "Solar panels"
+msgstr "ソーラーパネル"
+
+msgid "Solar, battery, and EV charge flow, plus today’s estimated bill."
+msgstr "ソーラー・蓄電池・EV 充電の流れと、1日の電気代見込み。"
+
+msgid "Solar-integrated"
+msgstr "ソーラー一体型"
+
+msgid "Some links on this site may be affiliate (advertising) links."
+msgstr "当サイトのリンクにはアフィリエイト（広告）が含まれる場合があります。"
+
+msgid "Soon"
+msgstr "まもなく"
+
+msgid "Source:"
+msgstr "情報源:"
+
+msgid "Spotlight Hour"
+msgstr "スポライ"
+
+msgid "Spotlight Hour schedule"
+msgstr "スポライトアワーのスケジュール"
+
+msgid "Standalone"
+msgstr "独立運転"
+
+msgid "Standard ¥80,000"
+msgstr "スタンダード 80,000円"
+
+msgid "Standby"
+msgstr "待機"
+
+msgid "Standby (starts at 5% or below)"
+msgstr "待機 (5%以下で開始)"
+
+msgid "Start with the energy flow"
+msgstr "まずは電力フローから"
+
+msgid "Status"
+msgstr "状態"
+
+msgid "Status (1500)"
+msgstr "状態 (1500)"
+
+msgid "Status (Pro)"
+msgstr "状態 (Pro)"
+
+msgid "Stopped"
+msgstr "停止"
+
+msgid "Streams and watch rewards"
+msgstr "配信・視聴特典"
+
+msgid "Suggested charge window"
+msgstr "推奨充電ウィンドウ"
+
+msgid "Summary based on official announcements. Check official news for the latest details."
+msgstr "内容は公式発表をもとにしたまとめです。最新の詳細は公式ニュースで確認してください。"
+
+msgid "Sun"
+msgstr "日"
+
+msgid "Sunny"
+msgstr "晴れ"
+
+msgid "Super Mega"
+msgstr "スーパーメガ"
+
+msgid "Supercharger"
+msgstr "Supercharger"
+
+msgid "Supercharger: charge started toward 100%%. Last started at %s."
+msgstr "Supercharger: 100%% まで充電開始。直近は %s に充電オンです。"
+
+msgid "Supercharger: starting charge toward 100%%."
+msgstr "Supercharger: 100%% まで充電を開始します。"
+
+msgid "Supercharging"
+msgstr "急速充電中"
+
+msgid "Support"
+msgstr "サポート"
+
+msgid "Swipe the chart sideways"
+msgstr "グラフは左右にスワイプできます"
+
+msgid "SwitchBot API (UPS Plug)"
+msgstr "SwitchBot API (UPS プラグ)"
+
+msgid "SwitchBot API error"
+msgstr "SwitchBot API エラー"
+
+msgid "SwitchBot Plug"
+msgstr "SwitchBot プラグ"
+
+msgid "SwitchBot Plug Mini not found."
+msgstr "SwitchBot Plug Mini が見つかりません。"
+
+msgid "SwitchBot Plug Mini not found. Enter the device ID in the Customizer."
+msgstr "SwitchBot Plug Mini が見つかりません。デバイス ID を Customizer に入力してください。"
+
+msgid "SwitchBot token or secret is invalid."
+msgstr "SwitchBot の Token / Secret が無効です。"
+
+msgid "Tajimi"
+msgstr "多治見"
+
+msgid "Tajimi weather-linked simulation"
+msgstr "多治見市・天気連動シミュレーション"
+
+msgid "Tajimi, Gifu"
+msgstr "岐阜県多治見市"
+
+msgid "Tap Join and send your trainer code"
+msgstr "参加するを押して自分のコードを送る"
+
+msgid "Target charge"
+msgstr "目標残量"
+
+msgid "Tech specs"
+msgstr "技術仕様"
+
+msgid "Tesla"
+msgstr "Tesla"
+
+msgid "Tesla API"
+msgstr "Tesla API"
+
+msgid "Tesla API (Model 3)"
+msgstr "Tesla API (Model 3)"
+
+msgid "Tesla API is not configured."
+msgstr "Tesla API が未設定です"
+
+msgid "Tesla Client ID / Secret are not configured."
+msgstr "Tesla Client ID / Secret が未設定です"
+
+msgid "Tesla Fleet API architecture diagram"
+msgstr "Tesla Fleet API 連携アーキテクチャ図"
+
+msgid "Tesla Fleet API base URL is not configured."
+msgstr "Tesla Fleet API base URL が未設定です"
+
+msgid "Tesla Fleet API region could not be detected. Set TESLA_FLEET_API_BASE_URL in .env."
+msgstr "Tesla Fleet API リージョンを検出できません。.env に TESLA_FLEET_API_BASE_URL を設定してください"
+
+msgid "Tesla Fleet API region mismatch. Retrying with correct region."
+msgstr "Tesla Fleet API リージョン不一致。正しいリージョンで再試行します"
+
+msgid "Tesla Fleet API request failed."
+msgstr "Tesla Fleet API リクエストに失敗しました"
+
+msgid "Tesla Fleet API: partner_accounts registration is incomplete. Host the public key on the production domain and register that same Allowed Origins domain with Tesla (localhost alone cannot fetch vehicle data)."
+msgstr "Tesla Fleet API: アプリのリージョン登録（partner_accounts）が未完了です。Fleet API を使うには本番ドメインで公開鍵を設置し、developer.tesla.com の Allowed Origins と同じドメインを Tesla に登録する必要があります（localhost のみでは取得できません）。"
+
+msgid "Tesla Model 3 energy flow and charging"
+msgstr "Tesla Model 3 の電力フローと充電"
+
+msgid "Tesla Powerwall 3"
+msgstr "Tesla Powerwall 3"
+
+msgid "Tesla Powerwall 3 with solar and EV overview"
+msgstr "Tesla Powerwall 3 とソーラー・EV の全体イメージ"
+
+msgid "Tesla Powerwall Latest News"
+msgstr "Powerwall 最新ニュース"
+
+msgid "Tesla VIN is not configured."
+msgstr "Tesla VIN が未設定です"
+
+msgid "Tesla access token is not set."
+msgstr "Tesla アクセストークンが未設定です"
+
+msgid "Tesla access was revoked. Sign in again with Add missing scopes or Tesla auth to grant location."
+msgstr "Tesla 連携を解除しました。位置スコープを付けるには、もう一度「不足スコープを追加」または「Tesla で認証」してください。"
+
+msgid "Tesla account link:"
+msgstr "Tesla アカウント連携:"
+
+msgid "Tesla account linked. Fetching live Model 3 data."
+msgstr "Tesla アカウントを連携しました。Model 3 の実データを取得します。"
+
+msgid "Tesla app"
+msgstr "Tesla アプリ"
+
+msgid "Tesla charge plan"
+msgstr "Tesla 充電計画"
+
+msgid "Tesla charging history request failed."
+msgstr "Tesla 充電履歴の取得に失敗しました"
+
+msgid "Tesla charging page URL"
+msgstr "Tesla 充電ページ URL"
+
+msgid "Tesla dashboard"
+msgstr "Tesla ダッシュボード"
+
+msgid "Tesla energy flow"
+msgstr "Tesla 電力フロー"
+
+msgid "Tesla input and output"
+msgstr "Tesla の入出力"
+
+msgid "Tesla is linked (charge and cabin). Driving speed and power still need Vehicle Location. Allow that on Tesla’s screen and sign in again. Location is not stored."
+msgstr "Tesla 連携はできています（充電・車内）。走行の速度と消費電力だけ、位置スコープが未許可です。Tesla の画面で Vehicle Location を許可してもう一度認証してください。位置情報は保存しません。"
+
+msgid "Tesla linked (charge and cabin)"
+msgstr "Tesla 連携済み（充電・車内）"
+
+msgid "Tesla official"
+msgstr "Tesla 公式"
+
+msgid "Tesla official (Japan)"
+msgstr "Tesla 公式（日本）"
+
+msgid "Tesla official top URL"
+msgstr "Tesla 公式トップ URL"
+
+msgid "Tesla partner app is not registered for this Fleet API region."
+msgstr "この Fleet API リージョンに Tesla パートナーアプリが未登録です"
+
+msgid "Tesla partner domain is empty."
+msgstr "Tesla パートナードメインが空です"
+
+msgid "Tesla partner domain is not configured."
+msgstr "Tesla パートナードメインが未設定です"
+
+msgid "Tesla public key is not reachable at %s (HTTP %d)."
+msgstr "Tesla 公開鍵に %s から到達できません (HTTP %d)"
+
+msgid "Tesla refresh token is invalid. Re-link from Tesla auth on the Powerwall page using the production domain."
+msgstr "Tesla の refresh token が無効です。Powerwall ページの「Tesla で認証」から本番ドメインで再連携してください。"
+
+msgid "Tesla rejected the charge command."
+msgstr "Tesla が充電コマンドを拒否しました。"
+
+msgid "Tesla reuses the previous grant, so repeating sign-in will not add location. Enable Vehicle Location on the developer.tesla.com app, then use Add missing scopes and allow vehicle location. If it still is missing, revoke the app and sign in again. Location is not stored."
+msgstr "Tesla は前回の許可内容を使い回すため、同じ認証を繰り返しても位置スコープは増えません。developer.tesla.com のアプリで Vehicle Location を有効にしたうえで、「不足スコープを追加」を押してください。Tesla の画面で車両位置を許可する必要があります。まだ付かないときは一度連携を解除してから再認証してください。位置情報は保存しません。"
+
+msgid "Tesla sections"
+msgstr "Tesla セクション"
+
+msgid "Tesla token request failed."
+msgstr "Tesla トークン取得に失敗しました"
+
+msgid "Tesla vehicle is asleep."
+msgstr "Tesla 車両はスリープ中です"
+
+msgid "Test control. Sends charge on/off to Tesla while the cable is plugged in."
+msgstr "テスト用。ケーブル接続中の充電オン／オフを Tesla に送ります。"
+
+msgid "That is the host code"
+msgstr "ホストと同じコードです"
+
+msgid "The Tesla app charge cap is %1$s%% now. Raise it to reach %2$s%%."
+msgstr "Tesla アプリのチャージキャップはいま %1$s%% です。%2$s%% にするには上限を上げてください。"
+
+msgid "The car has no virtual key. Open Add virtual key below and allow it in the Tesla app."
+msgstr "車に仮想キーがありません。下の「仮想キーを追加」から Tesla アプリで許可してください。"
+
+msgid "The car is asleep. It will not be woken; updates resume when it wakes."
+msgstr "車はスリープ中です。起こさず、起きたら自動で更新します。"
+
+msgid "The car is asleep. No API call is sent; showing the last snapshot."
+msgstr "車はスリープ中です。API は送らず、前回のデータを表示しています。"
+
+msgid "The car is asleep. Wake it, then try again."
+msgstr "車はスリープ中です。起こしてからもう一度押してください。"
+
+msgid "The on-screen plan was updated. Reload, then approve."
+msgstr "表示中の計画が更新されています。再読み込みしてから承認してください。"
+
+msgid "The proposal was updated. The previous schedule is sent until you re-approve."
+msgstr "提案が更新されました。再承認するまで前回のスケジュールを送ります。"
+
+msgid "The vehicle_location scope is required."
+msgstr "vehicle_location スコープが必要です。"
+
+msgid "This account is Google-login only. Set a login password in the EcoFlow app and enter that email and password in the Customizer. Google login itself cannot be used for MQTT."
+msgstr "Googleログインのみのアカウントです。EcoFlowアプリで「ログインパスワード」を設定し、そのメールアドレスとパスワードを Customizer に入力してください。（Googleログインそのものは MQTT では使えません）"
+
+msgid "This lobby has ended"
+msgstr "この募集は終了しています"
+
+msgid "This lobby is full"
+msgstr "満員です"
+
+msgid "This lobby is no longer open"
+msgstr "この募集は締め切られています"
+
+msgid "This month by day"
+msgstr "今月の日別"
+
+msgid "This month’s daily distance and savings"
+msgstr "今月の日別走行と節約額"
+
+msgid "This month’s daily generation, output, and savings"
+msgstr "今月の日別発電・出力・節約額"
+
+msgid "This week"
+msgstr "今週"
+
+msgid "Thu"
+msgstr "木"
+
+msgid "Thunderstorm"
+msgstr "雷雨"
+
+msgid "Time left"
+msgstr "残り時間"
+
+msgid "Time-based demo: commute, Wall Connector, and Supercharger"
+msgstr "時刻に応じたデモ（通勤・Wall Connector・Supercharger）"
+
+msgid "Tire pressure"
+msgstr "空気圧"
+
+msgid "Tires %s bar"
+msgstr "空気圧 %s bar"
+
+msgid "Tires —"
+msgstr "空気圧 —"
+
+msgid "To cover yesterday’s %1$s km, the plan would have charged %2$s kWh in that day’s cheapest hours."
+msgstr "昨日の走行 %1$s km をまかなうなら、その日の最安時間に %2$s kWh 充電する計画です。"
+
+msgid "To hit 100%% by Saturday %2$s:00, remaining cheapest hours (%3$s) use %1$s kW 200V AC. Home charging starts automatically in those hours only."
+msgstr "土曜朝 %2$s 時までに 100%% になるよう、残っている最安時間（%3$s）に 200V 普通充電（%1$s kW）します。この時間だけ自宅充電を自動で開始します。"
+
+msgid "Today"
+msgstr "今日"
+
+msgid "Today "
+msgstr "今日 "
+
+msgid "Today %1$s kWh (AC %2$s + other %3$s)"
+msgstr "今日 %1$s kWh（AC %2$s + その他 %3$s）"
+
+msgid "Today %s"
+msgstr "今日 %s"
+
+msgid "Today %s kWh"
+msgstr "今日 %s kWh"
+
+msgid "Today by hour"
+msgstr "今日の時間別"
+
+msgid "Today's electricity cost"
+msgstr "今日 電気代"
+
+msgid "Today’s automatic wake limit was reached. The car stays asleep."
+msgstr "本日の自動ウェイク上限に達しました。車はスリープのままです。"
+
+msgid "Today’s bill"
+msgstr "今日の電気代"
+
+msgid "Today’s charge plan"
+msgstr "今日の充電計画"
+
+msgid "Today’s estimated bill"
+msgstr "本日の電気代見込み"
+
+msgid "Today’s expected generation"
+msgstr "今日の発電見込み"
+
+msgid "Today’s hourly distance and savings"
+msgstr "今日の時間別走行と節約額"
+
+msgid "Today’s hourly generation and output"
+msgstr "今日の時間別発電と出力"
+
+msgid "Today’s hourly rates, expected generation, and Pro / 1500 SOC forecast"
+msgstr "本日の時間別単価・発電見込み・Pro / 1500 残量予測"
+
+msgid "Today’s hourly rates, expected generation, and Pro SOC forecast"
+msgstr "本日の時間別単価・発電見込み・Pro 残量予測"
+
+msgid "Today’s planned grid charge, SOC forecast, expected generation, AC-out forecast, and billed rate"
+msgstr "本日のグリッド充電計画・残量予測・発電見込み・AC出力見込み・請求単価"
+
+msgid "Today’s planned grid charge, expected generation, and billed rate"
+msgstr "本日のグリッド充電計画・発電見込み・請求単価"
+
+msgid "Today’s shortfall"
+msgstr "今日の不足"
+
+msgid "Today’s weather"
+msgstr "今日の天気"
+
+msgid "Toggle menu"
+msgstr "メニューを開く"
+
+msgid "Token"
+msgstr "トークン"
+
+msgid "Tomorrow"
+msgstr "明日"
+
+msgid "Tomorrow (Friday) charges to the %1$s%% limit, including the cheapest Friday-night to Saturday-morning window (%3$s). Expected drive %2$s km."
+msgstr "明日（金曜）は充電上限 %1$s%% まで。金曜夜〜土曜朝の最安時間（%3$s）にも充電します。予想走行 %2$s km。"
+
+msgid "Tomorrow charge to %s%%"
+msgstr "明日 %s%%までの充電"
+
+msgid "Tomorrow charge to 90%"
+msgstr "明日 90%までの充電"
+
+msgid "Tomorrow is Saturday. For %1$s km of driving, use 200V AC charging in the cheapest window (%2$s) so the pack is at 100%% by %3$s:00."
+msgstr "明日は土曜です。%1$s km 走行を踏まえ、朝 %3$s 時までに 100%% になるよう最安時間（%2$s）に 200V 普通充電します。"
+
+msgid "Tomorrow looks covered by solar and battery. No grid charge needed."
+msgstr "明日はソーラーと電池で足りる見込みです。グリッド充電は不要です。"
+
+msgid "Tomorrow’s charge plan"
+msgstr "明日の充電計画"
+
+msgid "Tomorrow’s expected driving does not need extra grid charging."
+msgstr "明日の走行見込みでは追加のグリッド充電は不要です。"
+
+msgid "Tomorrow’s expected driving does not need extra grid charging. The charge limit is %s%%."
+msgstr "明日の走行見込みでは追加のグリッド充電は不要です。充電上限は %s%% です。"
+
+msgid "Tomorrow’s expected shortfall"
+msgstr "明日の不足見込み"
+
+msgid "Tomorrow’s generation may fall short of use. About %1$s kWh of grid charge at %2$s W is assumed in the cheapest hours."
+msgstr "明日は発電が使用量を下回りそうです。最安時間に %2$s W で約 %1$s kWh のグリッド充電を想定しています。"
+
+msgid "Tomorrow’s solar and use forecasts already land Pro near %s%%. No grid charge needed."
+msgstr "明日の発電と使用の見込みでは Pro が %s%% 付近になるため、グリッド充電は不要です。"
+
+msgid "Tomorrow’s solar and use forecasts already land Pro near 90%. No grid charge needed."
+msgstr "明日の発電と使用の見込みでは Pro が 90% 付近になるため、グリッド充電は不要です。"
+
+msgid "Too many joins. Please wait a moment."
+msgstr "参加が多すぎます。少し待ってください"
+
+msgid "Too many posts. Please wait a bit"
+msgstr "投稿が多すぎます。少し待ってください"
+
+msgid "Total"
+msgstr "合計"
+
+msgid "Total "
+msgstr "合算 "
+
+msgid "Total %1$s / %2$s W (%3$s%%)"
+msgstr "合算 %1$s / %2$s W（%3$s%%）"
+
+msgid "Total in"
+msgstr "入力合計"
+
+msgid "Total out"
+msgstr "出力合計"
+
+msgid "Totals Pro 3 high-volt plus Delta 1500 Low Volt. Input and output are both units combined. Savings = (Living AC & others Pro AC out + UPS 1500 AC out) × that hour’s import rate, minus 1500 and Pro grid AC in × the same rate."
+msgstr "Pro 3 ハイボルト + Delta 1500 Low Volt の合算を積算しています。入力・出力も両機の合計です。節約額は リビングエアコン他（Pro AC 出力）と UPS（1500 AC 出力）× その時間の買電単価から、1500 と Pro のグリッド AC 入力（買電）× 同単価を引いた額です。"
+
+msgid "Trainer name"
+msgstr "トレーナー名"
+
+msgid "Trainer-to-trainer raid invites"
+msgstr "トレーナー同士の招待募集"
+
+msgid "Tue"
+msgstr "火"
+
+msgid "Type"
+msgstr "方式"
+
+msgid "UNIT · EV"
+msgstr "UNIT · EV"
+
+msgid "UPS"
+msgstr "UPS"
+
+msgid "UPS Plug device ID (optional)"
+msgstr "UPS プラグ デバイス ID（任意）"
+
+msgid "UPS saved today"
+msgstr "今日 UPS節約"
+
+msgid "UPS, grid top-up, and low-volt link"
+msgstr "UPS・補充電・Low Volt 連携"
+
+msgid "Unknown"
+msgstr "不明"
+
+msgid "Unknown Tesla charge command."
+msgstr "不明な Tesla 充電コマンドです"
+
+msgid "Unknown action"
+msgstr "不明な操作です"
+
+msgid "Unlocked"
+msgstr "アンロック"
+
+msgid "Unofficial trainer board. No game API; friend requests and invites stay in the app."
+msgstr "非公式のトレーナー掲示板です。ゲームAPIは使わず、フレンド申請と招待は各自のゲーム内で行います。"
+
+msgid "Unplugged"
+msgstr "未接続"
+
+msgid "Until 0%"
+msgstr "0%まで"
+
+msgid "Until complete"
+msgstr "完了まで"
+
+msgid "Until full"
+msgstr "満タンまで"
+
+msgid "Upcoming"
+msgstr "開催予定"
+
+msgid "Updated "
+msgstr "更新 "
+
+msgid "Updated %s"
+msgstr "更新 %s"
+
+msgid "Updated: "
+msgstr "最終更新: "
+
+msgid "Updated: %s"
+msgstr "最終更新: %s"
+
+msgid "Usable battery (%1$s%% of capacity · excludes %2$s%% reserve)"
+msgstr "使える電池（容量の %1$s%% · 予備 %2$s%%除く）"
+
+msgid "Usable battery (excludes 25% reserve)"
+msgstr "使える電池（予備 25%除く）"
+
+msgid "Usable capacity"
+msgstr "使用可能容量"
+
+msgid "Use"
+msgstr "用途"
+
+msgid "Use Plug Mini measured watts for always-on UPS AC output. Token and Secret come from developer options. Leave device ID empty to auto-pick a Plug Mini."
+msgstr "常時稼働エリア (UPS) の AC 出力 W に Plug Mini の実測を使います。Token と Secret は開発者向けオプションから。デバイス ID は空なら Plug Mini を自動選択します。"
+
+msgid "Use with PW2"
+msgstr "PW2 との併用"
+
+msgid "Used today"
+msgstr "今日 使用"
+
+msgid "Useful links"
+msgstr "便利リンク"
+
+msgid "Vehicle identification number (17 characters)"
+msgstr "車両識別番号（17桁）"
+
+msgid "Vehicle measured in the driving and charge logs"
+msgstr "走行ログ・充電ログで実測中の車両"
+
+msgid "View EcoFlow"
+msgstr "EcoFlow を見る"
+
+msgid "View Powerwall"
+msgstr "Powerwall を見る"
+
+msgid "View all"
+msgstr "すべて見る"
+
+msgid "View official"
+msgstr "公式で見る"
+
+msgid "WINDOW"
+msgstr "WINDOW"
+
+msgid "Wait a moment, then try again."
+msgstr "少し待ってからもう一度押してください。"
+
+msgid "Waiting for MQTT bridge setup. Enter App Login under Appearance → Customize → EcoFlow API, then run docker compose up -d ecoflow-bridge."
+msgstr "MQTT ブリッジの設定待ちです。外観 → カスタマイズ → EcoFlow API に App Login を入力し、docker compose up -d ecoflow-bridge を実行してください。"
+
+msgid "Waiting for MQTT bridge — docker compose up -d ecoflow-bridge"
+msgstr "MQTT ブリッジ待機中 — docker compose up -d ecoflow-bridge"
+
+msgid "Waking the car. Press again in a few seconds."
+msgstr "車を起こしています。数秒後にもう一度押してください。"
+
+msgid "Warranty"
+msgstr "保証"
+
+msgid "Weather unavailable"
+msgstr "天気取得不可"
+
+msgid "Web & API implementation inquiries"
+msgstr "Web制作・API実装のご相談"
+
+msgid "Web & API work"
+msgstr "Web制作・API実装"
+
+msgid "Wed"
+msgstr "水"
+
+msgid "Week"
+msgstr "週次"
+
+msgid "Weekdays: on above 28°C"
+msgstr "平日は 28℃超でオン"
+
+msgid "What this site does"
+msgstr "このサイトでできること"
+
+msgid "Wild"
+msgstr "野生"
+
+msgid "With %2$s km still to drive and the target SOC, use 200V AC charging at %1$s kW during the cheapest Smart Time ONE hours. Pair this with scheduled charging in the Tesla app."
+msgstr "残りの走行 %2$s km と目標残量を踏まえ、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。Tesla アプリの予約充電と合わせて使ってください。"
+
+msgid "With %2$s km still to drive, use 200V AC charging at %1$s kW in the cheapest Smart Time ONE hours up to the %3$s%% charge limit. Home charging starts automatically in those hours only."
+msgstr "残りの走行 %2$s km を踏まえ、充電上限 %3$s%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。この時間だけ自宅充電を自動で開始します。"
+
+msgid "Without solar: "
+msgstr "ソーラーなし想定: "
+
+msgid "Without solar: ¥%s"
+msgstr "ソーラーなし想定: ¥%s"
+
+msgid "Worlds, Ultra Unlock, and Raid Days"
+msgstr "世界大会・ウルトラアンロック・レイドデイ"
+
+msgid "Yellow bar: SOC · Yellow band: home charge (actual) · Gold band: scheduled charge · Colored bands: away/DC actual · Orange: driving · Teal: price"
+msgstr "黄棒: 残量 · 黄帯: 自宅充電（実績）· 金帯: 充電予定 · 色帯: 外出先/DC 実績 · 朱橙線: 走行 · 青緑線: 単価"
+
+msgid "Yellow bars: Model 3 SOC · Gold band: home charge (plan) · Vermilion line: expected driving · Teal line: billed rate"
+msgstr "黄棒: Model 3 残量 · 金の帯: 自宅充電（計画）· 朱橙線: 走行見込み · 青緑線: 請求単価"
+
+msgid "Yellow: Pro SOC · Gold band: planned grid charge · Orange band: generation forecast Pro 800 W + 1500 500 W · Vermilion line: AC-out forecast · Teal: billed rate"
+msgstr "黄棒: Pro 残量 · 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 朱橙線: AC出力見込み · 青緑線: 請求単価"
+
+msgid "Yellow: Pro SOC · Orange band: generation forecast Pro 800 W + 1500 500 W · Teal: LOOOP billed rate"
+msgstr "黄棒: Pro 残量 · 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価"
+
+msgid "Yellow: Pro watts · Orange: 1500 watts · Bar height: share of combined capacity · Gold band: planned grid charge · Orange band: forecast solar Pro 800W + 1500 500W · Orange line: forecast AC load · Teal line: billed rate"
+msgstr "黄棒: Pro 残量W · 橙棒: 1500 残量W · 棒の高さ: 合算容量に対する割合 · 金の帯: グリッド充電（計画）· 橙の帯: 発電見込み Pro 800W + 1500 500W · 朱橙線: AC出力見込み · 青緑線: 請求単価"
+
+msgid "Yellow: Pro watts · Orange: 1500 watts · Bar height: share of combined capacity · Orange band: forecast solar Pro 800W + 1500 500W · Teal line: LOOOP billed rate"
+msgstr "黄棒: Pro 残量W · 橙棒: 1500 残量W · 棒の高さ: 合算容量に対する割合 · 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価"
+
+msgid "Yellow: SOC · Gold: scheduled charge · Colored bands: actual (home/away/DC) · Orange: driving · Teal: price"
+msgstr "黄棒: 残量 · 金帯: 充電予定 · 色帯: 実績（自宅/外出先/DC）· 朱橙線: 走行 · 青緑線: 単価"
+
+msgid "Yesterday"
+msgstr "昨日"
+
+msgid "Yesterday looks like no grid charge was needed."
+msgstr "昨日はグリッド充電なしの見込みです。"
+
+msgid "Yesterday’s charge plan"
+msgstr "昨日の充電計画"
+
+msgid "Yesterday’s driving did not need extra grid charging."
+msgstr "昨日の走行見込みでは追加のグリッド充電は不要でした。"
+
+msgid "Yesterday’s import"
+msgstr "昨日の買電"
+
+msgid "Yesterday’s measured data. Yellow/orange bars are SOC; gold bands are logged grid charge. Approve today’s plan only."
+msgstr "昨日の実測です。黄・橙棒は残量、金の帯はグリッド充電の記録です。承認は今日の計画のみです。"
+
+msgid "You already joined"
+msgstr "すでに参加しています"
+
+msgid "You can start or close this lobby from this device."
+msgstr "投稿した募集は、この端末から招待開始・終了できます。"
+
+msgid "e Vitara × Nichicon V2H system diagram"
+msgstr "e Vitara × ニチコン V2H 系統図"
+
+msgid "e.g. Mega unlocked preferred"
+msgstr "例: メガレベル解放済み希望"
+
+msgid "e.g. Regirock"
+msgstr "例: レジロック"
+
+msgid "est."
+msgstr "見込み"
+
+msgid "h"
+msgstr "時間"
+
+msgid "kWh"
+msgstr "kWh"
+
+msgid "last"
+msgstr "最終値"
+
+msgid "min"
+msgstr "分"
+
+msgid "n/a"
+msgstr "未取得"
+
+msgid "yen"
+msgstr "円"
+
+msgid "yen/h"
+msgstr "円/時"
+
+msgid "°C / high "
+msgstr "℃ / 最高 "
+
+msgid "°C+: 1 kW"
+msgstr "℃以上で 1 kW"
+
+msgid "°C: "
+msgstr "℃で "

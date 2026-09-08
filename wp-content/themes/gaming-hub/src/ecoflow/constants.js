@@ -100,8 +100,8 @@ export function formatSoc( value ) {
 	const soc = parseSoc( value );
 	if ( soc === null ) {
 		return ( typeof window !== 'undefined' && window.gamingHubT )
-			? window.gamingHubT( '未取得' )
-			: '未取得';
+			? window.gamingHubT( 'n/a' )
+			: 'n/a';
 	}
 
 	if ( Math.abs( soc - Math.round( soc ) ) < 0.05 ) {
@@ -113,11 +113,11 @@ export function formatSoc( value ) {
 
 export function formatWatts( value ) {
 	const standby = ( typeof window !== 'undefined' && window.gamingHubT )
-		? window.gamingHubT( '待機' )
-		: '待機';
+		? window.gamingHubT( 'Standby' )
+		: 'Standby';
 	const missing = ( typeof window !== 'undefined' && window.gamingHubT )
-		? window.gamingHubT( '未取得' )
-		: '未取得';
+		? window.gamingHubT( 'n/a' )
+		: 'n/a';
 
 	if ( value === null || value === undefined || value === '' ) {
 		return missing;
@@ -150,8 +150,8 @@ export function formatWh( value ) {
 export function formatPack( remain, full ) {
 	if ( remain === null || remain === undefined || ! Number.isFinite( Number( remain ) ) ) {
 		return ( typeof window !== 'undefined' && window.gamingHubT )
-			? window.gamingHubT( '未取得' )
-			: '未取得';
+			? window.gamingHubT( 'n/a' )
+			: 'n/a';
 	}
 
 	if ( ! Number.isFinite( Number( full ) ) || Number( full ) <= 0 ) {

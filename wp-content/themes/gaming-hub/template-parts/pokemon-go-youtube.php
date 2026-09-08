@@ -17,8 +17,8 @@ $show_header = isset( $args['show_header'] ) ? (bool) $args['show_header'] : tru
 	<?php if ( $show_header ) : ?>
 		<div class="section-header">
 			<div class="pgo-yt-badge">▶ YouTube</div>
-			<h2 class="section-title"><?php esc_html_e( 'YouTuber 最新動画', 'gaming-hub' ); ?></h2>
-			<p class="section-desc"><?php esc_html_e( '人気 Pokémon GO 系 YouTuber の最新投稿', 'gaming-hub' ); ?></p>
+			<h2 class="section-title"><?php esc_html_e('Latest YouTuber videos', 'gaming-hub'); ?></h2>
+			<p class="section-desc"><?php esc_html_e('Latest videos from popular Pokémon GO YouTubers', 'gaming-hub'); ?></p>
 		</div>
 	<?php endif; ?>
 
@@ -54,7 +54,7 @@ $show_header = isset( $args['show_header'] ) ? (bool) $args['show_header'] : tru
 		</div>
 
 		<div class="pgo-yt-channels">
-			<p><?php esc_html_e( '登録チャンネル:', 'gaming-hub' ); ?></p>
+			<p><?php esc_html_e('Channels:', 'gaming-hub'); ?></p>
 			<div class="pgo-yt-channel-links">
 				<?php foreach ( gaming_hub_get_pokemon_go_youtube_channels() as $channel ) : ?>
 					<a href="<?php echo esc_url( 'https://www.youtube.com/channel/' . $channel['id'] ); ?>" target="_blank" rel="noopener noreferrer">
@@ -65,7 +65,7 @@ $show_header = isset( $args['show_header'] ) ? (bool) $args['show_header'] : tru
 		</div>
 	<?php else : ?>
 		<div class="pgo-error">
-			<p><?php esc_html_e( 'YouTube 動画を取得できませんでした。しばらくしてから再度お試しください。', 'gaming-hub' ); ?></p>
+			<p><?php esc_html_e('Could not load YouTube videos. Try again shortly.', 'gaming-hub'); ?></p>
 		</div>
 	<?php endif; ?>
 </section>

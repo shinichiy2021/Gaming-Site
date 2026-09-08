@@ -79,22 +79,22 @@ function gaming_hub_powerwall_home_seasonal_factor( $month ) {
  */
 function gaming_hub_powerwall_home_time_band( $hour ) {
 	if ( $hour >= 6 && $hour <= 8 ) {
-		return __( '朝のピーク', 'gaming-hub' );
+		return __('Morning peak', 'gaming-hub');
 	}
 
 	if ( $hour >= 18 && $hour <= 21 ) {
-		return __( '夕方のピーク', 'gaming-hub' );
+		return __('Evening peak', 'gaming-hub');
 	}
 
 	if ( $hour >= 22 || $hour <= 5 ) {
-		return __( '深夜・早朝', 'gaming-hub' );
+		return __('Late night / early morning', 'gaming-hub');
 	}
 
 	if ( $hour >= 9 && $hour <= 16 ) {
-		return __( '昼間', 'gaming-hub' );
+		return __('Daytime', 'gaming-hub');
 	}
 
-	return __( '平常時', 'gaming-hub' );
+	return __('Off-peak', 'gaming-hub');
 }
 
 /**
@@ -123,7 +123,7 @@ function gaming_hub_powerwall_get_home_load() {
 		'watts' => $watts,
 		'meta'  => array(
 			'occupants'      => 3,
-			'profile'        => __( '大人3人世帯（平均）', 'gaming-hub' ),
+			'profile'        => __('3-adult household (average)', 'gaming-hub'),
 			'daily_kwh'      => round( $daily_kwh, 1 ),
 			'hour_slot'      => wp_date( 'Y-m-d H:00' ),
 			'time_band'      => gaming_hub_powerwall_home_time_band( $hour ),

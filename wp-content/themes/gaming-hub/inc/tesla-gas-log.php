@@ -522,7 +522,7 @@ function gaming_hub_tesla_gas_summary_payload( $status = null ) {
 				'period' => 'day',
 				'from'   => $today,
 				'to'     => $today,
-				'label'  => __( '今日', 'gaming-hub' ),
+				'label'  => __('Today', 'gaming-hub'),
 			)
 		),
 		'week' => array_merge(
@@ -534,11 +534,11 @@ function gaming_hub_tesla_gas_summary_payload( $status = null ) {
 				'label'  => $week_from_ts && $week_to_ts
 					? sprintf(
 						/* translators: 1: week start n/j, 2: week end n/j */
-						__( '%1$s〜%2$s', 'gaming-hub' ),
+						__('%1$s–%2$s', 'gaming-hub'),
 						wp_date( 'n/j', $week_from_ts ),
 						wp_date( 'n/j', $week_to_ts )
 					)
-					: __( '今週', 'gaming-hub' ),
+					: __('This week', 'gaming-hub'),
 			)
 		),
 	);

@@ -109,13 +109,13 @@ function gaming_hub_render_ecoflow_a8_banner() {
 		return;
 	}
 	?>
-	<div class="ecoflow-a8-banners" aria-label="<?php esc_attr_e( '広告', 'gaming-hub' ); ?>">
-		<p class="ecoflow-a8-banner-label"><?php esc_html_e( 'PR', 'gaming-hub' ); ?></p>
+	<div class="ecoflow-a8-banners" aria-label="<?php esc_attr_e('Advertisement', 'gaming-hub'); ?>">
+		<p class="ecoflow-a8-banner-label"><?php esc_html_e('PR', 'gaming-hub'); ?></p>
 		<div class="ecoflow-a8-banners-grid">
 			<?php foreach ( $banners as $banner ) : ?>
 				<div class="ecoflow-a8-banner">
 					<a href="<?php echo esc_url( $banner['href'] ); ?>" target="_blank" rel="sponsored nofollow noopener noreferrer">
-						<img src="<?php echo esc_url( $banner['img'] ); ?>" width="300" height="250" alt="<?php esc_attr_e( 'A8.net 広告バナー', 'gaming-hub' ); ?>" loading="lazy" decoding="async" />
+						<img src="<?php echo esc_url( $banner['img'] ); ?>" width="300" height="250" alt="<?php esc_attr_e('A8.net ad banner', 'gaming-hub'); ?>" loading="lazy" decoding="async" />
 					</a>
 					<img src="<?php echo esc_url( $banner['pixel'] ); ?>" width="1" height="1" alt="" loading="lazy" decoding="async" />
 				</div>
@@ -148,21 +148,21 @@ function gaming_hub_affiliate_ecoflow_kit_items() {
 	$items = array(
 		array(
 			'name'    => 'DELTA Pro 3',
-			'role'    => __( 'ハイボルト発電・リビングエアコン他の主電源', 'gaming-hub' ),
+			'role'    => __('HV solar input and main supply for living-room AC and more', 'gaming-hub'),
 			'primary' => 'ecoflow_delta_pro3',
 			'amazon'  => 'amazon_delta_pro3',
 			'image'   => 'ecoflow-pro-gaming.jpg',
 		),
 		array(
 			'name'    => 'DELTA 3 1500',
-			'role'    => __( 'UPS・補充電・Low Volt 連携', 'gaming-hub' ),
+			'role'    => __('UPS, grid top-up, and low-volt link', 'gaming-hub'),
 			'primary' => 'ecoflow_delta_1500',
 			'amazon'  => 'amazon_delta_1500',
 			'image'   => 'ecoflow-delta1500-gaming.jpg',
 		),
 		array(
-			'name'    => __( 'ソーラーパネル', 'gaming-hub' ),
-			'role'    => __( '発電ログの入力源', 'gaming-hub' ),
+			'name'    => __('Solar panels', 'gaming-hub'),
+			'role'    => __('Input source for the generation log', 'gaming-hub'),
 			'primary' => 'ecoflow_solar',
 			'amazon'  => '',
 			'image'   => 'ecoflow-solar-gaming.jpg',
@@ -186,21 +186,21 @@ function gaming_hub_affiliate_tesla_kit_items() {
 	$items = array(
 		array(
 			'name'    => 'Model 3',
-			'role'    => __( '走行ログ・充電ログで実測中の車両', 'gaming-hub' ),
+			'role'    => __('Vehicle measured in the driving and charge logs', 'gaming-hub'),
 			'primary' => 'tesla_model3',
 			'amazon'  => 'amazon_tesla_model3',
 			'image'   => 'tesla-model3-gaming.jpg',
 		),
 		array(
-			'name'    => __( '充電（Wall Connector など）', 'gaming-hub' ),
-			'role'    => __( '自宅・外出先の充電まわり', 'gaming-hub' ),
+			'name'    => __('Charging (Wall Connector, etc.)', 'gaming-hub'),
+			'role'    => __('Home and on-the-go charging', 'gaming-hub'),
 			'primary' => 'tesla_charging',
 			'amazon'  => 'amazon_tesla_charge',
 			'image'   => 'tesla-wall-connector-gaming.jpg',
 		),
 		array(
 			'name'    => 'Powerwall',
-			'role'    => __( '家庭用蓄電（関連ダッシュボードあり）', 'gaming-hub' ),
+			'role'    => __('Home storage (related dashboard available)', 'gaming-hub'),
 			'primary' => 'tesla_powerwall',
 			'amazon'  => '',
 			'image'   => 'tesla-powerwall-gaming.jpg',
@@ -287,8 +287,8 @@ function gaming_hub_customize_register_affiliate( $wp_customize ) {
 	$wp_customize->add_section(
 		'gaming_hub_affiliate',
 		array(
-			'title'       => __( 'Affiliate / 実測キット', 'gaming-hub' ),
-			'description' => __( 'A8・Amazon・メーカー公式アフィのURLを貼ると、EcoFlow / Tesla の「うちの実測構成」と公式ボタンに反映されます。空欄は公式直リンクのままです。', 'gaming-hub' ),
+			'title'       => __('Affiliate / measured kit', 'gaming-hub'),
+			'description' => __('Paste A8, Amazon, or official affiliate URLs to update EcoFlow / Tesla kit blocks. Empty fields keep the default official link.', 'gaming-hub'),
 			'priority'    => 38,
 		)
 	);
@@ -305,7 +305,7 @@ function gaming_hub_customize_register_affiliate( $wp_customize ) {
 	$wp_customize->add_control(
 		'affiliate_kit_enabled',
 		array(
-			'label'   => __( 'EcoFlow「うちの実測構成」を表示', 'gaming-hub' ),
+			'label'   => __('Show EcoFlow measured kit block', 'gaming-hub'),
 			'section' => 'gaming_hub_affiliate',
 			'type'    => 'checkbox',
 		)
@@ -323,7 +323,7 @@ function gaming_hub_customize_register_affiliate( $wp_customize ) {
 	$wp_customize->add_control(
 		'affiliate_ecoflow_a8_banner_enabled',
 		array(
-			'label'   => __( 'EcoFlow A8バナー（300×250）を表示', 'gaming-hub' ),
+			'label'   => __('Show EcoFlow A8 banners (300×250)', 'gaming-hub'),
 			'section' => 'gaming_hub_affiliate',
 			'type'    => 'checkbox',
 		)
@@ -341,26 +341,26 @@ function gaming_hub_customize_register_affiliate( $wp_customize ) {
 	$wp_customize->add_control(
 		'affiliate_tesla_kit_enabled',
 		array(
-			'label'   => __( 'Tesla「うちの実測構成」を表示', 'gaming-hub' ),
+			'label'   => __('Show Tesla measured kit block', 'gaming-hub'),
 			'section' => 'gaming_hub_affiliate',
 			'type'    => 'checkbox',
 		)
 	);
 
 	$fields = array(
-		'ecoflow_home'        => __( 'EcoFlow 公式トップ URL', 'gaming-hub' ),
-		'ecoflow_blog'        => __( 'EcoFlow 公式ブログ URL', 'gaming-hub' ),
-		'ecoflow_delta_pro3'  => __( 'DELTA Pro 3 URL（公式 or アフィ）', 'gaming-hub' ),
-		'ecoflow_delta_1500'  => __( 'DELTA 3 1500 URL（公式 or アフィ）', 'gaming-hub' ),
-		'ecoflow_solar'       => __( 'ソーラーパネル URL', 'gaming-hub' ),
-		'amazon_delta_pro3'   => __( 'DELTA Pro 3 Amazonアフィ URL（任意）', 'gaming-hub' ),
-		'amazon_delta_1500'   => __( 'DELTA 3 1500 Amazonアフィ URL（任意）', 'gaming-hub' ),
-		'tesla_home'          => __( 'Tesla 公式トップ URL', 'gaming-hub' ),
-		'tesla_model3'        => __( 'Model 3 URL（公式 or A8）', 'gaming-hub' ),
-		'tesla_charging'      => __( 'Tesla 充電ページ URL', 'gaming-hub' ),
+		'ecoflow_home'        => __('EcoFlow official top URL', 'gaming-hub'),
+		'ecoflow_blog'        => __('EcoFlow official blog URL', 'gaming-hub'),
+		'ecoflow_delta_pro3'  => __('DELTA Pro 3 URL (official or affiliate)', 'gaming-hub'),
+		'ecoflow_delta_1500'  => __('DELTA 3 1500 URL (official or affiliate)', 'gaming-hub'),
+		'ecoflow_solar'       => __('Solar panel URL', 'gaming-hub'),
+		'amazon_delta_pro3'   => __('DELTA Pro 3 Amazon affiliate URL (optional)', 'gaming-hub'),
+		'amazon_delta_1500'   => __('DELTA 3 1500 Amazon affiliate URL (optional)', 'gaming-hub'),
+		'tesla_home'          => __('Tesla official top URL', 'gaming-hub'),
+		'tesla_model3'        => __('Model 3 URL (official or A8)', 'gaming-hub'),
+		'tesla_charging'      => __('Tesla charging page URL', 'gaming-hub'),
 		'tesla_powerwall'     => __( 'Powerwall URL', 'gaming-hub' ),
-		'amazon_tesla_model3' => __( 'Model 3 関連 Amazonアフィ URL（任意）', 'gaming-hub' ),
-		'amazon_tesla_charge' => __( '充電関連 Amazonアフィ URL（任意）', 'gaming-hub' ),
+		'amazon_tesla_model3' => __('Model 3 Amazon affiliate URL (optional)', 'gaming-hub'),
+		'amazon_tesla_charge' => __('Charging Amazon affiliate URL (optional)', 'gaming-hub'),
 	);
 
 	$defaults = gaming_hub_affiliate_defaults();

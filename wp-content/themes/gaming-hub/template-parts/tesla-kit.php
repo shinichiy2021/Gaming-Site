@@ -22,15 +22,15 @@ $drive = function_exists( 'gaming_hub_tesla_url' ) ? gaming_hub_tesla_url() . '#
 $img_base = trailingslashit( get_template_directory_uri() ) . 'assets/images/';
 $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) GAMING_HUB_VERSION ) : '';
 ?>
-<section id="tesla-kit" class="ecoflow-kit tesla-kit" aria-label="<?php esc_attr_e( 'うちの実測構成', 'gaming-hub' ); ?>">
+<section id="tesla-kit" class="ecoflow-kit tesla-kit" aria-label="<?php esc_attr_e('Our measured kit', 'gaming-hub'); ?>">
 	<header class="ecoflow-kit-head">
-		<p class="ecoflow-kit-eyebrow"><?php esc_html_e( '実測 × 購入リンク', 'gaming-hub' ); ?></p>
-		<h2 class="ecoflow-kit-title"><?php esc_html_e( 'うちの実測構成', 'gaming-hub' ); ?></h2>
+		<p class="ecoflow-kit-eyebrow"><?php esc_html_e('Measured data × shop links', 'gaming-hub'); ?></p>
+		<h2 class="ecoflow-kit-title"><?php esc_html_e('Our measured kit', 'gaming-hub'); ?></h2>
 		<p class="ecoflow-kit-lead">
 			<?php
 			printf(
 				/* translators: 1: month label, 2: savings yen, 3: distance km */
-				esc_html__( '%1$sのガソリン比較節約 %2$s円 · 走行 %3$s km。このサイトで動かしている Tesla です。', 'gaming-hub' ),
+				esc_html__('%1$s gasoline-vs-EV savings: ¥%2$s · distance %3$s km. The Tesla powering this site’s logs.', 'gaming-hub'),
 				esc_html( $stats['label'] ),
 				esc_html( number_format_i18n( $yen ) ),
 				esc_html( number_format_i18n( $km, 1 ) )
@@ -38,10 +38,10 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 			?>
 		</p>
 		<p class="ecoflow-kit-offer">
-			<?php esc_html_e( '紹介リンク経由の購入で、最大 35,000 円相当の特典が付く場合があります。', 'gaming-hub' ); ?>
+			<?php esc_html_e('Purchases via the referral link may include up to ¥35,000 in benefits.', 'gaming-hub'); ?>
 		</p>
 		<p class="ecoflow-kit-disclaimer">
-			<?php esc_html_e( '当サイトのリンクにはアフィリエイト（広告）が含まれる場合があります。', 'gaming-hub' ); ?>
+			<?php esc_html_e('Some links on this site may be affiliate (advertising) links.', 'gaming-hub'); ?>
 		</p>
 	</header>
 
@@ -57,8 +57,8 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 			$img_url = '' !== $image ? $img_base . ltrim( $image, '/' ) . $img_ver : '';
 			$is_refer = in_array( (string) ( $item['primary'] ?? '' ), array( 'tesla_model3', 'tesla_home' ), true );
 			$cta_label = $is_refer
-				? __( '紹介リンクで見る', 'gaming-hub' )
-				: __( '公式で見る', 'gaming-hub' );
+				? __('Open referral link', 'gaming-hub')
+				: __('View official', 'gaming-hub');
 			$href = $primary ? $primary : $amazon;
 			?>
 			<li class="ecoflow-kit-item tesla-kit-card">
@@ -67,7 +67,7 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 						<?php if ( $img_url ) : ?>
 							<img src="<?php echo esc_url( $img_url ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" width="640" height="360" loading="lazy" decoding="async" />
 						<?php endif; ?>
-						<span class="tesla-kit-card-badge"><?php echo esc_html( $is_refer ? __( '紹介', 'gaming-hub' ) : __( '公式', 'gaming-hub' ) ); ?></span>
+						<span class="tesla-kit-card-badge"><?php echo esc_html( $is_refer ? __('Referral', 'gaming-hub') : __('Official', 'gaming-hub') ); ?></span>
 					</a>
 				<?php elseif ( $img_url ) : ?>
 					<div class="tesla-kit-card-media" aria-hidden="true">
@@ -86,7 +86,7 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 					<?php endif; ?>
 					<?php if ( $amazon ) : ?>
 						<a class="btn btn-outline tesla-kit-btn-outline ecoflow-kit-btn" href="<?php echo esc_url( $amazon ); ?>" target="_blank" rel="<?php echo esc_attr( $rel ); ?>">
-							<?php esc_html_e( 'Amazon', 'gaming-hub' ); ?>
+							<?php esc_html_e('Amazon', 'gaming-hub'); ?>
 						</a>
 					<?php endif; ?>
 				</div>
@@ -95,6 +95,6 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 	</ul>
 
 	<p class="ecoflow-kit-foot">
-		<a href="<?php echo esc_url( $drive ); ?>"><?php esc_html_e( 'Driving Log で数字を確認 →', 'gaming-hub' ); ?></a>
+		<a href="<?php echo esc_url( $drive ); ?>"><?php esc_html_e('See numbers in the Driving Log →', 'gaming-hub'); ?></a>
 	</p>
 </section>

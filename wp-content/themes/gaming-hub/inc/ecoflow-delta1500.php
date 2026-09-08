@@ -99,7 +99,7 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 	$result = gaming_hub_ecoflow_read_delta1500_command_result();
 	if ( is_array( $result ) && ( $result['id'] ?? '' ) && ( $result['id'] ?? '' ) !== ( $saved['result_id'] ?? '' ) ) {
 		$saved['result_id']  = (string) $result['id'];
-		$saved['last_error'] = empty( $result['ok'] ) ? (string) ( $result['error'] ?? __( 'MQTT 送信に失敗しました', 'gaming-hub' ) ) : '';
+		$saved['last_error'] = empty( $result['ok'] ) ? (string) ( $result['error'] ?? __('MQTT send failed', 'gaming-hub') ) : '';
 		update_option( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_OPTION, $saved, false );
 	}
 
@@ -107,7 +107,7 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 	if ( $active ) {
 		$delta['charge_state'] = sprintf(
 			/* translators: %s: charge watts */
-			__( 'グリッド補充電中 %s W', 'gaming-hub' ),
+			__('Grid top-up %s W', 'gaming-hub'),
 			number_format_i18n( (int) ( $saved['watts'] ?? $watts ) )
 		);
 		$delta['is_charging'] = true;
@@ -186,21 +186,21 @@ function gaming_hub_ecoflow_delta1500_rescue_view( array $saved, $load_w, $activ
 	$note  = $active
 		? sprintf(
 			/* translators: 1: load watts, 2: charge watts, 3: floor soc */
-			__( '残量 %3$s%% 以下のためグリッド充電中。UPS 負荷 %1$s W + 200 W = %2$s W。これ以上下げません。', 'gaming-hub' ),
+			__('SOC at or below %3$s%%, so grid charging. UPS load %1$s W + 200 W = %2$s W. Will not go lower.', 'gaming-hub'),
 			number_format_i18n( (int) round( $load_w ) ),
 			number_format_i18n( $watts ),
 			number_format_i18n( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_FLOOR_SOC )
 		)
 		: sprintf(
 			/* translators: %s: floor soc percent */
-			__( '残量 %s%% 以下で UPS 負荷 + 200 W のグリッド充電を始め、それ以上下げません。', 'gaming-hub' ),
+			__('At %s%% or below, start grid charge at UPS load + 200 W and hold that floor.', 'gaming-hub'),
 			number_format_i18n( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_FLOOR_SOC )
 		);
 
 	if ( ! empty( $saved['last_error'] ) ) {
 		$note = sprintf(
 			/* translators: %s: error */
-			__( 'グリッド充電エラー: %s', 'gaming-hub' ),
+			__('Grid charge error: %s', 'gaming-hub'),
 			$saved['last_error']
 		);
 	}
@@ -224,7 +224,7 @@ function gaming_hub_ecoflow_delta1500_rescue_view( array $saved, $load_w, $activ
  */
 function gaming_hub_ecoflow_queue_delta1500_ac_charge( $watts ) {
 	if ( ! function_exists( 'gaming_hub_ecoflow_bridge_cache_dir' ) ) {
-		return new WP_Error( 'ecoflow_no_bridge', __( 'MQTT ブリッジがありません。', 'gaming-hub' ) );
+		return new WP_Error( 'ecoflow_no_bridge', __('MQTT bridge is missing.', 'gaming-hub') );
 	}
 
 	$dir  = gaming_hub_ecoflow_bridge_cache_dir();
@@ -238,7 +238,7 @@ function gaming_hub_ecoflow_queue_delta1500_ac_charge( $watts ) {
 
 	$ok = file_put_contents( $path, wp_json_encode( $cmd ) );
 	if ( false === $ok ) {
-		return new WP_Error( 'ecoflow_command_write', __( '充電コマンドを書けませんでした。', 'gaming-hub' ) );
+		return new WP_Error( 'ecoflow_command_write', __('Could not write the charge command.', 'gaming-hub') );
 	}
 
 	return true;

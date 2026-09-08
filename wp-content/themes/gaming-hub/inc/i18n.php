@@ -2,6 +2,8 @@
 /**
  * JA / EN language switcher for the public site.
  *
+ * English msgids in code; Japanese via languages/ja.mo (WordPress standard i18n).
+ *
  * @package Gaming_Hub
  */
 
@@ -77,18 +79,41 @@ add_filter( 'locale', 'gaming_hub_filter_locale', 1 );
 add_filter( 'determine_locale', 'gaming_hub_filter_locale', 1 );
 
 /**
- * English map for Japanese source strings.
+ * Japanese strings stored in the DB (menus, site title) → English when lang=en.
+ *
+ * @param string $text Stored value.
+ */
+function gaming_hub_translate_db_string( $text ) {
+	if ( 'en' !== gaming_hub_lang() || '' === $text ) {
+		return $text;
+	}
+
+	static $ja_to_en = null;
+
+	if ( null === $ja_to_en ) {
+		$file     = get_template_directory() . '/inc/i18n-en.php';
+		$ja_to_en = is_readable( $file ) ? include $file : array();
+		if ( ! is_array( $ja_to_en ) ) {
+			$ja_to_en = array();
+		}
+	}
+
+	return isset( $ja_to_en[ $text ] ) ? $ja_to_en[ $text ] : $text;
+}
+
+/**
+ * English msgid → Japanese for client-side gamingHubT().
  *
  * @return array<string, string>
  */
-function gaming_hub_english_map() {
+function gaming_hub_japanese_map() {
 	static $map = null;
 
 	if ( null !== $map ) {
 		return $map;
 	}
 
-	$file = get_template_directory() . '/inc/i18n-en.php';
+	$file = get_template_directory() . '/inc/i18n-ja.php';
 	$map  = is_readable( $file ) ? include $file : array();
 	if ( ! is_array( $map ) ) {
 		$map = array();
@@ -98,47 +123,17 @@ function gaming_hub_english_map() {
 }
 
 /**
- * Translate gaming-hub strings when English is selected.
- *
- * @param string $translation Translated text.
- * @param string $text        Source text.
- * @param string $domain      Text domain.
- */
-function gaming_hub_filter_gettext( $translation, $text, $domain ) {
-	if ( 'gaming-hub' !== $domain || 'en' !== gaming_hub_lang() ) {
-		return $translation;
-	}
-
-	$map = gaming_hub_english_map();
-	return isset( $map[ $text ] ) ? $map[ $text ] : $translation;
-}
-add_filter( 'gettext', 'gaming_hub_filter_gettext', 10, 3 );
-
-/**
- * Context-aware gettext (same English map).
- *
- * @param string $translation Translated text.
- * @param string $text        Source text.
- * @param string $context     Context.
- * @param string $domain      Text domain.
- */
-function gaming_hub_filter_gettext_with_context( $translation, $text, $context, $domain ) {
-	return gaming_hub_filter_gettext( $translation, $text, $domain );
-}
-add_filter( 'gettext_with_context', 'gaming_hub_filter_gettext_with_context', 10, 4 );
-
-/**
  * Translate nav labels stored in the database.
  *
  * @param string $title Menu title.
  */
 function gaming_hub_translate_menu_title( $title ) {
-	return __( $title, 'gaming-hub' );
+	return gaming_hub_translate_db_string( $title );
 }
 add_filter( 'nav_menu_item_title', 'gaming_hub_translate_menu_title' );
 
 /**
- * Translate site title / tagline when English is on.
+ * Translate site title / tagline when Japanese is on.
  *
  * @param string $output Bloginfo value.
  * @param string $show   Field name.
@@ -148,7 +143,7 @@ function gaming_hub_translate_bloginfo( $output, $show ) {
 		return $output;
 	}
 
-	return __( $output, 'gaming-hub' );
+	return gaming_hub_translate_db_string( $output );
 }
 add_filter( 'bloginfo', 'gaming_hub_translate_bloginfo', 10, 2 );
 
@@ -172,7 +167,7 @@ function gaming_hub_language_switcher() {
 	$ja   = esc_url( add_query_arg( 'lang', 'ja' ) );
 	$en   = esc_url( add_query_arg( 'lang', 'en' ) );
 	?>
-	<nav class="lang-switch" aria-label="<?php esc_attr_e( 'Language', 'gaming-hub' ); ?>">
+	<nav class="lang-switch" aria-label="<?php esc_attr_e('Language', 'gaming-hub'); ?>">
 		<a href="<?php echo $ja; ?>" class="<?php echo 'ja' === $lang ? 'is-active' : ''; ?>" lang="ja" hreflang="ja">JA</a>
 		<span class="lang-switch-sep" aria-hidden="true">/</span>
 		<a href="<?php echo $en; ?>" class="<?php echo 'en' === $lang ? 'is-active' : ''; ?>" lang="en" hreflang="en">EN</a>
@@ -181,7 +176,7 @@ function gaming_hub_language_switcher() {
 }
 
 /**
- * Enqueue the JS helper that reuses the same English map.
+ * Enqueue the JS helper that reuses inc/i18n-ja.php.
  */
 function gaming_hub_i18n_scripts() {
 	wp_enqueue_script(
@@ -197,7 +192,7 @@ function gaming_hub_i18n_scripts() {
 		'gamingHubI18n',
 		array(
 			'lang' => gaming_hub_lang(),
-			'en'   => 'en' === gaming_hub_lang() ? gaming_hub_english_map() : (object) array(),
+			'ja'   => 'ja' === gaming_hub_lang() ? gaming_hub_japanese_map() : (object) array(),
 		)
 	);
 }

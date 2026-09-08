@@ -69,7 +69,7 @@ function gaming_hub_tesla_flow_pack_fields( array $model3, $soc, $charging, $asl
 
 	if ( ! $asleep && $charging ) {
 		$eta_mode  = 'charge';
-		$eta_label = __( '満充電まで', 'gaming-hub' );
+		$eta_label = __('Until full', 'gaming-hub');
 		$limit     = isset( $model3['charge_limit_percent'] ) && is_numeric( $model3['charge_limit_percent'] )
 			? max( 0, min( 100, (int) $model3['charge_limit_percent'] ) )
 			: 100;
@@ -81,7 +81,7 @@ function gaming_hub_tesla_flow_pack_fields( array $model3, $soc, $charging, $asl
 		}
 
 		if ( $soc_n >= max( 99.5, $limit - 0.5 ) ) {
-			$eta_display = __( '満充電', 'gaming-hub' );
+			$eta_display = __('Full', 'gaming-hub');
 		} elseif ( null !== $minutes && $minutes > 0 ) {
 			$eta_display = $format_eta( $minutes );
 		} else {
@@ -101,7 +101,7 @@ function gaming_hub_tesla_flow_pack_fields( array $model3, $soc, $charging, $asl
 
 		if ( $dsg_w >= 80 && $remain_wh > 0 ) {
 			$eta_mode  = 'discharge';
-			$eta_label = __( '0%まで', 'gaming-hub' );
+			$eta_label = __('Until 0%', 'gaming-hub');
 			if ( null !== $soc && (float) $soc <= 0.5 ) {
 				$eta_display = '0%';
 			} else {
@@ -169,7 +169,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 			'battery_percent' => null,
 			'is_charging'     => false,
 			'super_charging'  => false,
-			'charge_state'    => __( '待機', 'gaming-hub' ),
+			'charge_state'    => __('Standby', 'gaming-hub'),
 			'vehicle_name'    => (string) ( $model3['vehicle_name'] ?? 'Model 3' ),
 			'supply_kind'     => 'none',
 			'supply_label'    => '',
@@ -402,10 +402,10 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'is_charging'     => $charging,
 		'super_charging'  => $super_on,
 		'charge_state'    => $charging
-			? __( '充電中', 'gaming-hub' )
+			? __('Charging', 'gaming-hub')
 			: ( ( $regen_w ?? 0 ) >= 80
-				? __( '回生充電', 'gaming-hub' )
-				: __( '待機', 'gaming-hub' ) ),
+				? __('Regen charging', 'gaming-hub')
+				: __('Standby', 'gaming-hub') ),
 		'cabin_today_kwh' => $cabin_energy['today_kwh'],
 		'cabin_today_yen' => $cabin_energy['today_yen'],
 		'wall_yen_per_h'  => $wall_yen_h,
@@ -472,44 +472,44 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 
 	return array(
 		'labels' => array(
-			'title'      => __( 'Tesla 電力フロー', 'gaming-hub' ),
-			'wall'       => __( '普通充電', 'gaming-hub' ),
-			'wallNote'   => __( '200V', 'gaming-hub' ),
-			'homeAc'     => __( '自宅 AC', 'gaming-hub' ),
-			'awayAc'     => __( '外出先 AC', 'gaming-hub' ),
-			'super'      => __( '急速充電', 'gaming-hub' ),
+			'title'      => __('Tesla energy flow', 'gaming-hub'),
+			'wall'       => __('AC charging', 'gaming-hub'),
+			'wallNote'   => __('200V', 'gaming-hub'),
+			'homeAc'     => __('Home AC', 'gaming-hub'),
+			'awayAc'     => __('Away AC', 'gaming-hub'),
+			'super'      => __('Supercharger', 'gaming-hub'),
 			'superNote'  => __( 'Supercharger', 'gaming-hub' ),
 			'tesla'      => __( 'Tesla', 'gaming-hub' ),
-			'drive'      => __( 'ガソリン換算', 'gaming-hub' ),
-			'regen'      => __( '回生充電', 'gaming-hub' ),
-			'regenNote'  => __( '減速・ブレーキ', 'gaming-hub' ),
-			'cabin'      => __( '車内電力', 'gaming-hub' ),
-			'flow'       => __( 'Tesla の入出力', 'gaming-hub' ),
-			'idle'       => __( '待機', 'gaming-hub' ),
-			'connected'  => __( '接続中', 'gaming-hub' ),
-			'charging'   => __( '充電中', 'gaming-hub' ),
-			'driving'    => __( '走行中', 'gaming-hub' ),
-			'climate'    => __( 'エアコン', 'gaming-hub' ),
-			'sentry'     => __( 'Sentry', 'gaming-hub' ),
-			'live'          => __( 'Tesla Fleet API 実データ', 'gaming-hub' ),
-			'asleep'        => __( 'スリープ中', 'gaming-hub' ),
-			'drivePending'  => __( '走行データ未取得', 'gaming-hub' ),
-			'shift'         => __( 'シフト', 'gaming-hub' ),
-			'park'          => __( 'パーキング', 'gaming-hub' ),
-			'reverse'       => __( 'リバース', 'gaming-hub' ),
-			'neutral'       => __( 'ニュートラル', 'gaming-hub' ),
-			'driveGear'     => __( 'ドライブ', 'gaming-hub' ),
-			'shiftUnknown'  => __( 'シフト未取得', 'gaming-hub' ),
-			'saved'         => __( '節約', 'gaming-hub' ),
-			'todayUse'      => __( '今日 使用', 'gaming-hub' ),
-			'todayBill'     => __( '今日 電気代', 'gaming-hub' ),
-			'buy'           => __( '買電', 'gaming-hub' ),
-			'todayBuy'      => __( '今日 買電', 'gaming-hub' ),
-			'yenPerHour'    => __( '円/時', 'gaming-hub' ),
-			'session'       => __( '今回', 'gaming-hub' ),
-			'total'         => __( '合計', 'gaming-hub' ),
-			'billPending'   => __( '請求確定後', 'gaming-hub' ),
-			'billEstimate'  => __( '見込み', 'gaming-hub' ),
+			'drive'      => __('Gasoline equivalent', 'gaming-hub'),
+			'regen'      => __('Regen charging', 'gaming-hub'),
+			'regenNote'  => __('Braking / regen', 'gaming-hub'),
+			'cabin'      => __('Cabin power', 'gaming-hub'),
+			'flow'       => __('Tesla input and output', 'gaming-hub'),
+			'idle'       => __('Standby', 'gaming-hub'),
+			'connected'  => __('Connected', 'gaming-hub'),
+			'charging'   => __('Charging', 'gaming-hub'),
+			'driving'    => __('Driving', 'gaming-hub'),
+			'climate'    => __('Climate', 'gaming-hub'),
+			'sentry'     => __('Sentry', 'gaming-hub'),
+			'live'          => __('Live Tesla Fleet API data', 'gaming-hub'),
+			'asleep'        => __('Asleep', 'gaming-hub'),
+			'drivePending'  => __('Driving data not available', 'gaming-hub'),
+			'shift'         => __('Shift', 'gaming-hub'),
+			'park'          => __('Park', 'gaming-hub'),
+			'reverse'       => __('Reverse', 'gaming-hub'),
+			'neutral'       => __('Neutral', 'gaming-hub'),
+			'driveGear'     => __('Drive', 'gaming-hub'),
+			'shiftUnknown'  => __('Shift unavailable', 'gaming-hub'),
+			'saved'         => __('Saved', 'gaming-hub'),
+			'todayUse'      => __('Used today', 'gaming-hub'),
+			'todayBill'     => __('Today\'s electricity cost', 'gaming-hub'),
+			'buy'           => __('Grid import', 'gaming-hub'),
+			'todayBuy'      => __('Import today', 'gaming-hub'),
+			'yenPerHour'    => __('yen/h', 'gaming-hub'),
+			'session'       => __('Session', 'gaming-hub'),
+			'total'         => __('Total', 'gaming-hub'),
+			'billPending'   => __('Billed later', 'gaming-hub'),
+			'billEstimate'  => __('est.', 'gaming-hub'),
 		),
 		'images' => array(
 			'wall'  => $base . 'tesla-wall-connector-gaming.jpg' . $ver,

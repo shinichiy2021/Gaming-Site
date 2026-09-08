@@ -471,11 +471,11 @@ function gaming_hub_pgo_event_status( array $event ) {
  */
 function gaming_hub_pgo_event_status_label( $status ) {
 	$map = array(
-		'live'     => __( '開催中', 'gaming-hub' ),
-		'today'    => __( '本日開催', 'gaming-hub' ),
-		'soon'     => __( 'まもなく', 'gaming-hub' ),
-		'upcoming' => __( '開催予定', 'gaming-hub' ),
-		'ended'    => __( '終了', 'gaming-hub' ),
+		'live'     => __('Live', 'gaming-hub'),
+		'today'    => __('Today', 'gaming-hub'),
+		'soon'     => __('Soon', 'gaming-hub'),
+		'upcoming' => __('Upcoming', 'gaming-hub'),
+		'ended'    => __('Ended', 'gaming-hub'),
 	);
 
 	return isset( $map[ $status ] ) ? $map[ $status ] : $map['upcoming'];
@@ -677,7 +677,7 @@ function gaming_hub_pgo_tokushuu_sync_pages() {
 	if ( ! $parent ) {
 		$parent_id = wp_insert_post(
 			array(
-				'post_title'   => __( 'Pokémon GO 特集', 'gaming-hub' ),
+				'post_title'   => __('Pokémon GO features', 'gaming-hub'),
 				'post_name'    => GAMING_HUB_PGO_TOKUSHUU_PARENT,
 				'post_status'  => 'publish',
 				'post_type'    => 'page',

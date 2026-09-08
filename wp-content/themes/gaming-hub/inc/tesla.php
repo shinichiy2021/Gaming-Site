@@ -58,7 +58,7 @@ function gaming_hub_setup_tesla_tag() {
 			'post_tag',
 			array(
 				'slug'        => GAMING_HUB_TESLA_TAG_SLUG,
-				'description' => __( 'Tesla Model 3 の電力フローと充電', 'gaming-hub' ),
+				'description' => __('Tesla Model 3 energy flow and charging', 'gaming-hub'),
 			)
 		);
 	}
@@ -274,24 +274,15 @@ function gaming_hub_tesla_user_facing_error( WP_Error $error ) {
 	$message = $error->get_error_message();
 
 	if ( 'tesla_partner_not_registered' === $code || false !== stripos( $message, 'must be registered in the current region' ) ) {
-		return __(
-			'Tesla Fleet API: アプリのリージョン登録（partner_accounts）が未完了です。Fleet API を使うには本番ドメインで公開鍵を設置し、developer.tesla.com の Allowed Origins と同じドメインを Tesla に登録する必要があります（localhost のみでは取得できません）。',
-			'gaming-hub'
-		);
+		return __('Tesla Fleet API: partner_accounts registration is incomplete. Host the public key on the production domain and register that same Allowed Origins domain with Tesla (localhost alone cannot fetch vehicle data).', 'gaming-hub');
 	}
 
 	if ( false !== stripos( $message, 'user session flushed' ) ) {
-		return __(
-			'Tesla の refresh token が無効です。Powerwall ページの「Tesla で認証」から本番ドメインで再連携してください。',
-			'gaming-hub'
-		);
+		return __('Tesla refresh token is invalid. Re-link from Tesla auth on the Powerwall page using the production domain.', 'gaming-hub');
 	}
 
 	if ( 'tesla_vehicle_asleep' === $code || 'tesla_missing_charge_state' === $code || false !== stripos( $message, 'asleep' ) ) {
-		return __(
-			'車はスリープ中です。起こさず、起きたら自動で更新します。',
-			'gaming-hub'
-		);
+		return __('The car is asleep. It will not be woken; updates resume when it wakes.', 'gaming-hub');
 	}
 
 	return $message;
@@ -563,15 +554,15 @@ function gaming_hub_render_tesla_oauth_button( $force_login = false, $require_al
 	$authorize = gaming_hub_tesla_oauth_authorize_url( $force_login, $require_all_scopes );
 
 	if ( ! $authorize ) {
-		echo '<span class="pw-flow-oauth-missing">' . esc_html__( 'Client ID を設定すると認証リンクが表示されます', 'gaming-hub' ) . '</span>';
+		echo '<span class="pw-flow-oauth-missing">' . esc_html__('Set a Client ID to show the auth link', 'gaming-hub') . '</span>';
 		return;
 	}
 	?>
 	<a href="<?php echo esc_url( $authorize ); ?>" class="btn btn-outline btn-sm pw-tesla-oauth-btn">
 		<?php
 		echo $require_all_scopes
-			? esc_html__( '不足スコープを追加', 'gaming-hub' )
-			: esc_html__( 'Tesla で認証', 'gaming-hub' );
+			? esc_html__('Add missing scopes', 'gaming-hub')
+			: esc_html__('Sign in with Tesla', 'gaming-hub');
 		?>
 	</a>
 	<?php
@@ -871,7 +862,7 @@ function gaming_hub_render_tesla_drive_scope_notice() {
 	?>
 	<div class="pw-flow-error-action" data-pw-field="tesla_drive_scope">
 		<p class="pw-flow-error">
-			<?php esc_html_e( 'Tesla は前回の許可内容を使い回すため、同じ認証を繰り返しても位置スコープは増えません。developer.tesla.com のアプリで Vehicle Location を有効にしたうえで、「不足スコープを追加」を押してください。Tesla の画面で車両位置を許可する必要があります。まだ付かないときは一度連携を解除してから再認証してください。位置情報は保存しません。', 'gaming-hub' ); ?>
+			<?php esc_html_e('Tesla reuses the previous grant, so repeating sign-in will not add location. Enable Vehicle Location on the developer.tesla.com app, then use Add missing scopes and allow vehicle location. If it still is missing, revoke the app and sign in again. Location is not stored.', 'gaming-hub'); ?>
 		</p>
 	</div>
 	<?php
@@ -888,13 +879,13 @@ function gaming_hub_tesla_link_note( array $status ) {
 	}
 
 	$model3 = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
-	$parts  = array( __( 'Tesla 連携済み（充電・車内）', 'gaming-hub' ) );
+	$parts  = array( __('Tesla linked (charge and cabin)', 'gaming-hub') );
 
 	$fetched = isset( $model3['fetched_at'] ) ? (int) $model3['fetched_at'] : 0;
 	if ( $fetched > 0 ) {
 		$parts[] = sprintf(
 			/* translators: %s: last Tesla fetch time */
-			__( '最終取得 %s', 'gaming-hub' ),
+			__('Last fetch %s', 'gaming-hub'),
 			wp_date( get_option( 'time_format' ), $fetched )
 		);
 	}
@@ -904,18 +895,18 @@ function gaming_hub_tesla_link_note( array $status ) {
 		if ( in_array( $shift, array( 'D', 'R' ), true ) ) {
 			$parts[] = sprintf(
 				/* translators: %s: gear D/R */
-				__( '走行データ取得中 · シフト %s', 'gaming-hub' ),
+				__('Driving data live · gear %s', 'gaming-hub'),
 				$shift
 			);
 		} elseif ( 'N' === $shift ) {
-			$parts[] = __( '走行データ取得中 · ニュートラル', 'gaming-hub' );
+			$parts[] = __('Driving data live · neutral', 'gaming-hub');
 		} else {
-			$parts[] = __( '走行データ取得中 · 駐車中', 'gaming-hub' );
+			$parts[] = __('Driving data live · parked', 'gaming-hub');
 		}
 	} elseif ( gaming_hub_tesla_has_location_scope() ) {
-		$parts[] = __( '位置スコープあり · 走行スライス待ち', 'gaming-hub' );
+		$parts[] = __('Location scope granted · waiting for drive slice', 'gaming-hub');
 	} else {
-		$parts[] = __( '走行用の位置スコープは未許可', 'gaming-hub' );
+		$parts[] = __('Driving location scope is not granted', 'gaming-hub');
 	}
 
 	return implode( ' · ', $parts );
@@ -1117,7 +1108,7 @@ function gaming_hub_render_tesla_asleep_notice( array $status ) {
 	$asleep = ! empty( $status['tesla_asleep'] ) || ! empty( $status['model3']['asleep'] );
 	?>
 	<p class="pw-flow-sleep-note" data-pw-field="tesla_asleep_note"<?php echo $asleep ? '' : ' hidden'; ?>>
-		<?php esc_html_e( '車はスリープ中です。API は送らず、前回のデータを表示しています。', 'gaming-hub' ); ?>
+		<?php esc_html_e('The car is asleep. No API call is sent; showing the last snapshot.', 'gaming-hub'); ?>
 	</p>
 	<?php
 }
@@ -1182,11 +1173,11 @@ function gaming_hub_tesla_charge_command_error_message( WP_Error $error ) {
 	$has_proxy = '' !== (string) ( $config['command_proxy_url'] ?? '' );
 
 	if ( false !== strpos( $low, 'virtual key' ) || false !== strpos( $low, 'not been paired' ) || false !== strpos( $low, 'key_not_paired' ) || false !== strpos( $low, 'incorrect_key' ) ) {
-		return __( '車に仮想キーがありません。下の「仮想キーを追加」から Tesla アプリで許可してください。', 'gaming-hub' );
+		return __('The car has no virtual key. Open Add virtual key below and allow it in the Tesla app.', 'gaming-hub');
 	}
 
 	if ( false !== strpos( $low, 'connection refused' ) || false !== strpos( $low, 'could not resolve' ) || false !== strpos( $low, 'failed to connect' ) ) {
-		return __( '充電コマンド用の tesla-http-proxy に接続できません。', 'gaming-hub' );
+		return __('Cannot reach tesla-http-proxy for charge commands.', 'gaming-hub');
 	}
 
 	if ( false !== strpos( $low, 'unsigned' ) || false !== strpos( $low, 'command protocol' ) ) {
@@ -1194,23 +1185,23 @@ function gaming_hub_tesla_charge_command_error_message( WP_Error $error ) {
 			return $raw;
 		}
 
-		return __( '充電コマンドは署名が必要です。tesla-http-proxy を立てて TESLA_COMMAND_PROXY_URL を設定してください。', 'gaming-hub' );
+		return __('Charge commands must be signed. Run tesla-http-proxy and set TESLA_COMMAND_PROXY_URL.', 'gaming-hub');
 	}
 
 	if ( false !== strpos( $low, 'not_charging' ) ) {
-		return __( '充電していません。', 'gaming-hub' );
+		return __('Not charging.', 'gaming-hub');
 	}
 
 	if ( false !== strpos( $low, 'complete' ) ) {
-		return __( 'すでに充電完了です。', 'gaming-hub' );
+		return __('Charge is already complete.', 'gaming-hub');
 	}
 
 	if ( false !== strpos( $low, 'disconnected' ) || false !== strpos( $low, 'unplugged' ) ) {
-		return __( '充電ケーブルがつながっていません。', 'gaming-hub' );
+		return __('Charge cable is unplugged.', 'gaming-hub');
 	}
 
 	if ( 'tesla_vehicle_asleep' === $error->get_error_code() ) {
-		return __( '車はスリープ中です。起こしてからもう一度押してください。', 'gaming-hub' );
+		return __('The car is asleep. Wake it, then try again.', 'gaming-hub');
 	}
 
 	return $raw;
@@ -1323,7 +1314,7 @@ function gaming_hub_tesla_send_signed_command( $command, $payload = array(), $re
 	if ( ! gaming_hub_tesla_has_charging_scope() ) {
 		return new WP_Error(
 			'tesla_missing_charge_scope',
-			__( '充電操作の権限がありません。「Tesla で認証」で充電コマンドを許可してください。', 'gaming-hub' )
+			__('Charge control is not granted. Tap Tesla sign-in and allow charging commands.', 'gaming-hub')
 		);
 	}
 
@@ -1347,7 +1338,7 @@ function gaming_hub_tesla_send_signed_command( $command, $payload = array(), $re
 			if ( $wait_wake && function_exists( 'gaming_hub_tesla_consume_wake_budget' ) && ! gaming_hub_tesla_consume_wake_budget() ) {
 				return new WP_Error(
 					'tesla_wake_budget',
-					__( '本日の自動ウェイク上限に達しました。車はスリープのままです。', 'gaming-hub' )
+					__('Today’s automatic wake limit was reached. The car stays asleep.', 'gaming-hub')
 				);
 			}
 
@@ -1362,7 +1353,7 @@ function gaming_hub_tesla_send_signed_command( $command, $payload = array(), $re
 			} else {
 				return new WP_Error(
 					'tesla_waking',
-					__( '車を起こしています。数秒後にもう一度押してください。', 'gaming-hub' )
+					__('Waking the car. Press again in a few seconds.', 'gaming-hub')
 				);
 			}
 		}
@@ -1378,7 +1369,7 @@ function gaming_hub_tesla_send_signed_command( $command, $payload = array(), $re
 		if ( 'not_charging' === $reason && 'charge_stop' === $command ) {
 			$ok = true;
 		} else {
-			$err = new WP_Error( 'tesla_command_rejected', $reason ? $reason : __( 'Tesla が充電コマンドを拒否しました。', 'gaming-hub' ) );
+			$err = new WP_Error( 'tesla_command_rejected', $reason ? $reason : __('Tesla rejected the charge command.', 'gaming-hub') );
 
 			return new WP_Error( $err->get_error_code(), gaming_hub_tesla_charge_command_error_message( $err ) );
 		}
@@ -1399,10 +1390,10 @@ function gaming_hub_tesla_send_signed_command( $command, $payload = array(), $re
 		'action'  => $action,
 		'command' => $command,
 		'message' => 'charge_start' === $command
-			? __( '充電オンを送りました。', 'gaming-hub' )
+			? __('Charge on sent.', 'gaming-hub')
 			: ( 'charge_stop' === $command
-				? __( '充電オフを送りました。', 'gaming-hub' )
-				: __( 'チャージキャップを送りました。', 'gaming-hub' ) ),
+				? __('Charge off sent.', 'gaming-hub')
+				: __('Charge cap sent.', 'gaming-hub') ),
 		'tesla'   => is_array( $status['tesla_flow'] ?? null ) ? $status['tesla_flow'] : array(),
 		'status'  => $status,
 	);
@@ -1443,20 +1434,20 @@ function gaming_hub_tesla_miles_to_km( $miles ) {
 function gaming_hub_tesla_model3_hud_state( $state, $charging ) {
 	if ( $charging ) {
 		return 'Starting' === $state
-			? __( 'レイド開始', 'gaming-hub' )
-			: __( 'チャージレイド', 'gaming-hub' );
+			? __('Raid start', 'gaming-hub')
+			: __('Charge raid', 'gaming-hub');
 	}
 
 	$labels = array(
-		'Complete'     => __( 'レイドクリア', 'gaming-hub' ),
-		'Stopped'      => __( '停止', 'gaming-hub' ),
-		'Disconnected' => __( '待機', 'gaming-hub' ),
-		'NoPower'      => __( '待機', 'gaming-hub' ),
-		'Starting'     => __( 'レイド開始', 'gaming-hub' ),
-		'Charging'     => __( 'チャージレイド', 'gaming-hub' ),
+		'Complete'     => __('Raid clear', 'gaming-hub'),
+		'Stopped'      => __('Stopped', 'gaming-hub'),
+		'Disconnected' => __('Standby', 'gaming-hub'),
+		'NoPower'      => __('Standby', 'gaming-hub'),
+		'Starting'     => __('Raid start', 'gaming-hub'),
+		'Charging'     => __('Charge raid', 'gaming-hub'),
 	);
 
-	return $labels[ $state ] ?? __( '待機', 'gaming-hub' );
+	return $labels[ $state ] ?? __('Standby', 'gaming-hub');
 }
 
 /**
@@ -1508,7 +1499,7 @@ function gaming_hub_bump_tesla_home_name_v1() {
 
 	$name = (string) get_theme_mod( 'tesla_home_name', '' );
 	if ( '' === $name || false !== mb_strpos( $name, '多治見', 0, 'UTF-8' ) || false !== mb_strpos( $name, '脇之島', 0, 'UTF-8' ) ) {
-		set_theme_mod( 'tesla_home_name', __( '自宅', 'gaming-hub' ) );
+		set_theme_mod( 'tesla_home_name', __('Home', 'gaming-hub') );
 	}
 
 	update_option( 'gaming_hub_tesla_home_name_bump_v1', 1 );
@@ -1525,7 +1516,7 @@ function gaming_hub_tesla_home_geofence() {
 		'lat'      => (float) get_theme_mod( 'tesla_home_lat', GAMING_HUB_TESLA_HOME_LAT_DEFAULT ),
 		'lon'      => (float) get_theme_mod( 'tesla_home_lon', GAMING_HUB_TESLA_HOME_LON_DEFAULT ),
 		'radius_m' => max( 50, (float) get_theme_mod( 'tesla_home_radius_m', 400 ) ),
-		'name'     => (string) get_theme_mod( 'tesla_home_name', __( '自宅', 'gaming-hub' ) ),
+		'name'     => (string) get_theme_mod( 'tesla_home_name', __('Home', 'gaming-hub') ),
 	);
 }
 
@@ -1574,7 +1565,7 @@ function gaming_hub_tesla_calibrate_gps_offset() {
 	if ( ! is_array( $saved ) || ! isset( $saved['lat'], $saved['lon'] ) ) {
 		return new WP_Error(
 			'tesla_gps_missing',
-			__( 'Tesla の GPS がありません。車が起きている状態でポーリングしてからもう一度試してください。', 'gaming-hub' )
+			__('No Tesla GPS fix yet. Wait for a poll while the car is awake, then try again.', 'gaming-hub')
 		);
 	}
 
@@ -2061,15 +2052,15 @@ function gaming_hub_tesla_apply_cached_at_home( array $model3 ) {
  */
 function gaming_hub_tesla_location_debug_label( array $geofence, $coords = null, $at_home = null ) {
 	if ( ! gaming_hub_tesla_has_location_scope() ) {
-		return __( '位置デバッグ（試験）: vehicle_location スコープなし', 'gaming-hub' );
+		return __('Location debug (test): vehicle_location scope missing', 'gaming-hub');
 	}
 
 	if ( ! is_array( $coords ) || ! isset( $coords['lat'], $coords['lon'] ) ) {
-		return __( '位置デバッグ（試験）: GPS 未取得', 'gaming-hub' );
+		return __('Location debug (test): GPS fix missing', 'gaming-hub');
 	}
 
 	if ( true === $at_home ) {
-		$place = __( '自宅', 'gaming-hub' );
+		$place = __('Home', 'gaming-hub');
 	} else {
 		$lat   = (float) $coords['lat'];
 		$lon   = (float) $coords['lon'];
@@ -2084,7 +2075,7 @@ function gaming_hub_tesla_location_debug_label( array $geofence, $coords = null,
 
 	$line = sprintf(
 		/* translators: %s: reverse-geocoded place label or coordinates */
-		__( '位置デバッグ（試験）: %s', 'gaming-hub' ),
+		__('Location debug (test): %s', 'gaming-hub'),
 		$place
 	);
 
@@ -2092,18 +2083,18 @@ function gaming_hub_tesla_location_debug_label( array $geofence, $coords = null,
 		$line .= true === $at_home
 			? sprintf(
 				/* translators: %d: metres from home geofence centre */
-				__( ' · 自宅圏内 · 自宅から %d m', 'gaming-hub' ),
+				__(' · at home · %d m from home', 'gaming-hub'),
 				(int) $geofence['distance_m']
 			)
 			: sprintf(
 				/* translators: %d: metres from home geofence centre */
-				__( ' · 自宅外 · 自宅から %d m', 'gaming-hub' ),
+				__(' · away · %d m from home', 'gaming-hub'),
 				(int) $geofence['distance_m']
 			);
 	}
 
 	if ( gaming_hub_tesla_gps_offset() ) {
-		$line .= __( ' · GPS 補正あり', 'gaming-hub' );
+		$line .= __(' · GPS offset applied', 'gaming-hub');
 	}
 
 	return $line;
@@ -2155,18 +2146,18 @@ function gaming_hub_tesla_model3_supply( array $charge_state, $charging, $at_hom
 	if ( $fast || false !== stripos( (string) ( $charge_state['fast_charger_type'] ?? '' ), 'Supercharger' ) ) {
 		return array(
 			'kind'    => 'supercharger',
-			'label'   => __( 'フィールド補給', 'gaming-hub' ),
+			'label'   => __('Field resupply', 'gaming-hub'),
 			'plugged' => true,
 		);
 	}
 
 	if ( $plugged || $charging ) {
 		if ( false === $at_home ) {
-			$label = __( '外出先 AC', 'gaming-hub' );
+			$label = __('Away AC', 'gaming-hub');
 		} elseif ( true === $at_home ) {
-			$label = __( '自宅 AC', 'gaming-hub' );
+			$label = __('Home AC', 'gaming-hub');
 		} else {
-			$label = __( '拠点補給', 'gaming-hub' );
+			$label = __('Base resupply', 'gaming-hub');
 		}
 
 		return array(
@@ -2178,7 +2169,7 @@ function gaming_hub_tesla_model3_supply( array $charge_state, $charging, $at_hom
 
 	return array(
 		'kind'    => 'none',
-		'label'   => __( '未接続', 'gaming-hub' ),
+		'label'   => __('Unplugged', 'gaming-hub'),
 		'plugged' => false,
 	);
 }
@@ -2515,26 +2506,26 @@ function gaming_hub_tesla_drive_efficiency_snapshot( $today_km = null, $speed_km
 	if ( null !== $display_wh ) {
 		if ( $display_wh <= 0 ) {
 			$tier_wh  = 'regen';
-			$badge_wh = __( '回生中', 'gaming-hub' );
+			$badge_wh = __('Regenerating', 'gaming-hub');
 		} elseif ( $display_wh < 130 ) {
 			$tier_wh  = 'good';
 			$badge_wh = sprintf(
 				/* translators: %s: Wh/km */
-				__( '%s Wh/km', 'gaming-hub' ),
+				__('%s Wh/km', 'gaming-hub'),
 				number_format_i18n( $display_wh )
 			);
 		} elseif ( $display_wh < 170 ) {
 			$tier_wh  = 'ok';
 			$badge_wh = sprintf(
 				/* translators: %s: Wh/km */
-				__( '%s Wh/km', 'gaming-hub' ),
+				__('%s Wh/km', 'gaming-hub'),
 				number_format_i18n( $display_wh )
 			);
 		} else {
 			$tier_wh  = 'high';
 			$badge_wh = sprintf(
 				/* translators: %s: Wh/km */
-				__( '%s Wh/km', 'gaming-hub' ),
+				__('%s Wh/km', 'gaming-hub'),
 				number_format_i18n( $display_wh )
 			);
 		}
@@ -2545,7 +2536,7 @@ function gaming_hub_tesla_drive_efficiency_snapshot( $today_km = null, $speed_km
 	if ( null !== $regen_ratio ) {
 		$badge_regen = sprintf(
 			/* translators: %s: regen percent */
-			__( '回生 %s%%', 'gaming-hub' ),
+			__('Regen %s%%', 'gaming-hub'),
 			number_format_i18n( $regen_ratio )
 		);
 		if ( $regen_ratio >= 15 ) {
@@ -3594,7 +3585,7 @@ function gaming_hub_fetch_tesla_model3_status() {
 			return new WP_Error(
 				'asleep' === $skip_reason ? 'tesla_vehicle_asleep' : 'tesla_request_failed',
 				'asleep' === $skip_reason
-					? __( '車はスリープ中です。起こさず、起きたら自動で更新します。', 'gaming-hub' )
+					? __('The car is asleep. It will not be woken; updates resume when it wakes.', 'gaming-hub')
 					: __( 'Tesla Fleet API request failed.', 'gaming-hub' )
 			);
 		}
@@ -3683,7 +3674,7 @@ function gaming_hub_powerwall_recalc_flow_load( array $status ) {
 	$powerwall_watts    = (float) ( $powerwall['watts'] ?? 0 );
 	$is_charging        = ! empty( $powerwall['is_charging'] );
 	$is_discharging     = ! empty( $powerwall['is_discharging'] );
-	$charge_state       = (string) ( $powerwall['charge_state'] ?? __( '待機中', 'gaming-hub' ) );
+	$charge_state       = (string) ( $powerwall['charge_state'] ?? __('Idle', 'gaming-hub') );
 
 	if ( $solar >= $load ) {
 		$excess             = $solar - $load;
@@ -3691,7 +3682,7 @@ function gaming_hub_powerwall_recalc_flow_load( array $status ) {
 		$powerwall_watts    = $solar_to_powerwall;
 		$is_charging        = $solar_to_powerwall >= 80;
 		$is_discharging     = false;
-		$charge_state       = $is_charging ? __( '充電中', 'gaming-hub' ) : __( '待機中', 'gaming-hub' );
+		$charge_state       = $is_charging ? __('Charging', 'gaming-hub') : __('Idle', 'gaming-hub');
 	} else {
 		$deficit         = $load - $solar;
 		$from_battery    = min( $deficit, 8000 );
@@ -3699,10 +3690,10 @@ function gaming_hub_powerwall_recalc_flow_load( array $status ) {
 		$powerwall_watts = $from_battery;
 		$is_charging     = false;
 		$is_discharging  = $from_battery >= 80;
-		$charge_state    = $is_discharging ? __( '放電中', 'gaming-hub' ) : __( '待機中', 'gaming-hub' );
+		$charge_state    = $is_discharging ? __('Discharging', 'gaming-hub') : __('Idle', 'gaming-hub');
 
 		if ( $grid_import >= 80 && ! $is_discharging ) {
-			$charge_state = __( 'グリッド充電', 'gaming-hub' );
+			$charge_state = __('Grid charging', 'gaming-hub');
 		}
 	}
 
@@ -3728,27 +3719,21 @@ function gaming_hub_powerwall_recalc_flow_load( array $status ) {
 function gaming_hub_render_tesla_setup_instructions() {
 	?>
 	<ol class="pw-flow-setup-steps">
-		<li><?php esc_html_e( 'developer.tesla.com でアプリを作成し Client ID / Secret を取得。Vehicle Location（車両位置）スコープも有効にする。既存連携では位置スコープは増えないので、不足スコープの追加か連携解除が必要', 'gaming-hub' ); ?></li>
-		<li><?php esc_html_e( '.env または 外観 → カスタマイズ → Tesla API に Client ID / Secret / VIN を設定', 'gaming-hub' ); ?></li>
+		<li><?php esc_html_e('Create an app on developer.tesla.com, enable Vehicle Location, and get a Client ID / Secret. An existing grant will not gain location until you add missing scopes or revoke and re-auth.', 'gaming-hub'); ?></li>
+		<li><?php esc_html_e('Set Client ID / Secret / VIN in .env or Appearance → Customize → Tesla API', 'gaming-hub'); ?></li>
 		<li>
-			<?php esc_html_e( 'Tesla アカウント連携:', 'gaming-hub' ); ?>
+			<?php esc_html_e('Tesla account link:', 'gaming-hub'); ?>
 			<?php gaming_hub_render_tesla_oauth_button(); ?>
 		</li>
 		<li><?php esc_html_e( 'Redirect URI: /wp-json/gaming-hub/v1/tesla/oauth/callback', 'gaming-hub' ); ?></li>
 		<li>
 			<?php
-			esc_html_e(
-				'Fleet API 利用には partner_accounts 登録が必要です（本番ドメイン + 公開鍵）。localhost だけでは vehicle_data は取得できません。',
-				'gaming-hub'
-			);
+			esc_html_e('Fleet API needs partner_accounts (production domain + public key). localhost alone cannot fetch vehicle_data.', 'gaming-hub');
 			?>
 		</li>
 		<li>
 			<?php
-			esc_html_e(
-				'日本のアカウントは NA リージョン: TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.na.vn.cloud.tesla.com',
-				'gaming-hub'
-			);
+			esc_html_e('Japan accounts use the NA region: TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.na.vn.cloud.tesla.com', 'gaming-hub');
 			?>
 		</li>
 	</ol>
@@ -3845,7 +3830,7 @@ function gaming_hub_rest_tesla_charge( WP_REST_Request $request ) {
 		return new WP_REST_Response(
 			array(
 				'success' => false,
-				'message' => __( '少し待ってからもう一度押してください。', 'gaming-hub' ),
+				'message' => __('Wait a moment, then try again.', 'gaming-hub'),
 			),
 			429
 		);
@@ -3858,7 +3843,7 @@ function gaming_hub_rest_tesla_charge( WP_REST_Request $request ) {
 		return new WP_REST_Response(
 			array(
 				'success' => false,
-				'message' => __( '充電オンかオフを指定してください。', 'gaming-hub' ),
+				'message' => __('Choose charge on or off.', 'gaming-hub'),
 			),
 			400
 		);
@@ -3965,7 +3950,7 @@ function gaming_hub_tesla_oauth_admin_notice() {
 	}
 
 	if ( ! empty( $_GET['tesla_revoked'] ) ) {
-		echo '<div class="pw-flow-oauth-notice">' . esc_html__( 'Tesla 連携を解除しました。位置スコープを付けるには、もう一度「不足スコープを追加」または「Tesla で認証」してください。', 'gaming-hub' ) . '</div>';
+		echo '<div class="pw-flow-oauth-notice">' . esc_html__('Tesla access was revoked. Sign in again with Add missing scopes or Tesla auth to grant location.', 'gaming-hub') . '</div>';
 		return;
 	}
 
@@ -3973,7 +3958,7 @@ function gaming_hub_tesla_oauth_admin_notice() {
 		return;
 	}
 
-	echo '<div class="pw-flow-oauth-notice">' . esc_html__( 'Tesla アカウントを連携しました。Model 3 の実データを取得します。', 'gaming-hub' ) . '</div>';
+	echo '<div class="pw-flow-oauth-notice">' . esc_html__('Tesla account linked. Fetching live Model 3 data.', 'gaming-hub') . '</div>';
 }
 add_action( 'wp_body_open', 'gaming_hub_tesla_oauth_admin_notice', 20 );
 
@@ -4063,23 +4048,23 @@ function gaming_hub_tesla_hub_nav_items() {
 	return array(
 		array(
 			'id'    => 'tesla-live',
-			'label' => __( 'ライブ', 'gaming-hub' ),
+			'label' => __('Live', 'gaming-hub'),
 		),
 		array(
 			'id'    => 'charge',
-			'label' => __( '充電履歴', 'gaming-hub' ),
+			'label' => __('Charge history', 'gaming-hub'),
 		),
 		array(
 			'id'    => 'drive',
-			'label' => __( '走行ログ', 'gaming-hub' ),
+			'label' => __('Driving log', 'gaming-hub'),
 		),
 		array(
 			'id'    => 'tesla-kit',
-			'label' => __( '実測構成', 'gaming-hub' ),
+			'label' => __('Live kit', 'gaming-hub'),
 		),
 		array(
 			'id'    => 'tesla-posts',
-			'label' => __( '記事', 'gaming-hub' ),
+			'label' => __('Articles', 'gaming-hub'),
 		),
 	);
 }
@@ -4093,7 +4078,7 @@ function gaming_hub_render_tesla_hub_nav() {
 		return;
 	}
 	?>
-	<nav class="tesla-hub-nav" aria-label="<?php esc_attr_e( 'Tesla セクション', 'gaming-hub' ); ?>">
+	<nav class="tesla-hub-nav" aria-label="<?php esc_attr_e('Tesla sections', 'gaming-hub'); ?>">
 		<div class="container tesla-hub-nav-inner">
 			<?php foreach ( $items as $item ) : ?>
 				<a class="tesla-hub-nav-link" href="#<?php echo esc_attr( (string) $item['id'] ); ?>">
@@ -4130,7 +4115,7 @@ function gaming_hub_render_tesla_hub_intro() {
 	<div class="archive-header tesla-archive-header tesla-archive-header--hub">
 		<div class="container">
 			<span class="tesla-tag-badge tesla-tag-badge-lg">Tesla</span>
-			<p class="tesla-archive-desc"><?php esc_html_e( 'Model 3 の電力フローと充電', 'gaming-hub' ); ?></p>
+			<p class="tesla-archive-desc"><?php esc_html_e('Model 3 energy flow and charging', 'gaming-hub'); ?></p>
 		</div>
 	</div>
 	<?php
@@ -4148,8 +4133,8 @@ function gaming_hub_render_tesla_hub_dashboard_sections() {
 			<div class="container">
 				<?php
 				gaming_hub_render_tesla_section_head(
-					__( 'ライブ', 'gaming-hub' ),
-					__( '電力フロー図・AI PLAN・充電ステータス', 'gaming-hub' )
+					__('Live', 'gaming-hub'),
+					__('Energy flow diagram, AI PLAN, and charge status', 'gaming-hub')
 				);
 				get_template_part(
 					'template-parts/tesla',
@@ -4168,8 +4153,8 @@ function gaming_hub_render_tesla_hub_dashboard_sections() {
 			<div class="container">
 				<?php
 				gaming_hub_render_tesla_section_head(
-					__( '充電履歴', 'gaming-hub' ),
-					__( '月別の充電セッションと電気代', 'gaming-hub' )
+					__('Charge history', 'gaming-hub'),
+					__('Monthly charge sessions and electricity cost', 'gaming-hub')
 				);
 				if ( function_exists( 'gaming_hub_render_tesla_charge_log' ) ) {
 					gaming_hub_render_tesla_charge_log( $status );
@@ -4181,8 +4166,8 @@ function gaming_hub_render_tesla_hub_dashboard_sections() {
 			<div class="container">
 				<?php
 				gaming_hub_render_tesla_section_head(
-					__( '走行ログ', 'gaming-hub' ),
-					__( '日別の走行とガソリン比較節約', 'gaming-hub' )
+					__('Driving log', 'gaming-hub'),
+					__('Daily driving and gasoline comparison savings', 'gaming-hub')
 				);
 				if ( function_exists( 'gaming_hub_render_tesla_gas_log' ) ) {
 					gaming_hub_render_tesla_gas_log( $status );
@@ -4209,8 +4194,8 @@ function gaming_hub_render_tesla_hub_posts_section() {
 			<div class="container content-area content-area--hub-top">
 				<?php
 				gaming_hub_render_tesla_section_head(
-					__( '記事', 'gaming-hub' ),
-					__( '実測レビュー・運用メモ', 'gaming-hub' )
+					__('Articles', 'gaming-hub'),
+					__('Field tests and operating notes', 'gaming-hub')
 				);
 				?>
 				<div class="posts-grid">
@@ -4240,12 +4225,12 @@ function gaming_hub_render_tesla_hub_posts_section() {
 		<div class="container content-area content-area--hub-top">
 			<?php
 			gaming_hub_render_tesla_section_head(
-				__( '記事', 'gaming-hub' ),
-				__( '実測レビュー・運用メモ', 'gaming-hub' )
+				__('Articles', 'gaming-hub'),
+				__('Field tests and operating notes', 'gaming-hub')
 			);
 			?>
 			<div class="ecoflow-empty">
-				<p><?php esc_html_e( 'Tesla タグの記事はまだありません。上の実測構成・充電ログから確認できます。', 'gaming-hub' ); ?></p>
+				<p><?php esc_html_e('No Tesla-tagged posts yet. Check the live kit and charge log above.', 'gaming-hub'); ?></p>
 			</div>
 		</div>
 	</section>

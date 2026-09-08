@@ -18,8 +18,8 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 	<?php if ( $show_header ) : ?>
 		<div class="section-header">
 			<div class="pw-section-badge">🔋 Powerwall 3</div>
-			<h2 class="section-title"><?php esc_html_e( '最新ニュース', 'gaming-hub' ); ?></h2>
-			<p class="section-desc"><?php esc_html_e( 'Powerwall 3 / 3P・家庭用蓄電池の最新情報', 'gaming-hub' ); ?></p>
+			<h2 class="section-title"><?php esc_html_e('Latest news', 'gaming-hub'); ?></h2>
+			<p class="section-desc"><?php esc_html_e('Latest Powerwall 3 / 3P and home-battery news', 'gaming-hub'); ?></p>
 		</div>
 	<?php endif; ?>
 
@@ -49,7 +49,7 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 							<?php if ( ! empty( $item['excerpt'] ) ) : ?>
 								<p class="pw-news-excerpt"><?php echo esc_html( $item['excerpt'] ); ?></p>
 							<?php endif; ?>
-							<span class="pw-read-more"><?php esc_html_e( '詳しく見る', 'gaming-hub' ); ?> →</span>
+							<span class="pw-read-more"><?php esc_html_e('Read more', 'gaming-hub'); ?> →</span>
 						</div>
 					</a>
 				</article>
@@ -58,23 +58,23 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 
 		<div class="pw-sources">
 			<p class="pw-source-note">
-				<?php esc_html_e( '情報源:', 'gaming-hub' ); ?>
+				<?php esc_html_e('Source:', 'gaming-hub'); ?>
 				<a href="https://electrek.co/guides/tesla-powerwall/" target="_blank" rel="noopener noreferrer">Electrek</a>
 				|
 				<a href="https://www.ess-news.com/" target="_blank" rel="noopener noreferrer">ESS News</a>
 				|
-				<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'tesla_powerwall' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>"><?php esc_html_e( 'Tesla 公式', 'gaming-hub' ); ?></a>
+				<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'tesla_powerwall' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>"><?php esc_html_e('Tesla official', 'gaming-hub'); ?></a>
 			</p>
 			<p class="pw-updated-note">
-				<?php esc_html_e( '30分ごとに自動更新', 'gaming-hub' ); ?>
+				<?php esc_html_e('Auto-updates every 30 minutes', 'gaming-hub'); ?>
 			</p>
 		</div>
 	<?php else : ?>
 		<div class="pw-error">
-			<p><?php esc_html_e( '最新情報を取得できませんでした。しばらくしてから再度お試しください。', 'gaming-hub' ); ?></p>
+			<p><?php esc_html_e('Could not load the latest news. Try again shortly.', 'gaming-hub'); ?></p>
 			<p>
 				<a href="<?php echo esc_url( gaming_hub_affiliate_url( 'tesla_powerwall' ) ); ?>" target="_blank" rel="<?php echo esc_attr( gaming_hub_affiliate_rel() ); ?>" class="btn btn-primary">
-					<?php esc_html_e( 'Tesla 公式サイトで確認する', 'gaming-hub' ); ?>
+					<?php esc_html_e('Check the Tesla official site', 'gaming-hub'); ?>
 				</a>
 			</p>
 		</div>

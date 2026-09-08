@@ -30,7 +30,7 @@
 			</div>
 		</div>
 
-		<div class="footer-lancers-bar" aria-label="<?php esc_attr_e( 'ランサーズ Web制作・API実装パッケージ（3〜15万円）', 'gaming-hub' ); ?>">
+		<div class="footer-lancers-bar" aria-label="<?php esc_attr_e('Lancers web & API packages (¥30k–¥150k)', 'gaming-hub'); ?>">
 			<?php
 			if ( function_exists( 'gaming_hub_render_lancers_promo' ) ) {
 				gaming_hub_render_lancers_promo( 'footer' );

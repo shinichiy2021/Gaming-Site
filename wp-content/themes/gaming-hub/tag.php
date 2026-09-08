@@ -36,8 +36,8 @@ $is_spa     = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_h
 		<div class="container content-area content-area--hub-top">
 			<?php
 			gaming_hub_render_ecoflow_section_head(
-				__( '記事', 'gaming-hub' ),
-				__( '実測レビュー・運用メモ', 'gaming-hub' )
+				__('Articles', 'gaming-hub'),
+				__('Field tests and operating notes', 'gaming-hub')
 			);
 			?>
 			<div class="posts-grid">
@@ -64,12 +64,12 @@ $is_spa     = function_exists( 'gaming_hub_is_hub_spa_page' ) && gaming_hub_is_h
 		<div class="container content-area content-area--hub-top">
 			<?php
 			gaming_hub_render_ecoflow_section_head(
-				__( '記事', 'gaming-hub' ),
-				__( '実測レビュー・運用メモ', 'gaming-hub' )
+				__('Articles', 'gaming-hub'),
+				__('Field tests and operating notes', 'gaming-hub')
 			);
 			?>
 			<div class="ecoflow-empty">
-				<p><?php esc_html_e( 'EcoFlow タグの記事はまだありません。上の実測構成・発電ログから機材を確認できます。', 'gaming-hub' ); ?></p>
+				<p><?php esc_html_e('No EcoFlow-tagged posts yet. Check the live kit and generation log above for the gear in use.', 'gaming-hub'); ?></p>
 			</div>
 		</div>
 	</section>

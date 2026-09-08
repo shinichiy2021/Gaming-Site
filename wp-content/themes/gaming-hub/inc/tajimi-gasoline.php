@@ -277,8 +277,8 @@ function gaming_hub_tesla_gasoline_compare( array $model3, $drive_w, $speed_km )
 		'as_of'           => (string) ( $price['as_of'] ?? '' ),
 		'price_label'     => sprintf(
 			/* translators: 1: city, 2: yen per liter */
-			__( '%1$s %2$s 円/L', 'gaming-hub' ),
-			__( '多治見', 'gaming-hub' ),
+			__('%1$s %2$s yen/L', 'gaming-hub'),
+			__('Tajimi', 'gaming-hub'),
 			number_format_i18n( $yen_per_l, 1 )
 		),
 	);

@@ -110,26 +110,26 @@ function gaming_hub_tesla_charge_log_shape( array $row ) {
 		$duration = $m > 0
 			? sprintf(
 				/* translators: 1: hours, 2: minutes */
-				__( '%1$s時間%2$s分', 'gaming-hub' ),
+				__('%1$sh %2$sm', 'gaming-hub'),
 				number_format_i18n( $h ),
 				number_format_i18n( $m )
 			)
 			: sprintf(
 				/* translators: %s: hours */
-				__( '%s時間', 'gaming-hub' ),
+				__('%sh', 'gaming-hub'),
 				number_format_i18n( $h )
 			);
 	} elseif ( $minutes > 0 ) {
 		$duration = sprintf(
 			/* translators: %s: minutes */
-			__( '%s分', 'gaming-hub' ),
+			__('%sm', 'gaming-hub'),
 			number_format_i18n( $minutes )
 		);
 	}
 
 	$supply_label = 'supercharger' === $supply
-		? __( '急速充電', 'gaming-hub' )
-		: __( '自宅充電', 'gaming-hub' );
+		? __('Supercharger', 'gaming-hub')
+		: __('Home charging', 'gaming-hub');
 	$charge_input = (string) ( $row['charge_input'] ?? '' );
 	if ( '' === $charge_input && function_exists( 'gaming_hub_tesla_session_charge_input' ) ) {
 		$charge_input = gaming_hub_tesla_session_charge_input(
@@ -138,13 +138,13 @@ function gaming_hub_tesla_charge_log_shape( array $row ) {
 		);
 	}
 	if ( 'dc' === $charge_input ) {
-		$supply_label = __( '急速充電', 'gaming-hub' );
+		$supply_label = __('Supercharger', 'gaming-hub');
 	} elseif ( 'away_ac' === $charge_input ) {
 		$supply_label = function_exists( 'gaming_hub_tesla_plan_charge_label' )
 			? gaming_hub_tesla_plan_charge_label()
-			: __( '200V 普通充電', 'gaming-hub' );
+			: __('200V AC charging', 'gaming-hub');
 	} elseif ( 'home_ac' === $charge_input ) {
-		$supply_label = __( '自宅充電', 'gaming-hub' );
+		$supply_label = __('Home charging', 'gaming-hub');
 	}
 
 	return array(
@@ -841,7 +841,7 @@ function gaming_hub_tesla_charge_log_payload( $ym = '' ) {
 
 	$label = sprintf(
 		/* translators: 1: year, 2: month */
-		__( '%1$s年%2$s月', 'gaming-hub' ),
+		__('%1$s-%2$s', 'gaming-hub'),
 		(string) $y,
 		(string) $m
 	);
