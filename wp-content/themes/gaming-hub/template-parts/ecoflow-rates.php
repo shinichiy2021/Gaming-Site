@@ -61,19 +61,19 @@ $solar_area     = $solar_stack['pro_area'];
 $solar_delta_area = $solar_stack['delta_area'];
 ?>
 
-<section class="ecoflow-rates" aria-label="<?php esc_attr_e( 'でんき予報', 'gaming-hub' ); ?>">
+<section class="ecoflow-rates" aria-label="<?php esc_attr_e('Power forecast', 'gaming-hub'); ?>">
 	<div class="ecoflow-rates-header">
 		<div>
 			<p class="ecoflow-rates-kicker"><?php esc_html_e( 'RATE MAP', 'gaming-hub' ); ?></p>
-			<h3><?php esc_html_e( '今日の電気代', 'gaming-hub' ); ?></h3>
-			<p class="ecoflow-rates-sub"><?php esc_html_e( 'スマートタイムONE（電灯）· 中部 · 請求単価', 'gaming-hub' ); ?></p>
+			<h3><?php esc_html_e('Today’s bill', 'gaming-hub'); ?></h3>
+			<p class="ecoflow-rates-sub"><?php esc_html_e('Smart Time ONE (lighting) · Chubu · billed rate', 'gaming-hub'); ?></p>
 		</div>
 		<?php if ( ! is_wp_error( $forecast ) && ! empty( $forecast['updated_at'] ) ) : ?>
 			<p class="ecoflow-rates-updated" data-ecoflow-rates-updated>
 				<?php
 				printf(
 					/* translators: %s: last updated time */
-					esc_html__( '更新 %s', 'gaming-hub' ),
+					esc_html__('Updated %s', 'gaming-hub'),
 					esc_html( $forecast['updated_at'] )
 				);
 				?>
@@ -88,7 +88,7 @@ $solar_delta_area = $solar_stack['delta_area'];
 			<div class="ecoflow-rates-stat ecoflow-rates-stat-now ecoflow-rate-mark-<?php echo esc_attr( $mark ); ?>">
 				<span><?php esc_html_e( 'NOW', 'gaming-hub' ); ?></span>
 				<strong data-ecoflow-rates-now><?php echo esc_html( isset( $current['total_price'] ) ? number_format( (float) $current['total_price'], 1 ) : '—' ); ?></strong>
-				<small><?php esc_html_e( '請求単価 円/kWh', 'gaming-hub' ); ?></small>
+				<small><?php esc_html_e('Billed yen/kWh', 'gaming-hub'); ?></small>
 			</div>
 			<div class="ecoflow-rates-stat ecoflow-rates-stat-low">
 				<span><?php esc_html_e( 'LOW', 'gaming-hub' ); ?></span>
@@ -96,7 +96,7 @@ $solar_delta_area = $solar_stack['delta_area'];
 				<small data-ecoflow-rates-low-label><?php echo esc_html( $cheapest['label'] ?? '—' ); ?></small>
 			</div>
 			<div class="ecoflow-rates-stat ecoflow-rates-stat-batt">
-				<span><?php esc_html_e( 'SOC', 'gaming-hub' ); ?></span>
+				<span><?php esc_html_e('SOC', 'gaming-hub'); ?></span>
 				<strong data-ecoflow-soc-now><?php echo esc_html( isset( $plan['soc_now'] ) ? number_format( (float) $plan['soc_now'], 0 ) . '%' : '—' ); ?></strong>
 				<small data-ecoflow-soc-end>
 					<?php
@@ -106,11 +106,11 @@ $solar_delta_area = $solar_stack['delta_area'];
 					} elseif ( isset( $plan['soc_end'] ) ) {
 						printf(
 							/* translators: %s: percent */
-							esc_html__( '24時 %s%%', 'gaming-hub' ),
+							esc_html__('24:00 %s%%', 'gaming-hub'),
 							esc_html( number_format( (float) $plan['soc_end'], 0 ) )
 						);
 					} else {
-						esc_html_e( '残量予測', 'gaming-hub' );
+						esc_html_e('SOC forecast', 'gaming-hub');
 					}
 					?>
 				</small>
@@ -123,11 +123,11 @@ $solar_delta_area = $solar_stack['delta_area'];
 					if ( isset( $plan['solar_today_kwh'] ) ) {
 						printf(
 							/* translators: %s: kWh */
-							esc_html__( '今日 %s kWh', 'gaming-hub' ),
+							esc_html__('Today %s kWh', 'gaming-hub'),
 							esc_html( number_format( (float) $plan['solar_today_kwh'], 1 ) )
 						);
 					} else {
-						esc_html_e( '発電見込み', 'gaming-hub' );
+						esc_html_e('Expected generation', 'gaming-hub');
 					}
 					?>
 				</small>
@@ -144,13 +144,13 @@ $solar_delta_area = $solar_stack['delta_area'];
 			?>
 			<div class="ecoflow-rate-chart<?php echo $show_delta_soc ? '' : ' is-pro-soc-only'; ?>">
 				<div class="ecoflow-rate-y ecoflow-rate-y-soc" aria-hidden="true">
-					<span class="ecoflow-rate-y-unit"><?php echo $show_delta_soc ? esc_html__( '合算%', 'gaming-hub' ) : esc_html__( '%', 'gaming-hub' ); ?></span>
+					<span class="ecoflow-rate-y-unit"><?php echo $show_delta_soc ? esc_html__('Share %', 'gaming-hub') : esc_html__( '%', 'gaming-hub' ); ?></span>
 					<?php foreach ( $soc_ticks as $tick ) : ?>
 						<span><?php echo esc_html( (string) $tick ); ?></span>
 					<?php endforeach; ?>
 				</div>
 				<div class="ecoflow-rate-plot">
-					<div class="ecoflow-rate-track" role="img" aria-label="<?php esc_attr_e( '本日の時間別単価・発電見込み・Pro 残量予測', 'gaming-hub' ); ?>">
+					<div class="ecoflow-rate-track" role="img" aria-label="<?php esc_attr_e('Today’s hourly rates, expected generation, and Pro SOC forecast', 'gaming-hub'); ?>">
 						<svg class="ecoflow-solar-line" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
 							<polygon class="ecoflow-solar-delta" data-ecoflow-solar-delta-area points="<?php echo esc_attr( $solar_delta_area ); ?>"></polygon>
 							<polygon class="ecoflow-solar-pro" data-ecoflow-solar-area points="<?php echo esc_attr( $solar_area ); ?>"></polygon>
@@ -216,15 +216,15 @@ $solar_delta_area = $solar_stack['delta_area'];
 					</div>
 				</div>
 				<div class="ecoflow-rate-y ecoflow-rate-y-yen" aria-hidden="true">
-					<span class="ecoflow-rate-y-unit"><?php esc_html_e( '円', 'gaming-hub' ); ?></span>
+					<span class="ecoflow-rate-y-unit"><?php esc_html_e('yen', 'gaming-hub'); ?></span>
 					<?php foreach ( $yen_ticks as $tick_yen ) : ?>
 						<span data-ecoflow-yen-tick><?php echo esc_html( number_format( $tick_yen, 1 ) ); ?></span>
 					<?php endforeach; ?>
 				</div>
 			</div>
 			<p class="ecoflow-rate-legend"><?php echo $show_delta_soc
-				? esc_html__( '黄棒: Pro 残量W · 橙棒: 1500 残量W · 棒の高さ: 合算容量に対する割合 · 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価', 'gaming-hub' )
-				: esc_html__( '黄棒: Pro 残量 · 橙の帯: 発電見込み Pro 800W + 1500 500W · 青緑線: LOOOP 請求単価', 'gaming-hub' ); ?></p>
+				? esc_html__('Yellow: Pro watts · Orange: 1500 watts · Bar height: share of combined capacity · Orange band: forecast solar Pro 800W + 1500 500W · Teal line: LOOOP billed rate', 'gaming-hub')
+				: esc_html__('Yellow: Pro SOC · Orange band: generation forecast Pro 800 W + 1500 500 W · Teal: LOOOP billed rate', 'gaming-hub'); ?></p>
 		<?php endif; ?>
 	<?php endif; ?>
 </section>

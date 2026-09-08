@@ -22,15 +22,15 @@ $energy = function_exists( 'gaming_hub_ecoflow_url' ) ? gaming_hub_ecoflow_url()
 $img_base = trailingslashit( get_template_directory_uri() ) . 'assets/images/';
 $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) GAMING_HUB_VERSION ) : '';
 ?>
-<section id="kit" class="ecoflow-kit" aria-label="<?php esc_attr_e( 'うちの実測構成', 'gaming-hub' ); ?>">
+<section id="kit" class="ecoflow-kit" aria-label="<?php esc_attr_e('Our measured kit', 'gaming-hub'); ?>">
 	<header class="ecoflow-kit-head">
-		<p class="ecoflow-kit-eyebrow"><?php esc_html_e( '実測 × 購入リンク', 'gaming-hub' ); ?></p>
-		<h2 class="ecoflow-kit-title"><?php esc_html_e( 'うちの実測構成', 'gaming-hub' ); ?></h2>
+		<p class="ecoflow-kit-eyebrow"><?php esc_html_e('Measured data × shop links', 'gaming-hub'); ?></p>
+		<h2 class="ecoflow-kit-title"><?php esc_html_e('Our measured kit', 'gaming-hub'); ?></h2>
 		<p class="ecoflow-kit-lead">
 			<?php
 			printf(
 				/* translators: 1: month label, 2: savings yen, 3: solar kWh */
-				esc_html__( '%1$sの節約 %2$s円 · 発電 %3$s kWh。このサイトで動かしている機材です。', 'gaming-hub' ),
+				esc_html__('%1$s savings: ¥%2$s · generation %3$s kWh. Gear running this site’s dashboards.', 'gaming-hub'),
 				esc_html( $stats['label'] ),
 				esc_html( number_format_i18n( $yen ) ),
 				esc_html( number_format_i18n( $solar, 1 ) )
@@ -38,7 +38,7 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 			?>
 		</p>
 		<p class="ecoflow-kit-disclaimer">
-			<?php esc_html_e( '当サイトのリンクにはアフィリエイト（広告）が含まれる場合があります。', 'gaming-hub' ); ?>
+			<?php esc_html_e('Some links on this site may be affiliate (advertising) links.', 'gaming-hub'); ?>
 		</p>
 	</header>
 
@@ -60,7 +60,7 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 						<?php if ( $img_url ) : ?>
 							<img src="<?php echo esc_url( $img_url ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" width="640" height="360" loading="lazy" decoding="async" />
 						<?php endif; ?>
-						<span class="tesla-kit-card-badge"><?php esc_html_e( '公式', 'gaming-hub' ); ?></span>
+						<span class="tesla-kit-card-badge"><?php esc_html_e('Official', 'gaming-hub'); ?></span>
 					</a>
 				<?php elseif ( $img_url ) : ?>
 					<div class="tesla-kit-card-media" aria-hidden="true">
@@ -74,12 +74,12 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 				<div class="ecoflow-kit-actions">
 					<?php if ( $primary ) : ?>
 						<a class="btn btn-primary ecoflow-btn ecoflow-kit-btn" href="<?php echo esc_url( $primary ); ?>" target="_blank" rel="<?php echo esc_attr( $rel ); ?>">
-							<?php esc_html_e( '公式で見る', 'gaming-hub' ); ?>
+							<?php esc_html_e('View official', 'gaming-hub'); ?>
 						</a>
 					<?php endif; ?>
 					<?php if ( $amazon ) : ?>
 						<a class="btn btn-outline ecoflow-btn-outline ecoflow-kit-btn" href="<?php echo esc_url( $amazon ); ?>" target="_blank" rel="<?php echo esc_attr( $rel ); ?>">
-							<?php esc_html_e( 'Amazon', 'gaming-hub' ); ?>
+							<?php esc_html_e('Amazon', 'gaming-hub'); ?>
 						</a>
 					<?php endif; ?>
 				</div>
@@ -88,6 +88,6 @@ $img_ver  = defined( 'GAMING_HUB_VERSION' ) ? '?ver=' . rawurlencode( (string) G
 	</ul>
 
 	<p class="ecoflow-kit-foot">
-		<a href="<?php echo esc_url( $energy ); ?>"><?php esc_html_e( '発電ログで数字を確認 →', 'gaming-hub' ); ?></a>
+		<a href="<?php echo esc_url( $energy ); ?>"><?php esc_html_e('See numbers in the generation log →', 'gaming-hub'); ?></a>
 	</p>
 </section>

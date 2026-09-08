@@ -15,11 +15,11 @@ $rest    = array_slice( $events, 1 );
 $art     = gaming_hub_pgo_artwork_url( (int) ( $primary['featured_dex'] ?? 0 ) );
 $steps   = is_array( $primary['today'] ?? null ) ? array_slice( $primary['today'], 0, 3 ) : array();
 ?>
-<section class="pgo-tokushuu-banner-wrap" aria-label="<?php esc_attr_e( 'Pokémon GO 大型イベント特集', 'gaming-hub' ); ?>">
+<section class="pgo-tokushuu-banner-wrap" aria-label="<?php esc_attr_e('Pokémon GO major event features', 'gaming-hub'); ?>">
 	<div class="container">
 		<a href="<?php echo esc_url( $primary['url'] ); ?>" class="pgo-tokushuu-banner theme-<?php echo esc_attr( (string) ( $primary['theme'] ?? 'worlds' ) ); ?>">
 			<div class="pgo-tokushuu-banner-copy">
-				<span class="pgo-hero-badge"><?php esc_html_e( '特集', 'gaming-hub' ); ?></span>
+				<span class="pgo-hero-badge"><?php esc_html_e('Feature', 'gaming-hub'); ?></span>
 				<span class="pgo-badge pgo-status-<?php echo esc_attr( $primary['status'] ); ?>">
 					<?php echo esc_html( gaming_hub_pgo_event_status_label( $primary['status'] ) ); ?>
 				</span>
@@ -35,7 +35,7 @@ $steps   = is_array( $primary['today'] ?? null ) ? array_slice( $primary['today'
 						<?php endforeach; ?>
 					</ol>
 				<?php endif; ?>
-				<span class="pgo-read-more"><?php esc_html_e( '特集ページを開く', 'gaming-hub' ); ?></span>
+				<span class="pgo-read-more"><?php esc_html_e('Open the feature page', 'gaming-hub'); ?></span>
 			</div>
 			<?php if ( $art ) : ?>
 				<img class="pgo-tokushuu-banner-art" src="<?php echo esc_url( $art ); ?>" alt="" width="220" height="220" decoding="async" />

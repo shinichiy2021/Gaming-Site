@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.16.30' );
+define( 'GAMING_HUB_VERSION', '1.17.0' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
@@ -583,7 +583,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_title', array(
-		'default'           => __( '家庭の電力と、ゲームの最新情報をひとつに', 'gaming-hub' ),
+		'default'           => __('Home energy and the latest games, in one place', 'gaming-hub'),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'hero_title', array(
@@ -593,7 +593,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_subtitle', array(
-		'default'           => __( 'Powerwall・EcoFlow の見える化と、Pokémon GO / ゲームレビュー。毎日の電気代から遊びまで、このサイトでチェック。', 'gaming-hub' ),
+		'default'           => __('Live Powerwall and EcoFlow dashboards, plus Pokémon GO and game reviews. Check power bills and play, here.', 'gaming-hub'),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'hero_subtitle', array(
@@ -603,7 +603,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_cta_text', array(
-		'default'           => __( 'Powerwall を見る', 'gaming-hub' ),
+		'default'           => __('View Powerwall', 'gaming-hub'),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'hero_cta_text', array(
@@ -664,7 +664,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 	$wp_customize->add_control( 'ecoflow_device_sn_2', array(
 		'label'       => __( 'Device Serial Number 2 (Delta 3 1500)', 'gaming-hub' ),
-		'description' => __( 'AC 100V で Pro 3 に接続している 2 台目', 'gaming-hub' ),
+		'description' => __('Second unit on AC 100V with Pro 3', 'gaming-hub'),
 		'section'     => 'gaming_hub_ecoflow_api',
 		'type'        => 'text',
 	) );
@@ -675,7 +675,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 	$wp_customize->add_control( 'ecoflow_app_email', array(
 		'label'       => __( 'App Login Email (Delta 3)', 'gaming-hub' ),
-		'description' => __( 'Googleログインの場合は Google アカウントのメールアドレス。MQTT 用にアプリで別途「ログインパスワード」を設定してください。', 'gaming-hub' ),
+		'description' => __('For Google login, use the Google account email. Set a separate app login password for MQTT.', 'gaming-hub'),
 		'section'     => 'gaming_hub_ecoflow_api',
 		'type'        => 'email',
 	) );
@@ -686,7 +686,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 	$wp_customize->add_control( 'ecoflow_app_password', array(
 		'label'       => __( 'App Login Password (Delta 3)', 'gaming-hub' ),
-		'description' => __( 'EcoFlow アプリで設定したログインパスワード（Googleログインのみの場合は未設定のままでは使えません）', 'gaming-hub' ),
+		'description' => __('Login password set in the EcoFlow app (required even for Google-only accounts)', 'gaming-hub'),
 		'section'     => 'gaming_hub_ecoflow_api',
 		'type'        => 'password',
 	) );
@@ -728,7 +728,7 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 		'tesla_client_id',
 		array(
 			'label'       => __( 'Client ID', 'gaming-hub' ),
-			'description' => __( 'developer.tesla.com のアプリ Client ID（.env の TESLA_CLIENT_ID でも可）', 'gaming-hub' ),
+			'description' => __('App Client ID from developer.tesla.com (or TESLA_CLIENT_ID in .env)', 'gaming-hub'),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'text',
 		)
@@ -761,7 +761,7 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 		'tesla_vehicle_vin',
 		array(
 			'label'       => __( 'Model 3 VIN', 'gaming-hub' ),
-			'description' => __( '車両識別番号（17桁）', 'gaming-hub' ),
+			'description' => __('Vehicle identification number (17 characters)', 'gaming-hub'),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'text',
 		)
@@ -778,7 +778,7 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 		'tesla_refresh_token',
 		array(
 			'label'       => __( 'Refresh Token', 'gaming-hub' ),
-			'description' => __( 'Tesla タグの「Tesla で認証」後に自動保存。手動設定も可。', 'gaming-hub' ),
+			'description' => __('Saved automatically after Tesla auth on the Tesla tag. Manual entry is also OK.', 'gaming-hub'),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'password',
 		)
@@ -796,8 +796,8 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 	$wp_customize->add_control(
 		'tesla_home_lat',
 		array(
-			'label'       => __( '自宅 緯度（AI PLAN ジオフェンス）', 'gaming-hub' ),
-			'description' => __( 'vehicle_location スコープが必要です。', 'gaming-hub' ),
+			'label'       => __('Home latitude (AI PLAN geofence)', 'gaming-hub'),
+			'description' => __('The vehicle_location scope is required.', 'gaming-hub'),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'number',
 			'input_attrs' => array(
@@ -818,7 +818,7 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 	$wp_customize->add_control(
 		'tesla_home_lon',
 		array(
-			'label'   => __( '自宅 経度（AI PLAN ジオフェンス）', 'gaming-hub' ),
+			'label'   => __('Home longitude (AI PLAN geofence)', 'gaming-hub'),
 			'section' => 'gaming_hub_tesla_api',
 			'type'    => 'number',
 			'input_attrs' => array(
@@ -839,8 +839,8 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 	$wp_customize->add_control(
 		'tesla_home_radius_m',
 		array(
-			'label'       => __( '自宅 半径（m）', 'gaming-hub' ),
-			'description' => __( 'GPS 誤差を考慮し 300〜500m 推奨。デフォルト 400m。', 'gaming-hub' ),
+			'label'       => __('Home radius (m)', 'gaming-hub'),
+			'description' => __('Allow 300–500 m for GPS error. Default 400 m.', 'gaming-hub'),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'number',
 			'input_attrs' => array(

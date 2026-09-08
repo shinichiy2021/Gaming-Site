@@ -50,26 +50,26 @@ function gaming_hub_powerwall_simulated_flow( $force_solar_refresh = false ) {
 	$powerwall_watts    = 0.0;
 	$is_charging        = false;
 	$is_discharging     = false;
-	$charge_state       = __( '待機中', 'gaming-hub' );
+	$charge_state       = __('Idle', 'gaming-hub');
 
 	if ( $solar >= $load ) {
 		$excess             = $solar - $load;
 		$solar_to_powerwall = min( $excess, 4500 );
 		$powerwall_watts    = $solar_to_powerwall;
 		$is_charging        = $solar_to_powerwall >= 80;
-		$charge_state       = $is_charging ? __( '充電中', 'gaming-hub' ) : __( '待機中', 'gaming-hub' );
+		$charge_state       = $is_charging ? __('Charging', 'gaming-hub') : __('Idle', 'gaming-hub');
 	} else {
 		$deficit         = $load - $solar;
 		$from_battery    = min( $deficit, 8000 );
 		$grid_import     = max( 0, $deficit - $from_battery );
 		$powerwall_watts = $from_battery;
 		$is_discharging  = $from_battery >= 80;
-		$charge_state    = $is_discharging ? __( '放電中', 'gaming-hub' ) : __( '待機中', 'gaming-hub' );
+		$charge_state    = $is_discharging ? __('Discharging', 'gaming-hub') : __('Idle', 'gaming-hub');
 
 		if ( $grid_import >= 80 && ! $is_discharging ) {
-			$charge_state = __( 'グリッド充電', 'gaming-hub' );
+			$charge_state = __('Grid charging', 'gaming-hub');
 		} elseif ( $grid_import >= 80 && $is_discharging ) {
-			$charge_state = __( '放電中', 'gaming-hub' );
+			$charge_state = __('Discharging', 'gaming-hub');
 		}
 	}
 
@@ -304,15 +304,15 @@ function gaming_hub_powerwall_flow_scripts() {
 		'gamingHubPowerwallFlow',
 		array(
 			'labels' => array(
-				'solar'     => __( 'ソーラー (1.5kW)', 'gaming-hub' ),
+				'solar'     => __('Solar (1.5 kW)', 'gaming-hub'),
 				'powerwall' => __( 'Powerwall 3', 'gaming-hub' ),
-				'home'      => __( 'ホーム', 'gaming-hub' ),
+				'home'      => __('Home', 'gaming-hub'),
 				'model3'    => __( 'Model 3', 'gaming-hub' ),
-				'grid'      => __( 'グリッド', 'gaming-hub' ),
-				'gridNote'  => __( '買電のみ', 'gaming-hub' ),
-				'flow'      => __( '電力フロー', 'gaming-hub' ),
-				'import'    => __( '買電', 'gaming-hub' ),
-				'simulated' => __( '多治見市・天気連動シミュレーション', 'gaming-hub' ),
+				'grid'      => __('Grid', 'gaming-hub'),
+				'gridNote'  => __('Import only', 'gaming-hub'),
+				'flow'      => __('Energy flow', 'gaming-hub'),
+				'import'    => __('Grid import', 'gaming-hub'),
+				'simulated' => __('Tajimi weather-linked simulation', 'gaming-hub'),
 			),
 			'images' => array(
 				'solar'     => get_template_directory_uri() . '/assets/images/tesla-solar-gaming.jpg',

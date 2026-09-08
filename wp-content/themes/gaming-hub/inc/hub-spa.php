@@ -87,13 +87,13 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
 		echo '<div class="container content-area content-area--hub-top">';
 		if ( 'ecoflow' === $tag_slug && function_exists( 'gaming_hub_render_ecoflow_section_head' ) ) {
 			gaming_hub_render_ecoflow_section_head(
-				__( '記事', 'gaming-hub' ),
-				__( '実測レビュー・運用メモ', 'gaming-hub' )
+				__('Articles', 'gaming-hub'),
+				__('Field tests and operating notes', 'gaming-hub')
 			);
 		} elseif ( 'tesla' === $tag_slug && function_exists( 'gaming_hub_render_tesla_section_head' ) ) {
 			gaming_hub_render_tesla_section_head(
-				__( '記事', 'gaming-hub' ),
-				__( '実測レビュー・運用メモ', 'gaming-hub' )
+				__('Articles', 'gaming-hub'),
+				__('Field tests and operating notes', 'gaming-hub')
 			);
 		}
 		echo '<div class="posts-grid">';
@@ -114,12 +114,12 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
 		echo '<div class="container content-area content-area--hub-top">';
 		if ( function_exists( 'gaming_hub_render_ecoflow_section_head' ) ) {
 			gaming_hub_render_ecoflow_section_head(
-				__( '記事', 'gaming-hub' ),
-				__( '実測レビュー・運用メモ', 'gaming-hub' )
+				__('Articles', 'gaming-hub'),
+				__('Field tests and operating notes', 'gaming-hub')
 			);
 		}
 		echo '<div class="ecoflow-empty"><p>';
-		esc_html_e( 'EcoFlow タグの記事はまだありません。上の実測構成・発電ログから機材を確認できます。', 'gaming-hub' );
+		esc_html_e('No EcoFlow-tagged posts yet. Check the live kit and generation log above for the gear in use.', 'gaming-hub');
 		echo '</p></div></div></section>';
 		return;
 	}
@@ -129,12 +129,12 @@ function gaming_hub_render_hub_panel_posts( $tag_slug ) {
 		echo '<div class="container content-area content-area--hub-top">';
 		if ( function_exists( 'gaming_hub_render_tesla_section_head' ) ) {
 			gaming_hub_render_tesla_section_head(
-				__( '記事', 'gaming-hub' ),
-				__( '実測レビュー・運用メモ', 'gaming-hub' )
+				__('Articles', 'gaming-hub'),
+				__('Field tests and operating notes', 'gaming-hub')
 			);
 		}
 		echo '<div class="ecoflow-empty"><p>';
-		esc_html_e( 'Tesla タグの記事はまだありません。上の実測構成・充電ログから確認できます。', 'gaming-hub' );
+		esc_html_e('No Tesla-tagged posts yet. Check the live kit and charge log above.', 'gaming-hub');
 		echo '</p></div></div></section>';
 	}
 }
@@ -226,7 +226,7 @@ function gaming_hub_hub_spa_scripts() {
 			'spaEnabled' => gaming_hub_is_hub_spa_page(),
 			'items'      => $items,
 			'labels'     => array(
-				'nav' => __( 'ダッシュボード切替', 'gaming-hub' ),
+				'nav' => __('Dashboard switch', 'gaming-hub'),
 			),
 		)
 	);

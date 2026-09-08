@@ -83,11 +83,11 @@ if ( $asleep ) {
 	$now_mode = 'charge';
 }
 $mode_label = array(
-	'charge' => __( '充電', 'gaming-hub' ),
-	'drive'  => __( '走行', 'gaming-hub' ),
-	'idle'   => __( '待機', 'gaming-hub' ),
-	'past'   => __( '経過', 'gaming-hub' ),
-	'sleep'  => __( 'スリープ', 'gaming-hub' ),
+	'charge' => __('Charge', 'gaming-hub'),
+	'drive'  => __('Driving', 'gaming-hub'),
+	'idle'   => __('Standby', 'gaming-hub'),
+	'past'   => __('Past', 'gaming-hub'),
+	'sleep'  => __('Sleep', 'gaming-hub'),
 );
 $soc_ticks = array( 100, 75, 50, 25, 0 );
 $yen_ticks = array();
@@ -97,7 +97,7 @@ for ( $i = 0; $i < 5; $i++ ) {
 $next_note = $next_charge_labels
 	? sprintf(
 		/* translators: %s: hour ranges */
-		__( '翌 %s も充電', 'gaming-hub' ),
+		__('Also charging next day %s', 'gaming-hub'),
 		implode( '、', $next_charge_labels )
 	)
 	: '';
@@ -108,31 +108,31 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 <section
 	id="plan"
 	class="ecoflow-plan tesla-plan<?php echo $needs_grid ? ' is-deficit' : ' is-ok'; ?><?php echo $asleep ? ' is-asleep' : ''; ?>"
-	aria-label="<?php esc_attr_e( 'Tesla 充電計画', 'gaming-hub' ); ?>"
+	aria-label="<?php esc_attr_e('Tesla charge plan', 'gaming-hub'); ?>"
 	data-tesla-plan
 	data-plan-id="<?php echo esc_attr( $plan['plan_id'] ?? '' ); ?>"
 	data-plan-date="<?php echo esc_attr( $view_date ); ?>"
 	data-initial="<?php echo esc_attr( wp_json_encode( $plan ) ); ?>"
 >
-	<nav class="ecoflow-plan-day-nav" aria-label="<?php esc_attr_e( '計画の日付', 'gaming-hub' ); ?>">
-		<button type="button" class="ecoflow-plan-cancel" data-tesla-plan-day="yesterday"><?php esc_html_e( '昨日', 'gaming-hub' ); ?></button>
-		<button type="button" class="ecoflow-plan-cancel is-active" data-tesla-plan-day="today"><?php esc_html_e( '今日', 'gaming-hub' ); ?></button>
-		<button type="button" class="ecoflow-plan-cancel" data-tesla-plan-day="tomorrow"><?php esc_html_e( '明日', 'gaming-hub' ); ?></button>
+	<nav class="ecoflow-plan-day-nav" aria-label="<?php esc_attr_e('Plan date', 'gaming-hub'); ?>">
+		<button type="button" class="ecoflow-plan-cancel" data-tesla-plan-day="yesterday"><?php esc_html_e('Yesterday', 'gaming-hub'); ?></button>
+		<button type="button" class="ecoflow-plan-cancel is-active" data-tesla-plan-day="today"><?php esc_html_e('Today', 'gaming-hub'); ?></button>
+		<button type="button" class="ecoflow-plan-cancel" data-tesla-plan-day="tomorrow"><?php esc_html_e('Tomorrow', 'gaming-hub'); ?></button>
 	</nav>
 	<div class="ecoflow-plan-header ecoflow-plan-head">
 		<div>
 			<p class="ecoflow-plan-kicker"><?php esc_html_e( 'AI PLAN', 'gaming-hub' ); ?></p>
-			<h3 data-tesla-plan-title><?php echo esc_html( $plan['title'] ?? __( '今日の充電計画', 'gaming-hub' ) ); ?></h3>
+			<h3 data-tesla-plan-title><?php echo esc_html( $plan['title'] ?? __('Today’s charge plan', 'gaming-hub') ); ?></h3>
 			<p class="ecoflow-plan-note" data-tesla-plan-note><?php echo esc_html( $plan['note'] ?? '' ); ?></p>
 			<p class="tesla-plan-sleep-note" data-tesla-plan-sleep <?php echo $asleep ? '' : 'hidden'; ?>>
-				<?php echo esc_html( (string) ( $plan['asleep_note'] ?? __( 'スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。', 'gaming-hub' ) ) ); ?>
+				<?php echo esc_html( (string) ( $plan['asleep_note'] ?? __('Asleep. Battery % is frozen at the pre-sleep value and is not refreshed via API until the car wakes.', 'gaming-hub') ) ); ?>
 			</p>
 			<p class="tesla-plan-auto<?php echo ! empty( $plan['auto_error'] ) ? ' is-error' : ''; ?>" data-tesla-plan-auto>
-				<?php echo esc_html( (string) ( $plan['auto_note'] ?? __( 'AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。', 'gaming-hub' ) ) ); ?>
+				<?php echo esc_html( (string) ( $plan['auto_note'] ?? __('Home charging on/off and the charge cap are sent automatically to match the AI PLAN. Turn off scheduled charging in the Tesla app.', 'gaming-hub') ) ); ?>
 			</p>
 			<?php if ( ! empty( $plan['needs_charge_auth'] ) ) : ?>
 				<p class="tesla-plan-auto-auth">
-					<?php esc_html_e( '充電操作には再認証が必要です。', 'gaming-hub' ); ?>
+					<?php esc_html_e('Charge control needs a new Tesla authorization.', 'gaming-hub'); ?>
 					<?php
 					if ( function_exists( 'gaming_hub_render_tesla_oauth_button' ) ) {
 						gaming_hub_render_tesla_oauth_button( true, true );
@@ -142,7 +142,7 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 			<?php elseif ( ! empty( $plan['virtual_key_url'] ) && ! empty( $plan['auto_error'] ) ) : ?>
 				<p class="tesla-plan-auto-key">
 					<a href="<?php echo esc_url( (string) $plan['virtual_key_url'] ); ?>" rel="noopener noreferrer">
-						<?php esc_html_e( '仮想キーを追加', 'gaming-hub' ); ?>
+						<?php esc_html_e('Add virtual key', 'gaming-hub'); ?>
 					</a>
 				</p>
 			<?php endif; ?>
@@ -160,10 +160,10 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 						isset( $plan['soc_now'] )
 							? sprintf(
 								/* translators: %s: SOC percent */
-								__( '固定 %s%%', 'gaming-hub' ),
+								__('Held %s%%', 'gaming-hub'),
 								number_format_i18n( (float) $plan['soc_now'], 0 )
 							)
-							: __( '入眠時の残量を表示', 'gaming-hub' )
+							: __('Showing pre-sleep battery %', 'gaming-hub')
 					);
 				} elseif ( $live_charging ) {
 					echo esc_html( number_format_i18n( max( 0, $live_charge_w ) ) . ' W' );
@@ -179,7 +179,7 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 		</div>
 		<div class="ecoflow-rates-stat ecoflow-plan-stat-input is-<?php echo esc_attr( sanitize_html_class( $input_type ) ); ?>">
 			<span><?php esc_html_e( 'INPUT', 'gaming-hub' ); ?></span>
-			<strong data-tesla-plan-input><?php echo esc_html( (string) ( $plan['input_label'] ?? __( '未接続', 'gaming-hub' ) ) ); ?></strong>
+			<strong data-tesla-plan-input><?php echo esc_html( (string) ( $plan['input_label'] ?? __('Unplugged', 'gaming-hub') ) ); ?></strong>
 			<small data-tesla-plan-input-sub><?php echo esc_html( (string) ( $plan['input_sub_label'] ?? '—' ) ); ?></small>
 		</div>
 		<div class="ecoflow-rates-stat">
@@ -190,7 +190,7 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 				if ( isset( $plan['window_avg_yen'] ) && null !== $plan['window_avg_yen'] ) {
 					printf(
 						/* translators: %s: yen per kWh */
-						esc_html__( '平均 %s 円/kWh', 'gaming-hub' ),
+						esc_html__('Avg %s yen/kWh', 'gaming-hub'),
 						esc_html( number_format_i18n( (float) $plan['window_avg_yen'], 1 ) )
 					);
 				}
@@ -200,12 +200,12 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 		<div class="ecoflow-rates-stat ecoflow-plan-stat-buy">
 			<span><?php esc_html_e( 'BUY', 'gaming-hub' ); ?></span>
 			<strong data-tesla-plan-deficit><?php echo esc_html( isset( $plan['deficit_kwh'] ) ? number_format_i18n( (float) $plan['deficit_kwh'], 1 ) . ' kWh' : '—' ); ?></strong>
-			<small data-tesla-plan-deficit-label><?php echo esc_html( (string) ( $plan['deficit_hud_label'] ?? __( '今日の不足', 'gaming-hub' ) ) ); ?></small>
+			<small data-tesla-plan-deficit-label><?php echo esc_html( (string) ( $plan['deficit_hud_label'] ?? __('Today’s shortfall', 'gaming-hub') ) ); ?></small>
 		</div>
 		<div class="ecoflow-rates-stat ecoflow-rates-stat-pv">
 			<span><?php esc_html_e( 'KM', 'gaming-hub' ); ?></span>
 			<strong data-tesla-plan-km><?php echo esc_html( isset( $plan['km_hud'] ) ? number_format_i18n( (float) $plan['km_hud'], 1 ) . ' km' : '—' ); ?></strong>
-			<small data-tesla-plan-km-label><?php echo esc_html( (string) ( $plan['km_hud_label'] ?? __( '残り走行', 'gaming-hub' ) ) ); ?></small>
+			<small data-tesla-plan-km-label><?php echo esc_html( (string) ( $plan['km_hud_label'] ?? __('Remaining drive', 'gaming-hub') ) ); ?></small>
 		</div>
 	</div>
 
@@ -221,7 +221,7 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 				class="ecoflow-rate-track"
 				data-tesla-plan-track
 				role="img"
-				aria-label="<?php echo esc_attr( $asleep ? __( 'スリープ中の固定残量と充電計画', 'gaming-hub' ) : __( 'Model 3 の充電計画・残量予測・走行見込み・請求単価', 'gaming-hub' ) ); ?>"
+				aria-label="<?php echo esc_attr( $asleep ? __('Held battery % while asleep and charge plan', 'gaming-hub') : __('Model 3 charge plan, SOC forecast, expected driving, and billed rate', 'gaming-hub') ); ?>"
 			>
 				<?php
 				$sleep_from = $asleep && isset( $plan['sleep_from_hour'] ) && is_numeric( $plan['sleep_from_hour'] )
@@ -279,7 +279,7 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 					}
 					$tip = array( sprintf( '%d:00', $h ), $mode_label[ $mode ] ?? $mode );
 					if ( $is_hold ) {
-						$tip[] = __( '固定残量', 'gaming-hub' );
+						$tip[] = __('Held battery %', 'gaming-hub');
 					}
 					if ( $has_soc ) {
 						$tip[] = number_format_i18n( (float) $soc_pct, 0 ) . '%';
@@ -287,14 +287,14 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 					if ( $is_charge ) {
 						$tip[] = number_format_i18n( $col_watts ) . ' W';
 						if ( 'home_ac' === $charge_tone ) {
-							$tip[] = __( '自宅充電（実績）', 'gaming-hub' );
+							$tip[] = __('Home charge (actual)', 'gaming-hub');
 						} elseif ( 'plan' !== $charge_tone ) {
 							$tip[] = gaming_hub_tesla_charge_input_label( $charge_tone );
 						} else {
-							$tip[] = __( '充電予定', 'gaming-hub' );
+							$tip[] = __('Scheduled charge', 'gaming-hub');
 						}
 						if ( $asleep ) {
-							$tip[] = __( '計画のみ（未実行）', 'gaming-hub' );
+							$tip[] = __('Planned only (not running)', 'gaming-hub');
 						}
 					}
 					if ( isset( $slot['drive_km'] ) && null !== $slot['drive_km'] ) {
@@ -306,7 +306,7 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 					?>
 					<div class="<?php echo esc_attr( $col_class ); ?>" data-tesla-plan-col data-hour="<?php echo esc_attr( (string) $h ); ?>">
 						<?php if ( $is_now ) : ?>
-							<span class="ecoflow-rate-now-pip<?php echo $asleep ? ' is-sleep' : ''; ?>"><?php echo esc_html( $asleep ? __( 'SLEEP', 'gaming-hub' ) : __( 'NOW', 'gaming-hub' ) ); ?></span>
+							<span class="ecoflow-rate-now-pip<?php echo $asleep ? ' is-sleep' : ''; ?>"><?php echo esc_html( $asleep ? __('SLEEP', 'gaming-hub') : __( 'NOW', 'gaming-hub' ) ); ?></span>
 						<?php endif; ?>
 						<span
 							class="<?php echo esc_attr( $charge_bar_class ); ?>"
@@ -344,31 +344,31 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 			</div>
 		</div>
 		<div class="ecoflow-rate-y ecoflow-rate-y-yen" aria-hidden="true">
-			<span class="ecoflow-rate-y-unit"><?php esc_html_e( '円', 'gaming-hub' ); ?></span>
+			<span class="ecoflow-rate-y-unit"><?php esc_html_e('yen', 'gaming-hub'); ?></span>
 			<?php foreach ( $yen_ticks as $tick_yen ) : ?>
 				<span data-tesla-plan-yen-tick><?php echo esc_html( number_format( $tick_yen, 1 ) ); ?></span>
 			<?php endforeach; ?>
 		</div>
 	</div>
-	<p class="ecoflow-plan-chart-hint"><?php esc_html_e( 'グラフは左右にスワイプできます', 'gaming-hub' ); ?></p>
+	<p class="ecoflow-plan-chart-hint"><?php esc_html_e('Swipe the chart sideways', 'gaming-hub'); ?></p>
 	<p class="ecoflow-rate-legend" data-tesla-plan-legend>
 		<?php
 		echo esc_html(
 			$asleep
-				? __( '灰棒: スリープ中の固定残量 · 薄い金帯: 計画充電（未実行）· 朱橙線: 走行見込み · 青緑線: 請求単価', 'gaming-hub' )
-				: __( '黄棒: 残量 · 黄帯: 自宅充電（実績）· 金帯: 充電予定 · 色帯: 外出先/DC 実績 · 朱橙線: 走行 · 青緑線: 単価', 'gaming-hub' )
+				? __('Gray bars: held SOC while asleep · faint gold: planned charge (not running) · orange: drive estimate · teal: rate', 'gaming-hub')
+				: __('Yellow bar: SOC · Yellow band: home charge (actual) · Gold band: scheduled charge · Colored bands: away/DC actual · Orange: driving · Teal: price', 'gaming-hub')
 		);
 		?>
 	</p>
 	<p class="ecoflow-plan-next" data-tesla-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 
 	<details class="ecoflow-plan-more">
-		<summary><?php esc_html_e( '内訳を見る', 'gaming-hub' ); ?></summary>
+		<summary><?php esc_html_e('See details', 'gaming-hub'); ?></summary>
 		<p class="ecoflow-plan-limits">
 			<?php
 			printf(
 				/* translators: 1: amps, 2: kW, 3: daily km, 4: Wh/km, 5: min SOC, 6: daily target, 7: Saturday hour */
-				esc_html__( '200V 普通充電 %1$sA · %2$s kW · 1日 %3$s km · %4$s Wh/km · 残量 %5$s–%6$s%% · 土曜 %7$s 時までに 100%%', 'gaming-hub' ),
+				esc_html__('200V AC charging %1$sA · %2$s kW · %3$s km/day · %4$s Wh/km · SOC %5$s–%6$s%% · 100%% by Saturday %7$s:00', 'gaming-hub'),
 				esc_html( number_format_i18n( (int) ( $plan['charge_a'] ?? GAMING_HUB_TESLA_PLAN_AMPS ) ) ),
 				esc_html( number_format_i18n( $charge_w / 1000, 1 ) ),
 				esc_html( number_format_i18n( gaming_hub_tesla_plan_daily_km(), 0 ) ),
@@ -388,16 +388,16 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 		</p>
 		<div class="ecoflow-plan-grid">
 			<div class="ecoflow-plan-card">
-				<span class="ecoflow-stat-label"><?php esc_html_e( 'いまの残量', 'gaming-hub' ); ?></span>
+				<span class="ecoflow-stat-label"><?php esc_html_e('Charge now', 'gaming-hub'); ?></span>
 				<strong data-tesla-plan-soc-now><?php echo esc_html( isset( $plan['soc_now'] ) ? number_format_i18n( (float) $plan['soc_now'], 0 ) . '%' : '—' ); ?></strong>
 				<small data-tesla-plan-soc-end>
 					<?php
 					if ( $asleep ) {
-						esc_html_e( 'スリープ中・固定', 'gaming-hub' );
+						esc_html_e('Asleep · held', 'gaming-hub');
 					} elseif ( isset( $plan['soc_end'] ) && null !== $plan['soc_end'] ) {
 						printf(
 							/* translators: %s: SOC */
-							esc_html__( '計画後 %s%%', 'gaming-hub' ),
+							esc_html__('%s%% after plan', 'gaming-hub'),
 							esc_html( number_format_i18n( (float) $plan['soc_end'], 0 ) )
 						);
 					}
@@ -405,18 +405,18 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 				</small>
 			</div>
 			<div class="ecoflow-plan-card">
-				<span class="ecoflow-stat-label"><?php esc_html_e( '目標残量', 'gaming-hub' ); ?></span>
+				<span class="ecoflow-stat-label"><?php esc_html_e('Target charge', 'gaming-hub'); ?></span>
 				<strong data-tesla-plan-target><?php echo esc_html( isset( $plan['target_soc'] ) ? number_format_i18n( (int) $plan['target_soc'] ) . '%' : '—' ); ?></strong>
-				<small data-tesla-plan-target-note><?php echo esc_html( (string) ( $plan['target_note'] ?? sprintf( __( '充電上限 %s%%', 'gaming-hub' ), number_format_i18n( GAMING_HUB_TESLA_PLAN_TARGET_SOC ) ) ) ); ?></small>
+				<small data-tesla-plan-target-note><?php echo esc_html( (string) ( $plan['target_note'] ?? sprintf( __('Charge limit %s%%', 'gaming-hub'), number_format_i18n( GAMING_HUB_TESLA_PLAN_TARGET_SOC ) ) ) ); ?></small>
 			</div>
 			<div class="ecoflow-plan-card">
-				<span class="ecoflow-stat-label"><?php esc_html_e( '推奨充電ウィンドウ', 'gaming-hub' ); ?></span>
+				<span class="ecoflow-stat-label"><?php esc_html_e('Suggested charge window', 'gaming-hub'); ?></span>
 				<strong data-tesla-plan-window-card><?php echo esc_html( $plan['window_label'] ?? '—' ); ?></strong>
 				<small data-tesla-plan-window-price-card>
 					<?php
 					if ( isset( $plan['window_avg_yen'] ) && null !== $plan['window_avg_yen'] ) {
 						printf(
-							esc_html__( '平均 %s 円/kWh', 'gaming-hub' ),
+							esc_html__('Avg %s yen/kWh', 'gaming-hub'),
 							esc_html( number_format_i18n( (float) $plan['window_avg_yen'], 1 ) )
 						);
 					}
@@ -424,14 +424,14 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 				</small>
 			</div>
 			<div class="ecoflow-plan-card">
-				<span class="ecoflow-stat-label"><?php esc_html_e( '走行', 'gaming-hub' ); ?></span>
+				<span class="ecoflow-stat-label"><?php esc_html_e('Driving', 'gaming-hub'); ?></span>
 				<strong data-tesla-plan-drive><?php echo esc_html( isset( $plan['km'] ) ? number_format_i18n( (float) $plan['km'], 1 ) . ' km' : '—' ); ?></strong>
 				<small data-tesla-plan-save>
 					<?php
 					if ( ! empty( $plan['saved_yen'] ) ) {
 						printf(
 							/* translators: 1: liters, 2: yen */
-							esc_html__( '普通車換算 %1$s L · 節約 %2$s 円', 'gaming-hub' ),
+							esc_html__('Gas-car equivalent %1$s L · saved %2$s yen', 'gaming-hub'),
 							esc_html( number_format_i18n( (float) ( $plan['gas_l'] ?? 0 ), 2 ) ),
 							esc_html( number_format_i18n( (int) $plan['saved_yen'] ) )
 						);

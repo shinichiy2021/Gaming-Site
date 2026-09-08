@@ -133,7 +133,7 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 		device.mqtt_live !== true || device.soc_source === 'unavailable'
 	);
 	const packLabel = mqttMissing
-		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
+		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
 		: ( Number.isFinite( fullWh ) && fullWh > 0 ? formatPack( remainWh, fullWh ) : '' );
 	const isCharging = ! mqttMissing && (
 		device.eta_mode === 'charge' || ( device.eta_mode !== 'discharge' && !! device.is_charging )
@@ -181,7 +181,7 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 			</div>
 			<span className="ecoflow-node-label">{ label }</span>
 			{ packLabel ? <small className="ecoflow-node-pack">{ packLabel }</small> : null }
-			<p className="ecoflow-node-state">{ mqttMissing ? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' ) : ( device.charge_state || '—' ) }</p>
+			<p className="ecoflow-node-state">{ mqttMissing ? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' ) : ( device.charge_state || '—' ) }</p>
 			{ ! mqttMissing ? <PackEta device={ device } /> : null }
 			{ ! compact && hasBattery && ! photo ? (
 				<div
@@ -204,8 +204,8 @@ function formatYenInt( value ) {
 	}
 
 	const suffix = ( typeof window !== 'undefined' && window.gamingHubT )
-		? window.gamingHubT( ' 円' )
-		: ' 円';
+		? window.gamingHubT( ' yen' )
+		: ' yen';
 
 	return Math.round( value ).toLocaleString() + suffix;
 }
@@ -299,10 +299,10 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 		? `${ ( extraCap / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kWh`
 		: `${ extraCap } Wh`;
 	const extraLastLabel = typeof window !== 'undefined' && window.gamingHubT
-		? window.gamingHubT( '最終値' )
-		: '最終値';
+		? window.gamingHubT( 'last' )
+		: 'last';
 	const extraCapLabel = extraMissing
-		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
+		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
 		: ( extra.capacity_source === 'stale' ? `${ extraCapText } · ${ extraLastLabel }` : extraCapText );
 	const deltaSoc = formatSoc( delta.battery_percent );
 	const extraTone = batteryTone( extraSoc );
@@ -423,7 +423,7 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 						<span className="ecoflow-node-label">{ labels.deltaGrid || 'グリッド AC 入力' }</span>
 						<strong>{ formatWatts( deltaAcIn ) }</strong>
 						{ deltaMissing ? (
-							<small>{ typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' }</small>
+							<small>{ typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' }</small>
 						) : (
 							<>
 								<small className="ecoflow-node-yen ecoflow-node-gen">
@@ -451,7 +451,7 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 						<strong>{ formatWatts( solarWatts ) }</strong>
 						<small className={ solarWatts === null || solarWatts === undefined ? '' : 'ecoflow-node-yen ecoflow-node-gen' }>{
 							solarWatts === null || solarWatts === undefined
-								? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' )
+								? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
 								: `${ labels.todayGen || '今日 発電' } ${ formatTodayWatts( liveSolar?.delta ) }`
 						}</small>
 					</div>
@@ -509,7 +509,7 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 							</small>
 						</>
 					) : (
-						<small>{ typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( '未取得' ) : '未取得' }</small>
+						<small>{ typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' }</small>
 					) }
 				</div>
 

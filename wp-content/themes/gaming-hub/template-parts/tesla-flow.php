@@ -19,15 +19,15 @@ $efficiency = isset( $flow['efficiency'] ) && is_array( $flow['efficiency'] )
 	? $flow['efficiency']
 	: ( isset( $model3['efficiency'] ) && is_array( $model3['efficiency'] ) ? $model3['efficiency'] : array() );
 ?>
-<section class="tesla-flow-dashboard" aria-label="<?php esc_attr_e( 'Tesla 電力フロー', 'gaming-hub' ); ?>">
+<section class="tesla-flow-dashboard" aria-label="<?php esc_attr_e('Tesla energy flow', 'gaming-hub'); ?>">
 	<div class="pw-flow-dashboard-header">
-		<h2><?php esc_html_e( 'Tesla 電力フロー', 'gaming-hub' ); ?></h2>
+		<h2><?php esc_html_e('Tesla energy flow', 'gaming-hub'); ?></h2>
 		<?php if ( ! empty( $status['updated_at'] ) ) : ?>
 			<p class="pw-flow-updated">
 				<?php
 				printf(
 					/* translators: %s: last updated time */
-					esc_html__( '最終更新: %s', 'gaming-hub' ),
+					esc_html__('Updated: %s', 'gaming-hub'),
 					esc_html( $status['updated_at'] )
 				);
 				?>
@@ -36,7 +36,7 @@ $efficiency = isset( $flow['efficiency'] ) && is_array( $flow['efficiency'] )
 	</div>
 
 	<?php if ( ! empty( $efficiency['badge_wh'] ) || ! empty( $efficiency['badge_regen'] ) ) : ?>
-		<div class="tesla-eff-badges" data-tesla-eff-badges aria-label="<?php esc_attr_e( '効率バッジ', 'gaming-hub' ); ?>">
+		<div class="tesla-eff-badges" data-tesla-eff-badges aria-label="<?php esc_attr_e('Efficiency badges', 'gaming-hub'); ?>">
 			<?php if ( ! empty( $efficiency['badge_wh'] ) ) : ?>
 				<span
 					class="tesla-eff-badge tesla-eff-badge-wh is-<?php echo esc_attr( (string) ( $efficiency['tier_wh'] ?? 'idle' ) ); ?>"
@@ -55,14 +55,14 @@ $efficiency = isset( $flow['efficiency'] ) && is_array( $flow['efficiency'] )
 			<?php endif; ?>
 		</div>
 	<?php else : ?>
-		<div class="tesla-eff-badges" data-tesla-eff-badges aria-label="<?php esc_attr_e( '効率バッジ', 'gaming-hub' ); ?>" hidden>
+		<div class="tesla-eff-badges" data-tesla-eff-badges aria-label="<?php esc_attr_e('Efficiency badges', 'gaming-hub'); ?>" hidden>
 			<span class="tesla-eff-badge tesla-eff-badge-wh is-idle" data-tesla-eff-wh hidden></span>
 			<span class="tesla-eff-badge tesla-eff-badge-regen is-idle" data-tesla-eff-regen hidden></span>
 		</div>
 	<?php endif; ?>
 
 	<p class="tesla-flow-note">
-		<?php esc_html_e( '入力は自宅の 200V 普通充電と急速充電（Supercharger）。走行は多治見のガソリン価格で普通車換算し、節約額を出します。', 'gaming-hub' ); ?>
+		<?php esc_html_e('Inputs are home 200V AC charging and DC fast charging (Supercharger). Driving is converted with Tajimi gasoline prices to show savings versus a gas car.', 'gaming-hub'); ?>
 	</p>
 
 	<?php if ( 'tesla' === $source ) : ?>

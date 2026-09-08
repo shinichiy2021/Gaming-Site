@@ -180,8 +180,8 @@ export function formatWh( value ) {
 export function formatPack( remain, full ) {
 	if ( remain === null || remain === undefined || ! Number.isFinite( Number( remain ) ) ) {
 		return ( typeof window !== 'undefined' && window.gamingHubT )
-			? window.gamingHubT( '未取得' )
-			: '未取得';
+			? window.gamingHubT( 'n/a' )
+			: 'n/a';
 	}
 
 	if ( ! Number.isFinite( Number( full ) ) || Number( full ) <= 0 ) {

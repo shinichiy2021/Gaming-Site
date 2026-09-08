@@ -62,31 +62,19 @@ function gaming_hub_ecoflow_format_bridge_error( $error ) {
 		|| false !== stripos( $error, 'incorrect password' )
 		|| false !== stripos( $error, 'Googleログインのみ' )
 	) {
-		return __(
-			'Googleログインのみのアカウントです。EcoFlowアプリで「ログインパスワード」を設定し、そのメールアドレスとパスワードを Customizer に入力してください。（Googleログインそのものは MQTT では使えません）',
-			'gaming-hub'
-		);
+		return __('This account is Google-login only. Set a login password in the EcoFlow app and enter that email and password in the Customizer. Google login itself cannot be used for MQTT.', 'gaming-hub');
 	}
 
 	if ( false !== stripos( $error, 'server is too busy' ) || false !== stripos( $error, 'too busy' ) ) {
-		return __(
-			'EcoFlow ログイン API が混雑しています（1日10個までの MQTT client ID 制限の可能性）。5〜30分おきに自動再試行します。ライブ MQTT が取れないあいだは未取得と表示します。',
-			'gaming-hub'
-		);
+		return __('EcoFlow login API is busy (possible 10 MQTT client IDs / day limit). Retrying every 5–30 minutes. Shows n/a while live MQTT is unavailable.', 'gaming-hub');
 	}
 
 	if ( false !== stripos( $error, 'not authorized' ) || false !== stripos( $error, 'MQTT 認証' ) ) {
-		return __(
-			'MQTT 認証に失敗しました。日本の EcoFlow アカウントは「外観 → カスタマイズ → EcoFlow API → API Region」を Asia にしてください。保存後、docker compose restart ecoflow-bridge を実行してください。',
-			'gaming-hub'
-		);
+		return __('MQTT auth failed. For Japan EcoFlow accounts set Appearance → Customize → EcoFlow API → API Region to Asia, save, then run docker compose restart ecoflow-bridge.', 'gaming-hub');
 	}
 
 	if ( false !== stripos( $error, 'Waiting for' ) || false !== stripos( $error, 'bridge-config' ) ) {
-		return __(
-			'MQTT ブリッジの設定待ちです。外観 → カスタマイズ → EcoFlow API に App Login を入力し、docker compose up -d ecoflow-bridge を実行してください。',
-			'gaming-hub'
-		);
+		return __('Waiting for MQTT bridge setup. Enter App Login under Appearance → Customize → EcoFlow API, then run docker compose up -d ecoflow-bridge.', 'gaming-hub');
 	}
 
 	return $error;
@@ -290,10 +278,10 @@ function gaming_hub_ecoflow_infer_secondary_from_primary( array $primary, $devic
 	if ( is_array( $bridge_status ) && empty( $bridge_status['ok'] ) && ! empty( $bridge_status['error'] ) ) {
 		$bridge_hint = gaming_hub_ecoflow_format_bridge_error( $bridge_status['error'] );
 	} elseif ( ! gaming_hub_ecoflow_read_bridge_quota( $device_sn ) ) {
-		$bridge_hint = __( 'MQTT ブリッジ待機中 — docker compose up -d ecoflow-bridge', 'gaming-hub' );
+		$bridge_hint = __('Waiting for MQTT bridge — docker compose up -d ecoflow-bridge', 'gaming-hub');
 	}
 
-	$api_note = $reason ?: __( 'Developer API 非対応 — Delta 3 は App Login (MQTT) が必要です。', 'gaming-hub' );
+	$api_note = $reason ?: __('Developer API unsupported — Delta 3 needs App Login (MQTT).', 'gaming-hub');
 	$note     = $api_note;
 	if ( '' !== $bridge_hint ) {
 		$note .= ' / MQTT: ' . $bridge_hint;
@@ -318,7 +306,7 @@ function gaming_hub_ecoflow_infer_secondary_from_primary( array $primary, $devic
 		'mqtt_live'       => false,
 		'soc_source'      => 'unavailable',
 		'solar_in_source' => 'unavailable',
-		'charge_state'    => __( '未取得', 'gaming-hub' ),
+		'charge_state'    => __('n/a', 'gaming-hub'),
 		'inferred'        => true,
 		'inferred_note'   => $note,
 		'updated_at'      => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),

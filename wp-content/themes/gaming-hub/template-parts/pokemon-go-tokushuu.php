@@ -13,17 +13,17 @@ $events = function_exists( 'gaming_hub_pgo_index_events' )
 	<section class="pgo-hero pgo-tokushuu-hero">
 		<div class="pgo-hero-bg"></div>
 		<div class="container pgo-hero-content">
-			<span class="pgo-hero-badge"><?php esc_html_e( 'Pokémon GO 特集', 'gaming-hub' ); ?></span>
-			<h1 class="pgo-hero-title"><?php esc_html_e( '大型イベント特集', 'gaming-hub' ); ?></h1>
+			<span class="pgo-hero-badge"><?php esc_html_e('Pokémon GO features', 'gaming-hub'); ?></span>
+			<h1 class="pgo-hero-title"><?php esc_html_e('Major event features', 'gaming-hub'); ?></h1>
 			<p class="pgo-hero-desc">
-				<?php esc_html_e( 'GO Fest、ウルトラアンロック、世界大会、レイドデイなど、大きなイベントのときに攻略用の特集ページを用意します。', 'gaming-hub' ); ?>
+				<?php esc_html_e('Feature pages for large events such as GO Fest, Ultra Unlock, Worlds, and Raid Days.', 'gaming-hub'); ?>
 			</p>
 			<div class="pgo-hero-links">
 				<a href="<?php echo esc_url( gaming_hub_pokemon_go_url() ); ?>" class="btn btn-outline">
-					<?php esc_html_e( 'Pokémon GO 最新情報', 'gaming-hub' ); ?>
+					<?php esc_html_e('Pokémon GO news', 'gaming-hub'); ?>
 				</a>
 				<a href="https://pokemongolive.com/ja/events/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-					<?php esc_html_e( '公式イベント一覧', 'gaming-hub' ); ?>
+					<?php esc_html_e('Official event list', 'gaming-hub'); ?>
 				</a>
 			</div>
 		</div>
@@ -32,7 +32,7 @@ $events = function_exists( 'gaming_hub_pgo_index_events' )
 	<section class="section pgo-tokushuu-index">
 		<div class="container">
 			<?php if ( empty( $events ) ) : ?>
-				<p class="pgo-tokushuu-empty"><?php esc_html_e( 'いま公開中の大型イベント特集はありません。次の大きなイベントのときに、ここに特集が並びます。', 'gaming-hub' ); ?></p>
+				<p class="pgo-tokushuu-empty"><?php esc_html_e('No major-event features are live right now. The next large event will appear here.', 'gaming-hub'); ?></p>
 			<?php else : ?>
 				<div class="pgo-tokushuu-grid">
 					<?php foreach ( $events as $event ) : ?>
@@ -54,7 +54,7 @@ $events = function_exists( 'gaming_hub_pgo_index_events' )
 									<?php echo esc_html( $event['today'][0]['title'] ); ?>
 								</p>
 							<?php endif; ?>
-							<span class="pgo-read-more"><?php esc_html_e( '特集を見る', 'gaming-hub' ); ?></span>
+							<span class="pgo-read-more"><?php esc_html_e('Open feature', 'gaming-hub'); ?></span>
 						</a>
 					<?php endforeach; ?>
 				</div>

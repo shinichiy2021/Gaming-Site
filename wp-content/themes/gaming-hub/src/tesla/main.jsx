@@ -19,7 +19,7 @@ if ( mountNode ) {
 		regenNote: '減速・ブレーキ',
 		cabin: '車内電力',
 		flow: 'Tesla の入出力',
-		idle: '待機',
+		idle: 'Standby',
 		connected: '接続中',
 		charging: '充電中',
 		driving: '走行中',

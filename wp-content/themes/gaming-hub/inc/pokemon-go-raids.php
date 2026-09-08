@@ -54,13 +54,13 @@ function gaming_hub_pgo_raid_bosses() {
  */
 function gaming_hub_pgo_raid_types() {
 	return array(
-		'one'        => array( 'label' => __( '1つ星', 'gaming-hub' ), 'slots' => 5 ),
-		'three'      => array( 'label' => __( '3つ星', 'gaming-hub' ), 'slots' => 5 ),
-		'five'       => array( 'label' => __( '5つ星', 'gaming-hub' ), 'slots' => 5 ),
-		'mega'       => array( 'label' => __( 'メガ', 'gaming-hub' ), 'slots' => 5 ),
-		'super_mega' => array( 'label' => __( 'スーパーメガ', 'gaming-hub' ), 'slots' => 5 ),
-		'dmax'       => array( 'label' => __( 'ダイマックス', 'gaming-hub' ), 'slots' => 3 ),
-		'gmax'       => array( 'label' => __( 'キョダイマックス', 'gaming-hub' ), 'slots' => 10 ),
+		'one'        => array( 'label' => __('1-star', 'gaming-hub'), 'slots' => 5 ),
+		'three'      => array( 'label' => __('3-star', 'gaming-hub'), 'slots' => 5 ),
+		'five'       => array( 'label' => __('5-star', 'gaming-hub'), 'slots' => 5 ),
+		'mega'       => array( 'label' => __('Mega', 'gaming-hub'), 'slots' => 5 ),
+		'super_mega' => array( 'label' => __('Super Mega', 'gaming-hub'), 'slots' => 5 ),
+		'dmax'       => array( 'label' => __('Dynamax', 'gaming-hub'), 'slots' => 3 ),
+		'gmax'       => array( 'label' => __('Gigantamax', 'gaming-hub'), 'slots' => 10 ),
 	);
 }
 
@@ -127,7 +127,7 @@ function gaming_hub_pgo_raid_sync_page() {
 	if ( ! $page ) {
 		$page_id = wp_insert_post(
 			array(
-				'post_title'   => __( 'レイド招待掲示板', 'gaming-hub' ),
+				'post_title'   => __('Raid invite board', 'gaming-hub'),
 				'post_name'    => 'pokemon-go-raid',
 				'post_status'  => 'publish',
 				'post_type'    => 'page',
@@ -413,7 +413,7 @@ function gaming_hub_rest_pgo_raid_list() {
 function gaming_hub_rest_pgo_raid_one( WP_REST_Request $request ) {
 	$row = gaming_hub_pgo_raid_get( (string) $request['id'] );
 	if ( ! $row ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '募集が見つかりません', 'gaming-hub' ) ), 404 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Lobby not found', 'gaming-hub') ), 404 );
 	}
 
 	$token = (string) $request->get_param( 'host_token' );
@@ -441,11 +441,11 @@ function gaming_hub_rest_pgo_raid_create( WP_REST_Request $request ) {
 
 	$nonce = (string) $request->get_param( 'nonce' );
 	if ( ! wp_verify_nonce( $nonce, 'gaming_hub_pgo_raid' ) ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '更新してやり直してください', 'gaming-hub' ) ), 403 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Refresh and try again', 'gaming-hub') ), 403 );
 	}
 
 	if ( ! gaming_hub_pgo_raid_rate_allow( 'create', 3, 10 * MINUTE_IN_SECONDS ) ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '投稿が多すぎます。少し待ってください', 'gaming-hub' ) ), 429 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Too many posts. Please wait a bit', 'gaming-hub') ), 429 );
 	}
 
 	$trainer = sanitize_text_field( (string) $request->get_param( 'trainer_name' ) );
@@ -458,7 +458,7 @@ function gaming_hub_rest_pgo_raid_create( WP_REST_Request $request ) {
 	$note     = mb_substr( $note, 0, 80 );
 
 	if ( '' === $trainer || '' === $code ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( 'トレーナー名とフレンドコードを入力してください', 'gaming-hub' ) ), 400 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Enter a trainer name and friend code', 'gaming-hub') ), 400 );
 	}
 
 	$boss  = null;
@@ -469,12 +469,12 @@ function gaming_hub_rest_pgo_raid_create( WP_REST_Request $request ) {
 		}
 	}
 	if ( ! $boss ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( 'ボスを選んでください', 'gaming-hub' ) ), 400 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Choose a boss', 'gaming-hub') ), 400 );
 	}
 
 	$boss_name = $boss['name'];
 	if ( 'other' === $boss_key ) {
-		$boss_name = $custom !== '' ? mb_substr( $custom, 0, 30 ) : __( 'その他', 'gaming-hub' );
+		$boss_name = $custom !== '' ? mb_substr( $custom, 0, 30 ) : __('Other', 'gaming-hub');
 	}
 
 	$types = gaming_hub_pgo_raid_types();
@@ -513,7 +513,7 @@ function gaming_hub_rest_pgo_raid_create( WP_REST_Request $request ) {
 	);
 
 	if ( ! $ok ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '投稿できませんでした', 'gaming-hub' ) ), 500 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Could not post the lobby', 'gaming-hub') ), 500 );
 	}
 
 	$row = gaming_hub_pgo_raid_get( $public );
@@ -537,38 +537,38 @@ function gaming_hub_rest_pgo_raid_join( WP_REST_Request $request ) {
 		return new WP_REST_Response( array( 'success' => true ), 200 );
 	}
 	if ( ! wp_verify_nonce( (string) $request->get_param( 'nonce' ), 'gaming_hub_pgo_raid' ) ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '更新してやり直してください', 'gaming-hub' ) ), 403 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Refresh and try again', 'gaming-hub') ), 403 );
 	}
 	if ( ! gaming_hub_pgo_raid_rate_allow( 'join', 8, 10 * MINUTE_IN_SECONDS ) ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '参加が多すぎます。少し待ってください', 'gaming-hub' ) ), 429 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Too many joins. Please wait a moment.', 'gaming-hub') ), 429 );
 	}
 
 	$row = gaming_hub_pgo_raid_get( (string) $request['id'] );
 	if ( ! $row || ! in_array( $row->status, array( 'open' ), true ) ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( 'この募集は締め切られています', 'gaming-hub' ) ), 409 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('This lobby is no longer open', 'gaming-hub') ), 409 );
 	}
 	if ( gaming_hub_pgo_raid_expires_ts( $row->expires_at ) <= time() ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( 'この募集は終了しています', 'gaming-hub' ) ), 409 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('This lobby has ended', 'gaming-hub') ), 409 );
 	}
 
 	$trainer = sanitize_text_field( (string) $request->get_param( 'trainer_name' ) );
 	$trainer = mb_substr( $trainer, 0, 20 );
 	$code    = gaming_hub_pgo_raid_normalize_code( (string) $request->get_param( 'friend_code' ) );
 	if ( '' === $trainer || '' === $code ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( 'トレーナー名とフレンドコードを入力してください', 'gaming-hub' ) ), 400 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Enter a trainer name and friend code', 'gaming-hub') ), 400 );
 	}
 
 	$joiners = gaming_hub_pgo_raid_joiners( $row->joiners );
 	foreach ( $joiners as $joiner ) {
 		if ( ( $joiner['friend_code'] ?? '' ) === $code || ( $joiner['trainer_name'] ?? '' ) === $trainer ) {
-			return new WP_REST_Response( array( 'success' => false, 'message' => __( 'すでに参加しています', 'gaming-hub' ) ), 409 );
+			return new WP_REST_Response( array( 'success' => false, 'message' => __('You already joined', 'gaming-hub') ), 409 );
 		}
 	}
 	if ( $code === (string) $row->friend_code ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( 'ホストと同じコードです', 'gaming-hub' ) ), 400 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('That is the host code', 'gaming-hub') ), 400 );
 	}
 	if ( count( $joiners ) >= (int) $row->slots ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '満員です', 'gaming-hub' ) ), 409 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('This lobby is full', 'gaming-hub') ), 409 );
 	}
 
 	$joiners[] = array(
@@ -609,12 +609,12 @@ function gaming_hub_rest_pgo_raid_join( WP_REST_Request $request ) {
  */
 function gaming_hub_rest_pgo_raid_host( WP_REST_Request $request ) {
 	if ( ! wp_verify_nonce( (string) $request->get_param( 'nonce' ), 'gaming_hub_pgo_raid' ) ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '更新してやり直してください', 'gaming-hub' ) ), 403 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Refresh and try again', 'gaming-hub') ), 403 );
 	}
 
 	$row = gaming_hub_pgo_raid_get( (string) $request['id'] );
 	if ( ! $row || ! hash_equals( (string) $row->host_token, (string) $request->get_param( 'host_token' ) ) ) {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( 'ホスト操作ができません', 'gaming-hub' ) ), 403 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Host action failed', 'gaming-hub') ), 403 );
 	}
 
 	$action = sanitize_key( (string) $request->get_param( 'action' ) );
@@ -624,7 +624,7 @@ function gaming_hub_rest_pgo_raid_host( WP_REST_Request $request ) {
 	} elseif ( 'close' === $action ) {
 		$status = 'closed';
 	} else {
-		return new WP_REST_Response( array( 'success' => false, 'message' => __( '不明な操作です', 'gaming-hub' ) ), 400 );
+		return new WP_REST_Response( array( 'success' => false, 'message' => __('Unknown action', 'gaming-hub') ), 400 );
 	}
 
 	global $wpdb;
@@ -686,23 +686,23 @@ function gaming_hub_pgo_raid_scripts() {
 			'bosses'  => $bosses,
 			'types'   => gaming_hub_pgo_raid_types(),
 			'i18n'    => array(
-				'empty'     => __( 'いま募集中のレイドはありません。ホストになって投稿できます。', 'gaming-hub' ),
-				'join'      => __( '参加する', 'gaming-hub' ),
-				'joined'    => __( '参加しました。すぐフレンド申請してください。', 'gaming-hub' ),
-				'copy'      => __( 'コピー', 'gaming-hub' ),
-				'copied'    => __( 'コピーしました', 'gaming-hub' ),
-				'full'      => __( '満員', 'gaming-hub' ),
-				'started'   => __( '招待中', 'gaming-hub' ),
-				'closed'    => __( '終了', 'gaming-hub' ),
-				'open'      => __( '募集中', 'gaming-hub' ),
-				'left'      => __( '残り %s', 'gaming-hub' ),
-				'seats'     => __( '%1$s / %2$s 人', 'gaming-hub' ),
-				'start'     => __( '招待開始', 'gaming-hub' ),
-				'close'     => __( '募集終了', 'gaming-hub' ),
-				'copyNames' => __( '名前をコピー', 'gaming-hub' ),
-				'copyCodes' => __( 'コードをコピー', 'gaming-hub' ),
-				'error'     => __( '通信に失敗しました', 'gaming-hub' ),
-				'needBoss'  => __( 'ボスを選んでください', 'gaming-hub' ),
+				'empty'     => __('No open raids right now. You can host one.', 'gaming-hub'),
+				'join'      => __('Join', 'gaming-hub'),
+				'joined'    => __('Joined. Send the friend request now.', 'gaming-hub'),
+				'copy'      => __('Copy', 'gaming-hub'),
+				'copied'    => __('Copied', 'gaming-hub'),
+				'full'      => __('Full', 'gaming-hub'),
+				'started'   => __('Inviting', 'gaming-hub'),
+				'closed'    => __('Ended', 'gaming-hub'),
+				'open'      => __('Open', 'gaming-hub'),
+				'left'      => __('%s left', 'gaming-hub'),
+				'seats'     => __('%1$s / %2$s trainers', 'gaming-hub'),
+				'start'     => __('Invite started', 'gaming-hub'),
+				'close'     => __('Close lobby', 'gaming-hub'),
+				'copyNames' => __('Copy names', 'gaming-hub'),
+				'copyCodes' => __('Copy codes', 'gaming-hub'),
+				'error'     => __('Request failed', 'gaming-hub'),
+				'needBoss'  => __('Choose a boss', 'gaming-hub'),
 			),
 		)
 	);

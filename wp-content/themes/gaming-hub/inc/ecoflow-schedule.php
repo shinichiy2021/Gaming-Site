@@ -64,7 +64,7 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 	if ( ! empty( $plan['last_apply_error'] ) ) {
 		return sprintf(
 			/* translators: %s: error message */
-			! empty( $plan['auto_send'] ) ? __( '自動送信エラー: %s', 'gaming-hub' ) : __( '送信エラー: %s', 'gaming-hub' ),
+			! empty( $plan['auto_send'] ) ? __('Auto-send error: %s', 'gaming-hub') : __('Send error: %s', 'gaming-hub'),
 			$plan['last_apply_error']
 		);
 	}
@@ -76,7 +76,7 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 			if ( $reserve ) {
 				return sprintf(
 					/* translators: 1: watts, 2: backup reserve percent */
-					__( '自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。', 'gaming-hub' ),
+					__('Auto-approved. Reviews the plan every 10 minutes and sends only when this hour’s charge command changes. Last charge cap %1$s W · backup reserve %2$s%%.', 'gaming-hub'),
 					number_format_i18n( (int) $watts ),
 					number_format_i18n( $reserve )
 				);
@@ -84,12 +84,12 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 
 			return sprintf(
 				/* translators: %s: watts */
-				__( '自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %s W です。', 'gaming-hub' ),
+				__('Auto-approved. Reviews the plan every 10 minutes and sends only when this hour’s charge command changes. Last charge cap %s W.', 'gaming-hub'),
 				number_format_i18n( (int) $watts )
 			);
 		}
 
-		return __( '自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ Pro 3 に送ります。', 'gaming-hub' );
+		return __('Auto-approved. Reviews the plan every 10 minutes and sends to Pro 3 only when this hour’s charge command changes.', 'gaming-hub');
 	}
 
 	if ( ! empty( $plan['is_approved_current'] ) ) {
@@ -99,7 +99,7 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 			if ( $reserve ) {
 				return sprintf(
 					/* translators: 1: watts, 2: backup reserve percent */
-					__( '承認済み。直近の送信は充電上限 %1$s W · 予備残量 %2$s%% です。', 'gaming-hub' ),
+					__('Approved. Last send was charge cap %1$s W · backup reserve %2$s%%.', 'gaming-hub'),
 					number_format_i18n( (int) $watts ),
 					number_format_i18n( $reserve )
 				);
@@ -107,23 +107,23 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 
 			return sprintf(
 				/* translators: %s: watts */
-				__( '承認済み。直近の送信は充電上限 %s W です。', 'gaming-hub' ),
+				__('Approved. Last send was charge cap %s W.', 'gaming-hub'),
 				number_format_i18n( (int) $watts )
 			);
 		}
 
-		return __( '承認済み。時間どおりに Pro 3 へ充電上限を送ります。', 'gaming-hub' );
+		return __('Approved. Charge cap is sent to Pro 3 on the hour.', 'gaming-hub');
 	}
 
 	if ( ! empty( $plan['needs_reapprove'] ) ) {
-		return __( '提案が更新されました。再承認するまで前回のスケジュールを送ります。', 'gaming-hub' );
+		return __('The proposal was updated. The previous schedule is sent until you re-approve.', 'gaming-hub');
 	}
 
 	if ( 'cancelled' === ( $plan['approval_status'] ?? '' ) ) {
-		return __( '承認を取り消しました。API は送りません。', 'gaming-hub' );
+		return __('Approval cancelled. Nothing is sent.', 'gaming-hub');
 	}
 
-	return __( '未承認です。承認するまで Pro 3 には送りません。', 'gaming-hub' );
+	return __('Not approved. Nothing is sent to Pro 3 until you approve.', 'gaming-hub');
 }
 
 /**
@@ -179,31 +179,31 @@ function gaming_hub_ecoflow_pro_grid_charge_view( array $plan, array $status = a
 	if ( ! empty( $plan['last_apply_error'] ) ) {
 		$message = sprintf(
 			/* translators: %s: error message */
-			__( '送信エラー: %s', 'gaming-hub' ),
+			__('Send error: %s', 'gaming-hub'),
 			$plan['last_apply_error']
 		);
 	} elseif ( $active ) {
 		$message = $approved && $planned
 			? sprintf(
 				/* translators: %s: live watts */
-				__( '充電計画どおりグリッド充電中。実測 %s W', 'gaming-hub' ),
+				__('Grid charging per plan. Live %s W', 'gaming-hub'),
 				number_format_i18n( $live_w )
 			)
 			: sprintf(
 				/* translators: %s: live watts */
-				__( '実測グリッド入力 %s W', 'gaming-hub' ),
+				__('Live grid in %s W', 'gaming-hub'),
 				number_format_i18n( $live_w )
 			);
 	} elseif ( ! $approved ) {
-		$message = __( '未承認のため、グリッド充電は送りません。', 'gaming-hub' );
+		$message = __('Not approved. Grid charge is not sent.', 'gaming-hub');
 	} elseif ( $planned ) {
 		$message = sprintf(
 			/* translators: %s: charge watts */
-			__( '充電計画どおりグリッド充電中。充電上限 %s W', 'gaming-hub' ),
+			__('Grid charging per plan. Charge cap %s W', 'gaming-hub'),
 			number_format_i18n( $charge_w )
 		);
 	} else {
-		$message = __( '承認済みの計画どおり。グリッド充電時間外は待機です。', 'gaming-hub' );
+		$message = __('Per the approved plan. Idle outside grid-charge hours.', 'gaming-hub');
 	}
 
 	return array(
@@ -309,14 +309,14 @@ function gaming_hub_ecoflow_schedule_send_notice( $watts, $reserve, $error = '' 
 	if ( $ok ) {
 		$message = sprintf(
 			/* translators: 1: watts, 2: backup reserve percent */
-			__( '充電計画を Pro 3 に送りました。充電上限 %1$s W · 予備残量 %2$s%%', 'gaming-hub' ),
+			__('Charge plan sent to Pro 3. Charge cap %1$s W · backup reserve %2$s%%', 'gaming-hub'),
 			number_format_i18n( (int) $watts ),
 			number_format_i18n( (int) $reserve )
 		);
 	} else {
 		$message = sprintf(
 			/* translators: %s: error message */
-			__( '充電計画の送信に失敗しました: %s', 'gaming-hub' ),
+			__('Failed to send charge plan: %s', 'gaming-hub'),
 			$error
 		);
 	}
@@ -346,7 +346,7 @@ function gaming_hub_ecoflow_approve_schedule( $plan_id ) {
 
 	$plan = $status['charge_plan'] ?? array();
 	if ( empty( $plan['plan_id'] ) || $plan['plan_id'] !== $plan_id ) {
-		return new WP_Error( 'ecoflow_plan_stale', __( '表示中の計画が更新されています。再読み込みしてから承認してください。', 'gaming-hub' ) );
+		return new WP_Error( 'ecoflow_plan_stale', __('The on-screen plan was updated. Reload, then approve.', 'gaming-hub') );
 	}
 
 	$record = array(
@@ -556,7 +556,7 @@ function gaming_hub_ecoflow_apply_charge_and_backup( $watts, $reserve ) {
  */
 function gaming_hub_ecoflow_set_pro_charge_watts( $watts ) {
 	if ( ! gaming_hub_ecoflow_is_configured() ) {
-		return new WP_Error( 'ecoflow_not_configured', __( 'EcoFlow API が未設定です。', 'gaming-hub' ) );
+		return new WP_Error( 'ecoflow_not_configured', __('EcoFlow API is not configured.', 'gaming-hub') );
 	}
 
 	$config = gaming_hub_get_ecoflow_config();
@@ -578,7 +578,7 @@ function gaming_hub_ecoflow_set_pro_charge_watts( $watts ) {
  */
 function gaming_hub_ecoflow_set_pro_backup_reserve( $soc ) {
 	if ( ! gaming_hub_ecoflow_is_configured() ) {
-		return new WP_Error( 'ecoflow_not_configured', __( 'EcoFlow API が未設定です。', 'gaming-hub' ) );
+		return new WP_Error( 'ecoflow_not_configured', __('EcoFlow API is not configured.', 'gaming-hub') );
 	}
 
 	$config = gaming_hub_get_ecoflow_config();

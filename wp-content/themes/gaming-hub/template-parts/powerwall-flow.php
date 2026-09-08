@@ -21,13 +21,13 @@ $model3_charging = ! empty( $model3['is_charging'] );
 
 <section class="pw-flow-dashboard" aria-label="<?php esc_attr_e( 'Powerwall Energy Flow', 'gaming-hub' ); ?>">
 	<div class="pw-flow-dashboard-header">
-		<h2><?php esc_html_e( '電力フロー', 'gaming-hub' ); ?></h2>
+		<h2><?php esc_html_e('Energy flow', 'gaming-hub'); ?></h2>
 		<?php if ( ! empty( $status['updated_at'] ) ) : ?>
 			<p class="pw-flow-updated">
 				<?php
 				printf(
 					/* translators: %s: last updated time */
-					esc_html__( '最終更新: %s', 'gaming-hub' ),
+					esc_html__('Updated: %s', 'gaming-hub'),
 					esc_html( $status['updated_at'] )
 				);
 				?>
@@ -38,13 +38,13 @@ $model3_charging = ! empty( $model3['is_charging'] );
 	<p class="pw-flow-solar-note" data-pw-field="solar_note">
 		<?php
 		$cloud_label = null !== ( $solar_meta['cloud_cover'] ?? null )
-			? sprintf( __( '雲量 %s%%', 'gaming-hub' ), (int) $solar_meta['cloud_cover'] )
-			: __( '雲量 —', 'gaming-hub' );
+			? sprintf( __('Cloud cover %s%%', 'gaming-hub'), (int) $solar_meta['cloud_cover'] )
+			: __('Cloud cover —', 'gaming-hub');
 		printf(
 			/* translators: 1: panel label, 2: location, 3: hour slot, 4: weather, 5: cloud cover */
-			esc_html__( 'ソーラー (%1$s): %2$s · 気象庁日照平年値 + 天気連動 · %3$s 時点 · %4$s · %5$s · 1時間ごとに更新', 'gaming-hub' ),
+			esc_html__('Solar (%1$s): %2$s · JMA sunshine normals + weather · as of %3$s · %4$s · %5$s · updates hourly', 'gaming-hub'),
 			esc_html( $solar_meta['panel_label'] ?? gaming_hub_powerwall_solar_panel_label() ),
-			esc_html( $solar_meta['location'] ?? __( '岐阜県多治見市', 'gaming-hub' ) ),
+			esc_html( $solar_meta['location'] ?? __('Tajimi, Gifu', 'gaming-hub') ),
 			esc_html( $solar_meta['hour_slot'] ?? '—' ),
 			esc_html( $solar_meta['weather'] ?? '—' ),
 			esc_html( $cloud_label )
@@ -56,8 +56,8 @@ $model3_charging = ! empty( $model3['is_charging'] );
 		<?php
 		printf(
 			/* translators: 1: profile label, 2: daily kWh, 3: time band, 4: hour slot */
-			esc_html__( 'ホーム: %1$s · 1日約 %2$s kWh · %3$s · %4$s 時点', 'gaming-hub' ),
-			esc_html( $home_meta['profile'] ?? __( '大人3人世帯（平均）', 'gaming-hub' ) ),
+			esc_html__('Home: %1$s · ~%2$s kWh/day · %3$s · as of %4$s', 'gaming-hub'),
+			esc_html( $home_meta['profile'] ?? __('3-adult household (average)', 'gaming-hub') ),
 			esc_html( (string) ( $home_meta['daily_kwh'] ?? '10.5' ) ),
 			esc_html( $home_meta['time_band'] ?? '—' ),
 			esc_html( $home_meta['hour_slot'] ?? '—' )
@@ -70,7 +70,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 			<?php
 			printf(
 				/* translators: 1: daily km, 2: daily kWh, 3: charge window, 4: charge watts */
-				esc_html__( 'Model 3: 1日平均 %1$s km · 充電約 %2$s kWh · %3$s · 約 %4$s W', 'gaming-hub' ),
+				esc_html__('Model 3: %1$s km/day avg · ~%2$s kWh charge · %3$s · ~%4$s W', 'gaming-hub'),
 				esc_html( number_format_i18n( (int) ( $model3_meta['daily_km'] ?? 30 ) ) ),
 				esc_html( (string) ( $model3_meta['daily_kwh'] ?? '4.5' ) ),
 				esc_html( $model3_meta['charge_window'] ?? '17:00–22:30' ),
@@ -82,7 +82,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 
 	<?php if ( ! gaming_hub_tesla_model3_is_configured() ) : ?>
 		<div class="pw-flow-setup-panel">
-			<p class="pw-flow-setup-title"><?php esc_html_e( 'Model 3 API 未設定 — Model 3 はデモデータです', 'gaming-hub' ); ?></p>
+			<p class="pw-flow-setup-title"><?php esc_html_e('Model 3 API not set — showing demo data', 'gaming-hub'); ?></p>
 			<?php gaming_hub_render_tesla_setup_instructions(); ?>
 		</div>
 	<?php elseif ( ! empty( $status['model3_error'] ) ) : ?>
@@ -94,7 +94,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 		<?php gaming_hub_render_tesla_link_status( $status ); ?>
 	<?php endif; ?>
 
-	<p class="pw-flow-sim-note"><?php esc_html_e( 'グリッドは買電のみ（売電なし）。Powerwall SOC はデモ。', 'gaming-hub' ); ?></p>
+	<p class="pw-flow-sim-note"><?php esc_html_e('Grid is import-only (no export). Powerwall SOC is demo data.', 'gaming-hub'); ?></p>
 
 	<div
 		id="powerwall-energy-flow-root"
@@ -116,16 +116,16 @@ $model3_charging = ! empty( $model3['is_charging'] );
 
 	<div class="pw-flow-stats-grid">
 		<div class="pw-flow-stat-card">
-			<span class="pw-flow-stat-label"><?php esc_html_e( 'ソーラー発電 (1.5kW)', 'gaming-hub' ); ?></span>
+			<span class="pw-flow-stat-label"><?php esc_html_e('Solar generation (1.5 kW)', 'gaming-hub'); ?></span>
 			<strong data-pw-field="solar_w"><?php echo esc_html( number_format_i18n( (int) $status['solar_w'] ) . ' W' ); ?></strong>
 		</div>
 		<div class="pw-flow-stat-card">
-			<span class="pw-flow-stat-label"><?php esc_html_e( 'ホーム消費', 'gaming-hub' ); ?></span>
+			<span class="pw-flow-stat-label"><?php esc_html_e('Home load', 'gaming-hub'); ?></span>
 			<strong data-pw-field="home_w"><?php echo esc_html( number_format_i18n( (int) $status['home_w'] ) . ' W' ); ?></strong>
 		</div>
 		<div class="pw-flow-stat-card">
 			<span class="pw-flow-stat-label">
-				<?php esc_html_e( 'Model 3 充電', 'gaming-hub' ); ?>
+				<?php esc_html_e('Model 3 charging', 'gaming-hub'); ?>
 				<?php if ( 'tesla' === ( $status['model3_source'] ?? '' ) ) : ?>
 					<small class="pw-flow-stat-badge"><?php esc_html_e( 'Tesla API', 'gaming-hub' ); ?></small>
 				<?php endif; ?>
@@ -134,7 +134,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 			<small data-pw-field="model3_state"><?php echo esc_html( $status['model3']['charge_state'] ?? '—' ); ?></small>
 		</div>
 		<div class="pw-flow-stat-card">
-			<span class="pw-flow-stat-label"><?php esc_html_e( 'グリッド買電', 'gaming-hub' ); ?></span>
+			<span class="pw-flow-stat-label"><?php esc_html_e('Grid import', 'gaming-hub'); ?></span>
 			<strong data-pw-field="grid_import_w"><?php echo esc_html( number_format_i18n( (int) $status['grid_import_w'] ) . ' W' ); ?></strong>
 		</div>
 		<div class="pw-flow-stat-card">
@@ -148,15 +148,15 @@ $model3_charging = ! empty( $model3['is_charging'] );
 	</div>
 
 	<?php if ( ! empty( $cost_meta ) ) : ?>
-		<div class="pw-flow-cost-section" aria-label="<?php esc_attr_e( '本日の電気代見込み', 'gaming-hub' ); ?>">
+		<div class="pw-flow-cost-section" aria-label="<?php esc_attr_e('Today’s estimated bill', 'gaming-hub'); ?>">
 			<div class="pw-flow-cost-header">
-				<h3><?php esc_html_e( '本日の電気代見込み', 'gaming-hub' ); ?></h3>
+				<h3><?php esc_html_e('Today’s estimated bill', 'gaming-hub'); ?></h3>
 				<p class="pw-flow-cost-subtitle" data-pw-field="cost_subtitle">
 					<?php
 					printf(
 						/* translators: 1: provider, 2: contract kW, 3: date label */
-						esc_html__( '%1$s · 契約 %2$s kW · %3$s（24時間シミュレーション）', 'gaming-hub' ),
-						esc_html( $cost_meta['provider'] ?? __( 'LOOOP スマートタイムONE（電灯）', 'gaming-hub' ) ),
+						esc_html__('%1$s · contract %2$s kW · %3$s (24h simulation)', 'gaming-hub'),
+						esc_html( $cost_meta['provider'] ?? __('LOOOP Smart Time ONE (lighting)', 'gaming-hub') ),
 						esc_html( number_format_i18n( (float) ( $cost_meta['contract_kw'] ?? 6 ), 1 ) ),
 						esc_html( $cost_meta['date_label'] ?? wp_date( get_option( 'date_format' ) ) )
 					);
@@ -166,13 +166,13 @@ $model3_charging = ! empty( $model3['is_charging'] );
 
 			<div class="pw-flow-cost-grid">
 				<div class="pw-flow-cost-card">
-					<span class="pw-flow-cost-label"><?php esc_html_e( '1日の使用量', 'gaming-hub' ); ?></span>
+					<span class="pw-flow-cost-label"><?php esc_html_e('Daily usage', 'gaming-hub'); ?></span>
 					<strong data-pw-field="cost_total_kwh"><?php echo esc_html( number_format_i18n( (float) ( $cost_meta['total_kwh'] ?? 0 ), 1 ) . ' kWh' ); ?></strong>
 					<small data-pw-field="cost_grid_kwh">
 						<?php
 						printf(
 							/* translators: 1: grid import kWh, 2: solar self kWh */
-							esc_html__( '買電 %1$s kWh · ソーラー自家消費 %2$s kWh', 'gaming-hub' ),
+							esc_html__('Import %1$s kWh · solar self-use %2$s kWh', 'gaming-hub'),
 							esc_html( number_format_i18n( (float) ( $cost_meta['grid_import_kwh'] ?? 0 ), 1 ) ),
 							esc_html( number_format_i18n( (float) ( $cost_meta['solar_self_kwh'] ?? 0 ), 1 ) )
 						);
@@ -180,39 +180,39 @@ $model3_charging = ! empty( $model3['is_charging'] );
 					</small>
 				</div>
 				<div class="pw-flow-cost-card">
-					<span class="pw-flow-cost-label"><?php esc_html_e( '電気代（ソーラーあり）', 'gaming-hub' ); ?></span>
+					<span class="pw-flow-cost-label"><?php esc_html_e('Bill (with solar)', 'gaming-hub'); ?></span>
 					<strong data-pw-field="cost_with_solar"><?php echo esc_html( '¥' . number_format_i18n( (int) ( $cost_meta['cost_with_solar_yen'] ?? 0 ) ) ); ?></strong>
 					<small data-pw-field="cost_without_solar">
 						<?php
 						printf(
 							/* translators: %s: cost without solar */
-							esc_html__( 'ソーラーなし想定: ¥%s', 'gaming-hub' ),
+							esc_html__('Without solar: ¥%s', 'gaming-hub'),
 							esc_html( number_format_i18n( (int) ( $cost_meta['cost_without_solar_yen'] ?? 0 ) ) )
 						);
 						?>
 					</small>
 				</div>
 				<div class="pw-flow-cost-card is-highlight">
-					<span class="pw-flow-cost-label"><?php esc_html_e( '節約額', 'gaming-hub' ); ?></span>
+					<span class="pw-flow-cost-label"><?php esc_html_e('Saved', 'gaming-hub'); ?></span>
 					<strong class="pw-flow-cost-saved" data-pw-field="cost_saved"><?php echo esc_html( '¥' . number_format_i18n( (int) ( $cost_meta['saved_yen'] ?? 0 ) ) ); ?></strong>
 					<small data-pw-field="cost_saved_percent">
 						<?php
 						printf(
 							/* translators: %s: savings percent */
-							esc_html__( '約 %s%% 削減', 'gaming-hub' ),
+							esc_html__('About %s%% less', 'gaming-hub'),
 							esc_html( number_format_i18n( (float) ( $cost_meta['saved_percent'] ?? 0 ), 1 ) )
 						);
 						?>
 					</small>
 				</div>
 				<div class="pw-flow-cost-card">
-					<span class="pw-flow-cost-label"><?php esc_html_e( 'ソーラー発電 (1.5kW)', 'gaming-hub' ); ?></span>
+					<span class="pw-flow-cost-label"><?php esc_html_e('Solar generation (1.5 kW)', 'gaming-hub'); ?></span>
 					<strong data-pw-field="cost_solar_gen"><?php echo esc_html( number_format_i18n( (float) ( $cost_meta['solar_generation_kwh'] ?? 0 ), 1 ) . ' kWh' ); ?></strong>
 					<small data-pw-field="cost_battery_self">
 						<?php
 						printf(
 							/* translators: %s: battery self-consumption kWh */
-							esc_html__( 'Powerwall 自家消費 %s kWh', 'gaming-hub' ),
+							esc_html__('Powerwall self-use %s kWh', 'gaming-hub'),
 							esc_html( number_format_i18n( (float) ( $cost_meta['battery_self_kwh'] ?? 0 ), 1 ) )
 						);
 						?>

@@ -78,18 +78,18 @@ if ( $show_today ) {
 }
 ?>
 
-<section class="ecoflow-plan ecoflow-cal" aria-label="<?php esc_attr_e( '発電ログ', 'gaming-hub' ); ?>" data-ecoflow-cal data-month="<?php echo esc_attr( $calendar['month'] ?? '' ); ?>">
+<section class="ecoflow-plan ecoflow-cal" aria-label="<?php esc_attr_e('Generation log', 'gaming-hub'); ?>" data-ecoflow-cal data-month="<?php echo esc_attr( $calendar['month'] ?? '' ); ?>">
 	<div class="ecoflow-plan-header ecoflow-plan-head">
 		<div>
-			<p class="ecoflow-plan-kicker"><?php esc_html_e( 'GEN LOG', 'gaming-hub' ); ?></p>
-			<h3><?php esc_html_e( '発電ログ', 'gaming-hub' ); ?></h3>
-			<p class="ecoflow-plan-note"><?php esc_html_e( 'Pro 3 ハイボルト + Delta 1500 Low Volt の合算を積算しています。入力・出力も両機の合計です。節約額は リビングエアコン他（Pro AC 出力）と UPS（1500 AC 出力）× その時間の買電単価から、1500 と Pro のグリッド AC 入力（買電）× 同単価を引いた額です。', 'gaming-hub' ); ?></p>
+			<p class="ecoflow-plan-kicker"><?php esc_html_e('GEN LOG', 'gaming-hub'); ?></p>
+			<h3><?php esc_html_e('Generation log', 'gaming-hub'); ?></h3>
+			<p class="ecoflow-plan-note"><?php esc_html_e('Totals Pro 3 high-volt plus Delta 1500 Low Volt. Input and output are both units combined. Savings = (Living AC & others Pro AC out + UPS 1500 AC out) × that hour’s import rate, minus 1500 and Pro grid AC in × the same rate.', 'gaming-hub'); ?></p>
 		</div>
 		<p class="ecoflow-plan-limits">
 			<span data-ecoflow-cal-label><?php echo esc_html( $calendar['label'] ?? '' ); ?></span>
 			<span class="ecoflow-cal-nav">
-				<button type="button" class="ecoflow-plan-cancel" data-ecoflow-cal-prev data-month="<?php echo esc_attr( $calendar['prev'] ?? '' ); ?>"><?php esc_html_e( '前月', 'gaming-hub' ); ?></button>
-				<button type="button" class="ecoflow-plan-cancel" data-ecoflow-cal-next data-month="<?php echo esc_attr( $calendar['next'] ?? '' ); ?>"><?php esc_html_e( '翌月', 'gaming-hub' ); ?></button>
+				<button type="button" class="ecoflow-plan-cancel" data-ecoflow-cal-prev data-month="<?php echo esc_attr( $calendar['prev'] ?? '' ); ?>"><?php esc_html_e('Prev month', 'gaming-hub'); ?></button>
+				<button type="button" class="ecoflow-plan-cancel" data-ecoflow-cal-next data-month="<?php echo esc_attr( $calendar['next'] ?? '' ); ?>"><?php esc_html_e('Next month', 'gaming-hub'); ?></button>
 			</span>
 		</p>
 	</div>
@@ -106,21 +106,21 @@ if ( $show_today ) {
 		<div class="ecoflow-rates-stat">
 			<span><?php esc_html_e( 'PV', 'gaming-hub' ); ?></span>
 			<strong data-ecoflow-cal-month-pv><?php echo esc_html( $format_kwh( $totals['solar_kwh'] ?? 0 ) . ' kWh' ); ?></strong>
-			<small><?php esc_html_e( '月計 発電', 'gaming-hub' ); ?></small>
+			<small><?php esc_html_e('Month generation', 'gaming-hub'); ?></small>
 		</div>
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-save">
-			<span><?php esc_html_e( 'SAVE', 'gaming-hub' ); ?></span>
+			<span><?php esc_html_e('SAVE', 'gaming-hub'); ?></span>
 			<strong data-ecoflow-cal-month-save><?php echo esc_html( $format_yen( $totals['saved_yen'] ?? null ) ); ?></strong>
-			<small><?php esc_html_e( '今月の節約', 'gaming-hub' ); ?></small>
+			<small><?php esc_html_e('Saved this month', 'gaming-hub'); ?></small>
 		</div>
 		<div class="ecoflow-rates-stat">
-			<span><?php esc_html_e( 'I/O', 'gaming-hub' ); ?></span>
+			<span><?php esc_html_e('I/O', 'gaming-hub'); ?></span>
 			<strong data-ecoflow-cal-month-out><?php echo esc_html( $format_kwh( $totals['output_kwh'] ?? 0 ) . ' kWh' ); ?></strong>
 			<small data-ecoflow-cal-month-in>
 				<?php
 				printf(
 					/* translators: %s: input kWh */
-					esc_html__( '入力 %s kWh', 'gaming-hub' ),
+					esc_html__('In %s kWh', 'gaming-hub'),
 					esc_html( $format_kwh( $totals['input_kwh'] ?? 0 ) )
 				);
 				?>
@@ -137,39 +137,39 @@ if ( $show_today ) {
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-room">
 			<span><?php esc_html_e( 'ROOM', 'gaming-hub' ); ?></span>
 			<strong data-ecoflow-cal-today-room><?php echo esc_html( $format_yen( $today_yen['room_yen'] ?? 0 ) ); ?></strong>
-			<small><?php esc_html_e( '今日 リビングエアコン他 節約', 'gaming-hub' ); ?></small>
+			<small><?php esc_html_e('Living AC & others saved today', 'gaming-hub'); ?></small>
 		</div>
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-ups">
 			<span><?php esc_html_e( 'UPS', 'gaming-hub' ); ?></span>
 			<strong data-ecoflow-cal-today-ups><?php echo esc_html( $format_yen( $today_yen['ups_yen'] ?? 0 ) ); ?></strong>
-			<small><?php esc_html_e( '今日 UPS節約', 'gaming-hub' ); ?></small>
+			<small><?php esc_html_e('UPS saved today', 'gaming-hub'); ?></small>
 		</div>
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-buy">
 			<span><?php esc_html_e( 'GRID', 'gaming-hub' ); ?></span>
 			<strong data-ecoflow-cal-today-grid><?php echo esc_html( $format_yen( $today_yen['buy_yen'] ?? ( ( $today_yen['grid_yen'] ?? 0 ) + ( $today_yen['pro_grid_yen'] ?? 0 ) ) ) ); ?></strong>
 			<small>
-				<?php esc_html_e( '今日 買電', 'gaming-hub' ); ?>
+				<?php esc_html_e('Import today', 'gaming-hub'); ?>
 				<span data-ecoflow-cal-today-buy-kwh><?php echo esc_html( $format_kwh( $today_buy_kwh, 2 ) ); ?></span> kWh
 			</small>
 		</div>
 		<div class="ecoflow-rates-stat ecoflow-cal-stat-net">
 			<span><?php esc_html_e( 'NET', 'gaming-hub' ); ?></span>
 			<strong data-ecoflow-cal-today-net><?php echo esc_html( $format_yen( $today_yen['net_yen'] ?? 0 ) ); ?></strong>
-			<small><?php esc_html_e( '今日 差引', 'gaming-hub' ); ?></small>
+			<small><?php esc_html_e('Net today', 'gaming-hub'); ?></small>
 		</div>
 	</div>
 
 	<div class="ecoflow-cal-today" data-ecoflow-cal-today <?php echo $show_today ? '' : 'hidden'; ?>>
-		<p class="ecoflow-cal-chart-label"><?php esc_html_e( '今日の時間別', 'gaming-hub' ); ?></p>
+		<p class="ecoflow-cal-chart-label"><?php esc_html_e('Today by hour', 'gaming-hub'); ?></p>
 		<div class="ecoflow-rate-chart ecoflow-cal-chart ecoflow-cal-chart-today">
 			<div class="ecoflow-rate-y ecoflow-rate-y-kwh" aria-hidden="true">
-				<span class="ecoflow-rate-y-unit"><?php esc_html_e( 'kWh', 'gaming-hub' ); ?></span>
+				<span class="ecoflow-rate-y-unit"><?php esc_html_e('kWh', 'gaming-hub'); ?></span>
 				<?php foreach ( $today_kwh_ticks as $tick ) : ?>
 					<span data-ecoflow-cal-today-kwh-tick><?php echo esc_html( $format_tick( $tick ) ); ?></span>
 				<?php endforeach; ?>
 			</div>
 			<div class="ecoflow-rate-plot">
-				<div class="ecoflow-rate-track" data-ecoflow-cal-today-track role="img" aria-label="<?php esc_attr_e( '今日の時間別発電と出力', 'gaming-hub' ); ?>">
+				<div class="ecoflow-rate-track" data-ecoflow-cal-today-track role="img" aria-label="<?php esc_attr_e('Today’s hourly generation and output', 'gaming-hub'); ?>">
 					<svg class="ecoflow-cal-out-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
 						<polyline data-ecoflow-cal-today-out-line points="<?php echo esc_attr( implode( ' ', $today_out_pts ) ); ?>" vector-effect="non-scaling-stroke"></polyline>
 					</svg>
@@ -222,16 +222,16 @@ if ( $show_today ) {
 		</div>
 	</div>
 
-	<p class="ecoflow-cal-chart-label"><?php esc_html_e( '今月の日別', 'gaming-hub' ); ?></p>
+	<p class="ecoflow-cal-chart-label"><?php esc_html_e('This month by day', 'gaming-hub'); ?></p>
 	<div class="ecoflow-rate-chart ecoflow-cal-chart">
 		<div class="ecoflow-rate-y ecoflow-rate-y-kwh" aria-hidden="true">
-			<span class="ecoflow-rate-y-unit"><?php esc_html_e( 'kWh', 'gaming-hub' ); ?></span>
+			<span class="ecoflow-rate-y-unit"><?php esc_html_e('kWh', 'gaming-hub'); ?></span>
 			<?php foreach ( $kwh_ticks as $tick ) : ?>
 				<span data-ecoflow-cal-kwh-tick><?php echo esc_html( $format_tick( $tick ) ); ?></span>
 			<?php endforeach; ?>
 		</div>
 		<div class="ecoflow-rate-plot">
-			<div class="ecoflow-rate-track" data-ecoflow-cal-track role="img" aria-label="<?php esc_attr_e( '今月の日別発電・出力・節約額', 'gaming-hub' ); ?>">
+			<div class="ecoflow-rate-track" data-ecoflow-cal-track role="img" aria-label="<?php esc_attr_e('This month’s daily generation, output, and savings', 'gaming-hub'); ?>">
 				<svg class="ecoflow-cal-out-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
 					<polyline data-ecoflow-cal-out-line points="<?php echo esc_attr( implode( ' ', $out_points ) ); ?>" vector-effect="non-scaling-stroke"></polyline>
 				</svg>
@@ -289,16 +289,16 @@ if ( $show_today ) {
 			</div>
 		</div>
 		<div class="ecoflow-rate-y ecoflow-rate-y-yen" aria-hidden="true">
-			<span class="ecoflow-rate-y-unit"><?php esc_html_e( '円', 'gaming-hub' ); ?></span>
+			<span class="ecoflow-rate-y-unit"><?php esc_html_e('yen', 'gaming-hub'); ?></span>
 			<?php foreach ( $yen_ticks as $tick ) : ?>
 				<span data-ecoflow-cal-yen-tick><?php echo esc_html( $format_tick( $tick, true ) ); ?></span>
 			<?php endforeach; ?>
 		</div>
 	</div>
-	<p class="ecoflow-rate-legend"><?php esc_html_e( '橙棒: 発電 kWh · 水色線: 出力 kWh · 青緑線: 節約円', 'gaming-hub' ); ?></p>
+	<p class="ecoflow-rate-legend"><?php esc_html_e('Orange bars: generation kWh · Cyan line: output kWh · Teal line: yen saved', 'gaming-hub'); ?></p>
 
 	<details class="ecoflow-plan-more">
-		<summary><?php esc_html_e( '日ごとの数字を見る', 'gaming-hub' ); ?></summary>
+		<summary><?php esc_html_e('See daily numbers', 'gaming-hub'); ?></summary>
 		<div class="ecoflow-cal-weekdays" aria-hidden="true">
 			<?php foreach ( $weekdays as $label ) : ?>
 				<span><?php echo esc_html( $label ); ?></span>

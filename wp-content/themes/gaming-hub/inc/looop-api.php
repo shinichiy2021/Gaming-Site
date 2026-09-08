@@ -96,7 +96,7 @@ class Gaming_Hub_Looop_Api {
 		if ( empty( $slots ) ) {
 			return new WP_Error(
 				'looop_no_data',
-				__( 'JEPX 価格データを取得できませんでした。', 'gaming-hub' )
+				__('Could not fetch JEPX price data.', 'gaming-hub')
 			);
 		}
 
@@ -173,7 +173,7 @@ class Gaming_Hub_Looop_Api {
 				'looop_http_error',
 				sprintf(
 					/* translators: %d: HTTP status code */
-					__( 'JEPX データの取得に失敗しました (HTTP %d)。', 'gaming-hub' ),
+					__('Failed to fetch JEPX data (HTTP %d).', 'gaming-hub'),
 					$code
 				)
 			);
@@ -183,7 +183,7 @@ class Gaming_Hub_Looop_Api {
 		if ( '' === $body ) {
 			return new WP_Error(
 				'looop_empty_body',
-				__( 'JEPX データが空でした。', 'gaming-hub' )
+				__('JEPX data was empty.', 'gaming-hub')
 			);
 		}
 
@@ -323,7 +323,7 @@ class Gaming_Hub_Looop_Api {
 
 		return array(
 			'area'          => 'chubu',
-			'area_label'    => __( '中部電力エリア', 'gaming-hub' ),
+			'area_label'    => __('Chubu Electric area', 'gaming-hub'),
 			'updated_at'    => $now->format( 'Y-m-d H:i' ),
 			'current'       => $current_slot,
 			'days'          => $days,
@@ -331,9 +331,9 @@ class Gaming_Hub_Looop_Api {
 			'has_tomorrow'  => ! empty( $days['tomorrow']['slots'] ),
 			'cheapest_hour' => $this->find_cheapest_hour( $hourly_today ),
 			'fixed_costs'   => $fixed_costs,
-			'pricing_note'  => __( '請求単価 = 電源料金 + サービス料 7.00 + 託送従量 7.91 + 再エネ 4.18。託送基本・容量拠出金は月額のため含みません。', 'gaming-hub' ),
+			'pricing_note'  => __('Billed rate = energy + service 7.00 + volumetric wheeling 7.91 + renewable 4.18. Monthly wheeling base and capacity contribution are excluded.', 'gaming-hub'),
 			'source'        => 'JEPX / japanesepower.org',
-			'disclaimer'    => __( 'LOOOP スマートタイムONE（電灯）の請求単価です。JEPX中部エリアから電源料金を算出し、サービス料・託送従量料金・再エネ賦課金を加算しています。月額の制度対応費（託送基本・容量拠出金）は含みません。', 'gaming-hub' ),
+			'disclaimer'    => __('LOOOP Smart Time ONE (lighting) billed rate. Energy from JEPX Chubu plus service, volumetric wheeling, and renewable surcharge. Monthly policy fees are excluded.', 'gaming-hub'),
 		);
 	}
 

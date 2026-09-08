@@ -31,7 +31,7 @@ function gaming_hub_powerwall_solar_capacity_w() {
 function gaming_hub_powerwall_solar_panel_label() {
 	return sprintf(
 		/* translators: %s: panel capacity in kW */
-		__( '%s kW パネル', 'gaming-hub' ),
+		__('%s kW array', 'gaming-hub'),
 		number_format_i18n( gaming_hub_powerwall_solar_capacity_w() / 1000, 1 )
 	);
 }
@@ -45,7 +45,7 @@ function gaming_hub_tajimi_solar_location() {
 	return array(
 		'lat'  => 35.332,
 		'lon'  => 137.134,
-		'name' => __( '岐阜県多治見市', 'gaming-hub' ),
+		'name' => __('Tajimi, Gifu', 'gaming-hub'),
 	);
 }
 
@@ -78,30 +78,30 @@ function gaming_hub_tajimi_monthly_sunshine_hours() {
  */
 function gaming_hub_tajimi_weather_label( $code ) {
 	$map = array(
-		0  => __( '快晴', 'gaming-hub' ),
-		1  => __( '晴れ', 'gaming-hub' ),
-		2  => __( '一部曇り', 'gaming-hub' ),
-		3  => __( '曇り', 'gaming-hub' ),
-		45 => __( '霧', 'gaming-hub' ),
-		48 => __( '霧氷', 'gaming-hub' ),
-		51 => __( '弱い霧雨', 'gaming-hub' ),
-		53 => __( '霧雨', 'gaming-hub' ),
-		55 => __( '強い霧雨', 'gaming-hub' ),
-		61 => __( '弱い雨', 'gaming-hub' ),
-		63 => __( '雨', 'gaming-hub' ),
-		65 => __( '強い雨', 'gaming-hub' ),
-		71 => __( '弱い雪', 'gaming-hub' ),
-		73 => __( '雪', 'gaming-hub' ),
-		75 => __( '強い雪', 'gaming-hub' ),
-		80 => __( 'にわか雨', 'gaming-hub' ),
-		81 => __( 'にわか雨', 'gaming-hub' ),
-		82 => __( '激しいにわか雨', 'gaming-hub' ),
-		95 => __( '雷雨', 'gaming-hub' ),
+		0  => __('Clear', 'gaming-hub'),
+		1  => __('Sunny', 'gaming-hub'),
+		2  => __('Partly cloudy', 'gaming-hub'),
+		3  => __('Cloudy', 'gaming-hub'),
+		45 => __('Fog', 'gaming-hub'),
+		48 => __('Rime', 'gaming-hub'),
+		51 => __('Light drizzle', 'gaming-hub'),
+		53 => __('Drizzle', 'gaming-hub'),
+		55 => __('Heavy drizzle', 'gaming-hub'),
+		61 => __('Light rain', 'gaming-hub'),
+		63 => __('Rain', 'gaming-hub'),
+		65 => __('Heavy rain', 'gaming-hub'),
+		71 => __('Light snow', 'gaming-hub'),
+		73 => __('Snow', 'gaming-hub'),
+		75 => __('Heavy snow', 'gaming-hub'),
+		80 => __('Showers', 'gaming-hub'),
+		81 => __('Showers', 'gaming-hub'),
+		82 => __('Heavy showers', 'gaming-hub'),
+		95 => __('Thunderstorm', 'gaming-hub'),
 	);
 
 	$code = (int) $code;
 
-	return $map[ $code ] ?? __( '不明', 'gaming-hub' );
+	return $map[ $code ] ?? __('Unknown', 'gaming-hub');
 }
 
 /**
@@ -127,7 +127,7 @@ function gaming_hub_tajimi_weather_for_date( array $payload, $date = null ) {
 		return gaming_hub_tajimi_weather_label( (int) ( $parsed['weather_code'] ?? 0 ) );
 	}
 
-	return __( '不明', 'gaming-hub' );
+	return __('Unknown', 'gaming-hub');
 }
 
 /**
@@ -347,7 +347,7 @@ function gaming_hub_powerwall_get_solar_generation( $force_refresh = false ) {
 	$source  = 'tajimi-normal';
 	$watts   = 0;
 	$cloud   = null;
-	$weather = __( '不明', 'gaming-hub' );
+	$weather = __('Unknown', 'gaming-hub');
 	$gti     = null;
 	$slot    = wp_date( 'Y-m-d H:00' );
 
@@ -368,7 +368,7 @@ function gaming_hub_powerwall_get_solar_generation( $force_refresh = false ) {
 		}
 	} else {
 		$watts   = gaming_hub_tajimi_fallback_solar_w( $hour, $month, null, $capacity_w );
-		$weather = __( '天気取得不可', 'gaming-hub' );
+		$weather = __('Weather unavailable', 'gaming-hub');
 	}
 
 	$result = array(
@@ -470,11 +470,11 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $dat
 		}
 	}
 
-	$weather = __( '不明', 'gaming-hub' );
+	$weather = __('Unknown', 'gaming-hub');
 	if ( ! is_wp_error( $payload ) ) {
 		$weather = gaming_hub_tajimi_weather_for_date( $payload, $date );
 	} else {
-		$weather = __( '天気取得不可', 'gaming-hub' );
+		$weather = __('Weather unavailable', 'gaming-hub');
 	}
 
 	$loc = gaming_hub_tajimi_solar_location();

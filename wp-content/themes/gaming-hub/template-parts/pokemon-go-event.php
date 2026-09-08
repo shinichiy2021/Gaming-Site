@@ -39,7 +39,7 @@ $line_of  = static function ( $item ) {
 		<div class="pgo-hero-bg"></div>
 		<div class="container pgo-event-hero-grid">
 			<div class="pgo-hero-content pgo-event-hero-copy">
-				<span class="pgo-hero-badge"><?php echo esc_html( $event['kicker'] ?? __( '大型イベント特集', 'gaming-hub' ) ); ?></span>
+				<span class="pgo-hero-badge"><?php echo esc_html( $event['kicker'] ?? __('Major event features', 'gaming-hub') ); ?></span>
 				<p class="pgo-event-kicker">
 					<span class="pgo-badge pgo-status-<?php echo esc_attr( $status ); ?>">
 						<?php echo esc_html( gaming_hub_pgo_event_status_label( $status ) ); ?>
@@ -50,14 +50,14 @@ $line_of  = static function ( $item ) {
 				<p class="pgo-hero-desc"><?php echo esc_html( $event['lead'] ); ?></p>
 				<div class="pgo-hero-links">
 					<a href="<?php echo esc_url( $official ); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-						<?php esc_html_e( '公式を見る', 'gaming-hub' ); ?>
+						<?php esc_html_e('Official details', 'gaming-hub'); ?>
 					</a>
 					<a href="<?php echo esc_url( gaming_hub_pgo_tokushuu_url() ); ?>" class="btn btn-outline">
-						<?php esc_html_e( '特集一覧', 'gaming-hub' ); ?>
+						<?php esc_html_e('All features', 'gaming-hub'); ?>
 					</a>
 					<?php if ( function_exists( 'gaming_hub_pgo_raid_url' ) ) : ?>
 						<a href="<?php echo esc_url( gaming_hub_pgo_raid_url() ); ?>" class="btn btn-outline">
-							<?php esc_html_e( 'レイド招待', 'gaming-hub' ); ?>
+							<?php esc_html_e('Raid invites', 'gaming-hub'); ?>
 						</a>
 					<?php endif; ?>
 				</div>
@@ -75,7 +75,7 @@ $line_of  = static function ( $item ) {
 			<div class="container">
 				<h2 class="pgo-event-heading">
 					<?php gaming_hub_pgo_icon( 'check' ); ?>
-					<?php esc_html_e( '今日やること', 'gaming-hub' ); ?>
+					<?php esc_html_e('Do this today', 'gaming-hub'); ?>
 				</h2>
 				<ol class="pgo-today-steps">
 					<?php foreach ( $today as $i => $step ) : ?>
@@ -98,7 +98,7 @@ $line_of  = static function ( $item ) {
 			<div class="container">
 				<h2 class="pgo-event-heading">
 					<?php gaming_hub_pgo_icon( 'clock' ); ?>
-					<?php esc_html_e( 'スケジュール', 'gaming-hub' ); ?>
+					<?php esc_html_e('Schedule', 'gaming-hub'); ?>
 				</h2>
 				<div class="pgo-event-phases">
 					<?php foreach ( $event['phases'] as $phase ) : ?>
@@ -120,7 +120,7 @@ $line_of  = static function ( $item ) {
 				<div>
 					<h2 class="pgo-event-heading">
 						<?php gaming_hub_pgo_icon( 'spark' ); ?>
-						<?php esc_html_e( '見どころ', 'gaming-hub' ); ?>
+						<?php esc_html_e('Highlights', 'gaming-hub'); ?>
 					</h2>
 					<ul class="pgo-icon-list">
 						<?php foreach ( $event['highlights'] as $line ) : ?>
@@ -137,7 +137,7 @@ $line_of  = static function ( $item ) {
 				<div>
 					<h2 class="pgo-event-heading">
 						<?php gaming_hub_pgo_icon( 'star' ); ?>
-						<?php esc_html_e( 'ボーナス', 'gaming-hub' ); ?>
+						<?php esc_html_e('Bonuses', 'gaming-hub'); ?>
 					</h2>
 					<ul class="pgo-icon-list">
 						<?php foreach ( $event['bonuses'] as $line ) : ?>
@@ -158,7 +158,7 @@ $line_of  = static function ( $item ) {
 			<div class="container">
 				<h2 class="pgo-event-heading">
 					<?php gaming_hub_pgo_icon( 'spark' ); ?>
-					<?php esc_html_e( '初登場・注目ポケモン', 'gaming-hub' ); ?>
+					<?php esc_html_e('Debuts and featured Pokémon', 'gaming-hub'); ?>
 				</h2>
 				<?php gaming_hub_render_pgo_mon_row( $event['debuts'], 'pgo-mon-row pgo-mon-row-lg' ); ?>
 			</div>
@@ -172,13 +172,13 @@ $line_of  = static function ( $item ) {
 					<div>
 						<h2 class="pgo-event-heading">
 							<?php gaming_hub_pgo_icon( 'ball' ); ?>
-							<?php esc_html_e( '野生', 'gaming-hub' ); ?>
+							<?php esc_html_e('Wild', 'gaming-hub'); ?>
 						</h2>
 						<?php foreach ( $event['wild'] as $row ) : ?>
 							<h3 class="pgo-event-sub"><?php echo esc_html( $row['phase'] ?? '' ); ?></h3>
 							<?php gaming_hub_render_pgo_mon_row( $row['pokemon'] ?? array() ); ?>
 							<?php if ( ! empty( $row['rare'] ) ) : ?>
-								<p class="pgo-event-rare"><?php esc_html_e( 'まれ', 'gaming-hub' ); ?></p>
+								<p class="pgo-event-rare"><?php esc_html_e('Rare', 'gaming-hub'); ?></p>
 								<?php gaming_hub_render_pgo_mon_row( $row['rare'], 'pgo-mon-row pgo-mon-row-rare' ); ?>
 							<?php endif; ?>
 						<?php endforeach; ?>
@@ -188,7 +188,7 @@ $line_of  = static function ( $item ) {
 					<div>
 						<h2 class="pgo-event-heading">
 							<?php gaming_hub_pgo_icon( 'raid' ); ?>
-							<?php esc_html_e( 'レイド', 'gaming-hub' ); ?>
+							<?php esc_html_e('Raids', 'gaming-hub'); ?>
 						</h2>
 						<?php foreach ( $event['raids'] as $row ) : ?>
 							<h3 class="pgo-event-sub"><?php echo esc_html( $row['phase'] ?? '' ); ?></h3>
@@ -205,9 +205,9 @@ $line_of  = static function ( $item ) {
 			<div class="container">
 				<h2 class="pgo-event-heading">
 					<?php gaming_hub_pgo_icon( 'evolve' ); ?>
-					<?php esc_html_e( '特別なわざ', 'gaming-hub' ); ?>
+					<?php esc_html_e('Featured attacks', 'gaming-hub'); ?>
 				</h2>
-				<p class="section-desc"><?php esc_html_e( 'この期間に捕獲・進化した個体だけが覚えます。', 'gaming-hub' ); ?></p>
+				<p class="section-desc"><?php esc_html_e('Only Pokémon caught or evolved during the event learn these.', 'gaming-hub'); ?></p>
 				<div class="pgo-move-grid">
 					<?php foreach ( $event['moves'] as $row ) : ?>
 						<div class="pgo-move-card">
@@ -229,7 +229,7 @@ $line_of  = static function ( $item ) {
 					<div>
 						<h2 class="pgo-event-heading">
 							<?php gaming_hub_pgo_icon( 'pass' ); ?>
-							<?php esc_html_e( '入手・パス', 'gaming-hub' ); ?>
+							<?php esc_html_e('How to get / GO Pass', 'gaming-hub'); ?>
 						</h2>
 						<ul class="pgo-icon-list">
 							<?php foreach ( $event['how_to'] as $row ) : ?>
@@ -246,7 +246,7 @@ $line_of  = static function ( $item ) {
 					<div>
 						<h2 class="pgo-event-heading">
 							<?php gaming_hub_pgo_icon( 'tv' ); ?>
-							<?php esc_html_e( '配信・視聴特典', 'gaming-hub' ); ?>
+							<?php esc_html_e('Streams and watch rewards', 'gaming-hub'); ?>
 						</h2>
 						<ul class="pgo-icon-list">
 							<?php foreach ( $event['watch'] as $row ) : ?>
@@ -268,7 +268,7 @@ $line_of  = static function ( $item ) {
 			<div class="container">
 				<h2 class="pgo-event-heading">
 					<?php gaming_hub_pgo_icon( 'research' ); ?>
-					<?php esc_html_e( '関連ニュース', 'gaming-hub' ); ?>
+					<?php esc_html_e('Related news', 'gaming-hub'); ?>
 				</h2>
 				<?php
 				get_template_part(
@@ -286,7 +286,7 @@ $line_of  = static function ( $item ) {
 	<?php endif; ?>
 
 	<p class="pgo-source-note pgo-event-source">
-		<?php esc_html_e( '内容は公式発表をもとにしたまとめです。最新の詳細は公式ニュースで確認してください。', 'gaming-hub' ); ?>
-		<a href="<?php echo esc_url( $official ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( '公式を見る', 'gaming-hub' ); ?></a>
+		<?php esc_html_e('Summary based on official announcements. Check official news for the latest details.', 'gaming-hub'); ?>
+		<a href="<?php echo esc_url( $official ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Official details', 'gaming-hub'); ?></a>
 	</p>
 </div>

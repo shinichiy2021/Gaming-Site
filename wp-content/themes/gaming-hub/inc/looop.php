@@ -110,9 +110,9 @@ function gaming_hub_looop_hourly_price_map_today( $force_refresh = false ) {
  */
 function gaming_hub_looop_mark_label( $mark ) {
 	$labels = array(
-		'sunny'   => __( 'でんき日和', 'gaming-hub' ),
-		'caution' => __( 'でんき注意報', 'gaming-hub' ),
-		'alert'   => __( 'でんき警報', 'gaming-hub' ),
+		'sunny'   => __('Cheap-power day', 'gaming-hub'),
+		'caution' => __('Power advisory', 'gaming-hub'),
+		'alert'   => __('Power alert', 'gaming-hub'),
 		'normal'  => '',
 	);
 

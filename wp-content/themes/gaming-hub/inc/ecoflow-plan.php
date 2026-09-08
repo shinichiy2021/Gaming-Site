@@ -48,7 +48,7 @@ function gaming_hub_ecoflow_solar_capacity_w() {
 function gaming_hub_ecoflow_solar_panel_label() {
 	return sprintf(
 		/* translators: 1: Pro watts, 2: 1500 watts */
-		__( 'Pro %1$s W + 1500 %2$s W', 'gaming-hub' ),
+		__('Pro %1$s W + 1500 %2$s W', 'gaming-hub'),
 		number_format_i18n( (int) GAMING_HUB_ECOFLOW_SOLAR_PRO_W ),
 		number_format_i18n( (int) GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W )
 	);
@@ -300,7 +300,7 @@ function gaming_hub_ecoflow_energy_share_tip_parts( array $stack ) {
 	if ( isset( $stack['combined'] ) && null !== $stack['combined'] ) {
 		$parts[] = sprintf(
 			/* translators: 1: remaining watts, 2: combined capacity watts, 3: percent of combined */
-			__( '合算 %1$s / %2$s W（%3$s%%）', 'gaming-hub' ),
+			__('Total %1$s / %2$s W (%3$s%%)', 'gaming-hub'),
 			number_format_i18n( (int) ( $stack['total_w'] ?? 0 ) ),
 			number_format_i18n( (int) ( $stack['full_w'] ?? 0 ) ),
 			number_format_i18n( (float) $stack['combined'], 0 )
@@ -1014,25 +1014,25 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		);
 		$windows = $picked['windows'];
 		$avg_yen = $picked['avg_yen'];
-		$note    = __( '昨日の実測です。黄・橙棒は残量、金の帯はグリッド充電の記録です。承認は今日の計画のみです。', 'gaming-hub' );
+		$note    = __('Yesterday’s measured data. Yellow/orange bars are SOC; gold bands are logged grid charge. Approve today’s plan only.', 'gaming-hub');
 	} elseif ( $needed ) {
 		$target   = number_format_i18n( $target_soc );
 		$headroom = number_format_i18n( (int) round( $headroom_soc ) );
 		$note     = 'today' === $day_key
 			? sprintf(
 				/* translators: 1: cheap-hour target SOC, 2: solar headroom percent */
-				__( '発電見込み約 %2$s%% 分を空けるため、安い時間の目標は %1$s%% です。いまの残量で足りるのでグリッド充電は不要です。', 'gaming-hub' ),
+				__('Leaving about %2$s%% for solar, the cheap-hour target is %1$s%%. Current SOC is enough, so no grid charge.', 'gaming-hub'),
 				$target,
 				$headroom
 			)
 			: ( 'tomorrow' === $day_key
 				? sprintf(
 					/* translators: 1: cheap-hour target SOC, 2: solar headroom percent */
-					__( '明日の発電見込み約 %2$s%% 分を空けるため、安い時間の目標は %1$s%% です。グリッド充電は不要です。', 'gaming-hub' ),
+					__('Leaving about %2$s%% for tomorrow’s solar, the cheap-hour target is %1$s%%. No grid charge needed.', 'gaming-hub'),
 					$target,
 					$headroom
 				)
-				: __( '昨日はグリッド充電なしの見込みです。', 'gaming-hub' ) );
+				: __('Yesterday looks like no grid charge was needed.', 'gaming-hub') );
 	} else {
 		$picked = gaming_hub_ecoflow_pick_cheap_hours( $hour, $deficit_kwh, $solar_hours, $plan_date );
 		$picked = gaming_hub_ecoflow_trim_picked_to_target_soc(
@@ -1053,7 +1053,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 			$deficit_kwh = 0.0;
 			$note        = sprintf(
 				/* translators: %s: cheap-hour target SOC percent */
-				__( '安い時間に充電すると %s%% を超えそうなため、グリッド充電は見送ります。', 'gaming-hub' ),
+				__('Charging in cheap hours would push past %s%%, so grid charge is skipped.', 'gaming-hub'),
 				number_format_i18n( $target_soc )
 			);
 		} else {
@@ -1061,8 +1061,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 			$note        = sprintf(
 				/* translators: 1: charge kWh, 2: charge watts, 3: target SOC, 4: solar headroom percent */
 				'tomorrow' === $day_key
-					? __( '明日の発電見込み約 %4$s%% 分を空け、最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。', 'gaming-hub' )
-					: __( '発電見込み約 %4$s%% 分を空け、スマートタイムONEの最安時間に %2$s W で約 %1$s kWh 充電し、Pro を %3$s%% 付近まで上げます。', 'gaming-hub' ),
+					? __('Leaving about %4$s%% for tomorrow’s solar, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%%.', 'gaming-hub')
+					: __('Leaving about %4$s%% for solar, about %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Pro near %3$s%%.', 'gaming-hub'),
 				number_format_i18n( $deficit_kwh, 1 ),
 				number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W ),
 				number_format_i18n( $target_soc ),
@@ -1105,25 +1105,25 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	}
 
 	$titles = array(
-		'yesterday' => __( '昨日の充電計画', 'gaming-hub' ),
-		'today'     => __( '今日の充電計画', 'gaming-hub' ),
-		'tomorrow'  => __( '明日の充電計画', 'gaming-hub' ),
+		'yesterday' => __('Yesterday’s charge plan', 'gaming-hub'),
+		'today'     => __('Today’s charge plan', 'gaming-hub'),
+		'tomorrow'  => __('Tomorrow’s charge plan', 'gaming-hub'),
 	);
 	$pv_labels = array(
-		'yesterday' => __( '発電実績', 'gaming-hub' ),
-		'today'     => __( '残り予想発電', 'gaming-hub' ),
-		'tomorrow'  => __( '予想発電', 'gaming-hub' ),
+		'yesterday' => __('Measured generation', 'gaming-hub'),
+		'today'     => __('Remaining expected generation', 'gaming-hub'),
+		'tomorrow'  => __('Expected generation', 'gaming-hub'),
 	);
 	$buy_labels = array(
-		'yesterday' => __( '昨日の買電', 'gaming-hub' ),
+		'yesterday' => __('Yesterday’s import', 'gaming-hub'),
 		'today'     => sprintf(
 			/* translators: %s: target SOC percent */
-			__( '%s%%までの充電', 'gaming-hub' ),
+			__('Charge to %s%%', 'gaming-hub'),
 			number_format_i18n( $target_soc )
 		),
 		'tomorrow'  => sprintf(
 			/* translators: %s: target SOC percent */
-			__( '明日 %s%%までの充電', 'gaming-hub' ),
+			__('Tomorrow charge to %s%%', 'gaming-hub'),
 			number_format_i18n( $target_soc )
 		),
 	);
@@ -1137,7 +1137,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'deficit_hud_label'    => $buy_labels[ $day_key ],
 		'deficit_kwh'          => round( $deficit_kwh, 2 ),
 		'needs_grid'           => ! $needed,
-		'window_label'         => $windows ? implode( '、', $windows ) : __( 'グリッド充電不要', 'gaming-hub' ),
+		'window_label'         => $windows ? implode( '、', $windows ) : __('No grid charge needed', 'gaming-hub'),
 		'window_avg_yen'       => $avg_yen,
 		'load_remaining_kwh'   => round( $load_remaining_kwh, 2 ),
 		'room_remaining_kwh'   => round( $room_remaining_kwh, 2 ),
@@ -1201,8 +1201,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
  */
 function gaming_hub_ecoflow_smart_time_one_meta() {
 	return array(
-		'provider' => __( 'LOOOP スマートタイムONE（電灯）', 'gaming-hub' ),
-		'note'     => __( '中部エリア。請求単価 = 電源料金＋サービス料＋託送従量＋再エネ賦課金。', 'gaming-hub' ),
+		'provider' => __('LOOOP Smart Time ONE (lighting)', 'gaming-hub'),
+		'note'     => __('Chubu area. Billed rate = energy + service + volumetric wheeling + renewable surcharge.', 'gaming-hub'),
 	);
 }
 
@@ -1432,7 +1432,7 @@ function gaming_hub_ecoflow_pick_cheap_hours( $from_hour, $deficit_kwh, $solar_h
 
 	if ( is_wp_error( $price_data ) || ! is_array( $price_data ) ) {
 		return array(
-			'windows' => array( __( '単価データなし', 'gaming-hub' ) ),
+			'windows' => array( __('No rate data', 'gaming-hub') ),
 			'avg_yen' => null,
 			'picked'  => array(),
 		);
@@ -1485,7 +1485,7 @@ function gaming_hub_ecoflow_pick_cheap_hours( $from_hour, $deficit_kwh, $solar_h
 
 	if ( empty( $candidates ) ) {
 		return array(
-			'windows' => array( __( '候補時間なし', 'gaming-hub' ) ),
+			'windows' => array( __('No candidate hours', 'gaming-hub') ),
 			'avg_yen' => null,
 			'picked'  => array(),
 		);

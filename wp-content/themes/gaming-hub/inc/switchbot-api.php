@@ -96,7 +96,7 @@ class Gaming_Hub_Switchbot_Api {
 		if ( ! is_array( $body ) ) {
 			return new WP_Error(
 				'switchbot_invalid_response',
-				__( 'SwitchBot API の応答を解析できませんでした。', 'gaming-hub' ),
+				__('Could not parse the SwitchBot API response.', 'gaming-hub'),
 				array( 'http' => $http )
 			);
 		}
@@ -105,12 +105,12 @@ class Gaming_Hub_Switchbot_Api {
 		if ( 401 === $http ) {
 			return new WP_Error(
 				'switchbot_unauthorized',
-				__( 'SwitchBot の Token / Secret が無効です。', 'gaming-hub' )
+				__('SwitchBot token or secret is invalid.', 'gaming-hub')
 			);
 		}
 
 		if ( 100 !== $code ) {
-			$message = isset( $body['message'] ) ? (string) $body['message'] : __( 'SwitchBot API エラー', 'gaming-hub' );
+			$message = isset( $body['message'] ) ? (string) $body['message'] : __('SwitchBot API error', 'gaming-hub');
 			return new WP_Error(
 				'switchbot_api_error',
 				$message,

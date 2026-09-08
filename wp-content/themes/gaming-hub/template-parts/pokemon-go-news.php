@@ -18,8 +18,8 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 	<?php if ( $show_header ) : ?>
 		<div class="section-header">
 			<div class="pgo-section-badge">⚡ Pokémon GO</div>
-			<h2 class="section-title"><?php esc_html_e( '最新情報', 'gaming-hub' ); ?></h2>
-			<p class="section-desc"><?php esc_html_e( 'イベント・レイド・攻略など Pokémon GO の最新ニュース', 'gaming-hub' ); ?></p>
+			<h2 class="section-title"><?php esc_html_e('News', 'gaming-hub'); ?></h2>
+			<p class="section-desc"><?php esc_html_e('Pokémon GO events, raids, and guides', 'gaming-hub'); ?></p>
 		</div>
 	<?php endif; ?>
 
@@ -46,7 +46,7 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 						<?php if ( ! empty( $item['excerpt'] ) ) : ?>
 							<p class="pgo-news-excerpt"><?php echo esc_html( $item['excerpt'] ); ?></p>
 						<?php endif; ?>
-						<span class="pgo-read-more"><?php esc_html_e( '詳しく見る', 'gaming-hub' ); ?> →</span>
+						<span class="pgo-read-more"><?php esc_html_e('Read more', 'gaming-hub'); ?> →</span>
 						</div>
 					</a>
 				</article>
@@ -55,19 +55,19 @@ $limit       = isset( $args['limit'] ) ? (int) $args['limit'] : 10;
 
 		<div class="pgo-sources">
 			<p class="pgo-source-note">
-				<?php esc_html_e( '情報源:', 'gaming-hub' ); ?>
-				<a href="https://pokemongo.com/ja/news/" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Pokémon GO 公式ニュース', 'gaming-hub' ); ?></a>
+				<?php esc_html_e('Source:', 'gaming-hub'); ?>
+				<a href="https://pokemongo.com/ja/news/" target="_blank" rel="noopener noreferrer"><?php esc_html_e('Pokémon GO official news', 'gaming-hub'); ?></a>
 			</p>
 			<p class="pgo-updated-note">
-				<?php esc_html_e( '30分ごとに自動更新', 'gaming-hub' ); ?>
+				<?php esc_html_e('Auto-updates every 30 minutes', 'gaming-hub'); ?>
 			</p>
 		</div>
 	<?php else : ?>
 		<div class="pgo-error">
-			<p><?php esc_html_e( '最新情報を取得できませんでした。しばらくしてから再度お試しください。', 'gaming-hub' ); ?></p>
+			<p><?php esc_html_e('Could not load the latest news. Try again shortly.', 'gaming-hub'); ?></p>
 			<p>
 				<a href="https://pokemongo.com/ja/news/" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-					<?php esc_html_e( '公式サイトで確認する', 'gaming-hub' ); ?>
+					<?php esc_html_e('Check the official site', 'gaming-hub'); ?>
 				</a>
 			</p>
 		</div>

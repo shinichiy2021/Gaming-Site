@@ -32,7 +32,7 @@ function gaming_hub_setup_pokemon_go_tag() {
 			'post_tag',
 			array(
 				'slug'        => GAMING_HUB_POKEMON_GO_TAG_SLUG,
-				'description' => __( 'Pokémon GO のイベント・レイド・ニュース', 'gaming-hub' ),
+				'description' => __('Pokémon GO events, raids, and news', 'gaming-hub'),
 			)
 		);
 	}
@@ -105,7 +105,7 @@ function gaming_hub_fetch_pokemon_go_feed( $max_items = 20 ) {
 			'excerpt'      => wp_trim_words( wp_strip_all_tags( $item->get_description() ), 28, '...' ),
 			'image'        => gaming_hub_extract_feed_item_image( $item ),
 			'categories'   => $categories,
-			'source'       => __( 'Pokémon GO 公式', 'gaming-hub' ),
+			'source'       => __('Pokémon GO official', 'gaming-hub'),
 		);
 
 		if ( $i < $enrich_cap ) {

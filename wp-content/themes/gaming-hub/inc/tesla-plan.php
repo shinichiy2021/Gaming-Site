@@ -91,12 +91,12 @@ function gaming_hub_tesla_charge_input_types() {
 function gaming_hub_tesla_charge_input_label( $type ) {
 	switch ( (string) $type ) {
 		case 'away_ac':
-			return __( '外出先 AC', 'gaming-hub' );
+			return __('Away AC', 'gaming-hub');
 		case 'dc':
-			return __( 'DC 入力', 'gaming-hub' );
+			return __('DC input', 'gaming-hub');
 		case 'home_ac':
 		default:
-			return __( '自宅 AC', 'gaming-hub' );
+			return __('Home AC', 'gaming-hub');
 	}
 }
 
@@ -457,7 +457,7 @@ function gaming_hub_tesla_soc_log_for_date( $date ) {
 function gaming_hub_tesla_plan_charge_label() {
 	return sprintf(
 		/* translators: %s: volts */
-		__( '%sV 普通充電', 'gaming-hub' ),
+		__('%sV AC charging', 'gaming-hub'),
 		number_format_i18n( GAMING_HUB_TESLA_PLAN_VOLTS )
 	);
 }
@@ -485,7 +485,7 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 	if ( 'supercharger' === $kind ) {
 		return array(
 			'type'     => 'dc',
-			'label'    => __( 'DC 入力', 'gaming-hub' ),
+			'label'    => __('DC input', 'gaming-hub'),
 			'watts'    => $charging ? max( $super_w, $watts ) : 0,
 			'plugged'  => true,
 			'charging' => $charging,
@@ -496,7 +496,7 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 		if ( false === $at_home ) {
 			return array(
 				'type'     => 'away_ac',
-				'label'    => __( '外出先 AC', 'gaming-hub' ),
+				'label'    => __('Away AC', 'gaming-hub'),
 				'watts'    => $charging ? max( $wall_w, $watts ) : 0,
 				'plugged'  => true,
 				'charging' => $charging,
@@ -524,7 +524,7 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 
 	return array(
 		'type'     => 'none',
-		'label'    => __( '未接続', 'gaming-hub' ),
+		'label'    => __('Unplugged', 'gaming-hub'),
 		'watts'    => 0,
 		'plugged'  => false,
 		'charging' => false,
@@ -542,7 +542,7 @@ function gaming_hub_tesla_plan_input_sub_label( array $input ) {
 	}
 
 	if ( ! empty( $input['plugged'] ) ) {
-		return __( '接続中', 'gaming-hub' );
+		return __('Connected', 'gaming-hub');
 	}
 
 	return '—';
@@ -741,8 +741,8 @@ function gaming_hub_tesla_plan_price_meta() {
 	}
 
 	return array(
-		'provider' => __( 'LOOOP スマートタイムONE（電灯）', 'gaming-hub' ),
-		'note'     => __( '中部エリア。請求単価 = 電源料金＋サービス料＋託送従量＋再エネ賦課金。', 'gaming-hub' ),
+		'provider' => __('LOOOP Smart Time ONE (lighting)', 'gaming-hub'),
+		'note'     => __('Chubu area. Billed rate = energy + service + volumetric wheeling + renewable surcharge.', 'gaming-hub'),
 	);
 }
 
@@ -1484,13 +1484,13 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 
 	$needs_grid = $deficit_kwh >= 0.05;
 	$titles     = array(
-		'yesterday' => __( '昨日の充電計画', 'gaming-hub' ),
-		'today'     => __( '今日の充電計画', 'gaming-hub' ),
-		'tomorrow'  => __( '明日の充電計画', 'gaming-hub' ),
+		'yesterday' => __('Yesterday’s charge plan', 'gaming-hub'),
+		'today'     => __('Today’s charge plan', 'gaming-hub'),
+		'tomorrow'  => __('Tomorrow’s charge plan', 'gaming-hub'),
 	);
 	$window     = $needs_grid
 		? ( $pick['windows'] ? implode( '、', $pick['windows'] ) : '—' )
-		: __( 'グリッド充電不要', 'gaming-hub' );
+		: __('No grid charge needed', 'gaming-hub');
 
 	$cap_note = '';
 
@@ -1498,24 +1498,24 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		$note = $needs_grid
 			? sprintf(
 				/* translators: 1: km, 2: charge kWh */
-				__( '昨日の走行 %1$s km をまかなうなら、その日の最安時間に %2$s kWh 充電する計画です。', 'gaming-hub' ),
+				__('To cover yesterday’s %1$s km, the plan would have charged %2$s kWh in that day’s cheapest hours.', 'gaming-hub'),
 				number_format_i18n( $drive['km'], 1 ),
 				number_format_i18n( $deficit_kwh, 1 )
 			)
-			: __( '昨日の走行見込みでは追加のグリッド充電は不要でした。', 'gaming-hub' );
-		$km_label      = __( '走行実績', 'gaming-hub' );
-		$deficit_label = __( '推奨だった充電', 'gaming-hub' );
+			: __('Yesterday’s driving did not need extra grid charging.', 'gaming-hub');
+		$km_label      = __('Distance driven', 'gaming-hub');
+		$deficit_label = __('Charge that was recommended', 'gaming-hub');
 	} elseif ( 'tomorrow' === $day ) {
 		if ( ! $needs_grid ) {
 			$note = sprintf(
 				/* translators: %s: charge limit */
-				__( '明日の走行見込みでは追加のグリッド充電は不要です。充電上限は %s%% です。', 'gaming-hub' ),
+				__('Tomorrow’s expected driving does not need extra grid charging. The charge limit is %s%%.', 'gaming-hub'),
 				number_format_i18n( $daily_soc )
 			);
 		} elseif ( $is_sat_am ) {
 			$note = sprintf(
 				/* translators: 1: km, 2: window, 3: Saturday hour */
-				__( '明日は土曜です。%1$s km 走行を踏まえ、朝 %3$s 時までに 100%% になるよう最安時間（%2$s）に 200V 普通充電します。', 'gaming-hub' ),
+				__('Tomorrow is Saturday. For %1$s km of driving, use 200V AC charging in the cheapest window (%2$s) so the pack is at 100%% by %3$s:00.', 'gaming-hub'),
 				number_format_i18n( $drive['km'], 0 ),
 				$window,
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
@@ -1523,7 +1523,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} elseif ( $is_friday ) {
 			$note = sprintf(
 				/* translators: 1: charge limit, 2: km, 3: window */
-				__( '明日（金曜）は充電上限 %1$s%% まで。金曜夜〜土曜朝の最安時間（%3$s）にも充電します。予想走行 %2$s km。', 'gaming-hub' ),
+				__('Tomorrow (Friday) charges to the %1$s%% limit, including the cheapest Friday-night to Saturday-morning window (%3$s). Expected drive %2$s km.', 'gaming-hub'),
 				number_format_i18n( $daily_soc ),
 				number_format_i18n( $drive['km'], 0 ),
 				$window
@@ -1531,32 +1531,32 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} else {
 			$note = sprintf(
 				/* translators: 1: km, 2: window, 3: charge limit */
-				__( '明日の %1$s km 走行を踏まえ、充電上限 %3$s%% まで、スマートタイムONEの最安時間（%2$s）に 200V 普通充電します。', 'gaming-hub' ),
+				__('For tomorrow’s %1$s km, use 200V AC charging in the cheapest Smart Time ONE window (%2$s) up to the %3$s%% charge limit.', 'gaming-hub'),
 				number_format_i18n( $drive['km'], 0 ),
 				$window,
 				number_format_i18n( $daily_soc )
 			);
 		}
 		$note         .= $cap_note;
-		$km_label      = __( '予想走行', 'gaming-hub' );
+		$km_label      = __('Expected drive', 'gaming-hub');
 		$deficit_label = sprintf(
 			/* translators: %s: target SOC */
-			__( '%s%%までの充電', 'gaming-hub' ),
+			__('Charge to %s%%', 'gaming-hub'),
 			number_format_i18n( $target )
 		);
 	} else {
 		if ( ! $needs_grid ) {
 			$note = $is_sat_am
-				? __( 'いまの残量で土曜朝 100% に届く見込みです。追加のグリッド充電は不要です。', 'gaming-hub' )
+				? __('Current charge should already hit 100% Saturday morning. No extra grid charging needed.', 'gaming-hub')
 				: sprintf(
 					/* translators: %s: charge limit */
-					__( 'いまの残量と残りの走行では、追加のグリッド充電は不要です。充電上限は %s%% です。', 'gaming-hub' ),
+					__('Current charge and remaining driving do not need extra grid charging. The charge limit is %s%%.', 'gaming-hub'),
 					number_format_i18n( $daily_soc )
 				);
 		} elseif ( $is_sat_am ) {
 			$note = sprintf(
 				/* translators: 1: kW, 2: Saturday hour, 3: window */
-				__( '土曜朝 %2$s 時までに 100%% になるよう、残っている最安時間（%3$s）に 200V 普通充電（%1$s kW）します。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
+				__('To hit 100%% by Saturday %2$s:00, remaining cheapest hours (%3$s) use %1$s kW 200V AC. Home charging starts automatically in those hours only.', 'gaming-hub'),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR ),
 				$window
@@ -1564,7 +1564,7 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} elseif ( $is_friday ) {
 			$note = sprintf(
 				/* translators: 1: kW, 2: remaining km, 3: window, 4: Saturday hour, 5: weekday charge limit */
-				__( '残りの走行 %2$s km。平日の充電上限は %5$s%%、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）にも充電します（200V 普通充電 %1$s kW）。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
+				__('%2$s km still to drive. Weekday charge limit is %5$s%%; cheapest hours from Friday night to Saturday %4$s:00 (%3$s) also charge (200V AC at %1$s kW). Home charging starts automatically in those hours only.', 'gaming-hub'),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
 				number_format_i18n( $drive['remaining_km'], 1 ),
 				$window,
@@ -1574,17 +1574,17 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 		} else {
 			$note = sprintf(
 				/* translators: 1: charge kW, 2: remaining km, 3: charge limit */
-				__( '残りの走行 %2$s km を踏まえ、充電上限 %3$s%% まで、スマートタイムONEの最安時間に 200V 普通充電（%1$s kW）します。この時間だけ自宅充電を自動で開始します。', 'gaming-hub' ),
+				__('With %2$s km still to drive, use 200V AC charging at %1$s kW in the cheapest Smart Time ONE hours up to the %3$s%% charge limit. Home charging starts automatically in those hours only.', 'gaming-hub'),
 				number_format_i18n( GAMING_HUB_TESLA_PLAN_CHARGE_W / 1000, 1 ),
 				number_format_i18n( $drive['remaining_km'], 1 ),
 				number_format_i18n( $daily_soc )
 			);
 		}
 		$note         .= $cap_note;
-		$km_label      = __( '残り走行', 'gaming-hub' );
+		$km_label      = __('Remaining drive', 'gaming-hub');
 		$deficit_label = sprintf(
 			/* translators: %s: target SOC */
-			__( '%s%%までの充電', 'gaming-hub' ),
+			__('Charge to %s%%', 'gaming-hub'),
 			number_format_i18n( $target )
 		);
 	}
@@ -1592,12 +1592,12 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 	$target_note = $is_sat_am || $is_friday
 		? sprintf(
 			/* translators: %s: Saturday hour */
-			__( '土曜朝 %s 時までに 100%%', 'gaming-hub' ),
+			__('100%% by Saturday %s:00', 'gaming-hub'),
 			number_format_i18n( GAMING_HUB_TESLA_PLAN_SATURDAY_HOUR )
 		)
 		: sprintf(
 			/* translators: %s: charge limit */
-			__( '充電上限 %s%%', 'gaming-hub' ),
+			__('Charge limit %s%%', 'gaming-hub'),
 			number_format_i18n( $daily_soc )
 		);
 
@@ -1726,7 +1726,7 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 		}
 		$plan['sleep_held_soc']  = $held;
 		$plan['sleep_from_hour'] = $from_hour;
-		$plan['asleep_note']     = __( 'スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。', 'gaming-hub' );
+		$plan['asleep_note']     = __('Asleep. Battery % is frozen at the pre-sleep value and is not refreshed via API until the car wakes.', 'gaming-hub');
 	} else {
 		$plan['asleep_note']     = '';
 		$plan['sleep_held_soc']  = null;
@@ -1779,7 +1779,7 @@ function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 			if ( '' !== $error ) {
 				return sprintf(
 					/* translators: %s: error */
-					__( '自動制御エラー: %s', 'gaming-hub' ),
+					__('Auto control error: %s', 'gaming-hub'),
 					$error
 				);
 			}
@@ -1797,36 +1797,36 @@ function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 				return $when
 					? sprintf(
 						/* translators: %s: time */
-						__( '自宅 AI PLAN 充電時間帯 — スリープから起こして充電開始しました（%s）。', 'gaming-hub' ),
+						__('Home AI PLAN charge window — woke the car and started charging at %s.', 'gaming-hub'),
 						$when
 					)
-					: __( '自宅 AI PLAN 充電時間帯 — スリープから起こして充電開始を試みます。', 'gaming-hub' );
+					: __('Home AI PLAN charge window — waking the car to start charging.', 'gaming-hub');
 			}
 
-			return __( '自宅 AI PLAN 充電時間帯 — スリープのためウェイクして充電開始を試みます。', 'gaming-hub' );
+			return __('Home AI PLAN charge window — waking the car to start charging.', 'gaming-hub');
 		}
 
-		return __( 'スリープ中のため充電コマンドは送りません。残量表示は入眠時の値のままです。', 'gaming-hub' );
+		return __('Asleep — no charge commands. Battery % stays at the pre-sleep value.', 'gaming-hub');
 	}
 
 	$plugged = ! empty( $plan['live_charging'] ) || 'home' === (string) ( $plan['live_supply'] ?? '' );
 	if ( $plugged && empty( $plan['geofence_known'] ) ) {
 		if ( function_exists( 'gaming_hub_tesla_has_location_scope' ) && ! gaming_hub_tesla_has_location_scope() ) {
-			return __( '位置情報スコープがないため自宅判定できません。Tesla タグから再認証してください（vehicle_location が必要です）。', 'gaming-hub' );
+			return __('Cannot detect home without the location scope. Re-authenticate from the Tesla tag page (vehicle_location required).', 'gaming-hub');
 		}
 
 		if ( true === ( $plan['at_home'] ?? null ) ) {
-			return __( 'GPS 未取得 — 直近の自宅判定を保持中です。走行または Supercharger で解除されます。', 'gaming-hub' );
+			return __('GPS fix missing — keeping the last at-home result until you drive or use a Supercharger.', 'gaming-hub');
 		}
 
-		return __( 'GPS を取得できず自宅判定できません。次のポーリングで再試行します。', 'gaming-hub' );
+		return __('GPS fix missing — cannot detect home yet. The next poll will retry.', 'gaming-hub');
 	}
 
 	$error = (string) ( $auto['error'] ?? '' );
 	if ( '' !== $error ) {
 		return sprintf(
 			/* translators: %s: error */
-			__( '自動制御エラー: %s', 'gaming-hub' ),
+			__('Auto control error: %s', 'gaming-hub'),
 			$error
 		);
 	}
@@ -1846,42 +1846,42 @@ function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 			return $when
 				? sprintf(
 					/* translators: %s: time */
-					__( 'Supercharger: 100%% まで充電開始。直近は %s に充電オンです。', 'gaming-hub' ),
+					__('Supercharger: charge started toward 100%%. Last started at %s.', 'gaming-hub'),
 					$when
 				)
-				: __( 'Supercharger: 100%% まで充電を開始します。', 'gaming-hub' );
+				: __('Supercharger: starting charge toward 100%%.', 'gaming-hub');
 		}
 
 		if ( 'away' === (string) ( $auto['reason'] ?? '' ) ) {
 			return $when
 				? sprintf(
 					/* translators: %s: time */
-					__( '外出先充電: 100%% まで常時充電中。直近は %s に充電オンです。', 'gaming-hub' ),
+					__('Away charging: to 100%% continuously. Last started at %s.', 'gaming-hub'),
 					$when
 				)
-				: __( '外出先充電: 100%% まで常時充電中です。', 'gaming-hub' );
+				: __('Away charging: charging to 100%% continuously.', 'gaming-hub');
 		}
 
 		return $when
 			? sprintf(
 				/* translators: %s: time */
-				__( 'AI PLAN に合わせて充電を自動制御中。直近は %s に充電オンです。', 'gaming-hub' ),
+				__('Auto-controlling charging to the AI PLAN. Last charge-on was at %s.', 'gaming-hub'),
 				$when
 			)
-			: __( 'AI PLAN に合わせて充電を自動制御中。いまは充電オンです。', 'gaming-hub' );
+			: __('Auto-controlling charging to the AI PLAN. Charging is on now.', 'gaming-hub');
 	}
 
 	if ( 'stop' === $action ) {
 		return $when
 			? sprintf(
 				/* translators: %s: time */
-				__( 'AI PLAN に合わせて充電を自動制御中。直近は %s に充電オフです。', 'gaming-hub' ),
+				__('Auto-controlling charging to the AI PLAN. Last charge-off was at %s.', 'gaming-hub'),
 				$when
 			)
-			: __( 'AI PLAN に合わせて充電を自動制御中。計画時間外は充電しません。', 'gaming-hub' );
+			: __('Auto-controlling charging to the AI PLAN. Outside planned hours, charging stays off.', 'gaming-hub');
 	}
 
-	return __( 'AI PLAN に合わせて自宅充電のオン／オフとチャージキャップを自動で送ります。Tesla アプリの予約充電はオフにしてください。', 'gaming-hub' );
+	return __('Home charging on/off and the charge cap are sent automatically to match the AI PLAN. Turn off scheduled charging in the Tesla app.', 'gaming-hub');
 }
 
 /**
@@ -2182,7 +2182,7 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 	}
 
 	if ( $want && ! $plugged ) {
-		$saved['error']     = __( '充電ケーブルがつながっていません。', 'gaming-hub' );
+		$saved['error']     = __('Charge cable is unplugged.', 'gaming-hub');
 		$saved['hour_key']  = $hour_key;
 		$saved['action']    = $action;
 		$saved['limit']     = $limit;

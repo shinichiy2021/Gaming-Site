@@ -14,8 +14,8 @@ get_header();
 		<div class="container ecoflow-dashboard-wrap">
 			<?php
 			gaming_hub_render_ecoflow_section_head(
-				__( 'ライブ', 'gaming-hub' ),
-				__( '電力フロー図・AI PLAN・機器ステータス', 'gaming-hub' )
+				__('Live', 'gaming-hub'),
+				__('Energy flow diagram, AI PLAN, and device status', 'gaming-hub')
 			);
 			gaming_hub_render_ecoflow_dashboard();
 			?>
@@ -25,8 +25,8 @@ get_header();
 		<div class="container ecoflow-dashboard-wrap">
 			<?php
 			gaming_hub_render_ecoflow_section_head(
-				__( '発電ログ', 'gaming-hub' ),
-				__( '日別・時間別の発電量と節約額', 'gaming-hub' )
+				__('Generation log', 'gaming-hub'),
+				__('Daily and hourly generation with savings', 'gaming-hub')
 			);
 			gaming_hub_render_ecoflow_energy_page();
 			?>

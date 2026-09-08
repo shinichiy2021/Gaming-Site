@@ -165,53 +165,53 @@ function gaming_hub_get_powerwall_specs() {
 	return array(
 		'pw3' => array(
 			array(
-				'label' => __( '使用可能容量', 'gaming-hub' ),
+				'label' => __('Usable capacity', 'gaming-hub'),
 				'value' => '13.5 kWh',
 			),
 			array(
-				'label' => __( '連続出力', 'gaming-hub' ),
+				'label' => __('Continuous output', 'gaming-hub'),
 				'value' => '11.5 kW',
 			),
 			array(
-				'label' => __( 'ソーラー入力', 'gaming-hub' ),
+				'label' => __('Solar input', 'gaming-hub'),
 				'value' => '最大 20 kW (DC)',
 			),
 			array(
-				'label' => __( 'バッテリー', 'gaming-hub' ),
+				'label' => __('Battery', 'gaming-hub'),
 				'value' => 'LFP',
 			),
 			array(
-				'label' => __( '保証', 'gaming-hub' ),
-				'value' => __( '10年', 'gaming-hub' ),
+				'label' => __('Warranty', 'gaming-hub'),
+				'value' => __('10 years', 'gaming-hub'),
 			),
 			array(
-				'label' => __( '拡張', 'gaming-hub' ),
+				'label' => __('Expansion', 'gaming-hub'),
 				'value' => 'Powerwall 3 Expansion',
 			),
 		),
 		'pw3p' => array(
 			array(
-				'label' => __( '使用可能容量', 'gaming-hub' ),
+				'label' => __('Usable capacity', 'gaming-hub'),
 				'value' => '13.4 kWh',
 			),
 			array(
-				'label' => __( '連続出力', 'gaming-hub' ),
+				'label' => __('Continuous output', 'gaming-hub'),
 				'value' => '15.4 kW',
 			),
 			array(
-				'label' => __( 'ピーク出力', 'gaming-hub' ),
+				'label' => __('Peak output', 'gaming-hub'),
 				'value' => '21 kW',
 			),
 			array(
-				'label' => __( '方式', 'gaming-hub' ),
-				'value' => __( '三相ネイティブ', 'gaming-hub' ),
+				'label' => __('Type', 'gaming-hub'),
+				'value' => __('Native 3-phase', 'gaming-hub'),
 			),
 			array(
-				'label' => __( '用途', 'gaming-hub' ),
-				'value' => __( '欧州グリッド向け', 'gaming-hub' ),
+				'label' => __('Use', 'gaming-hub'),
+				'value' => __('For European grids', 'gaming-hub'),
 			),
 			array(
-				'label' => __( '連携', 'gaming-hub' ),
+				'label' => __('Link', 'gaming-hub'),
 				'value' => 'SG-Ready / Wall Connector',
 			),
 		),
