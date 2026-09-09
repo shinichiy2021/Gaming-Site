@@ -28,7 +28,7 @@
 		return window.gamingHubT ? window.gamingHubT(text) : text;
 	}
 
-	const unavailableLabel = (gamingHubEcoflow.labels && gamingHubEcoflow.labels.unavailable) || t('未取得');
+	const unavailableLabel = (gamingHubEcoflow.labels && gamingHubEcoflow.labels.unavailable) || t('n/a');
 
 	function formatWatts(value) {
 		if (value === null || value === undefined || value === '') {
@@ -39,7 +39,7 @@
 			return unavailableLabel;
 		}
 		if (watts === 0) {
-			return t('待機');
+			return t('Standby');
 		}
 		return watts.toLocaleString() + ' W';
 	}
@@ -95,10 +95,10 @@
 		const mins = minutes % 60;
 
 		if (hours > 0) {
-			return hours + t('時間') + mins + t('分');
+			return hours + t('h') + mins + t('min');
 		}
 
-		return mins + t('分');
+		return mins + t('min');
 	}
 
 	function deviceFlowSlice(data) {
@@ -211,7 +211,7 @@
 			solar_in_source: 'unavailable',
 			is_charging: false,
 			is_discharging: false,
-			charge_state: t('未取得'),
+			charge_state: t('n/a'),
 			remain_time: 0,
 			remain_time_label: '',
 			remain_time_display: '—',
@@ -298,7 +298,7 @@
 		return Number(value).toLocaleString(undefined, {
 			minimumFractionDigits: 1,
 			maximumFractionDigits: 1,
-		}) + t(' 円');
+		}) + t(' yen');
 	}
 
 	function formatCalKwh(value) {
@@ -312,7 +312,7 @@
 		if (value === null || value === undefined) {
 			return '—';
 		}
-		return Math.round(Number(value)).toLocaleString() + t(' 円');
+		return Math.round(Number(value)).toLocaleString() + t(' yen');
 	}
 
 	let lastTodayYen = null;
@@ -479,7 +479,7 @@
 			monthOut.textContent = formatCalKwh(energy.totals.output_kwh) + ' kWh';
 		}
 		if (monthIn) {
-			monthIn.textContent = t('入力 ') + formatCalKwh(energy.totals.input_kwh) + ' kWh';
+			monthIn.textContent = t('In ') + formatCalKwh(energy.totals.input_kwh) + ' kWh';
 		}
 		if (monthPv) {
 			monthPv.textContent = formatCalKwh(energy.totals.solar_kwh) + ' kWh';
@@ -862,7 +862,7 @@
 			if (plan.soc_now_pro != null) {
 				endEl.textContent = 'Pro ' + Math.round(Number(plan.soc_now_pro)) + '%';
 			} else if (plan.soc_end !== null && plan.soc_end !== undefined) {
-				endEl.textContent = t('24時 ') + Math.round(Number(plan.soc_end)) + '%';
+				endEl.textContent = t('24:00 ') + Math.round(Number(plan.soc_end)) + '%';
 			}
 		}
 	}
@@ -943,7 +943,7 @@
 		}
 		const todayEl = dashboard.querySelector('[data-ecoflow-pv-today]');
 		if (todayEl && plan && plan.solar_today_kwh !== null && plan.solar_today_kwh !== undefined) {
-			todayEl.textContent = t('今日 ') + Number(plan.solar_today_kwh).toFixed(1) + ' kWh';
+			todayEl.textContent = t('Today ') + Number(plan.solar_today_kwh).toFixed(1) + ' kWh';
 		}
 	}
 
@@ -973,15 +973,15 @@
 
 	function slotModeLabel(mode) {
 		if (mode === 'charge') {
-			return t('充電');
+			return t('Charge');
 		}
 		if (mode === 'solar') {
-			return t('太陽光');
+			return t('Solar');
 		}
 		if (mode === 'past') {
-			return t('経過');
+			return t('Past');
 		}
-		return t('充電オフ');
+		return t('Charge off');
 	}
 
 	function todayStamp() {
@@ -1117,7 +1117,7 @@
 		if (nextEl) {
 			if (nextLabels.length) {
 				nextEl.hidden = false;
-				nextEl.textContent = t('翌 ') + nextLabels.join('、') + t(' も充電');
+				nextEl.textContent = t('Also charging next day %s').replace('%s', nextLabels.join('、'));
 			} else {
 				nextEl.hidden = true;
 				nextEl.textContent = '';
@@ -1268,9 +1268,9 @@
 		paintPlanDayNav();
 
 		const titles = {
-			yesterday: t('昨日の充電計画'),
-			today: t('今日の充電計画'),
-			tomorrow: t('明日の充電計画'),
+			yesterday: t('Yesterday’s charge plan'),
+			today: t('Today’s charge plan'),
+			tomorrow: t('Tomorrow’s charge plan'),
 		};
 		setField('plan_title', plan.title || titles[plan.plan_day] || titles.today);
 		setField('plan_note', plan.note || '');
@@ -1282,10 +1282,10 @@
 			'plan_window_price',
 			plan.window_avg_yen === null || plan.window_avg_yen === undefined
 				? ''
-				: t('平均 ') + Number(plan.window_avg_yen).toLocaleString(undefined, {
+				: t('Avg ') + Number(plan.window_avg_yen).toLocaleString(undefined, {
 					minimumFractionDigits: 1,
 					maximumFractionDigits: 1,
-				}) + t(' 円/kWh')
+				}) + t(' yen/kWh')
 		);
 		if (plan.price_provider) {
 			setField('plan_provider', ' · ' + plan.price_provider);
@@ -1299,20 +1299,19 @@
 			const tMin = plan.temp_min !== null && plan.temp_min !== undefined ? plan.temp_min : plan.temp_max;
 			setField(
 				'plan_temp_meta',
-				t('最低 ') + Number(tMin).toFixed(1) + t('℃ / 最高 ') + Number(plan.temp_max).toFixed(1) + '℃'
+				t('Low %1$s°C / high %2$s°C')
+					.replace('%1$s', Number(tMin).toFixed(1))
+					.replace('%2$s', Number(plan.temp_max).toFixed(1))
 			);
 		}
 		setField('plan_ac', formatKwh(plan.ac_today_kwh));
 		setField(
 			'plan_ac_meta',
-			t('いま ') + Number(plan.ac_now_w || 0).toLocaleString()
-				+ t(' W · ')
-				+ Math.round(Number(plan.ac_start_c != null ? plan.ac_start_c : 27))
-				+ t('℃で ')
-				+ Number(plan.ac_start_w != null ? plan.ac_start_w : 300).toLocaleString()
-				+ t(' W開始 / ')
-				+ Math.round(Number(plan.ac_max_c != null ? plan.ac_max_c : 34))
-				+ t('℃以上で 1 kW')
+			t('Now %1$s W · %3$s W from %2$s°C / 1 kW at %4$s°C+')
+				.replace('%1$s', Number(plan.ac_now_w || 0).toLocaleString())
+				.replace('%2$s', String(Math.round(Number(plan.ac_start_c != null ? plan.ac_start_c : 27))))
+				.replace('%3$s', Number(plan.ac_start_w != null ? plan.ac_start_w : 300).toLocaleString())
+				.replace('%4$s', String(Math.round(Number(plan.ac_max_c != null ? plan.ac_max_c : 34))))
 		);
 		setField('plan_solar_today', formatKwh(plan.solar_today_kwh));
 		setField(
@@ -1323,13 +1322,13 @@
 		setField('plan_load', formatKwh(plan.room_remaining_kwh != null ? plan.room_remaining_kwh : plan.load_remaining_kwh));
 		if (plan.room_daily_kwh != null) {
 			const dayPrefix = plan.plan_day === 'yesterday'
-				? t('全日 ')
-				: (plan.plan_day === 'tomorrow' ? t('見込み ') : t('今日 '));
+				? t('All day ')
+				: (plan.plan_day === 'tomorrow' ? t('Forecast ') : t('Today '));
 			setField(
 				'plan_load_meta',
-				dayPrefix + Number(plan.room_daily_kwh).toFixed(1) + t(' kWh（AC ')
-					+ Number(plan.ac_today_kwh || 0).toFixed(1) + t(' + その他 ')
-					+ Number(plan.base_today_kwh || 0).toFixed(1) + '）'
+				dayPrefix + Number(plan.room_daily_kwh).toFixed(1) + t(' kWh (AC ')
+					+ Number(plan.ac_today_kwh || 0).toFixed(1) + t(' + other ')
+					+ Number(plan.base_today_kwh || 0).toFixed(1) + ')'
 			);
 		}
 		const dcW = Number(plan.dc1500_w) || 100;
@@ -1340,13 +1339,13 @@
 		setField('plan_dc1500_meta', (dcW / 1000).toLocaleString(undefined, {
 			minimumFractionDigits: 2,
 			maximumFractionDigits: 2,
-		}) + t(' kW 固定'));
+		}) + t(' kW fixed'));
 		setField('plan_battery', formatKwh(plan.usable_battery_kwh));
 		const usableSoc = plan.usable_soc != null ? Number(plan.usable_soc) : 95;
 		const reserveSoc = plan.reserve_soc != null ? Number(plan.reserve_soc) : 5;
 		setField(
 			'plan_battery_label',
-			t('使える電池（容量の %1$s%% · 予備 %2$s%%除く）')
+			t('Usable battery (%1$s%% of capacity · excludes %2$s%% reserve)')
 				.replace('%1$s', String(usableSoc))
 				.replace('%2$s', String(reserveSoc))
 				.replace(/%%/g, '%')
@@ -1486,7 +1485,7 @@
 						refreshDashboard();
 					})
 					.catch(function (error) {
-						setField('plan_approval', error.message || t('承認に失敗しました'));
+						setField('plan_approval', error.message || t('Approval failed'));
 					})
 					.finally(function () {
 						approveBtn.disabled = false;
@@ -1503,7 +1502,7 @@
 						refreshDashboard();
 					})
 					.catch(function (error) {
-						setField('plan_approval', error.message || t('取り消しに失敗しました'));
+						setField('plan_approval', error.message || t('Cancel failed'));
 					})
 					.finally(function () {
 						cancelBtn.disabled = false;
@@ -1541,8 +1540,8 @@
 		setField(
 			'solar_delta_label',
 			lvLive
-				? t('Low Volt 入力 (実測)')
-				: t('Low Volt 入力 (未取得)')
+				? t('Low Volt in (live)')
+				: t('Low Volt in (n/a)')
 		);
 		setField(
 			'solar_delta',
@@ -1554,8 +1553,8 @@
 			setField(
 				'secondary_soc_label',
 				socSource === 'unavailable'
-					? t('残量 (1500 · 未取得)')
-					: t('残量 (1500 · 実測)')
+					? t('SOC (1500 · n/a)')
+					: t('SOC (1500 · live)')
 			);
 		}
 		setField('battery_temp', formatTemp(data.battery_temp));
@@ -1590,8 +1589,8 @@
 			setField(
 				'ups_out_label',
 				upsSource === 'ecoflow'
-					? t('AC 出力 → UPS (1500 · 実測 · MQTT)')
-					: t('AC 出力 → UPS (未取得)')
+					? t('AC out → UPS (1500 · live · MQTT)')
+					: t('AC out → UPS (n/a)')
 			);
 			const extraPack = data.secondary.extra && typeof data.secondary.extra === 'object'
 				? data.secondary.extra
@@ -1606,10 +1605,10 @@
 			setField(
 				'secondary_remain_label',
 				socSource === 'unavailable'
-					? t('残容量 (1500 · 未取得)')
+					? t('Remaining (1500 · n/a)')
 					: (capacitySource !== 'default'
-						? t('残容量 (1500 · 実測)')
-						: t('残容量 (1500)'))
+						? t('Remaining (1500 · live)')
+						: t('Remaining (1500)'))
 			);
 			setField(
 				'extra_remain',
@@ -1618,12 +1617,12 @@
 			setField(
 				'extra_remain_label',
 				extraPack.capacity_source === 'stale'
-					? t('残容量 (Extra · 最終値)')
+					? t('Remaining (Extra · last)')
 					: (extraPack.capacity_source === 'mqtt'
-						? t('残容量 (Extra · MQTT)')
+						? t('Remaining (Extra · MQTT)')
 						: (extraPack.capacity_source && extraPack.capacity_source !== 'default'
-							? t('残容量 (Extra · 実測)')
-							: t('残容量 (Extra · 未取得)')))
+							? t('Remaining (Extra · live)')
+							: t('Remaining (Extra · n/a)')))
 			);
 			setField( 'delta_ac_in', formatWatts( data.secondary.ac_in ) );
 			const mqttLive = data.secondary.mqtt_live === true;
@@ -1635,7 +1634,7 @@
 					'delta_rescue',
 					data.secondary.grid_rescue.active
 						? formatWatts(data.secondary.grid_rescue.watts)
-						: t('待機 (5%以下で開始)')
+						: t('Standby (starts at 5% or below)')
 				);
 				setField('delta_rescue_note', data.secondary.grid_rescue.message || '');
 			}
@@ -1653,7 +1652,7 @@
 
 		const updated = dashboard.querySelector('.ecoflow-updated');
 		if (updated && data.updated_at) {
-			updated.textContent = t('最終更新: ') + data.updated_at;
+			updated.textContent = t('Updated: ') + data.updated_at;
 		}
 	}
 
@@ -1690,10 +1689,10 @@
 
 				const forecast = payload.forecast;
 				const marks = {
-					sunny: t('でんき日和'),
-					caution: t('でんき注意報'),
-					alert: t('でんき警報'),
-					normal: t('通常'),
+					sunny: t('Cheap-power day'),
+					caution: t('Power advisory'),
+					alert: t('Power alert'),
+					normal: t('Normal'),
 				};
 				const panel = dashboard.querySelector('.ecoflow-rates');
 				if (!panel) {
@@ -1703,7 +1702,7 @@
 				if (forecast.updated_at) {
 					const updated = panel.querySelector('[data-ecoflow-rates-updated]');
 					if (updated) {
-						updated.textContent = t('更新 ') + forecast.updated_at;
+						updated.textContent = t('Updated ') + forecast.updated_at;
 					}
 				}
 
