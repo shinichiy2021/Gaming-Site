@@ -18,8 +18,15 @@ require get_template_directory() . '/inc/ecoflow-delta1500.php';
 
 define( 'GAMING_HUB_ECOFLOW_TAG_SLUG', 'ecoflow' );
 define( 'GAMING_HUB_ENERGY_TAG_SLUG', 'energy' );
-define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY', 'gaming_hub_ecoflow_status_v19' );
-define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_TTL', 5 );
+define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_KEY', 'gaming_hub_ecoflow_status_v20' );
+/**
+ * Developer API / device-list snapshot TTL. Soft REST polls reuse this and
+ * still re-apply MQTT bridge overlays via gaming_hub_ecoflow_attach_live_addons().
+ * Keep well below 5–10 minutes so the live HUD stays usable.
+ */
+define( 'GAMING_HUB_ECOFLOW_STATUS_CACHE_TTL', 60 );
+/** Client poll interval (ms). Shorter than TTL so MQTT overlays refresh without force-hitting EcoFlow API. */
+define( 'GAMING_HUB_ECOFLOW_STATUS_POLL_MS', 15000 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH', 2500 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH', 1000 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_BASELINE_SOC', 6 );
@@ -86,6 +93,103 @@ function gaming_hub_get_ecoflow_config() {
 function gaming_hub_ecoflow_is_configured() {
 	$config = gaming_hub_get_ecoflow_config();
 	return ! empty( $config['access_key'] ) && ! empty( $config['secret_key'] ) && ! empty( $config['device_sn'] );
+}
+
+/**
+ * Placeholder status for SSR shells (no EcoFlow API / MQTT bridge reads).
+ * Live values are filled by GET /gaming-hub/v1/ecoflow/status.
+ *
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_status_stub() {
+	$config   = gaming_hub_get_ecoflow_config();
+	$na       = function_exists( 'gaming_hub_ecoflow_unavailable_label' )
+		? gaming_hub_ecoflow_unavailable_label()
+		: __( 'n/a', 'gaming-hub' );
+	$pack     = function_exists( 'gaming_hub_ecoflow_main_pack_defaults' )
+		? gaming_hub_ecoflow_main_pack_defaults( null )
+		: array(
+			'capacity_wh'     => 1500,
+			'remain_capacity' => null,
+			'capacity_source' => 'default',
+		);
+	$extra    = function_exists( 'gaming_hub_ecoflow_extra_battery_slice' )
+		? gaming_hub_ecoflow_extra_battery_slice()
+		: array();
+	$secondary = array_merge(
+		array(
+			'device_sn'         => (string) ( $config['device_sn_2'] ?? '' ),
+			'device_name'       => __( 'Delta 3 1500', 'gaming-hub' ),
+			'online'            => false,
+			'battery_percent'   => null,
+			'solar_in'          => null,
+			'hv_in'             => 0,
+			'input_total'       => null,
+			'output_total'      => null,
+			'ac_in'             => null,
+			'ac_out'            => null,
+			'dc_out'            => null,
+			'battery_temp'      => null,
+			'remain_time'       => null,
+			'is_charging'       => false,
+			'is_discharging'    => false,
+			'mqtt_live'         => false,
+			'soc_source'        => 'unavailable',
+			'solar_in_source'   => 'unavailable',
+			'charge_state'      => $na,
+			'charge_state_key'  => '',
+			'updated_at'        => '',
+			'extra'             => $extra,
+		),
+		$pack
+	);
+
+	return array(
+		'device_name'        => 'Delta Pro 3',
+		'device_sn'          => (string) ( $config['device_sn'] ?? '' ),
+		'online'             => false,
+		'hv_in'              => null,
+		'ac_in'              => null,
+		'ac_out'             => null,
+		'dc_out'             => null,
+		'solar_in'           => null,
+		'solar_delta'        => null,
+		'solar_in_source'    => 'unavailable',
+		'input_total'        => null,
+		'output_total'       => null,
+		'battery_temp'       => null,
+		'remain_capacity'    => null,
+		'battery_percent'    => null,
+		'is_charging'        => false,
+		'is_discharging'     => false,
+		'charge_state'       => $na,
+		'charge_state_key'   => '',
+		'updated_at'         => '',
+		'pro_grid_charge'    => array(
+			'active'  => false,
+			'watts'   => 0,
+			'message' => '',
+		),
+		'ups_plug'           => array(
+			'watts'  => null,
+			'source' => 'unavailable',
+		),
+		'secondary'          => $secondary,
+		'charge_plan'        => array(
+			'plan_day'   => 'today',
+			'plan_date'  => wp_date( 'Y-m-d' ),
+			'slots'      => array(),
+			'soc_series' => array_fill( 0, 24, null ),
+			'note'       => '',
+			'needs_grid' => false,
+			'can_approve'=> false,
+		),
+		'energy'             => null,
+		'today_yen'          => null,
+		'today_solar'        => null,
+		'today_usage'        => null,
+		'today_buy'          => null,
+	);
 }
 
 /**
@@ -2643,31 +2747,48 @@ function gaming_hub_render_ecoflow_setup_instructions() {
 
 /**
  * Render EcoFlow dashboard.
+ *
+ * Public pages SSR a skeleton shell and hydrate via REST so EcoFlow API
+ * latency does not block the rest of the page (e.g. articles below).
  */
 function gaming_hub_render_ecoflow_dashboard() {
+	if ( ! gaming_hub_ecoflow_is_configured() ) {
+		get_template_part(
+			'template-parts/ecoflow',
+			'dashboard',
+			array(
+				'status' => new WP_Error(
+					'ecoflow_not_configured',
+					__( 'EcoFlow API is not configured.', 'gaming-hub' )
+				),
+				'async'  => false,
+			)
+		);
+		return;
+	}
+
 	get_template_part(
 		'template-parts/ecoflow',
 		'dashboard',
 		array(
-			'status' => gaming_hub_get_ecoflow_status(),
+			'status' => gaming_hub_ecoflow_status_stub(),
+			'async'  => true,
 		)
 	);
 }
 
 /**
  * Render generation log on the Energy tag page.
+ *
+ * Uses the local energy option log only (no EcoFlow API). Live "now" watts
+ * hydrate from the dashboard REST poll.
  */
 function gaming_hub_render_ecoflow_energy_page() {
-	$status = gaming_hub_get_ecoflow_status();
-	$energy = ( ! is_wp_error( $status ) && is_array( $status['energy'] ?? null ) )
-		? $status['energy']
-		: null;
-
-	echo '<section class="ecoflow-dashboard ecoflow-energy-page" aria-label="' . esc_attr__('Generation log', 'gaming-hub') . '">';
+	echo '<section class="ecoflow-dashboard ecoflow-energy-page" aria-label="' . esc_attr__( 'Generation log', 'gaming-hub' ) . '">';
 	gaming_hub_render_ecoflow_calendar(
 		array(
-			'status' => is_wp_error( $status ) ? null : $status,
-			'energy' => $energy,
+			'status' => null,
+			'energy' => gaming_hub_ecoflow_energy_month_payload( wp_date( 'Y-m' ), null ),
 		)
 	);
 	echo '</section>';
@@ -2850,6 +2971,16 @@ function gaming_hub_register_ecoflow_rest_route() {
 			'methods'             => 'GET',
 			'callback'            => 'gaming_hub_rest_ecoflow_status',
 			'permission_callback' => '__return_true',
+			'args'                => array(
+				'fresh' => array(
+					'description'       => 'Skip status transient and hit EcoFlow APIs.',
+					'type'              => 'boolean',
+					'default'           => false,
+					'sanitize_callback' => static function ( $value ) {
+						return rest_sanitize_boolean( $value );
+					},
+				),
+			),
 		)
 	);
 }
@@ -2857,9 +2988,16 @@ add_action( 'rest_api_init', 'gaming_hub_register_ecoflow_rest_route' );
 
 /**
  * REST callback for EcoFlow status.
+ *
+ * Soft-cached by default so dashboard polling does not burn API quota.
+ * Pass ?fresh=1 (or fresh=true) when a hard refresh is required.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response
  */
-function gaming_hub_rest_ecoflow_status() {
-	$status = gaming_hub_get_ecoflow_status( true );
+function gaming_hub_rest_ecoflow_status( WP_REST_Request $request ) {
+	$force  = (bool) $request->get_param( 'fresh' );
+	$status = gaming_hub_get_ecoflow_status( $force );
 
 	if ( is_wp_error( $status ) ) {
 		return new WP_REST_Response(
@@ -2970,7 +3108,7 @@ function gaming_hub_ecoflow_scripts() {
 			'cancelUrl'  => rest_url( 'gaming-hub/v1/ecoflow/plan/cancel' ),
 			'restNonce'  => wp_create_nonce( 'wp_rest' ),
 			'canApprove' => $is_ecoflow && gaming_hub_ecoflow_can_control(),
-			'interval'   => GAMING_HUB_ECOFLOW_STATUS_CACHE_TTL * 1000,
+			'interval'   => GAMING_HUB_ECOFLOW_STATUS_POLL_MS,
 			'labels'     => array(
 				'unavailable' => gaming_hub_ecoflow_unavailable_label(),
 			),

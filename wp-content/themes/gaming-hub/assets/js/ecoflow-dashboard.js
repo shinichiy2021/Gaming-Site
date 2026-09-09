@@ -1511,6 +1511,61 @@
 		}
 	}
 
+	function setOnlineBadge(el, online) {
+		if (!el) {
+			return;
+		}
+		el.classList.toggle('is-online', !!online);
+		el.classList.toggle('is-offline', !online);
+		el.textContent = online ? t('Online') : t('Offline');
+	}
+
+	function applyDeviceBars(data) {
+		const bars = dashboard.querySelectorAll('.ecoflow-device-bar');
+		if (bars[0]) {
+			const name = bars[0].querySelector('strong');
+			const sn = bars[0].querySelector('.ecoflow-sn');
+			if (name && data.device_name) {
+				name.textContent = data.device_name;
+			}
+			if (sn && data.device_sn) {
+				sn.textContent = data.device_sn;
+			}
+			setOnlineBadge(bars[0].querySelector('.ecoflow-online-badge'), data.online);
+		}
+		if (bars[1] && data.secondary) {
+			const name = bars[1].querySelector('strong');
+			const sn = bars[1].querySelector('.ecoflow-sn');
+			if (name && data.secondary.device_name) {
+				name.textContent = data.secondary.device_name;
+			}
+			if (sn) {
+				sn.textContent = data.secondary.device_sn || t('Standalone');
+			}
+			setOnlineBadge(bars[1].querySelector('.ecoflow-online-badge'), data.secondary.online);
+		}
+		const note = dashboard.querySelector('.ecoflow-inferred-note');
+		if (note) {
+			if (data.secondary && data.secondary.inferred_note) {
+				note.hidden = false;
+				note.textContent = data.secondary.inferred_note;
+			} else {
+				note.hidden = true;
+				note.textContent = '';
+			}
+		}
+	}
+
+	function finishHydrate(ok) {
+		if (!dashboard.hasAttribute('data-ecoflow-hydrate')) {
+			return;
+		}
+		dashboard.classList.remove('is-skeleton');
+		dashboard.removeAttribute('data-ecoflow-hydrate');
+		dashboard.removeAttribute('aria-busy');
+		dashboard.classList.toggle('is-hydrate-error', !ok);
+	}
+
 	function applyDashboardData(data) {
 		const proGrid = data.pro_grid_charge && typeof data.pro_grid_charge === 'object'
 			? data.pro_grid_charge
@@ -1527,6 +1582,7 @@
 			const hv = Number(data.hv_in) || 0;
 			return Math.max(0, input - hv);
 		}());
+		applyDeviceBars(data);
 		setField('pro_grid_charge', formatWatts(liveGrid));
 		setField('pro_grid_charge_note', (proGrid && proGrid.message) || '');
 
@@ -1645,31 +1701,48 @@
 		}
 
 		if (data.energy) {
-			applyEnergy(data.energy);
+			const cal = calRoot();
+			const needsFull = dashboard.hasAttribute('data-ecoflow-hydrate')
+				|| !cal
+				|| !cal.querySelector('[data-ecoflow-cal-day]');
+			if (needsFull) {
+				renderEnergyCalendar(data.energy);
+			} else {
+				applyEnergy(data.energy);
+			}
 		}
 
 		dispatchFlowUpdate(data);
 
 		const updated = dashboard.querySelector('.ecoflow-updated');
 		if (updated && data.updated_at) {
+			updated.hidden = false;
 			updated.textContent = t('Updated: ') + data.updated_at;
 		}
+
+		finishHydrate(true);
 	}
 
 	function refreshDashboard() {
+		const hydrating = dashboard.hasAttribute('data-ecoflow-hydrate');
 		fetch(gamingHubEcoflow.refreshUrl, { credentials: 'same-origin' })
 			.then(function (response) {
 				return response.json();
 			})
 			.then(function (payload) {
 				if (!payload.success || !payload.data) {
+					if (hydrating) {
+						finishHydrate(false);
+					}
 					return;
 				}
 
 				applyDashboardData(payload.data);
 			})
 			.catch(function () {
-				// Silent fail; page still shows cached server data.
+				if (hydrating) {
+					finishHydrate(false);
+				}
 			});
 	}
 
@@ -1744,11 +1817,17 @@
 	bindPlanDayNav();
 	paintPlanDayNav();
 	scrollPlanChartToNow();
-	refreshDashboard();
 	bindPlanActions();
 	bindCalendarNav();
 	refreshRates();
-	setInterval(refreshDashboard, gamingHubEcoflow.interval || 60000);
+	const pollMs = Number(gamingHubEcoflow.interval) || 15000;
+	if (dashboard.hasAttribute('data-ecoflow-hydrate')) {
+		refreshDashboard();
+	} else {
+		// Soft-cached polls: skip an immediate duplicate fetch right after SSR.
+		setTimeout(refreshDashboard, Math.min(2500, pollMs));
+	}
+	setInterval(refreshDashboard, pollMs);
 	setInterval(refreshRates, 60 * 60 * 1000);
 
 	if (window.gamingHubActiveRefresh) {

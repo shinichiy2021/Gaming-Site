@@ -8,9 +8,17 @@
  */
 
 $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_status();
+$async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 ?>
 
-<section class="ecoflow-dashboard" aria-label="<?php esc_attr_e( 'EcoFlow Device Status', 'gaming-hub' ); ?>">
+<section
+	class="ecoflow-dashboard<?php echo $async ? ' is-skeleton' : ''; ?>"
+	aria-label="<?php esc_attr_e( 'EcoFlow Device Status', 'gaming-hub' ); ?>"
+	<?php if ( $async ) : ?>
+		data-ecoflow-hydrate="1"
+		aria-busy="true"
+	<?php endif; ?>
+>
 	<?php if ( is_wp_error( $status ) ) : ?>
 		<div class="ecoflow-setup-panel">
 			<p class="ecoflow-setup-title"><?php echo esc_html( $status->get_error_message() ); ?></p>
@@ -453,17 +461,17 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 
 		<div class="ecoflow-dashboard-header">
 			<h2><?php esc_html_e('Device status', 'gaming-hub'); ?></h2>
-			<?php if ( ! empty( $status['updated_at'] ) ) : ?>
-				<p class="ecoflow-updated">
-					<?php
+			<p class="ecoflow-updated"<?php echo empty( $status['updated_at'] ) ? ' hidden' : ''; ?>>
+				<?php
+				if ( ! empty( $status['updated_at'] ) ) {
 					printf(
 						/* translators: %s: last updated time */
-						esc_html__('Updated: %s', 'gaming-hub'),
+						esc_html__( 'Updated: %s', 'gaming-hub' ),
 						esc_html( $status['updated_at'] )
 					);
-					?>
-				</p>
-			<?php endif; ?>
+				}
+				?>
+			</p>
 		</div>
 
 		<div class="ecoflow-device-bars">
