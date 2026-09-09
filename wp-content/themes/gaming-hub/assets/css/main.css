@@ -9348,3 +9348,63 @@ body.home .site-header.is-scrolled {
 		opacity: 1;
 	}
 }
+
+/* Async dashboard shell: pulse until REST hydrate finishes. */
+.ecoflow-dashboard.is-skeleton .ecoflow-plan-hud .ecoflow-rates-stat strong,
+.ecoflow-dashboard.is-skeleton .ecoflow-stats-grid .ecoflow-stat-card strong,
+.ecoflow-dashboard.is-skeleton .ecoflow-energy-flow-root,
+.ecoflow-dashboard.is-skeleton .ecoflow-plan-chart {
+	position: relative;
+	color: transparent !important;
+	border-color: transparent;
+}
+
+.ecoflow-dashboard.is-skeleton .ecoflow-plan-hud .ecoflow-rates-stat strong,
+.ecoflow-dashboard.is-skeleton .ecoflow-stats-grid .ecoflow-stat-card strong {
+	min-height: 1.15em;
+	border-radius: 6px;
+	background: linear-gradient(
+		90deg,
+		rgba(255, 255, 255, 0.04) 0%,
+		rgba(255, 255, 255, 0.1) 50%,
+		rgba(255, 255, 255, 0.04) 100%
+	);
+	background-size: 200% 100%;
+	animation: ecoflow-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.ecoflow-dashboard.is-skeleton .ecoflow-energy-flow-root {
+	min-height: 280px;
+	border-radius: 12px;
+	background: linear-gradient(
+		90deg,
+		rgba(255, 255, 255, 0.03) 0%,
+		rgba(255, 255, 255, 0.08) 50%,
+		rgba(255, 255, 255, 0.03) 100%
+	);
+	background-size: 200% 100%;
+	animation: ecoflow-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.ecoflow-dashboard.is-skeleton .ecoflow-plan-note,
+.ecoflow-dashboard.is-skeleton .ecoflow-plan-hud small,
+.ecoflow-dashboard.is-skeleton .ecoflow-stat-card small {
+	opacity: 0.35;
+}
+
+@keyframes ecoflow-skeleton-pulse {
+	0% {
+		background-position: 100% 0;
+	}
+	100% {
+		background-position: -100% 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ecoflow-dashboard.is-skeleton .ecoflow-plan-hud .ecoflow-rates-stat strong,
+	.ecoflow-dashboard.is-skeleton .ecoflow-stats-grid .ecoflow-stat-card strong,
+	.ecoflow-dashboard.is-skeleton .ecoflow-energy-flow-root {
+		animation: none;
+	}
+}
