@@ -91,6 +91,51 @@ function gaming_hub_load_textdomain() {
 add_action( 'after_setup_theme', 'gaming_hub_load_textdomain' );
 
 /**
+ * Locale-aware yen amount: "1,234円" for ja, "¥1,234" for en.
+ *
+ * @param float|int $value    Amount in yen.
+ * @param int       $decimals Decimal places.
+ * @return string
+ */
+function gaming_hub_yen( $value, $decimals = 0 ) {
+	$amount = number_format_i18n( (float) $value, $decimals );
+
+	return 'en' === gaming_hub_lang() ? '¥' . $amount : $amount . '円';
+}
+
+/**
+ * Force numeric Japanese date/time formats on the front end so dates read as
+ * "2026年9月9日" regardless of the site's stored format or whether WordPress
+ * core month-name translations are installed. English keeps the stored format.
+ *
+ * @param string $format Stored format.
+ * @return string
+ */
+function gaming_hub_ja_date_format( $format ) {
+	if ( is_admin() && ! wp_doing_ajax() ) {
+		return $format;
+	}
+
+	return 'en' === gaming_hub_lang() ? $format : 'Y年n月j日';
+}
+add_filter( 'option_date_format', 'gaming_hub_ja_date_format' );
+
+/**
+ * Front-end time format companion to gaming_hub_ja_date_format().
+ *
+ * @param string $format Stored format.
+ * @return string
+ */
+function gaming_hub_ja_time_format( $format ) {
+	if ( is_admin() && ! wp_doing_ajax() ) {
+		return $format;
+	}
+
+	return 'en' === gaming_hub_lang() ? $format : 'H:i';
+}
+add_filter( 'option_time_format', 'gaming_hub_ja_time_format' );
+
+/**
  * Japanese DB strings (menus, site title) → English when lang=en.
  *
  * Built from i18n-en.php via scripts/build-i18n-standard.py.

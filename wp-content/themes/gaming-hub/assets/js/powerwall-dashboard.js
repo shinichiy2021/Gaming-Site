@@ -39,7 +39,9 @@
 		if (value === null || value === undefined) {
 			return '—';
 		}
-		return '¥' + Math.round(value).toLocaleString();
+		const amount = Math.round(value).toLocaleString();
+		const isEn = window.gamingHubI18n && window.gamingHubI18n.lang === 'en';
+		return isEn ? '¥' + amount : amount + '円';
 	}
 
 	function applyCostMeta(cost) {

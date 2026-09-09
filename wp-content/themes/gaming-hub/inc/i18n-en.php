@@ -481,7 +481,7 @@ return array(
 	'1日の使用量' => 'Daily usage',
 	'買電 %1$s kWh · ソーラー自家消費 %2$s kWh' => 'Import %1$s kWh · solar self-use %2$s kWh',
 	'電気代（ソーラーあり）' => 'Bill (with solar)',
-	'ソーラーなし想定: ¥%s' => 'Without solar: ¥%s',
+	'ソーラーなし想定: %s円' => 'Without solar: ¥%s',
 	'節約額' => 'Saved',
 	'約 %s%% 削減' => 'About %s%% less',
 	'Powerwall 自家消費 %s kWh' => 'Powerwall self-use %s kWh',

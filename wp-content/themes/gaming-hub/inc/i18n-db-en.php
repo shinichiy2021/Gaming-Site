@@ -339,7 +339,7 @@ return array(
 	'ソーラー (%1$s): %2$s · 気象庁日照平年値 + 天気連動 · %3$s 時点 · %4$s · %5$s · 1時間ごとに更新' => 'Solar (%1$s): %2$s · JMA sunshine normals + weather · as of %3$s · %4$s · %5$s · updates hourly',
 	'ソーラー (1.5kW)' => 'Solar (1.5 kW)',
 	'ソーラーなし想定: ' => 'Without solar: ',
-	'ソーラーなし想定: ¥%s' => 'Without solar: ¥%s',
+	'ソーラーなし想定: %s円' => 'Without solar: ¥%s',
 	'ソーラーコンボ' => 'Solar combo',
 	'ソーラーパネル' => 'Solar panels',
 	'ソーラーパネル URL' => 'Solar panel URL',
