@@ -181,7 +181,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 				</div>
 				<div class="pw-flow-cost-card">
 					<span class="pw-flow-cost-label"><?php esc_html_e('Bill (with solar)', 'gaming-hub'); ?></span>
-					<strong data-pw-field="cost_with_solar"><?php echo esc_html( '¥' . number_format_i18n( (int) ( $cost_meta['cost_with_solar_yen'] ?? 0 ) ) ); ?></strong>
+					<strong data-pw-field="cost_with_solar"><?php echo esc_html( gaming_hub_yen( (int) ( $cost_meta['cost_with_solar_yen'] ?? 0 ) ) ); ?></strong>
 					<small data-pw-field="cost_without_solar">
 						<?php
 						printf(
@@ -194,7 +194,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 				</div>
 				<div class="pw-flow-cost-card is-highlight">
 					<span class="pw-flow-cost-label"><?php esc_html_e('Saved', 'gaming-hub'); ?></span>
-					<strong class="pw-flow-cost-saved" data-pw-field="cost_saved"><?php echo esc_html( '¥' . number_format_i18n( (int) ( $cost_meta['saved_yen'] ?? 0 ) ) ); ?></strong>
+					<strong class="pw-flow-cost-saved" data-pw-field="cost_saved"><?php echo esc_html( gaming_hub_yen( (int) ( $cost_meta['saved_yen'] ?? 0 ) ) ); ?></strong>
 					<small data-pw-field="cost_saved_percent">
 						<?php
 						printf(
