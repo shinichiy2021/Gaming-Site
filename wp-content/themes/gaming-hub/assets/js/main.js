@@ -182,4 +182,44 @@
 			mobileMq.addListener(updateHubSwitcherVisibility);
 		}
 	}
+
+	// Horizontally scrollable charts: flag scroll position on a positioned host
+	// so CSS can show an inward edge shadow ("there is more to scroll") and hide
+	// it once the user reaches that edge.
+	function initChartScrollHints() {
+		const groups = [
+			{ scroll: '.looop-chart-scroll', host: '.looop-chart-layout' },
+			{ scroll: '.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-plot', host: '.ecoflow-rate-chart' },
+		];
+
+		groups.forEach(function (group) {
+			document.querySelectorAll(group.scroll).forEach(function (scroller) {
+				const host = scroller.closest(group.host) || scroller;
+
+				function update() {
+					const max = scroller.scrollWidth - scroller.clientWidth;
+					let pos;
+					if (max <= 2) {
+						pos = 'none';
+					} else if (scroller.scrollLeft <= 1) {
+						pos = 'start';
+					} else if (scroller.scrollLeft >= max - 1) {
+						pos = 'end';
+					} else {
+						pos = 'middle';
+					}
+					host.setAttribute('data-scroll-pos', pos);
+				}
+
+				scroller.addEventListener('scroll', update, { passive: true });
+				window.addEventListener('resize', update, { passive: true });
+				// Re-check after fonts/layout settle and after the EcoFlow plan
+				// chart auto-scrolls to the current hour.
+				update();
+				window.setTimeout(update, 400);
+			});
+		});
+	}
+
+	initChartScrollHints();
 })();

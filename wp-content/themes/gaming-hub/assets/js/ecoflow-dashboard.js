@@ -14,6 +14,16 @@
 		});
 	}
 
+	function setState(name, key) {
+		dashboard.querySelectorAll('[data-ecoflow-field="' + name + '"]').forEach(function (el) {
+			if (key) {
+				el.setAttribute('data-ecoflow-state', key);
+			} else {
+				el.removeAttribute('data-ecoflow-state');
+			}
+		});
+	}
+
 	function t(text) {
 		return window.gamingHubT ? window.gamingHubT(text) : text;
 	}
@@ -1551,6 +1561,7 @@
 		setField('battery_temp', formatTemp(data.battery_temp));
 		setField('remain_capacity', formatWh(data.remain_capacity));
 		setField('charge_state_stat', data.charge_state);
+		setState('charge_state_stat', data.charge_state_key);
 
 		const pvNow = dashboard.querySelector('[data-ecoflow-pv-now]');
 		if (pvNow) {
@@ -1563,6 +1574,7 @@
 
 		if (data.secondary) {
 			setField('secondary_charge_state', data.secondary.charge_state);
+			setState('secondary_charge_state', data.secondary.charge_state_key);
 			const upsSource = data.ups_plug && data.ups_plug.source
 				? data.ups_plug.source
 				: (data.secondary.ac_out !== null && data.secondary.ac_out !== undefined ? 'ecoflow' : 'unavailable');

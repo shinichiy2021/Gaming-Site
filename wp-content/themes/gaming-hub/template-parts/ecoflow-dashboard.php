@@ -619,7 +619,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 				</div>
 				<div class="ecoflow-stat-card">
 					<span class="ecoflow-stat-label"><?php esc_html_e('Status (1500)', 'gaming-hub'); ?></span>
-					<strong data-ecoflow-field="secondary_charge_state"><?php echo esc_html( $status['secondary']['charge_state'] ); ?></strong>
+					<strong data-ecoflow-field="secondary_charge_state"<?php echo ! empty( $status['secondary']['charge_state_key'] ) ? ' data-ecoflow-state="' . esc_attr( $status['secondary']['charge_state_key'] ) . '"' : ''; ?>><?php echo esc_html( $status['secondary']['charge_state'] ); ?></strong>
 				</div>
 			<?php endif; ?>
 			<div class="ecoflow-stat-card">
@@ -636,7 +636,7 @@ $status = isset( $args['status'] ) ? $args['status'] : gaming_hub_get_ecoflow_st
 			</div>
 			<div class="ecoflow-stat-card">
 				<span class="ecoflow-stat-label"><?php esc_html_e('Status (Pro)', 'gaming-hub'); ?></span>
-				<strong data-ecoflow-field="charge_state_stat"><?php echo esc_html( $status['charge_state'] ); ?></strong>
+				<strong data-ecoflow-field="charge_state_stat"<?php echo ! empty( $status['charge_state_key'] ) ? ' data-ecoflow-state="' . esc_attr( $status['charge_state_key'] ) . '"' : ''; ?>><?php echo esc_html( $status['charge_state'] ); ?></strong>
 			</div>
 		</div>
 	<?php endif; ?>

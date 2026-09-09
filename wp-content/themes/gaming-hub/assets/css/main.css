@@ -9213,3 +9213,138 @@ body.home .site-header.is-scrolled {
 		justify-content: flex-start;
 	}
 }
+
+/* ------------------------------------------------------------------ *
+ * Horizontally scrollable charts: inward edge shadow + scrollbar hint *
+ * ------------------------------------------------------------------ */
+.looop-chart-layout {
+	position: relative;
+}
+
+.looop-chart-layout::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 8px;
+	right: 0;
+	width: 34px;
+	background: linear-gradient(to left, rgba(4, 6, 16, 0.85), rgba(4, 6, 16, 0));
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.18s ease;
+	z-index: 3;
+}
+
+.looop-chart-layout[data-scroll-pos="start"]::after,
+.looop-chart-layout[data-scroll-pos="middle"]::after {
+	opacity: 1;
+}
+
+.looop-chart-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(0, 245, 212, 0.5) transparent;
+}
+
+.looop-chart-scroll::-webkit-scrollbar {
+	height: 6px;
+}
+
+.looop-chart-scroll::-webkit-scrollbar-thumb {
+	background: rgba(0, 245, 212, 0.5);
+	border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.looop-chart-layout::after {
+		transition: none;
+	}
+}
+
+/* --------------------------------------------------------------------- *
+ * Device status colour coding (charging / discharging / inputting / idle) *
+ * --------------------------------------------------------------------- */
+[data-ecoflow-state="charging"] {
+	--state-color: #00c853;
+	--state-bg: rgba(0, 200, 83, 0.14);
+	--state-border: rgba(0, 200, 83, 0.4);
+}
+
+[data-ecoflow-state="discharging"] {
+	--state-color: #ff6b35;
+	--state-bg: rgba(255, 107, 53, 0.14);
+	--state-border: rgba(255, 107, 53, 0.4);
+}
+
+[data-ecoflow-state="inputting"] {
+	--state-color: #3aa0ff;
+	--state-bg: rgba(58, 160, 255, 0.14);
+	--state-border: rgba(58, 160, 255, 0.4);
+}
+
+[data-ecoflow-state="idle"] {
+	--state-color: #8b93a7;
+	--state-bg: rgba(139, 147, 167, 0.14);
+	--state-border: rgba(139, 147, 167, 0.4);
+}
+
+.ecoflow-stat-card strong[data-ecoflow-state] {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 10px;
+	border-radius: 999px;
+	font-size: 0.85rem;
+	color: var(--state-color, var(--color-text-muted));
+	background: var(--state-bg, transparent);
+	border: 1px solid var(--state-border, var(--color-border));
+}
+
+.ecoflow-stat-card strong[data-ecoflow-state]::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+	flex: none;
+}
+
+/* Energy-flow diagram nodes already expose their live state as classes. */
+.ecoflow-node.is-charging .ecoflow-node-state {
+	color: #00c853;
+	font-weight: 600;
+}
+
+.ecoflow-node.is-discharging .ecoflow-node-state {
+	color: #ff6b35;
+	font-weight: 600;
+}
+
+.ecoflow-node.is-standby .ecoflow-node-state {
+	color: var(--color-text-muted);
+}
+
+/* EcoFlow AI plan chart: right-edge scroll shadow on the swipeable plot. */
+@media (max-width: 640px) {
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-chart {
+		position: relative;
+	}
+
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-chart::after {
+		content: "";
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		right: 42px;
+		width: 30px;
+		background: linear-gradient(to left, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 0.18s ease;
+		z-index: 3;
+	}
+
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-chart[data-scroll-pos="start"]::after,
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-chart[data-scroll-pos="middle"]::after {
+		opacity: 1;
+	}
+}

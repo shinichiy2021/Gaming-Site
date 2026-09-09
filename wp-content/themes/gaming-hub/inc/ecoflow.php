@@ -433,6 +433,7 @@ function gaming_hub_parse_ecoflow_quota( $quota, $device_sn, $device_name, $onli
 		'is_charging'       => $is_charging,
 		'is_discharging'    => $is_discharging,
 		'charge_state'      => gaming_hub_ecoflow_charge_state_label( $quota, $is_charging, $is_discharging, $input, $output, $chg_dsg_state, $solar, $ac_in, $hv_in ),
+		'charge_state_key'  => gaming_hub_ecoflow_charge_state_key( $quota, $is_charging, $is_discharging, $input, $output, $chg_dsg_state ),
 		'updated_at'        => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
 	);
 
@@ -1644,6 +1645,7 @@ function gaming_hub_ecoflow_device_flow_slice( array $device ) {
 		'is_charging'         => ! empty( $device['is_charging'] ),
 		'is_discharging'      => ! empty( $device['is_discharging'] ),
 		'charge_state'        => $device['charge_state'] ?? '',
+		'charge_state_key'    => $device['charge_state_key'] ?? '',
 		'remain_time'         => $device['remain_time'] ?? null,
 		'remain_time_label'   => $device['remain_time_label'] ?? '',
 		'remain_time_display' => $device['remain_time_display'] ?? '—',
@@ -1685,6 +1687,7 @@ function gaming_hub_ecoflow_independent_delta1500( $device_sn = '' ) {
 		'soc_source'      => 'unavailable',
 		'solar_in_source' => 'unavailable',
 		'charge_state'    => __('n/a', 'gaming-hub'),
+		'charge_state_key' => '',
 		'inferred'        => true,
 		'inferred_note'   => __('Independent from Pro. Low Volt solar feeds the 1500. Extra Battery 1 kWh attached. Combined 2.5 kWh. Live meters wait on the MQTT bridge.', 'gaming-hub'),
 		'updated_at'      => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
@@ -1738,6 +1741,7 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 		'battery_percent'     => $pro['battery_percent'],
 		'is_charging'         => $pro['is_charging'],
 		'charge_state'        => $pro['charge_state'],
+		'charge_state_key'    => $pro['charge_state_key'] ?? '',
 		'input_total'         => $pro['input_total'],
 		'output_total'        => $pro['output_total'],
 		'remain_time'         => $pro['remain_time'],
@@ -2003,6 +2007,7 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 		$delta['is_charging']       = false;
 		$delta['is_discharging']    = false;
 		$delta['charge_state']      = __('n/a', 'gaming-hub');
+		$delta['charge_state_key']  = '';
 		$delta['extra']             = gaming_hub_ecoflow_resolve_extra_battery( $delta );
 		if ( 'mqtt' === ( $delta['source'] ?? '' ) ) {
 			$delta['source'] = '';
@@ -2108,6 +2113,7 @@ function gaming_hub_ecoflow_sync_device_activity( array $device ) {
 	}
 
 	$device['is_discharging'] = true;
+	$device['charge_state_key'] = 'discharging';
 	$state                    = (string) ( $device['charge_state'] ?? '' );
 	if ( '' === $state || false !== strpos( $state, '待機' ) || 0 === strcasecmp( $state, 'Idle' ) || 0 === strcasecmp( $state, 'Standby' ) ) {
 		$device['charge_state'] = __('Discharging', 'gaming-hub');
@@ -2480,6 +2486,42 @@ function gaming_hub_ecoflow_charge_state_label( $quota, $is_charging, $is_discha
 	}
 
 	return __('Idle', 'gaming-hub');
+}
+
+/**
+ * Machine-readable device state key for status colour coding.
+ *
+ * Mirrors the branch logic of gaming_hub_ecoflow_charge_state_label() but
+ * returns a stable, locale-independent key (charging|discharging|inputting|idle)
+ * so the UI can apply state colours without matching localized strings.
+ *
+ * @param array<string, mixed> $quota         Raw quota payload.
+ * @param bool                 $is_charging   Charging flag.
+ * @param bool                 $is_discharging Discharging flag.
+ * @param float|null           $input         Input watts.
+ * @param float|null           $output        Output watts.
+ * @param int|null             $chg_dsg_state Delta Pro 3 state code.
+ * @return string
+ */
+function gaming_hub_ecoflow_charge_state_key( $quota, $is_charging, $is_discharging, $input, $output, $chg_dsg_state = null ) {
+	if ( null === $chg_dsg_state ) {
+		$chg_dsg_state = gaming_hub_ecoflow_chg_dsg_state( $quota );
+	}
+
+	if ( $is_charging || 2 === (int) $chg_dsg_state ) {
+		return 'charging';
+	}
+
+	$out_w = ( null !== $output && is_numeric( $output ) ) ? (float) $output : 0.0;
+	if ( 1 === (int) $chg_dsg_state || $is_discharging || $out_w >= GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W ) {
+		return 'discharging';
+	}
+
+	if ( null !== $input && $input > 0 ) {
+		return 'inputting';
+	}
+
+	return 'idle';
 }
 
 /**
