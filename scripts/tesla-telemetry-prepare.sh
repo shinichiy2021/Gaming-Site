@@ -32,16 +32,22 @@ if [[ ! -f "${TELEM}/config.json" ]]; then
 fi
 
 have_server_cert=0
-if [[ -f "${CERTS}/server.crt" && -f "${CERTS}/server.key" ]]; then
+if [[ "${TESLA_TELEMETRY_FORCE_CERTS:-}" != "1" && -f "${CERTS}/server.crt" && -f "${CERTS}/server.key" ]]; then
 	have_server_cert=1
-	echo "==> Reusing existing ${CERTS}/server.crt"
+	echo "==> Reusing existing ${CERTS}/server.crt (set TESLA_TELEMETRY_FORCE_CERTS=1 to replace)"
 fi
 
 if [[ "${have_server_cert}" -eq 0 && -n "${CERT_DIR}" ]]; then
-	if [[ -f "${CERT_DIR}/fullchain.pem" && -f "${CERT_DIR}/privkey.pem" ]]; then
-		echo "==> Linking Let's Encrypt certs from ${CERT_DIR}"
-		ln -sfn "${CERT_DIR}/fullchain.pem" "${CERTS}/server.crt"
-		ln -sfn "${CERT_DIR}/privkey.pem" "${CERTS}/server.key"
+	if [[ -r "${CERT_DIR}/fullchain.pem" && -r "${CERT_DIR}/privkey.pem" ]]; then
+		echo "==> Copying Let's Encrypt certs from ${CERT_DIR}"
+		cp -f "${CERT_DIR}/fullchain.pem" "${CERTS}/server.crt"
+		cp -f "${CERT_DIR}/privkey.pem" "${CERTS}/server.key"
+		have_server_cert=1
+	elif sudo test -f "${CERT_DIR}/fullchain.pem" && sudo test -f "${CERT_DIR}/privkey.pem"; then
+		echo "==> Copying Let's Encrypt certs via sudo from ${CERT_DIR}"
+		sudo cp -f "${CERT_DIR}/fullchain.pem" "${CERTS}/server.crt"
+		sudo cp -f "${CERT_DIR}/privkey.pem" "${CERTS}/server.key"
+		sudo chown "$(id -u):$(id -g)" "${CERTS}/server.crt" "${CERTS}/server.key"
 		have_server_cert=1
 	else
 		echo "Warning: TESLA_TELEMETRY_CERT_DIR set but fullchain/privkey missing: ${CERT_DIR}"
@@ -59,9 +65,12 @@ if [[ "${have_server_cert}" -eq 0 ]]; then
 		-addext "subjectAltName = DNS:${HOST}" \
 		-addext "extendedKeyUsage = serverAuth" \
 		-addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
-	chmod 600 "${CERTS}/server.key"
-	chmod 644 "${CERTS}/server.crt"
 fi
+
+# fleet-telemetry image may run as non-root; key must be world-readable in the mount.
+chmod 644 "${CERTS}/server.crt" "${CERTS}/server.key" 2>/dev/null || true
+chmod 644 "${CERTS}/ca.pem" 2>/dev/null || true
+
 
 # Vehicle config "ca" must verify server.crt.
 # Self-signed: the leaf is the CA. Let's Encrypt: prefer ISRG Root X1 if present.
