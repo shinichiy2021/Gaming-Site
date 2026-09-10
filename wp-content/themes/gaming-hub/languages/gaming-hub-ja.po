@@ -450,6 +450,9 @@ msgstr "外出先充電: 100%% まで常時充電中。直近は %s に充電オ
 msgid "BUY"
 msgstr "買電"
 
+msgid "Brief wake/precondition pulses hidden: %d."
+msgstr "起動・プレコンの短い通電を非表示: %d件。"
+
 msgid "Back to Pokémon GO"
 msgstr "Pokémon GO へ戻る"
 

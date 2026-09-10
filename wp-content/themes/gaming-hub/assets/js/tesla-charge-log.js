@@ -8,6 +8,10 @@
 
 	const endpoint = gamingHubTeslaCharge.url || '';
 
+	function t(text) {
+		return window.gamingHubT ? window.gamingHubT(text) : text;
+	}
+
 	function esc(text) {
 		const d = document.createElement('div');
 		d.textContent = text == null ? '' : String(text);
@@ -140,6 +144,19 @@
 			'自宅 ' + Math.round(Number(totals.home_yen || 0)).toLocaleString() +
 			' · 急速 ' + Math.round(Number(totals.super_yen || 0)).toLocaleString()
 		);
+
+		const hiddenEl = root.querySelector('[data-tesla-charge-hidden]');
+		if (hiddenEl) {
+			const hiddenCount = Number(totals.hidden_count) || 0;
+			if (hiddenCount > 0) {
+				hiddenEl.hidden = false;
+				hiddenEl.textContent = ' ' + t('Brief wake/precondition pulses hidden: %d.')
+					.replace('%d', String(hiddenCount));
+			} else {
+				hiddenEl.hidden = true;
+				hiddenEl.textContent = '';
+			}
+		}
 
 		const list = root.querySelector('[data-tesla-charge-list]');
 		if (!list) {
