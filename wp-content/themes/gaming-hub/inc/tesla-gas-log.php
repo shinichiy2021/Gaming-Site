@@ -533,10 +533,14 @@ function gaming_hub_tesla_gas_summary_payload( $status = null ) {
 				'to'     => $week_to,
 				'label'  => $week_from_ts && $week_to_ts
 					? sprintf(
-						/* translators: 1: week start n/j, 2: week end n/j */
+						/* translators: 1: week start, 2: week end */
 						__('%1$s–%2$s', 'gaming-hub'),
-						wp_date( 'n/j', $week_from_ts ),
-						wp_date( 'n/j', $week_to_ts )
+						function_exists( 'gaming_hub_format_date' )
+							? gaming_hub_format_date( $week_from_ts, 'short' )
+							: wp_date( 'n/j', $week_from_ts ),
+						function_exists( 'gaming_hub_format_date' )
+							? gaming_hub_format_date( $week_to_ts, 'short' )
+							: wp_date( 'n/j', $week_to_ts )
 					)
 					: __('This week', 'gaming-hub'),
 			)
@@ -633,7 +637,9 @@ function gaming_hub_tesla_gas_month_payload( $ym, $status = null ) {
 
 	return array(
 		'month'           => $ym,
-		'label'           => wp_date( 'Y年n月', $ts ),
+		'label'           => function_exists( 'gaming_hub_format_date' )
+			? gaming_hub_format_date( $ts, 'month' )
+			: wp_date( 'Y年n月', $ts ),
 		'today'           => $today,
 		'start_wday'      => $start_wday,
 		'days'            => $cells,

@@ -67,8 +67,15 @@ $format_when = static function ( $ymd ) use ( $weekday_labels ) {
 	if ( ! $ts ) {
 		return (string) $ymd;
 	}
-	$w = (int) wp_date( 'w', $ts );
-	return wp_date( 'n/j', $ts ) . '（' . ( $weekday_labels[ $w ] ?? '' ) . '）';
+	$w    = (int) wp_date( 'w', $ts );
+	$date = function_exists( 'gaming_hub_format_date' )
+		? gaming_hub_format_date( $ts, 'short' )
+		: wp_date( 'n/j', $ts );
+	$day  = $weekday_labels[ $w ] ?? '';
+	if ( 'en' === gaming_hub_lang() ) {
+		return $date . ( $day ? ' (' . $day . ')' : '' );
+	}
+	return $date . ( $day ? '（' . $day . '）' : '' );
 };
 
 $rows = array();

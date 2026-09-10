@@ -213,6 +213,7 @@
 
 				scroller.addEventListener('scroll', update, { passive: true });
 				window.addEventListener('resize', update, { passive: true });
+				window.addEventListener('gaming-hub:chart-scroll-refresh', update, { passive: true });
 				// Re-check after fonts/layout settle and after the EcoFlow plan
 				// chart auto-scrolls to the current hour.
 				update();

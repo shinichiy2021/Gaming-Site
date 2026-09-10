@@ -351,15 +351,22 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 		</div>
 	</div>
 	<p class="ecoflow-plan-chart-hint"><?php esc_html_e('Swipe the chart sideways', 'gaming-hub'); ?></p>
-	<p class="ecoflow-rate-legend" data-tesla-plan-legend>
-		<?php
-		echo esc_html(
-			$asleep
-				? __('Gray bars: held SOC while asleep · faint gold: planned charge (not running) · orange: drive estimate · teal: rate', 'gaming-hub')
-				: __('Yellow bar: SOC · Yellow band: home charge (actual) · Gold band: scheduled charge · Colored bands: away/DC actual · Orange: driving · Teal: price', 'gaming-hub')
-		);
-		?>
-	</p>
+	<div class="ecoflow-rate-legend tesla-plan-legend" data-tesla-plan-legend>
+		<ul class="tesla-plan-legend-list" data-legend-awake <?php echo $asleep ? 'hidden' : ''; ?>>
+			<li><span class="tesla-plan-legend-swatch is-soc" aria-hidden="true"></span><?php esc_html_e('SOC', 'gaming-hub'); ?></li>
+			<li><span class="tesla-plan-legend-swatch is-home" aria-hidden="true"></span><?php esc_html_e('Home charge', 'gaming-hub'); ?></li>
+			<li><span class="tesla-plan-legend-swatch is-scheduled" aria-hidden="true"></span><?php esc_html_e('Scheduled charge', 'gaming-hub'); ?></li>
+			<li><span class="tesla-plan-legend-swatch is-away-dc" aria-hidden="true"></span><?php esc_html_e('Away / DC', 'gaming-hub'); ?></li>
+			<li><span class="tesla-plan-legend-swatch is-drive" aria-hidden="true"></span><?php esc_html_e('Driving', 'gaming-hub'); ?></li>
+			<li><span class="tesla-plan-legend-swatch is-price" aria-hidden="true"></span><?php esc_html_e('Rate', 'gaming-hub'); ?></li>
+		</ul>
+		<ul class="tesla-plan-legend-list" data-legend-asleep <?php echo $asleep ? '' : 'hidden'; ?>>
+			<li><span class="tesla-plan-legend-swatch is-held" aria-hidden="true"></span><?php esc_html_e('Held SOC', 'gaming-hub'); ?></li>
+			<li><span class="tesla-plan-legend-swatch is-deferred" aria-hidden="true"></span><?php esc_html_e('Planned (idle)', 'gaming-hub'); ?></li>
+			<li><span class="tesla-plan-legend-swatch is-drive" aria-hidden="true"></span><?php esc_html_e('Driving', 'gaming-hub'); ?></li>
+			<li><span class="tesla-plan-legend-swatch is-price" aria-hidden="true"></span><?php esc_html_e('Rate', 'gaming-hub'); ?></li>
+		</ul>
+	</div>
 	<p class="ecoflow-plan-next" data-tesla-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 
 	<details class="ecoflow-plan-more">
