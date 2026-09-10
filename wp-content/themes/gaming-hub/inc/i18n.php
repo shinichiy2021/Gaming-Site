@@ -136,6 +136,81 @@ function gaming_hub_ja_time_format( $format ) {
 add_filter( 'option_time_format', 'gaming_hub_ja_time_format' );
 
 /**
+ * Short date format for compact lists (charge log, week chips).
+ *
+ * @return string PHP date format.
+ */
+function gaming_hub_date_format_short() {
+	return 'en' === gaming_hub_lang() ? 'M j' : 'n月j日';
+}
+
+/**
+ * Month label format (driving log header, calendars).
+ *
+ * @return string PHP date format.
+ */
+function gaming_hub_date_format_month() {
+	return 'en' === gaming_hub_lang() ? 'M Y' : 'Y年n月';
+}
+
+/**
+ * Format a timestamp for the front end.
+ *
+ * @param int|null $timestamp Unix timestamp (site timezone via wp_date). Null = now.
+ * @param string   $style     full|short|month|time|datetime|datetime_short.
+ * @return string
+ */
+function gaming_hub_format_date( $timestamp = null, $style = 'full' ) {
+	$ts = null === $timestamp ? time() : (int) $timestamp;
+	if ( $ts <= 0 ) {
+		return '';
+	}
+
+	switch ( $style ) {
+		case 'time':
+			return wp_date( get_option( 'time_format' ), $ts );
+		case 'short':
+			return wp_date( gaming_hub_date_format_short(), $ts );
+		case 'month':
+			return wp_date( gaming_hub_date_format_month(), $ts );
+		case 'datetime_short':
+			return wp_date( gaming_hub_date_format_short() . ' ' . get_option( 'time_format' ), $ts );
+		case 'datetime':
+			return wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts );
+		case 'full':
+		default:
+			return wp_date( get_option( 'date_format' ), $ts );
+	}
+}
+
+/**
+ * Format a start/end range for charge sessions and similar lists.
+ *
+ * @param int $start_ts Start timestamp.
+ * @param int $end_ts   End timestamp (0 = open-ended).
+ * @return string
+ */
+function gaming_hub_format_datetime_range( $start_ts, $end_ts = 0 ) {
+	$start_ts = (int) $start_ts;
+	$end_ts   = (int) $end_ts;
+	if ( $start_ts <= 0 ) {
+		return '';
+	}
+
+	$when = gaming_hub_format_date( $start_ts, 'datetime_short' );
+	if ( $end_ts <= $start_ts ) {
+		return $when;
+	}
+
+	$same_day = gaming_hub_format_date( $start_ts, 'full' ) === gaming_hub_format_date( $end_ts, 'full' );
+	if ( $same_day ) {
+		return $when . '–' . gaming_hub_format_date( $end_ts, 'time' );
+	}
+
+	return $when . '–' . gaming_hub_format_date( $end_ts, 'datetime_short' );
+}
+
+/**
  * Japanese DB strings (menus, site title) → English when lang=en.
  *
  * Built from i18n-en.php via scripts/build-i18n-standard.py.

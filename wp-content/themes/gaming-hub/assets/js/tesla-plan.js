@@ -424,9 +424,14 @@
 		}
 		const legend = root.querySelector('[data-tesla-plan-legend]');
 		if (legend) {
-			legend.textContent = asleepNow
-				? t('灰棒: スリープ中の固定残量 · 薄い金帯: 計画充電（未実行）· 朱橙線: 走行見込み · 青緑線: 請求単価')
-				: t('黄棒: 残量 · 黄帯: 自宅充電（実績）· 金帯: 充電予定 · 色帯: 外出先/DC 実績 · 朱橙線: 走行 · 青緑線: 単価');
+			const awakeList = legend.querySelector('[data-legend-awake]');
+			const asleepList = legend.querySelector('[data-legend-asleep]');
+			if (awakeList) {
+				awakeList.hidden = asleepNow;
+			}
+			if (asleepList) {
+				asleepList.hidden = !asleepNow;
+			}
 		}
 		if (track) {
 			for (let h = 0; h < 24; h += 1) {
@@ -541,6 +546,7 @@
 			line.setAttribute('points', wattsLinePoints(plan.drive_chart, plan.drive_chart_cap));
 		});
 		scrollPlanChartToNow();
+		window.dispatchEvent(new Event('gaming-hub:chart-scroll-refresh'));
 	}
 
 	function scrollPlanChartToNow() {

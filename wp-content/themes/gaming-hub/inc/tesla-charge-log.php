@@ -101,7 +101,9 @@ function gaming_hub_tesla_charge_log_shape( array $row ) {
 	}
 
 	$when = '';
-	if ( $start_ts > 0 ) {
+	if ( $start_ts > 0 && function_exists( 'gaming_hub_format_datetime_range' ) ) {
+		$when = gaming_hub_format_datetime_range( $start_ts, $end_ts );
+	} elseif ( $start_ts > 0 ) {
 		$when = wp_date( 'n/j H:i', $start_ts );
 		if ( $end_ts > $start_ts ) {
 			$same_day = wp_date( 'Y-m-d', $start_ts ) === wp_date( 'Y-m-d', $end_ts );
