@@ -27,9 +27,20 @@ jobs:
           cache: npm
           cache-dependency-path: wp-content/themes/gaming-hub/package-lock.json
 
-      - name: Build theme assets
+      - name: Install gettext (msgfmt for i18n)
+        run: sudo apt-get update && sudo apt-get install -y gettext
+
+      - name: Install theme dependencies
         working-directory: wp-content/themes/gaming-hub
-        run: npm ci && npm run i18n:build && npm run build:flows
+        run: npm ci
+
+      - name: Build i18n catalogs
+        working-directory: wp-content/themes/gaming-hub
+        run: npm run i18n:build
+
+      - name: Build flow bundles
+        working-directory: wp-content/themes/gaming-hub
+        run: npm run build:flows
 
       - name: Deploy to EC2
         env:
