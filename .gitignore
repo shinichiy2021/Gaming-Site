@@ -31,3 +31,11 @@ deploy.tar.gz
 *.pem
 private-key.pem
 public-key.pem
+
+# Tesla Fleet Telemetry runtime (certs + generated vehicle payload)
+tesla/telemetry/config.json
+tesla/telemetry/vehicle-config.json
+tesla/telemetry/certs/*
+!tesla/telemetry/certs/.gitkeep
+tesla/telemetry-data/*
+!tesla/telemetry-data/.gitkeep
