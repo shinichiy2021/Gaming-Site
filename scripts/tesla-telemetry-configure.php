@@ -98,8 +98,28 @@ if ( '' === $config_path || ! is_readable( $config_path ) ) {
 
 $raw = file_get_contents( $config_path );
 $cfg = json_decode( (string) $raw, true );
-if ( ! is_array( $cfg ) || empty( $cfg['hostname'] ) || empty( $cfg['ca'] ) || empty( $cfg['fields'] ) ) {
-	fwrite( STDERR, "Invalid vehicle-config.json at {$config_path}\n" );
+if ( ! is_array( $cfg ) ) {
+	fwrite(
+		STDERR,
+		"Invalid vehicle-config.json at {$config_path}: " . json_last_error_msg() . "\n"
+		. "Regenerate with: bash scripts/tesla-telemetry-prepare.sh\n"
+	);
+	exit( 1 );
+}
+
+// Allow placeholder ca; load PEM from sibling certs/ca.pem.
+$ca = isset( $cfg['ca'] ) ? trim( (string) $cfg['ca'] ) : '';
+if ( '' === $ca || false === strpos( $ca, 'BEGIN CERTIFICATE' ) ) {
+	$ca_file = dirname( $config_path ) . '/certs/ca.pem';
+	if ( ! is_readable( $ca_file ) ) {
+		fwrite( STDERR, "Missing CA PEM (vehicle-config.ca or {$ca_file}).\n" );
+		exit( 1 );
+	}
+	$cfg['ca'] = (string) file_get_contents( $ca_file );
+}
+
+if ( empty( $cfg['hostname'] ) || empty( $cfg['ca'] ) || empty( $cfg['fields'] ) ) {
+	fwrite( STDERR, "Invalid vehicle-config.json at {$config_path} (need hostname, ca, fields).\n" );
 	exit( 1 );
 }
 
