@@ -113,6 +113,7 @@ services:
       # Health / status JSON (localhost only).
       - "127.0.0.1:${TESLA_TELEMETRY_STATUS_PORT:-8444}:8080"
     command:
+      - /fleet-telemetry
       - -config=/etc/fleet-telemetry/config.json
     security_opt:
       - no-new-privileges:true
