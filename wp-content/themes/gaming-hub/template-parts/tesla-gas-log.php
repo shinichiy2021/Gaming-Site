@@ -52,30 +52,14 @@ $format_avg = static function ( $value ) {
 	return number_format( (float) $value, 1 ) . ' 円/km';
 };
 
-$weekday_labels = array(
-	0 => __('Sun', 'gaming-hub'),
-	1 => __('Mon', 'gaming-hub'),
-	2 => __('Tue', 'gaming-hub'),
-	3 => __('Wed', 'gaming-hub'),
-	4 => __('Thu', 'gaming-hub'),
-	5 => __('Fri', 'gaming-hub'),
-	6 => __('Sat', 'gaming-hub'),
-);
-
-$format_when = static function ( $ymd ) use ( $weekday_labels ) {
+$format_when = static function ( $ymd ) {
 	$ts = strtotime( (string) $ymd . ' 12:00:00' );
 	if ( ! $ts ) {
 		return (string) $ymd;
 	}
-	$w    = (int) wp_date( 'w', $ts );
-	$date = function_exists( 'gaming_hub_format_date' )
+	return function_exists( 'gaming_hub_format_date' )
 		? gaming_hub_format_date( $ts, 'short' )
-		: wp_date( 'n/j', $ts );
-	$day  = $weekday_labels[ $w ] ?? '';
-	if ( 'en' === gaming_hub_lang() ) {
-		return $date . ( $day ? ' (' . $day . ')' : '' );
-	}
-	return $date . ( $day ? '（' . $day . '）' : '' );
+		: wp_date( 'n月j日 (D)', $ts );
 };
 
 $rows = array();

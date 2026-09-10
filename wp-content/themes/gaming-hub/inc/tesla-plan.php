@@ -2337,7 +2337,7 @@ function gaming_hub_tesla_get_charge_plan( $status = null ) {
 		'yesterday' => $yesterday,
 		'tomorrow'  => $tomorrow,
 	);
-	$today['updated_at'] = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) );
+	$today['updated_at'] = gaming_hub_format_date( null, 'datetime' );
 
 	set_transient( $cache_key, $today, GAMING_HUB_TESLA_PLAN_CACHE_TTL );
 

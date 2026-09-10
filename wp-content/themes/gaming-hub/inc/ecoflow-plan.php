@@ -1190,7 +1190,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'price_provider'       => $price['provider'],
 		'price_note'           => $price['note'],
 		'note'                 => $note,
-		'updated_at'           => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		'updated_at'           => gaming_hub_format_date( null, 'datetime' ),
 	);
 }
 

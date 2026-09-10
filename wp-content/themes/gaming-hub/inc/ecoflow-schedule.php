@@ -324,7 +324,7 @@ function gaming_hub_ecoflow_schedule_send_notice( $watts, $reserve, $error = '' 
 	return array(
 		'id'       => wp_date( 'U' ) . '-' . wp_generate_password( 6, false, false ),
 		'at'       => wp_date( 'c' ),
-		'at_label' => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		'at_label' => gaming_hub_format_date( null, 'datetime' ),
 		'watts'    => (int) $watts,
 		'reserve'  => (int) $reserve,
 		'ok'       => $ok,

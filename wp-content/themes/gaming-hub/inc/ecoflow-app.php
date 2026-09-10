@@ -309,7 +309,7 @@ function gaming_hub_ecoflow_infer_secondary_from_primary( array $primary, $devic
 		'charge_state'    => __('n/a', 'gaming-hub'),
 		'inferred'        => true,
 		'inferred_note'   => $note,
-		'updated_at'      => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		'updated_at'      => gaming_hub_format_date( null, 'datetime' ),
 		'extra'           => gaming_hub_ecoflow_extra_battery_slice(),
 	);
 
