@@ -158,7 +158,7 @@ $model3_charging = ! empty( $model3['is_charging'] );
 						esc_html__('%1$s · contract %2$s kW · %3$s (24h simulation)', 'gaming-hub'),
 						esc_html( $cost_meta['provider'] ?? __('LOOOP Smart Time ONE (lighting)', 'gaming-hub') ),
 						esc_html( number_format_i18n( (float) ( $cost_meta['contract_kw'] ?? 6 ), 1 ) ),
-						esc_html( $cost_meta['date_label'] ?? wp_date( get_option( 'date_format' ) ) )
+						esc_html( $cost_meta['date_label'] ?? gaming_hub_format_date( null, 'full' ) )
 					);
 					?>
 				</p>

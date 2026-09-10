@@ -126,7 +126,7 @@ function gaming_hub_fetch_youtube_channel_videos( $channel_id, $channel_name, $m
 			'title'        => wp_strip_all_tags( $item->get_title() ),
 			'link'         => esc_url_raw( gaming_hub_normalize_youtube_url( $item->get_permalink() ) ),
 			'date'         => $item->get_date( 'Y-m-d H:i:s' ),
-			'date_display' => $item->get_date( get_option( 'date_format' ) ),
+			'date_display' => gaming_hub_format_date( (int) $item->get_date( 'U' ), 'full' ),
 			'image'        => gaming_hub_extract_youtube_thumbnail( $item ),
 			'channel'      => $channel_name,
 			'channel_id'   => $channel_id,

@@ -95,7 +95,7 @@ function gaming_hub_powerwall_simulated_flow( $force_solar_refresh = false ) {
 		'model3_meta'        => $model3_meta,
 		'solar_to_powerwall' => round( $solar_to_powerwall ),
 		'simulated'          => true,
-		'updated_at'         => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		'updated_at'         => gaming_hub_format_date( null, 'datetime' ),
 	);
 }
 
@@ -184,7 +184,7 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 		$status['tesla_plan'] = gaming_hub_tesla_get_charge_plan( $status );
 	}
 
-	$status['updated_at'] = wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) );
+	$status['updated_at'] = gaming_hub_format_date( null, 'datetime' );
 
 	$cost = gaming_hub_powerwall_calculate_daily_cost( $force_refresh );
 	if ( is_wp_error( $cost ) ) {

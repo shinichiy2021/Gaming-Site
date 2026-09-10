@@ -538,7 +538,7 @@ function gaming_hub_parse_ecoflow_quota( $quota, $device_sn, $device_name, $onli
 		'is_discharging'    => $is_discharging,
 		'charge_state'      => gaming_hub_ecoflow_charge_state_label( $quota, $is_charging, $is_discharging, $input, $output, $chg_dsg_state, $solar, $ac_in, $hv_in ),
 		'charge_state_key'  => gaming_hub_ecoflow_charge_state_key( $quota, $is_charging, $is_discharging, $input, $output, $chg_dsg_state ),
-		'updated_at'        => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		'updated_at'        => gaming_hub_format_date( null, 'datetime' ),
 	);
 
 	if ( gaming_hub_ecoflow_is_app_only_device( $device_sn ) ) {
@@ -1794,7 +1794,7 @@ function gaming_hub_ecoflow_independent_delta1500( $device_sn = '' ) {
 		'charge_state_key' => '',
 		'inferred'        => true,
 		'inferred_note'   => __('Independent from Pro. Low Volt solar feeds the 1500. Extra Battery 1 kWh attached. Combined 2.5 kWh. Live meters wait on the MQTT bridge.', 'gaming-hub'),
-		'updated_at'      => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		'updated_at'      => gaming_hub_format_date( null, 'datetime' ),
 		'extra'           => gaming_hub_ecoflow_extra_battery_slice(),
 	);
 
@@ -1906,7 +1906,7 @@ function gaming_hub_ecoflow_attach_ups_ac_out( array $status ) {
 		'watts'      => $watts,
 		'source'     => 'ecoflow',
 		'online'     => ! empty( $delta['online'] ),
-		'updated_at' => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+		'updated_at' => gaming_hub_format_date( null, 'datetime' ),
 	);
 
 	return $status;
@@ -2177,7 +2177,7 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 			'watts'      => $watts,
 			'source'     => 'ecoflow',
 			'online'     => ! empty( $status['secondary']['online'] ),
-			'updated_at' => wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ),
+			'updated_at' => gaming_hub_format_date( null, 'datetime' ),
 		);
 	} else {
 		$status['secondary']['ac_out'] = null;

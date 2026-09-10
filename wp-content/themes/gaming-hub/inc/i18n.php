@@ -104,34 +104,36 @@ function gaming_hub_yen( $value, $decimals = 0 ) {
 }
 
 /**
- * Force numeric Japanese date/time formats on the front end so dates read as
- * "2026年9月9日" regardless of the site's stored format or whether WordPress
- * core month-name translations are installed. English keeps the stored format.
+ * Force front-end date formats so JA/EN never inherit mixed WP Settings
+ * (e.g. "September 2, 2026" + "5:52 pm" vs slash-style logs).
+ *
+ * JA: 2026年9月8日 (火)
+ * EN: Sep 8, 2026 (Tue)
  *
  * @param string $format Stored format.
  * @return string
  */
 function gaming_hub_ja_date_format( $format ) {
-	if ( is_admin() && ! wp_doing_ajax() ) {
+	if ( is_admin() && ! wp_doing_ajax() && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
 		return $format;
 	}
 
-	return 'en' === gaming_hub_lang() ? $format : 'Y年n月j日';
+	return 'en' === gaming_hub_lang() ? 'M j, Y (D)' : 'Y年n月j日 (D)';
 }
 add_filter( 'option_date_format', 'gaming_hub_ja_date_format' );
 
 /**
- * Front-end time format companion to gaming_hub_ja_date_format().
+ * Front-end time format companion — always 24-hour on the public site.
  *
  * @param string $format Stored format.
  * @return string
  */
 function gaming_hub_ja_time_format( $format ) {
-	if ( is_admin() && ! wp_doing_ajax() ) {
+	if ( is_admin() && ! wp_doing_ajax() && ! ( defined( 'REST_REQUEST' ) && REST_REQUEST ) ) {
 		return $format;
 	}
 
-	return 'en' === gaming_hub_lang() ? $format : 'H:i';
+	return 'H:i';
 }
 add_filter( 'option_time_format', 'gaming_hub_ja_time_format' );
 
@@ -141,7 +143,7 @@ add_filter( 'option_time_format', 'gaming_hub_ja_time_format' );
  * @return string PHP date format.
  */
 function gaming_hub_date_format_short() {
-	return 'en' === gaming_hub_lang() ? 'M j' : 'n月j日';
+	return 'en' === gaming_hub_lang() ? 'M j (D)' : 'n月j日 (D)';
 }
 
 /**
