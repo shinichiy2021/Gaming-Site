@@ -1,0 +1,12 @@
+{
+  "hostname": "telemetry.shinichiy-gaming-hub.com",
+  "port": 8443,
+  "ca": "PASTE_PEM_FROM_tesla/telemetry/certs/ca.pem",
+  "fields": {
+    "Soc": { "interval_seconds": 60 },
+    "DetailedChargeState": { "interval_seconds": 5 },
+    "ChargeAmps": { "interval_seconds": 10 },
+    "ChargeLimitSoc": { "interval_seconds": 60 },
+    "EnergyRemaining": { "interval_seconds": 60 }
+  }
+}

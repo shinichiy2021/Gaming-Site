@@ -1,0 +1,19 @@
+{
+  "host": "0.0.0.0",
+  "port": 443,
+  "status_port": 8080,
+  "log_level": "info",
+  "json_log_enable": true,
+  "namespace": "gaming_hub",
+  "transmit_decoded_records": true,
+  "records": {
+    "V": ["logger"],
+    "alerts": ["logger"],
+    "errors": ["logger"],
+    "connectivity": ["logger"]
+  },
+  "tls": {
+    "server_cert": "/etc/certs/server.crt",
+    "server_key": "/etc/certs/server.key"
+  }
+}

@@ -1,6 +1,8 @@
-# Tesla Fleet command keys (production)
+# Tesla Fleet command keys + Telemetry (production)
 
-Place these files on the server at `/opt/gaming-hub/tesla/` (never commit `*.pem`).
+Place these files on the server at `/opt/gaming-hub/tesla/` (never commit `*.pem` / live certs).
+
+## Command proxy (existing)
 
 | File | Purpose |
 |------|---------|
@@ -13,3 +15,60 @@ WordPress sends `charge_start` / `charge_stop` to `https://tesla-http-proxy:4443
 If charge on/off still fails after the proxy is up, pair the virtual key in the Tesla app:
 
 https://tesla.com/_ak/shinichiy-gaming-hub.com
+
+## Fleet Telemetry Phase 1 (receive-only)
+
+Adds a mailbox for the car to push SOC / charge state. WordPress display is **not** wired yet.
+
+| Path | Purpose |
+|------|---------|
+| `telemetry/config.json` | Server config (from `config.example.json`) |
+| `telemetry/certs/server.crt` + `server.key` | TLS for the stream (Let's Encrypt or self-signed) |
+| `telemetry/certs/ca.pem` | CA PEM embedded into the vehicle config |
+| `telemetry/vehicle-config.json` | Payload sent to Tesla (hostname, port, ca, fields) |
+
+### One-time setup on the server
+
+```bash
+cd /opt/gaming-hub
+
+# 1) DNS: telemetry.shinichiy-gaming-hub.com → this host
+# 2) Open port 8443 (cars connect here; do not HTTP-proxy it)
+sudo ufw allow 8443/tcp
+
+# 3) TLS (recommended)
+sudo certbot certonly --standalone -d telemetry.shinichiy-gaming-hub.com
+# (stop anything on :80 briefly if needed)
+
+TESLA_TELEMETRY_HOST=telemetry.shinichiy-gaming-hub.com \
+TESLA_TELEMETRY_HOST_PORT=8443 \
+TESLA_TELEMETRY_CERT_DIR=/etc/letsencrypt/live/telemetry.shinichiy-gaming-hub.com \
+  bash scripts/tesla-telemetry-prepare.sh
+
+# 4) Start the receiver (Compose profile "telemetry")
+docker compose -f docker-compose.prod.yml --profile telemetry up -d tesla-fleet-telemetry
+
+# 5) Tell the car where to send data (signs via tesla-http-proxy)
+docker compose -f docker-compose.prod.yml exec -T wordpress \
+  php /var/www/html/scripts/tesla-telemetry-configure.php
+
+# 6) Watch
+docker logs -f gaming-site-tesla-telemetry
+curl -sS http://127.0.0.1:8444/status || true
+```
+
+Status / delete:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T wordpress \
+  php /var/www/html/scripts/tesla-telemetry-configure.php --status
+
+docker compose -f docker-compose.prod.yml exec -T wordpress \
+  php /var/www/html/scripts/tesla-telemetry-configure.php --delete
+```
+
+### Notes
+
+- Local `docker-compose.yml` does **not** include telemetry (cars cannot reach localhost).
+- Phase 2 will bridge ingest → WordPress cache; Phase 1 only proves the stream works.
+- See `config/nginx/telemetry.shinichiy-gaming-hub.com.conf` for DNS / firewall notes.

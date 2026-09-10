@@ -153,6 +153,113 @@ class Gaming_Hub_Tesla_Api {
 	}
 
 	/**
+	 * Create or update Fleet Telemetry config (must go through tesla-http-proxy for signing).
+	 *
+	 * @param array<int, string>   $vins   Vehicle VINs.
+	 * @param array<string, mixed> $config Hostname, port, ca, fields, …
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function create_fleet_telemetry_config( array $vins, array $config ) {
+		$vins = array_values(
+			array_filter(
+				array_map(
+					static function ( $vin ) {
+						return sanitize_text_field( (string) $vin );
+					},
+					$vins
+				)
+			)
+		);
+
+		if ( ! $vins ) {
+			return new WP_Error( 'tesla_missing_vin', __( 'Tesla VIN is not configured.', 'gaming-hub' ) );
+		}
+
+		if ( empty( $config['hostname'] ) || empty( $config['ca'] ) || empty( $config['fields'] ) ) {
+			return new WP_Error( 'tesla_invalid_telemetry_config', 'Fleet Telemetry config needs hostname, ca, and fields.' );
+		}
+
+		$saved_base      = $this->fleet_base_url;
+		$saved_timeout   = $this->timeout;
+		$saved_sslverify = $this->sslverify;
+		$this->timeout   = 60;
+		if ( '' !== $this->command_base_url ) {
+			$this->fleet_base_url = $this->command_base_url;
+			$this->sslverify      = false;
+		}
+
+		$body = array(
+			'vins'   => $vins,
+			'config' => $config,
+		);
+
+		$result = $this->fleet_request(
+			'POST',
+			'/api/1/vehicles/fleet_telemetry_config',
+			array(),
+			true,
+			$body
+		);
+
+		$this->fleet_base_url = $saved_base;
+		$this->timeout        = $saved_timeout;
+		$this->sslverify      = $saved_sslverify;
+
+		return $result;
+	}
+
+	/**
+	 * Fetch a vehicle's Fleet Telemetry config sync state.
+	 *
+	 * @param string $vin Vehicle VIN.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function get_fleet_telemetry_config( $vin ) {
+		$vin = sanitize_text_field( $vin );
+		if ( '' === $vin ) {
+			return new WP_Error( 'tesla_missing_vin', __( 'Tesla VIN is not configured.', 'gaming-hub' ) );
+		}
+
+		return $this->fleet_request(
+			'GET',
+			'/api/1/vehicles/' . rawurlencode( $vin ) . '/fleet_telemetry_config'
+		);
+	}
+
+	/**
+	 * Remove Fleet Telemetry config from a vehicle.
+	 *
+	 * @param string $vin Vehicle VIN.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function delete_fleet_telemetry_config( $vin ) {
+		$vin = sanitize_text_field( $vin );
+		if ( '' === $vin ) {
+			return new WP_Error( 'tesla_missing_vin', __( 'Tesla VIN is not configured.', 'gaming-hub' ) );
+		}
+
+		$saved_base      = $this->fleet_base_url;
+		$saved_timeout   = $this->timeout;
+		$saved_sslverify = $this->sslverify;
+		$this->timeout   = 45;
+		if ( '' !== $this->command_base_url ) {
+			$this->fleet_base_url = $this->command_base_url;
+			$this->sslverify      = false;
+		}
+
+		$result = $this->fleet_request(
+			'DELETE',
+			'/api/1/vehicles/' . rawurlencode( $vin ) . '/fleet_telemetry_config'
+		);
+
+		$this->fleet_base_url = $saved_base;
+		$this->timeout        = $saved_timeout;
+		$this->sslverify      = $saved_sslverify;
+
+		return $result;
+	}
+
+	/**
 	 * Partner authentication token (client_credentials) for register / public_key endpoints.
 	 *
 	 * @return array<string, mixed>|WP_Error

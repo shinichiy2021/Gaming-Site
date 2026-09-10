@@ -58,6 +58,7 @@ services:
       - ./wp-content/plugins/seo-by-rank-math:/var/www/html/wp-content/plugins/seo-by-rank-math
       - ./wp-content/ecoflow-cache:/var/www/html/wp-content/ecoflow-cache
       - ./scripts:/var/www/html/scripts:ro
+      - ./tesla/telemetry:/tesla/telemetry:ro
       - ./config/.htaccess:/var/www/html/.htaccess
       - ./config/googlee038b6ecd4369c0c.html:/var/www/html/googlee038b6ecd4369c0c.html:ro
     networks:
@@ -87,6 +88,32 @@ services:
       - -key-file=/config/fleet-key.pem
       - -host=0.0.0.0
       - -port=4443
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - gaming-network
+
+  # Phase 1: receive Fleet Telemetry from the vehicle (stdout logger only).
+  # Cars connect to host:8443 (TLS). WordPress is not wired yet.
+  # Prepare: bash scripts/tesla-telemetry-prepare.sh
+  # Configure vehicle: docker compose -f docker-compose.prod.yml exec -T wordpress \
+  #   php /var/www/html/scripts/tesla-telemetry-configure.php
+  tesla-fleet-telemetry:
+    image: tesla/fleet-telemetry:v0.9.4
+    container_name: gaming-site-tesla-telemetry
+    restart: unless-stopped
+    profiles:
+      - telemetry
+    volumes:
+      - ./tesla/telemetry/config.json:/etc/fleet-telemetry/config.json:ro
+      - ./tesla/telemetry/certs:/etc/certs:ro
+    ports:
+      # Vehicle TLS stream (must be reachable from the internet).
+      - "${TESLA_TELEMETRY_HOST_PORT:-8443}:443"
+      # Health / status JSON (localhost only).
+      - "127.0.0.1:${TESLA_TELEMETRY_STATUS_PORT:-8444}:8080"
+    command:
+      - -config=/etc/fleet-telemetry/config.json
     security_opt:
       - no-new-privileges:true
     networks:
