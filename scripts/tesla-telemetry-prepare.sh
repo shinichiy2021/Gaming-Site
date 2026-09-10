@@ -90,17 +90,29 @@ if [[ ! -f "${CERTS}/ca.pem" ]]; then
 	chmod 644 "${CERTS}/ca.pem"
 fi
 
-CA_ESCAPED=$(awk 'BEGIN{printf "\""} {gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); gsub(/\r/,""); printf "%s\\n", $0} END{printf "\""}' "${CERTS}/ca.pem")
-
 EXAMPLE="${TELEM}/vehicle-config.example.json"
 OUT="${TELEM}/vehicle-config.json"
 if [[ -f "${EXAMPLE}" ]]; then
 	echo "==> Writing ${OUT}"
-	sed \
-		-e "s#\"hostname\": \"[^\"]*\"#\"hostname\": \"${HOST}\"#" \
-		-e "s#\"port\": [0-9]*#\"port\": ${PORT}#" \
-		-e "s#\"ca\": \"[^\"]*\"#\"ca\": ${CA_ESCAPED}#" \
-		"${EXAMPLE}" > "${OUT}"
+	if command -v python3 >/dev/null 2>&1; then
+		HOST="${HOST}" PORT="${PORT}" CERTS="${CERTS}" EXAMPLE="${EXAMPLE}" OUT="${OUT}" python3 - <<'PY'
+import json, os, pathlib
+example = json.loads(pathlib.Path(os.environ["EXAMPLE"]).read_text(encoding="utf-8"))
+ca = pathlib.Path(os.environ["CERTS"], "ca.pem").read_text(encoding="utf-8")
+example["hostname"] = os.environ["HOST"]
+example["port"] = int(os.environ["PORT"])
+example["ca"] = ca
+path = pathlib.Path(os.environ["OUT"])
+path.write_text(json.dumps(example, indent=2) + "\n", encoding="utf-8")
+PY
+	else
+		# Fallback without python: keep placeholder ca; configure.php can load ca.pem.
+		sed \
+			-e "s#\"hostname\": \"[^\"]*\"#\"hostname\": \"${HOST}\"#" \
+			-e "s#\"port\": [0-9]*#\"port\": ${PORT}#" \
+			"${EXAMPLE}" > "${OUT}"
+		echo "Warning: python3 missing; ca left as placeholder — configure.php will load certs/ca.pem"
+	fi
 fi
 
 echo ""
