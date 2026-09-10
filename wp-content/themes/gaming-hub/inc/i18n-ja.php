@@ -55,6 +55,8 @@ return array(
 	'%s open now' => '募集中 %s 件',
 	'%s out of 5 stars' => '%s / 5 つ星',
 	'%s%% after plan' => '計画後 %s%%',
+	'Est. end of day %s' => '一日の終わり 見込み %s',
+	'Includes planned home charging and today’s expected driving. It can fall below the current SOC.' => '自宅の計画充電と、今日の走行見込みを反映した一日の終わりの残量です。走行が多いと、いまの残量より下がることがあります。',
 	'%sV AC charging' => '%sV 普通充電',
 	'%sh' => '%s時間',
 	'%sm' => '%s分',

@@ -180,6 +180,25 @@ function gaming_hub_japanese_map() {
 }
 
 /**
+ * Fill JA gaps for theme msgids not yet compiled into ja.mo.
+ *
+ * @param string $translation Translated text from gettext.
+ * @param string $text        Original msgid.
+ * @param string $domain      Text domain.
+ * @return string
+ */
+function gaming_hub_gettext_fill_ja( $translation, $text, $domain ) {
+	if ( GAMING_HUB_TEXT_DOMAIN !== $domain || 'ja' !== gaming_hub_lang() || $translation !== $text ) {
+		return $translation;
+	}
+
+	$map = gaming_hub_japanese_map();
+
+	return isset( $map[ $text ] ) ? $map[ $text ] : $translation;
+}
+add_filter( 'gettext', 'gaming_hub_gettext_fill_ja', 10, 3 );
+
+/**
  * Japanese strings stored in the DB → English when lang=en.
  *
  * @param string $text Stored value.

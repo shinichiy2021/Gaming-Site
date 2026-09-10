@@ -917,6 +917,8 @@ return array(
 	'いまの残量' => 'Charge now',
 	'目標残量' => 'Target charge',
 	'計画後 %s%%' => '%s%% after plan',
+	'一日の終わり 見込み %s' => 'Est. end of day %s',
+	'自宅の計画充電と、今日の走行見込みを反映した一日の終わりの残量です。走行が多いと、いまの残量より下がることがあります。' => 'Includes planned home charging and today’s expected driving. It can fall below the current SOC.',
 	'普通車換算 %1$s L · 節約 %2$s 円' => 'Gas-car equivalent %1$s L · saved %2$s yen',
 	'チャージキャップ' => 'Charge cap',
 	'電池ケア 20–80%' => 'Battery care 20–80%',
