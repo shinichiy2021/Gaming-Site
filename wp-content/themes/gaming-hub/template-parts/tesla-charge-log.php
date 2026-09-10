@@ -54,6 +54,20 @@ if ( $current ) {
 			<h3><?php esc_html_e('Charge session history', 'gaming-hub'); ?></h3>
 			<p class="ecoflow-plan-note">
 				<?php esc_html_e('Home 200V uses LOOOP rates. Supercharger cost comes from the Tesla Fleet charging history API and stays blank until that history appears.', 'gaming-hub'); ?>
+				<?php if ( ! empty( $totals['hidden_count'] ) ) : ?>
+					<span data-tesla-charge-hidden>
+						<?php
+						echo ' ';
+						printf(
+							/* translators: %d: number of brief sessions hidden from the list */
+							esc_html__( 'Brief wake/precondition pulses hidden: %d.', 'gaming-hub' ),
+							(int) $totals['hidden_count']
+						);
+						?>
+					</span>
+				<?php else : ?>
+					<span data-tesla-charge-hidden hidden></span>
+				<?php endif; ?>
 			</p>
 		</div>
 		<p class="ecoflow-plan-limits">

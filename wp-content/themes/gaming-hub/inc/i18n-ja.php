@@ -195,7 +195,7 @@ return array(
 	'Charge is already complete.' => 'すでに充電完了です。',
 	'Charge limit %s%%' => '充電上限 %s%%',
 	'Charge limit 100%' => '充電上限 100%',
-	'Charge now' => 'いまの残量',
+	'Brief wake/precondition pulses hidden: %d.' => '起動・プレコンの短い通電を非表示: %d件。',
 	'Charge off' => '充電オフ',
 	'Charge off sent.' => '充電オフを送りました。',
 	'Charge on' => '充電オン',

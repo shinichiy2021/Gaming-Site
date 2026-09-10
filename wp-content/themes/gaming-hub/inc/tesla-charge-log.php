@@ -17,6 +17,12 @@ define( 'GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_TTL', 6 * HOUR_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_CHARGE_HISTORY_SYNC_PENDING_TTL', 10 * MINUTE_IN_SECONDS );
 /** Fallback 円/kWh when no billed Supercharger sessions exist yet (JP membership ballpark). */
 define( 'GAMING_HUB_TESLA_SUPER_YEN_PER_KWH_FALLBACK', 45.0 );
+/**
+ * Hide wake / preconditioning pulses from the charge-log list when both
+ * duration and energy stay below these thresholds (AND).
+ */
+define( 'GAMING_HUB_TESLA_CHARGE_LOG_MICRO_MAX_MIN', 5 );
+define( 'GAMING_HUB_TESLA_CHARGE_LOG_MICRO_MAX_KWH', 0.5 );
 
 /**
  * Load stored charge sessions (newest first).
@@ -174,6 +180,26 @@ function gaming_hub_tesla_charge_log_shape( array $row ) {
 			: null,
 		'active'         => ! empty( $row['active'] ),
 	);
+}
+
+/**
+ * Brief wake / cabin-precondition pulses that clutter the charge log.
+ *
+ * Kept in storage and month energy/yen totals; omitted from the visible list.
+ *
+ * @param array<string, mixed> $shaped Shaped session row.
+ * @return bool
+ */
+function gaming_hub_tesla_charge_log_is_micro( array $shaped ) {
+	if ( ! empty( $shaped['active'] ) ) {
+		return false;
+	}
+
+	$minutes = (int) ( $shaped['duration_min'] ?? 0 );
+	$kwh     = (float) ( $shaped['kwh'] ?? 0 );
+
+	return $minutes < (int) GAMING_HUB_TESLA_CHARGE_LOG_MICRO_MAX_MIN
+		&& $kwh < (float) GAMING_HUB_TESLA_CHARGE_LOG_MICRO_MAX_KWH;
 }
 
 /**
@@ -813,6 +839,8 @@ function gaming_hub_tesla_charge_log_payload( $ym = '' ) {
 	$super_count = 0;
 	$super_yen   = 0;
 	$home_count  = 0;
+	$hidden_count = 0;
+	$hidden_kwh   = 0.0;
 
 	foreach ( $all as $row ) {
 		$end   = (string) ( $row['end_date'] ?? '' );
@@ -821,8 +849,9 @@ function gaming_hub_tesla_charge_log_payload( $ym = '' ) {
 		if ( ! $in_month ) {
 			continue;
 		}
-		$shaped     = gaming_hub_tesla_charge_log_shape( $row );
-		$sessions[] = $shaped;
+		$shaped = gaming_hub_tesla_charge_log_shape( $row );
+
+		// Month energy / cost keep every archived pulse for honest accounting.
 		$total_kwh += (float) $shaped['kwh'];
 		if ( 'supercharger' === $shaped['supply'] ) {
 			$super_kwh += (float) $shaped['kwh'];
@@ -830,11 +859,22 @@ function gaming_hub_tesla_charge_log_payload( $ym = '' ) {
 				$super_yen += (int) ( $shaped['yen'] ?? 0 );
 				$total_yen += (int) ( $shaped['yen'] ?? 0 );
 			}
-			++$super_count;
 		} else {
 			$home_kwh += (float) $shaped['kwh'];
 			$home_yen += (int) ( $shaped['yen'] ?? 0 );
 			$total_yen += (int) ( $shaped['yen'] ?? 0 );
+		}
+
+		if ( gaming_hub_tesla_charge_log_is_micro( $shaped ) ) {
+			++$hidden_count;
+			$hidden_kwh += (float) $shaped['kwh'];
+			continue;
+		}
+
+		$sessions[] = $shaped;
+		if ( 'supercharger' === $shaped['supply'] ) {
+			++$super_count;
+		} else {
 			++$home_count;
 		}
 	}
@@ -855,15 +895,17 @@ function gaming_hub_tesla_charge_log_payload( $ym = '' ) {
 		'sessions' => $sessions,
 		'current'  => gaming_hub_tesla_charge_log_current(),
 		'totals'   => array(
-			'count'       => count( $sessions ),
-			'kwh'         => round( $total_kwh, 2 ),
-			'yen'         => $total_yen,
-			'home_count'  => $home_count,
-			'home_kwh'    => round( $home_kwh, 2 ),
-			'home_yen'    => $home_yen,
-			'super_count' => $super_count,
-			'super_kwh'   => round( $super_kwh, 2 ),
-			'super_yen'   => $super_yen,
+			'count'        => count( $sessions ),
+			'kwh'          => round( $total_kwh, 2 ),
+			'yen'          => $total_yen,
+			'home_count'   => $home_count,
+			'home_kwh'     => round( $home_kwh, 2 ),
+			'home_yen'     => $home_yen,
+			'super_count'  => $super_count,
+			'super_kwh'    => round( $super_kwh, 2 ),
+			'super_yen'    => $super_yen,
+			'hidden_count' => $hidden_count,
+			'hidden_kwh'   => round( $hidden_kwh, 2 ),
 		),
 	);
 }

@@ -97,6 +97,7 @@ EN_ONLY_JA: dict[str, str] = {
     "EcoFlow portable power and solar energy content": "EcoFlow ポータブル電源・ソーラー記事",
     "Every 10 minutes": "10分ごと",
     "Every 5 minutes": "5分ごと",
+    "Brief wake/precondition pulses hidden: %d.": "起動・プレコンの短い通電を非表示: %d件。",
     "Est. end of day %s": "一日の終わり 見込み %s",
     "Example: MR51ZJ1APH6S0189": "例: MR51ZJ1APH6S0189",
     "Includes planned home charging and today’s expected driving. It can fall below the current SOC.": "自宅の計画充電と、今日の走行見込みを反映した一日の終わりの残量です。走行が多いと、いまの残量より下がることがあります。",
