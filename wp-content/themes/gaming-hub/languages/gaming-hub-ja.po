@@ -156,6 +156,12 @@ msgstr "%s / 5 つ星"
 msgid "%s%% after plan"
 msgstr "計画後 %s%%"
 
+msgid "Est. end of day %s"
+msgstr "一日の終わり 見込み %s"
+
+msgid "Includes planned home charging and today’s expected driving. It can fall below the current SOC."
+msgstr "自宅の計画充電と、今日の走行見込みを反映した一日の終わりの残量です。走行が多いと、いまの残量より下がることがあります。"
+
 msgid "%sV AC charging"
 msgstr "%sV 普通充電"
 

@@ -7135,6 +7135,39 @@ body.home .site-header.is-scrolled {
 	color: var(--color-text-muted);
 }
 
+.ecoflow-plan-soc-end-line {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.ecoflow-plan-hint {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.05rem;
+	height: 1.05rem;
+	border-radius: 50%;
+	border: 1px solid rgba(255, 255, 255, 0.28);
+	color: rgba(255, 255, 255, 0.72);
+	font-size: 0.68rem;
+	font-weight: 700;
+	line-height: 1;
+	cursor: help;
+	flex: none;
+	user-select: none;
+}
+
+.ecoflow-plan-hint[hidden] {
+	display: none !important;
+}
+
+.ecoflow-plan-hint:focus-visible {
+	outline: 2px solid rgba(0, 245, 212, 0.7);
+	outline-offset: 2px;
+}
+
 .ecoflow-stats-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

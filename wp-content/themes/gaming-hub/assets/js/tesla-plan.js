@@ -10,6 +10,20 @@
 		return window.gamingHubT ? window.gamingHubT(text) : text;
 	}
 
+	/** Translate then apply sprintf-style %% and %s / %1$s replacements. */
+	function ts(msgid, vars) {
+		let out = t(msgid).replace(/%%/g, '%');
+		if (!vars) {
+			return out;
+		}
+		Object.keys(vars).forEach(function (key) {
+			out = out.split(key).join(String(vars[key]));
+		});
+		return out;
+	}
+
+	const socEndHint = t('Includes planned home charging and today’s expected driving. It can fall below the current SOC.');
+
 	const views = {
 		today: null,
 		yesterday: null,
@@ -278,9 +292,18 @@
 		setText(
 			'[data-tesla-plan-soc-end]',
 			asleepToday
-				? t('スリープ中・固定')
-				: (plan.soc_end == null ? '' : t('計画後 %s%%').replace('%s', String(Math.round(Number(plan.soc_end)))))
+				? t('Asleep · held')
+				: (plan.soc_end == null ? '' : ts('Est. end of day %s', {
+					'%s': String(Math.round(Number(plan.soc_end))) + '%',
+				}))
 		);
+		const socEndHintEl = root.querySelector('[data-tesla-plan-soc-end-hint]');
+		if (socEndHintEl) {
+			const showHint = !asleepToday && plan.soc_end != null;
+			socEndHintEl.hidden = !showHint;
+			socEndHintEl.setAttribute('title', socEndHint);
+			socEndHintEl.setAttribute('aria-label', socEndHint);
+		}
 		setText(
 			'[data-tesla-plan-target]',
 			plan.target_soc == null ? '—' : String(Math.round(Number(plan.target_soc))) + '%'
@@ -358,8 +381,8 @@
 			setText(
 				'[data-tesla-plan-now-watts]',
 				plan.soc_now == null
-					? t('入眠時の残量を表示')
-					: t('固定 %s%%').replace('%s', String(Math.round(Number(plan.soc_now))))
+					? t('Showing pre-sleep battery %')
+					: ts('Held %s%%', { '%s': String(Math.round(Number(plan.soc_now))) })
 			);
 		} else if (liveCharging) {
 			setText('[data-tesla-plan-now-watts]', Math.round(Math.max(0, liveWatts)).toLocaleString() + ' W');

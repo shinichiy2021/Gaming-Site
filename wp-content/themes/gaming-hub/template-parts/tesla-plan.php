@@ -390,18 +390,33 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 			<div class="ecoflow-plan-card">
 				<span class="ecoflow-stat-label"><?php esc_html_e('Charge now', 'gaming-hub'); ?></span>
 				<strong data-tesla-plan-soc-now><?php echo esc_html( isset( $plan['soc_now'] ) ? number_format_i18n( (float) $plan['soc_now'], 0 ) . '%' : '—' ); ?></strong>
-				<small data-tesla-plan-soc-end>
+				<small class="ecoflow-plan-soc-end-line">
+					<span data-tesla-plan-soc-end>
+						<?php
+						if ( $asleep ) {
+							esc_html_e( 'Asleep · held', 'gaming-hub' );
+						} elseif ( isset( $plan['soc_end'] ) && null !== $plan['soc_end'] ) {
+							printf(
+								/* translators: %s: estimated end-of-day SOC including % sign, e.g. 82% */
+								esc_html__( 'Est. end of day %s', 'gaming-hub' ),
+								esc_html( number_format_i18n( (float) $plan['soc_end'], 0 ) . '%' )
+							);
+						}
+						?>
+					</span>
 					<?php
-					if ( $asleep ) {
-						esc_html_e('Asleep · held', 'gaming-hub');
-					} elseif ( isset( $plan['soc_end'] ) && null !== $plan['soc_end'] ) {
-						printf(
-							/* translators: %s: SOC */
-							esc_html__('%s%% after plan', 'gaming-hub'),
-							esc_html( number_format_i18n( (float) $plan['soc_end'], 0 ) )
-						);
-					}
+					$soc_end_hint = __( 'Includes planned home charging and today’s expected driving. It can fall below the current SOC.', 'gaming-hub' );
+					$show_soc_hint = ! $asleep && isset( $plan['soc_end'] ) && null !== $plan['soc_end'];
 					?>
+					<span
+						class="ecoflow-plan-hint"
+						data-tesla-plan-soc-end-hint
+						tabindex="0"
+						role="img"
+						title="<?php echo esc_attr( $soc_end_hint ); ?>"
+						aria-label="<?php echo esc_attr( $soc_end_hint ); ?>"
+						<?php echo $show_soc_hint ? '' : 'hidden'; ?>
+					>?</span>
 				</small>
 			</div>
 			<div class="ecoflow-plan-card">
