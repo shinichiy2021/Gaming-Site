@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import subprocess
 import textwrap
 from datetime import datetime, timezone
@@ -357,7 +358,13 @@ def write_db_en_map(ja_to_en: dict[str, str]) -> None:
 
 
 def compile_mo() -> None:
-    subprocess.run(["msgfmt", "-o", str(MO_FILE), str(PO_FILE)], check=True)
+    msgfmt = shutil.which("msgfmt")
+    if not msgfmt:
+        raise SystemExit(
+            "msgfmt not found. Install gettext "
+            "(apt-get install gettext / brew install gettext) before i18n:build."
+        )
+    subprocess.run([msgfmt, "-o", str(MO_FILE), str(PO_FILE)], check=True)
 
 
 def main() -> None:
