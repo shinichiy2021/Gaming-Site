@@ -1,6 +1,6 @@
 <?php
 /**
- * EcoFlow Pro 3 charge schedule: review the AI PLAN every 10 minutes and send when this hour's command changes.
+ * EcoFlow Pro 3 charge schedule: review the AI PLAN every 15 minutes and send when this hour's command changes.
  *
  * @package Gaming_Hub
  */
@@ -76,7 +76,7 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 			if ( $reserve ) {
 				return sprintf(
 					/* translators: 1: watts, 2: backup reserve percent */
-					__('Auto-approved. Reviews the plan every 10 minutes and sends only when this hour’s charge command changes. Last charge cap %1$s W · backup reserve %2$s%%.', 'gaming-hub'),
+					__('Auto-approved. Reviews the plan every 15 minutes and sends only when this hour’s charge command changes. Last charge cap %1$s W · backup reserve %2$s%%.', 'gaming-hub'),
 					number_format_i18n( (int) $watts ),
 					number_format_i18n( $reserve )
 				);
@@ -84,12 +84,12 @@ function gaming_hub_ecoflow_schedule_note( array $plan ) {
 
 			return sprintf(
 				/* translators: %s: watts */
-				__('Auto-approved. Reviews the plan every 10 minutes and sends only when this hour’s charge command changes. Last charge cap %s W.', 'gaming-hub'),
+				__('Auto-approved. Reviews the plan every 15 minutes and sends only when this hour’s charge command changes. Last charge cap %s W.', 'gaming-hub'),
 				number_format_i18n( (int) $watts )
 			);
 		}
 
-		return __('Auto-approved. Reviews the plan every 10 minutes and sends to Pro 3 only when this hour’s charge command changes.', 'gaming-hub');
+		return __('Auto-approved. Reviews the plan every 15 minutes and sends to Pro 3 only when this hour’s charge command changes.', 'gaming-hub');
 	}
 
 	if ( ! empty( $plan['is_approved_current'] ) ) {
@@ -682,7 +682,7 @@ function gaming_hub_register_ecoflow_schedule_rest() {
 add_action( 'rest_api_init', 'gaming_hub_register_ecoflow_schedule_rest' );
 
 /**
- * Five-minute cron interval.
+ * Cron intervals used by EcoFlow schedule / energy jobs.
  *
  * @param array<string, array<string, mixed>> $schedules Schedules.
  * @return array<string, array<string, mixed>>
@@ -700,6 +700,12 @@ function gaming_hub_ecoflow_cron_schedules( $schedules ) {
 			'display'  => __( 'Every 10 minutes', 'gaming-hub' ),
 		);
 	}
+	if ( ! isset( $schedules['fifteen_minutes'] ) ) {
+		$schedules['fifteen_minutes'] = array(
+			'interval' => 15 * MINUTE_IN_SECONDS,
+			'display'  => __( 'Every 15 minutes', 'gaming-hub' ),
+		);
+	}
 
 	return $schedules;
 }
@@ -714,12 +720,12 @@ function gaming_hub_ecoflow_schedule_cron() {
 		: false;
 	$ts    = is_object( $event ) ? (int) ( $event->timestamp ?? 0 ) : 0;
 	$sched = is_object( $event ) ? (string) ( $event->schedule ?? '' ) : '';
-	$stale = $ts && $ts < time() - 20 * MINUTE_IN_SECONDS;
-	$wrong = ! $event || 'ten_minutes' !== $sched;
+	$stale = $ts && $ts < time() - 30 * MINUTE_IN_SECONDS;
+	$wrong = ! $event || 'fifteen_minutes' !== $sched;
 
 	if ( $stale || $wrong ) {
 		wp_clear_scheduled_hook( GAMING_HUB_ECOFLOW_SCHEDULE_CRON );
-		wp_schedule_event( time() + 30, 'ten_minutes', GAMING_HUB_ECOFLOW_SCHEDULE_CRON );
+		wp_schedule_event( time() + 30, 'fifteen_minutes', GAMING_HUB_ECOFLOW_SCHEDULE_CRON );
 	}
 }
 add_action( 'init', 'gaming_hub_ecoflow_schedule_cron' );

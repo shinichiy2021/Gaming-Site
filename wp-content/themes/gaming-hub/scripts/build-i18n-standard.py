@@ -96,6 +96,7 @@ EN_ONLY_JA: dict[str, str] = {
     "EcoFlow Device Status": "EcoFlow 機器ステータス",
     "EcoFlow portable power and solar energy content": "EcoFlow ポータブル電源・ソーラー記事",
     "Every 10 minutes": "10分ごと",
+    "Every 15 minutes": "15分ごと",
     "Every 5 minutes": "5分ごと",
     "Away / DC": "外出先・DC",
     "Brief wake/precondition pulses hidden: %d.": "起動・プレコンの短い通電を非表示: %d件。",
