@@ -29,6 +29,32 @@ mkdir -p "${CERTS}" "${DIR}/telemetry-data"
 if [[ ! -f "${TELEM}/config.json" ]]; then
 	echo "==> Writing ${TELEM}/config.json from example"
 	cp "${TELEM}/config.example.json" "${TELEM}/config.json"
+elif command -v python3 >/dev/null 2>&1; then
+	# Phase 2: ensure MQTT dispatcher is present on upgrades from Phase 1 configs.
+	EXAMPLE="${TELEM}/config.example.json" CONFIG="${TELEM}/config.json" python3 - <<'PY'
+import json, os, pathlib
+example = json.loads(pathlib.Path(os.environ["EXAMPLE"]).read_text(encoding="utf-8"))
+path = pathlib.Path(os.environ["CONFIG"])
+cfg = json.loads(path.read_text(encoding="utf-8"))
+changed = False
+if "mqtt" in example:
+	if cfg.get("mqtt") != example["mqtt"]:
+		cfg["mqtt"] = example["mqtt"]
+		changed = True
+records = cfg.setdefault("records", {})
+for key, dispatchers in example.get("records", {}).items():
+	cur = list(records.get(key, []))
+	for d in dispatchers:
+		if d not in cur:
+			cur.append(d)
+			changed = True
+	records[key] = cur
+if changed:
+	path.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+	print("==> Updated config.json with MQTT dispatcher (Phase 2)")
+else:
+	print("==> config.json already has MQTT / records")
+PY
 fi
 
 have_server_cert=0
@@ -122,13 +148,16 @@ echo "  Config: ${TELEM}/config.json"
 echo "  Certs:  ${CERTS}/server.crt (+ ca.pem)"
 echo "  Vehicle payload: ${OUT}"
 echo ""
-echo "Start (production):"
-echo "  docker compose -f docker-compose.prod.yml --profile telemetry up -d tesla-fleet-telemetry"
+echo "Start (production Phase 1+2):"
+echo "  # Ensure .env has TESLA_TELEMETRY_BRIDGE_TOKEN=<random secret>"
+echo "  docker compose -f docker-compose.prod.yml --profile telemetry up -d"
 echo ""
 echo "Send config to the car (after proxy + OAuth work):"
 echo "  docker compose -f docker-compose.prod.yml exec -T wordpress \\"
 echo "    php /var/www/html/scripts/tesla-telemetry-configure.php"
 echo ""
-echo "Watch ingest:"
+echo "Watch ingest / bridge:"
 echo "  docker logs -f gaming-site-tesla-telemetry"
+echo "  docker logs -f gaming-site-tesla-telemetry-bridge"
 echo "  curl -sS http://127.0.0.1:${TESLA_TELEMETRY_STATUS_PORT:-8444}/status || true"
+echo "  cat tesla/telemetry-data/latest.json"

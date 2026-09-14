@@ -7,10 +7,20 @@
   "namespace": "gaming_hub",
   "transmit_decoded_records": true,
   "records": {
-    "V": ["logger"],
+    "V": ["logger", "mqtt"],
     "alerts": ["logger"],
     "errors": ["logger"],
-    "connectivity": ["logger"]
+    "connectivity": ["logger", "mqtt"]
+  },
+  "mqtt": {
+    "broker": "tesla-telemetry-mqtt:1883",
+    "client_id": "fleet-telemetry",
+    "topic_base": "gaming_hub",
+    "qos": 1,
+    "retained": true,
+    "connect_timeout_ms": 30000,
+    "publish_timeout_ms": 2500,
+    "keep_alive_seconds": 30
   },
   "tls": {
     "server_cert": "/etc/certs/server.crt",

@@ -51,6 +51,7 @@ services:
       TESLA_REDIRECT_URI: ${TESLA_REDIRECT_URI:-https://shinichiy-gaming-hub.com/wp-json/gaming-hub/v1/tesla/oauth/callback}
       TESLA_PARTNER_DOMAIN: ${TESLA_PARTNER_DOMAIN:-shinichiy-gaming-hub.com}
       TESLA_COMMAND_PROXY_URL: ${TESLA_COMMAND_PROXY_URL:-https://tesla-http-proxy:4443}
+      TESLA_TELEMETRY_BRIDGE_TOKEN: ${TESLA_TELEMETRY_BRIDGE_TOKEN:-}
       GAMING_HUB_ENERGY_ORIGIN: ${GAMING_HUB_ENERGY_ORIGIN:-}
     volumes:
       - wp_data:/var/www/html
@@ -59,6 +60,7 @@ services:
       - ./wp-content/ecoflow-cache:/var/www/html/wp-content/ecoflow-cache
       - ./scripts:/var/www/html/scripts:ro
       - ./tesla/telemetry:/tesla/telemetry:ro
+      - ./tesla/telemetry-data:/tesla/telemetry-data:ro
       - ./config/.htaccess:/var/www/html/.htaccess
       - ./config/googlee038b6ecd4369c0c.html:/var/www/html/googlee038b6ecd4369c0c.html:ro
     networks:
@@ -93,17 +95,29 @@ services:
     networks:
       - gaming-network
 
-  # Phase 1: receive Fleet Telemetry from the vehicle (stdout logger only).
-  # Cars connect to host:8443 (TLS). WordPress is not wired yet.
-  # Prepare: bash scripts/tesla-telemetry-prepare.sh
+  # Phase 1+2: receive Fleet Telemetry; MQTT → bridge → WP cache.
+  # Cars connect to host:8443 (TLS). Prepare: bash scripts/tesla-telemetry-prepare.sh
   # Configure vehicle: docker compose -f docker-compose.prod.yml exec -T wordpress \
   #   php /var/www/html/scripts/tesla-telemetry-configure.php
+  tesla-telemetry-mqtt:
+    image: eclipse-mosquitto:2
+    container_name: gaming-site-tesla-telemetry-mqtt
+    restart: unless-stopped
+    profiles:
+      - telemetry
+    volumes:
+      - ./tesla/telemetry/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - gaming-network
+
   tesla-fleet-telemetry:
     image: tesla/fleet-telemetry:v0.9.4
     container_name: gaming-site-tesla-telemetry
     restart: unless-stopped
     profiles:
       - telemetry
+    depends_on:
+      - tesla-telemetry-mqtt
     volumes:
       - ./tesla/telemetry/config.json:/etc/fleet-telemetry/config.json:ro
       - ./tesla/telemetry/certs:/etc/certs:ro
@@ -117,6 +131,32 @@ services:
       - -config=/etc/fleet-telemetry/config.json
     security_opt:
       - no-new-privileges:true
+    networks:
+      - gaming-network
+
+  # Phase 2: MQTT subscriber → POST /wp-json/gaming-hub/v1/tesla/telemetry
+  tesla-telemetry-bridge:
+    image: node:20-alpine
+    container_name: gaming-site-tesla-telemetry-bridge
+    working_dir: /app
+    restart: unless-stopped
+    profiles:
+      - telemetry
+    depends_on:
+      - tesla-telemetry-mqtt
+      - wordpress
+    environment:
+      TESLA_TELEMETRY_MQTT_URL: mqtt://tesla-telemetry-mqtt:1883
+      TESLA_TELEMETRY_MQTT_TOPIC_BASE: gaming_hub
+      TESLA_TELEMETRY_DATA_DIR: /data
+      TESLA_TELEMETRY_WP_URL: http://wordpress/wp-json/gaming-hub/v1/tesla/telemetry
+      TESLA_TELEMETRY_BRIDGE_TOKEN: ${TESLA_TELEMETRY_BRIDGE_TOKEN:-}
+      TESLA_VEHICLE_VIN: ${TESLA_VEHICLE_VIN:-}
+    volumes:
+      - ./wp-content/themes/gaming-hub:/app
+      - bridge_node_modules:/app/node_modules
+      - ./tesla/telemetry-data:/data
+    command: sh -c "npm install --omit=dev && node scripts/tesla-telemetry-bridge.mjs"
     networks:
       - gaming-network
 

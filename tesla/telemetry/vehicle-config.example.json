@@ -4,9 +4,17 @@
   "ca": "PASTE_PEM_FROM_tesla/telemetry/certs/ca.pem",
   "fields": {
     "Soc": { "interval_seconds": 60 },
+    "BatteryLevel": { "interval_seconds": 60 },
+    "EnergyRemaining": { "interval_seconds": 60 },
     "DetailedChargeState": { "interval_seconds": 5 },
     "ChargeAmps": { "interval_seconds": 10 },
+    "ACChargingPower": { "interval_seconds": 10 },
+    "DCChargingPower": { "interval_seconds": 10 },
+    "ChargerVoltage": { "interval_seconds": 10 },
     "ChargeLimitSoc": { "interval_seconds": 60 },
-    "EnergyRemaining": { "interval_seconds": 60 }
+    "ChargePortLatch": { "interval_seconds": 30 },
+    "FastChargerPresent": { "interval_seconds": 30 },
+    "TimeToFullCharge": { "interval_seconds": 30 },
+    "EstBatteryRange": { "interval_seconds": 60 }
   }
 }
