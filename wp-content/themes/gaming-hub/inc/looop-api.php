@@ -33,9 +33,19 @@ function gaming_hub_looop_now() {
  * @param string $format          PHP date format.
  */
 function gaming_hub_looop_format_datetime( $datetime_string, $format = 'n/j H:i' ) {
-	$datetime = new DateTimeImmutable( $datetime_string, gaming_hub_looop_timezone() );
+	$datetime  = new DateTimeImmutable( $datetime_string, gaming_hub_looop_timezone() );
+	$timestamp = $datetime->getTimestamp();
+	$tz        = gaming_hub_looop_timezone();
 
-	return wp_date( $format, $datetime->getTimestamp(), gaming_hub_looop_timezone() );
+	// wp_date('D') stays English without the core JA language pack.
+	if ( false !== strpos( $format, 'D' ) && function_exists( 'gaming_hub_weekday_abbrev' ) ) {
+		$base_format = str_replace( array( ' (D)', '(D)', ' D', 'D' ), '', $format );
+		$base        = wp_date( $base_format, $timestamp, $tz );
+
+		return $base . ' (' . gaming_hub_weekday_abbrev( $timestamp ) . ')';
+	}
+
+	return wp_date( $format, $timestamp, $tz );
 }
 
 /**
