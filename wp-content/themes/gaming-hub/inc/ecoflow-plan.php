@@ -699,6 +699,10 @@ function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status, $l
 	$plan_date = (string) ( $plan['plan_date'] ?? $dates['today'] );
 	$is_today  = $plan_date === $dates['today'];
 
+	if ( $live && $is_today ) {
+		$plan = gaming_hub_ecoflow_apply_sticky_current_charge_slot( $plan, $status );
+	}
+
 	if ( $live && $is_today && function_exists( 'gaming_hub_ecoflow_attach_schedule_state' ) ) {
 		$plan = gaming_hub_ecoflow_attach_schedule_state( $plan );
 	}
@@ -1068,6 +1072,17 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 				number_format_i18n( $target_soc ),
 				number_format_i18n( (int) round( $headroom_soc ) )
 			);
+		}
+	}
+
+	if ( 'today' === $day_key ) {
+		$stuck = gaming_hub_ecoflow_stick_current_charge_pick( $picked, $hour, $soc, $target_soc, $plan_date );
+		if ( $stuck['stuck'] ) {
+			$picked       = $stuck['picked'];
+			$windows      = $picked['windows'];
+			$avg_yen      = $picked['avg_yen'];
+			$needed       = empty( $picked['picked'] );
+			$deficit_kwh  = round( count( $picked['picked'] ) * ( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W / 1000.0 ), 2 );
 		}
 	}
 
@@ -1718,6 +1733,161 @@ function gaming_hub_ecoflow_make_slot( $date, $hour, $past, $solar_hours, $charg
 		'yen'     => null === $yen ? null : round( (float) $yen, 1 ),
 		'past'    => (bool) $past,
 	);
+}
+
+/**
+ * Whether this local hour should stay on charge until it ends (or target SOC is hit).
+ *
+ * @param int $soc        Live Pro SOC %.
+ * @param int $target_soc Cheap-hour target SOC %.
+ */
+function gaming_hub_ecoflow_should_stick_current_charge( $soc, $target_soc ) {
+	if ( (int) $soc >= (int) $target_soc ) {
+		return false;
+	}
+
+	if ( ! function_exists( 'gaming_hub_ecoflow_get_saved_schedule' ) ) {
+		return false;
+	}
+
+	$saved = gaming_hub_ecoflow_get_saved_schedule();
+	if ( ( $saved['status'] ?? '' ) !== 'approved' ) {
+		return false;
+	}
+
+	$hour_id = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
+
+	if ( (int) ( $saved['last_applied_w'] ?? 0 ) > (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W
+		&& (string) ( $saved['last_applied_hour'] ?? '' ) === $hour_id ) {
+		return true;
+	}
+
+	foreach ( (array) ( $saved['slots'] ?? array() ) as $slot ) {
+		if ( ! is_array( $slot ) ) {
+			continue;
+		}
+		if ( (string) ( $slot['id'] ?? '' ) === $hour_id
+			&& (int) ( $slot['watts'] ?? 0 ) > (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Keep the current hour in the cheap-hour pick when charge was already committed.
+ *
+ * @param array{windows?: array<int, string>, avg_yen?: float|null, picked?: array<int, array{hour: int, index: int, yen: float}>} $picked
+ * @param int    $from_hour  Current hour 0–23.
+ * @param int    $soc        Live Pro SOC %.
+ * @param int    $target_soc Cheap-hour target SOC %.
+ * @param string $plan_date  Y-m-d.
+ * @return array{stuck: bool, picked: array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array{hour: int, index: int, yen: float}>}}
+ */
+function gaming_hub_ecoflow_stick_current_charge_pick( array $picked, $from_hour, $soc, $target_soc, $plan_date ) {
+	$base = array(
+		'windows' => is_array( $picked['windows'] ?? null ) ? $picked['windows'] : array(),
+		'avg_yen' => $picked['avg_yen'] ?? null,
+		'picked'  => is_array( $picked['picked'] ?? null ) ? $picked['picked'] : array(),
+	);
+
+	if ( ! gaming_hub_ecoflow_should_stick_current_charge( $soc, $target_soc ) ) {
+		return array(
+			'stuck'  => false,
+			'picked' => $base,
+		);
+	}
+
+	$from_hour = (int) $from_hour;
+	foreach ( $base['picked'] as $row ) {
+		if ( (int) ( $row['hour'] ?? -1 ) === $from_hour && (int) ( $row['index'] ?? -1 ) === 0 ) {
+			return array(
+				'stuck'  => true,
+				'picked' => $base,
+			);
+		}
+	}
+
+	$yen      = null;
+	$price    = gaming_hub_ecoflow_smart_time_one_price_map();
+	$day_map  = is_array( $price ) && isset( $price['map'] ) && is_array( $price['map'] ) ? $price['map'] : array();
+	if ( isset( $day_map[ $from_hour ] ) ) {
+		$yen = (float) $day_map[ $from_hour ];
+	} elseif ( is_array( $price ) && isset( $price['fallback'] ) ) {
+		$yen = (float) $price['fallback'];
+	} else {
+		$yen = 0.0;
+	}
+
+	$base['picked'][] = array(
+		'hour'  => $from_hour,
+		'index' => 0,
+		'yen'   => $yen,
+	);
+
+	usort(
+		$base['picked'],
+		static function ( $a, $b ) {
+			return (int) $a['index'] <=> (int) $b['index'];
+		}
+	);
+
+	$base['windows'] = gaming_hub_ecoflow_group_hour_windows( $base['picked'] );
+	$base['avg_yen'] = round(
+		array_sum( array_column( $base['picked'], 'yen' ) ) / max( 1, count( $base['picked'] ) ),
+		1
+	);
+
+	return array(
+		'stuck'  => true,
+		'picked' => $base,
+	);
+}
+
+/**
+ * Overlay sticky charge onto an already-built/cached today plan (cache-safe).
+ *
+ * @param array<string, mixed> $plan   Charge plan.
+ * @param array<string, mixed> $status Device status.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_apply_sticky_current_charge_slot( array $plan, array $status ) {
+	$soc    = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
+	$target = isset( $plan['target_soc'] ) ? (int) $plan['target_soc'] : (int) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC;
+
+	if ( ! gaming_hub_ecoflow_should_stick_current_charge( $soc, $target ) ) {
+		return $plan;
+	}
+
+	if ( empty( $plan['slots'] ) || ! is_array( $plan['slots'] ) ) {
+		return $plan;
+	}
+
+	$hour_id = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
+	$changed = false;
+
+	foreach ( $plan['slots'] as &$slot ) {
+		if ( ! is_array( $slot ) || (string) ( $slot['id'] ?? '' ) !== $hour_id ) {
+			continue;
+		}
+		if ( (int) ( $slot['watts'] ?? 0 ) <= (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W ) {
+			$slot['watts'] = (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W;
+			$slot['mode']  = 'charge';
+			$changed       = true;
+		}
+		break;
+	}
+	unset( $slot );
+
+	if ( ! $changed ) {
+		return $plan;
+	}
+
+	$plan['needs_grid'] = true;
+	$plan['plan_id']    = gaming_hub_ecoflow_plan_id_from_slots( $plan['slots'] );
+
+	return $plan;
 }
 
 /**
