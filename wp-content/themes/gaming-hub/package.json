@@ -13,7 +13,8 @@
     "dev:ecoflow": "FLOW_TARGET=ecoflow vite build --watch",
     "dev:hub": "FLOW_TARGET=hub vite build --watch",
     "poll:ecoflow-app": "node scripts/ecoflow-app-quota.mjs",
-    "bridge:ecoflow-app": "node scripts/ecoflow-bridge-daemon.mjs"
+    "bridge:ecoflow-app": "node scripts/ecoflow-bridge-daemon.mjs",
+    "bridge:tesla-telemetry": "node scripts/tesla-telemetry-bridge.mjs"
   },
   "dependencies": {
     "mqtt": "^5.15.2",

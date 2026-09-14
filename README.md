@@ -257,19 +257,21 @@ cp public-key.pem /opt/gaming-hub/tesla/public-key.pem
 curl -sI https://shinichiy-gaming-hub.com/.well-known/appspecific/com.tesla.3p.public-key.pem
 ```
 
-### Tesla Fleet Telemetry（Phase 1・任意）
+### Tesla Fleet Telemetry（Phase 1+2・任意）
 
-車から SOC / 充電状態を受け取る受信コンテナ。サイト表示への接続はまだしない。
+車から SOC / 充電状態を受け取り、MQTT ブリッジ経由で WordPress の Model 3 キャッシュを更新する。
+ポーリングは当面残す（Phase 3 で縮減）。
 
 手順の詳細: [`tesla/README.md`](tesla/README.md)
 
 ```bash
 cd /opt/gaming-hub
+# .env に TESLA_TELEMETRY_BRIDGE_TOKEN を追加
 bash scripts/tesla-telemetry-prepare.sh
-docker compose -f docker-compose.prod.yml --profile telemetry up -d tesla-fleet-telemetry
+docker compose -f docker-compose.prod.yml --profile telemetry up -d
 docker compose -f docker-compose.prod.yml exec -T wordpress \
   php /var/www/html/scripts/tesla-telemetry-configure.php
-docker logs -f gaming-site-tesla-telemetry
+docker logs -f gaming-site-tesla-telemetry-bridge
 ```
 
 ## Commands

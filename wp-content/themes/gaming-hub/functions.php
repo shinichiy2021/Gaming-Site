@@ -99,6 +99,7 @@ require get_template_directory() . '/inc/powerwall-home.php';
 require get_template_directory() . '/inc/powerwall-model3.php';
 require get_template_directory() . '/inc/powerwall-cost.php';
 require get_template_directory() . '/inc/tesla.php';
+require get_template_directory() . '/inc/tesla-telemetry.php';
 require get_template_directory() . '/inc/tajimi-gasoline.php';
 require get_template_directory() . '/inc/tesla-flow.php';
 require get_template_directory() . '/inc/tesla-gas-log.php';
