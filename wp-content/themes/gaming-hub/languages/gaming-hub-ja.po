@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Gaming Hub\n"
-"POT-Creation-Date: 2026-09-09 06:19+0000\n"
-"PO-Revision-Date: 2026-09-09 06:19+0000\n"
+"POT-Creation-Date: 2026-09-14 20:29+0000\n"
+"PO-Revision-Date: 2026-09-14 20:29+0000\n"
 "Language: ja\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -155,12 +155,6 @@ msgstr "%s / 5 つ星"
 
 msgid "%s%% after plan"
 msgstr "計画後 %s%%"
-
-msgid "Est. end of day %s"
-msgstr "一日の終わり 見込み %s"
-
-msgid "Includes planned home charging and today’s expected driving. It can fall below the current SOC."
-msgstr "自宅の計画充電と、今日の走行見込みを反映した一日の終わりの残量です。走行が多いと、いまの残量より下がることがあります。"
 
 msgid "%sV AC charging"
 msgstr "%sV 普通充電"
@@ -378,14 +372,14 @@ msgstr "わざ"
 msgid "Auto control error: %s"
 msgstr "自動制御エラー: %s"
 
-msgid "Auto-approved. Reviews the plan every 10 minutes and sends only when this hour’s charge command changes. Last charge cap %1$s W · backup reserve %2$s%%."
-msgstr "自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。"
+msgid "Auto-approved. Reviews the plan every 15 minutes and sends only when this hour’s charge command changes. Last charge cap %1$s W · backup reserve %2$s%%."
+msgstr "自動承認中。15分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。"
 
-msgid "Auto-approved. Reviews the plan every 10 minutes and sends only when this hour’s charge command changes. Last charge cap %s W."
-msgstr "自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %s W です。"
+msgid "Auto-approved. Reviews the plan every 15 minutes and sends only when this hour’s charge command changes. Last charge cap %s W."
+msgstr "自動承認中。15分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %s W です。"
 
-msgid "Auto-approved. Reviews the plan every 10 minutes and sends to Pro 3 only when this hour’s charge command changes."
-msgstr "自動承認中。10分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ Pro 3 に送ります。"
+msgid "Auto-approved. Reviews the plan every 15 minutes and sends to Pro 3 only when this hour’s charge command changes."
+msgstr "自動承認中。15分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ Pro 3 に送ります。"
 
 msgid "Auto-approved. Sends only when the charge schedule changes. Last charge cap %1$s W · backup reserve %2$s%%."
 msgstr "自動承認中。充電スケジュールが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。"
@@ -438,6 +432,9 @@ msgstr "平均 %s 円/kWh"
 msgid "Avg ¥/km"
 msgstr "平均単価"
 
+msgid "Away / DC"
+msgstr "外出先・DC"
+
 msgid "Away AC"
 msgstr "外出先 AC"
 
@@ -449,9 +446,6 @@ msgstr "外出先充電: 100%% まで常時充電中。直近は %s に充電オ
 
 msgid "BUY"
 msgstr "買電"
-
-msgid "Brief wake/precondition pulses hidden: %d."
-msgstr "起動・プレコンの短い通電を非表示: %d件。"
 
 msgid "Back to Pokémon GO"
 msgstr "Pokémon GO へ戻る"
@@ -509,6 +503,9 @@ msgstr "両方"
 
 msgid "Braking / regen"
 msgstr "減速・ブレーキ"
+
+msgid "Brief wake/precondition pulses hidden: %d."
+msgstr "起動・プレコンの短い通電を非表示: %d件。"
 
 msgid "Built-in hybrid inverter. Manage solar, EV charging, and self-consumption in the Tesla app"
 msgstr "ハイブリッドインバータ内蔵。太陽光・EV充電・自家消費を Tesla アプリで管理"
@@ -1005,6 +1002,9 @@ msgstr "エネルギー × ゲーム"
 msgid "Enter a trainer name and friend code"
 msgstr "トレーナー名とフレンドコードを入力してください"
 
+msgid "Est. end of day %s"
+msgstr "一日の終わり 見込み %s"
+
 msgid "Estimated remaining"
 msgstr "推定残量"
 
@@ -1028,6 +1028,9 @@ msgstr "イベント・レイド情報と、注目 YouTuber の最新動画。"
 
 msgid "Every 10 minutes"
 msgstr "10分ごと"
+
+msgid "Every 15 minutes"
+msgstr "15分ごと"
 
 msgid "Every 5 minutes"
 msgstr "5分ごと"
@@ -1275,6 +1278,9 @@ msgstr "強い雪"
 msgid "Held %s%%"
 msgstr "固定 %s%%"
 
+msgid "Held SOC"
+msgstr "固定残量"
+
 msgid "Held battery %"
 msgstr "固定残量"
 
@@ -1337,6 +1343,9 @@ msgstr "自宅 LOOOP のみ"
 
 msgid "Home and on-the-go charging"
 msgstr "自宅・外出先の充電まわり"
+
+msgid "Home charge"
+msgstr "自宅充電"
 
 msgid "Home charge (actual)"
 msgstr "自宅充電（実績）"
@@ -1418,6 +1427,9 @@ msgstr "入力 %s kWh"
 
 msgid "In progress"
 msgstr "進行中"
+
+msgid "Includes planned home charging and today’s expected driving. It can fall below the current SOC."
+msgstr "自宅の計画充電と、今日の走行見込みを反映した一日の終わりの残量です。走行が多いと、いまの残量より下がることがあります。"
 
 msgid "Independent from Pro. Low Volt solar feeds the 1500. Extra Battery 1 kWh attached. Combined 2.5 kWh. Live meters wait on the MQTT bridge."
 msgstr "Pro とは独立。Low Volt ソーラーは 1500 へ入力。Extra Battery 1kW 接続。合算 2.5 kWh。ライブ計測は MQTT ブリッジ待ち。"
@@ -1971,6 +1983,9 @@ msgstr "ボスと残り時間を選んで投稿"
 msgid "Plan date"
 msgstr "計画の日付"
 
+msgid "Planned (idle)"
+msgstr "計画（未実行）"
+
 msgid "Planned only (not running)"
 msgstr "計画のみ（未実行）"
 
@@ -2136,6 +2151,9 @@ msgstr "まれ"
 msgid "Rare: %s"
 msgstr "まれ: %s"
 
+msgid "Rate"
+msgstr "単価"
+
 msgid "Rating"
 msgstr "評価"
 
@@ -2227,7 +2245,7 @@ msgid "SLEEP"
 msgstr "SLEEP"
 
 msgid "SOC"
-msgstr "SOC"
+msgstr "残量"
 
 msgid "SOC (1500 · live)"
 msgstr "残量 (1500 · 実測)"
