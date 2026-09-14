@@ -308,7 +308,11 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 		! empty( $GLOBALS['gaming_hub_ecoflow_force_plan_refresh'] )
 	);
 
-	if ( function_exists( 'gaming_hub_ecoflow_autosync_charge_plan' ) ) {
+	// Commit plan + device commands only on the 15-minute cron (force refresh).
+	// UI polls may rebuild the proposal for display, but must not flip Pro mid-hour.
+	$commit_device = ! empty( $GLOBALS['gaming_hub_ecoflow_force_plan_refresh'] );
+
+	if ( $commit_device && function_exists( 'gaming_hub_ecoflow_autosync_charge_plan' ) ) {
 		$status['charge_plan'] = gaming_hub_ecoflow_autosync_charge_plan( $status['charge_plan'] );
 	}
 
@@ -318,7 +322,11 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 	}
 
 	if ( function_exists( 'gaming_hub_ecoflow_apply_approved_schedule' ) ) {
-		gaming_hub_ecoflow_apply_approved_schedule( false, $status['charge_plan'] );
+		if ( $commit_device ) {
+			gaming_hub_ecoflow_apply_approved_schedule( false, $status['charge_plan'] );
+		} elseif ( function_exists( 'gaming_hub_ecoflow_maybe_apply_device_guard' ) ) {
+			gaming_hub_ecoflow_maybe_apply_device_guard( $status );
+		}
 	}
 
 	if ( ! empty( $status['charge_plan'] ) && is_array( $status['charge_plan'] ) && function_exists( 'gaming_hub_ecoflow_attach_schedule_state' ) ) {

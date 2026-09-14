@@ -500,6 +500,58 @@ function gaming_hub_ecoflow_current_approved_slot( array $saved, $slots = null )
 }
 
 /**
+ * Limited device applies outside the 15-minute commit cron.
+ *
+ * - New local hour → apply the last committed plan's slot for that hour.
+ * - SOC already at/above target while charging → stop for the rest of this hour.
+ *
+ * Does not adopt a freshly rebuilt live plan (that is cron-only).
+ *
+ * @param array<string, mixed> $status EcoFlow status with charge_plan.
+ * @return true|WP_Error
+ */
+function gaming_hub_ecoflow_maybe_apply_device_guard( array $status ) {
+	$saved = gaming_hub_ecoflow_get_saved_schedule();
+	if ( ( $saved['status'] ?? '' ) !== 'approved' ) {
+		return true;
+	}
+
+	$hour_id = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
+	$last    = (string) ( $saved['last_applied_hour'] ?? '' );
+	$soc     = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
+	$target  = isset( $status['charge_plan']['target_soc'] )
+		? (int) $status['charge_plan']['target_soc']
+		: ( defined( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC : 100 );
+	$last_w  = array_key_exists( 'last_applied_w', $saved ) && null !== $saved['last_applied_w']
+		? (int) $saved['last_applied_w']
+		: null;
+
+	if ( null !== $last_w
+		&& $last_w > (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W
+		&& $last === $hour_id
+		&& $soc >= $target ) {
+		return gaming_hub_ecoflow_apply_approved_schedule(
+			true,
+			array(
+				'slots' => array(
+					array(
+						'id'    => $hour_id,
+						'watts' => (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
+						'mode'  => 'idle',
+					),
+				),
+			)
+		);
+	}
+
+	if ( $last !== $hour_id ) {
+		return gaming_hub_ecoflow_apply_approved_schedule( false, null );
+	}
+
+	return true;
+}
+
+/**
  * Clamp to the idle floor (0 W) and the site charge cap.
  *
  * @param int $watts Requested watts.
