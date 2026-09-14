@@ -34,6 +34,10 @@ define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF', 5 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_DC_W', 100 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH', 4096 );
+/** Deficit above this starts a new grid-charge plan (kWh). */
+define( 'GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH', 0.8 );
+/** Deficit below this stops an active grid-charge plan (kWh). */
+define( 'GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH', 0.2 );
 
 /**
  * Combined EcoFlow array: Pro high-volt 800 W + Delta 1500 low-volt 500 W.
@@ -629,7 +633,8 @@ function gaming_hub_ecoflow_get_charge_plan( array $status, $force = false ) {
 	$delta_pack = gaming_hub_ecoflow_plan_delta_pack( $status );
 	$delta_key  = null !== ( $delta_pack['soc'] ?? null ) ? (int) floor( (float) $delta_pack['soc'] / 5 ) : 'x';
 	$dates      = gaming_hub_ecoflow_plan_dates();
-	$key        = 'gaming_hub_ecoflow_plan_v35_' . $dates['today'] . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM;
+	$was_grid   = gaming_hub_ecoflow_plan_was_grid_charging() ? '1' : '0';
+	$key        = 'gaming_hub_ecoflow_plan_v36_' . $dates['today'] . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH;
 
 	if ( ! $force ) {
 		$cached = get_transient( $key );
@@ -974,8 +979,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	$target_soc    = gaming_hub_ecoflow_plan_grid_target_soc( $full_wh, $pro_solar_remaining_kwh );
 	$projected_soc = gaming_hub_ecoflow_plan_projected_soc( $soc, $full_wh, $pro_solar_remaining_kwh, $room_remaining_kwh );
 	$deficit_kwh   = gaming_hub_ecoflow_plan_charge_to_target_kwh( $soc, $full_wh, $target_soc );
-	$skip_kwh      = max( 0.05, ( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W / 1000.0 ) * 0.5 );
-	$needed        = $deficit_kwh <= $skip_kwh;
+	$was_charging  = ( 'yesterday' !== $day_key ) && gaming_hub_ecoflow_plan_was_grid_charging();
+	$needed        = gaming_hub_ecoflow_plan_deficit_skips_grid( $deficit_kwh, $was_charging );
 
 	$windows = array();
 	$avg_yen = null;
@@ -1309,6 +1314,69 @@ function gaming_hub_ecoflow_plan_charge_to_target_kwh( $soc, $full_wh, $target_s
 	$now_kwh    = ( (float) $soc / 100.0 ) * $full_kwh;
 
 	return max( 0.0, $target_kwh - $now_kwh );
+}
+
+/**
+ * Whether an approved plan is still in a grid-charging posture.
+ */
+function gaming_hub_ecoflow_plan_was_grid_charging() {
+	if ( ! function_exists( 'gaming_hub_ecoflow_get_saved_schedule' ) ) {
+		return false;
+	}
+
+	$saved = gaming_hub_ecoflow_get_saved_schedule();
+	if ( ( $saved['status'] ?? '' ) !== 'approved' ) {
+		return false;
+	}
+
+	$idle    = defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0;
+	$hour_id = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
+
+	if ( (int) ( $saved['last_applied_w'] ?? 0 ) > $idle
+		&& (string) ( $saved['last_applied_hour'] ?? '' ) === $hour_id ) {
+		return true;
+	}
+
+	foreach ( (array) ( $saved['slots'] ?? array() ) as $slot ) {
+		if ( ! is_array( $slot ) || ! empty( $slot['past'] ) ) {
+			continue;
+		}
+		if ( (int) ( $slot['watts'] ?? 0 ) > $idle ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Deficit hysteresis: start above START_KWH, stop below STOP_KWH, hold in between.
+ *
+ * @param float $deficit_kwh  Remaining kWh to cheap-hour target.
+ * @param bool  $was_charging Prior plan/device was still charging.
+ * @return bool True when grid charge should be skipped (no new cheap hours).
+ */
+function gaming_hub_ecoflow_plan_deficit_skips_grid( $deficit_kwh, $was_charging ) {
+	$start = defined( 'GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH' )
+		? (float) GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH
+		: 0.8;
+	$stop  = defined( 'GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH' )
+		? (float) GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH
+		: 0.2;
+
+	if ( $stop > $start ) {
+		$tmp   = $start;
+		$start = $stop;
+		$stop  = $tmp;
+	}
+
+	$deficit_kwh = max( 0.0, (float) $deficit_kwh );
+
+	if ( $was_charging ) {
+		return $deficit_kwh < $stop;
+	}
+
+	return $deficit_kwh <= $start;
 }
 
 /**
