@@ -107,6 +107,9 @@ function gaming_hub_yen( $value, $decimals = 0 ) {
  * Force front-end date formats so JA/EN never inherit mixed WP Settings
  * (e.g. "September 2, 2026" + "5:52 pm" vs slash-style logs).
  *
+ * Weekday is appended by gaming_hub_format_date() — do not put (D) here;
+ * wp_date('D') stays English unless the core JA language pack is installed.
+ *
  * JA: 2026年9月8日 (火)
  * EN: Sep 8, 2026 (Tue)
  *
@@ -118,7 +121,7 @@ function gaming_hub_ja_date_format( $format ) {
 		return $format;
 	}
 
-	return 'en' === gaming_hub_lang() ? 'M j, Y (D)' : 'Y年n月j日 (D)';
+	return 'en' === gaming_hub_lang() ? 'M j, Y' : 'Y年n月j日';
 }
 add_filter( 'option_date_format', 'gaming_hub_ja_date_format' );
 
@@ -139,11 +142,12 @@ add_filter( 'option_time_format', 'gaming_hub_ja_time_format' );
 
 /**
  * Short date format for compact lists (charge log, week chips).
+ * Weekday is appended by gaming_hub_format_date() / gaming_hub_weekday_abbrev().
  *
  * @return string PHP date format.
  */
 function gaming_hub_date_format_short() {
-	return 'en' === gaming_hub_lang() ? 'M j (D)' : 'n月j日 (D)';
+	return 'en' === gaming_hub_lang() ? 'M j' : 'n月j日';
 }
 
 /**
@@ -153,6 +157,21 @@ function gaming_hub_date_format_short() {
  */
 function gaming_hub_date_format_month() {
 	return 'en' === gaming_hub_lang() ? 'M Y' : 'Y年n月';
+}
+
+/**
+ * Weekday abbreviation independent of WordPress core language packs.
+ *
+ * @param int $timestamp Unix timestamp (site timezone via wp_date).
+ * @return string JA: 日…土 / EN: Sun…Sat
+ */
+function gaming_hub_weekday_abbrev( $timestamp ) {
+	$dow = (int) wp_date( 'w', (int) $timestamp );
+	$labels = 'en' === gaming_hub_lang()
+		? array( 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat' )
+		: array( '日', '月', '火', '水', '木', '金', '土' );
+
+	return $labels[ $dow ] ?? '';
 }
 
 /**
@@ -168,20 +187,22 @@ function gaming_hub_format_date( $timestamp = null, $style = 'full' ) {
 		return '';
 	}
 
+	$weekday = ' (' . gaming_hub_weekday_abbrev( $ts ) . ')';
+
 	switch ( $style ) {
 		case 'time':
 			return wp_date( get_option( 'time_format' ), $ts );
 		case 'short':
-			return wp_date( gaming_hub_date_format_short(), $ts );
+			return wp_date( gaming_hub_date_format_short(), $ts ) . $weekday;
 		case 'month':
 			return wp_date( gaming_hub_date_format_month(), $ts );
 		case 'datetime_short':
-			return wp_date( gaming_hub_date_format_short() . ' ' . get_option( 'time_format' ), $ts );
+			return wp_date( gaming_hub_date_format_short(), $ts ) . $weekday . ' ' . wp_date( get_option( 'time_format' ), $ts );
 		case 'datetime':
-			return wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $ts );
+			return wp_date( get_option( 'date_format' ), $ts ) . $weekday . ' ' . wp_date( get_option( 'time_format' ), $ts );
 		case 'full':
 		default:
-			return wp_date( get_option( 'date_format' ), $ts );
+			return wp_date( get_option( 'date_format' ), $ts ) . $weekday;
 	}
 }
 

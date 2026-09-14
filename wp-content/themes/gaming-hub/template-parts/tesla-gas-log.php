@@ -59,7 +59,7 @@ $format_when = static function ( $ymd ) {
 	}
 	return function_exists( 'gaming_hub_format_date' )
 		? gaming_hub_format_date( $ts, 'short' )
-		: wp_date( 'n月j日 (D)', $ts );
+		: wp_date( 'n月j日', $ts ) . ' (' . ( function_exists( 'gaming_hub_weekday_abbrev' ) ? gaming_hub_weekday_abbrev( $ts ) : wp_date( 'D', $ts ) ) . ')';
 };
 
 $rows = array();
