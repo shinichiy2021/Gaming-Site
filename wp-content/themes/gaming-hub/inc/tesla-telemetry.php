@@ -164,6 +164,79 @@ function gaming_hub_tesla_telemetry_watts( array $fields ) {
 }
 
 /**
+ * Pack power in watts from PackVoltage × PackCurrent.
+ *
+ * PackCurrent convention: negative = discharging, positive = charging.
+ *
+ * @param array<string, mixed> $fields Telemetry fields.
+ * @return array{watts: int|null, discharge_w: int, charge_w: int}|null
+ */
+function gaming_hub_tesla_telemetry_pack_watts( array $fields ) {
+	$volts = gaming_hub_tesla_telemetry_num( $fields, 'PackVoltage' );
+	$amps  = gaming_hub_tesla_telemetry_num( $fields, 'PackCurrent' );
+	if ( null === $volts || null === $amps || $volts < 50 ) {
+		return null;
+	}
+
+	$raw = $volts * $amps;
+	$w   = (int) round( abs( $raw ) );
+
+	return array(
+		'watts'       => $w,
+		'discharge_w' => $raw < -0.08 ? $w : 0,
+		'charge_w'    => $raw > 0.08 ? $w : 0,
+	);
+}
+
+/**
+ * Normalize Gear / ShiftState enum to P|R|N|D|''.
+ *
+ * @param mixed $raw Gear field.
+ * @return string
+ */
+function gaming_hub_tesla_telemetry_gear( $raw ) {
+	$s = strtoupper( trim( (string) $raw ) );
+	$s = preg_replace( '/^(GEAR|SHIFTSTATE|SHIFT_STATE)/', '', $s );
+	$s = preg_replace( '/[^PRND]/', '', $s );
+	if ( in_array( $s, array( 'P', 'R', 'N', 'D' ), true ) ) {
+		return $s;
+	}
+
+	return '';
+}
+
+/**
+ * Whether the car looks like it is moving (drive / reverse / speed).
+ *
+ * @param array<string, mixed> $cached Existing model3 cache.
+ * @param array<string, mixed> $fields Telemetry fields.
+ * @return bool
+ */
+function gaming_hub_tesla_telemetry_is_moving( array $cached, array $fields ) {
+	$gear = '';
+	if ( isset( $fields['Gear'] ) ) {
+		$gear = gaming_hub_tesla_telemetry_gear( $fields['Gear'] );
+	}
+	if ( '' === $gear ) {
+		$gear = strtoupper( (string) ( $cached['shift_state'] ?? '' ) );
+	}
+
+	$speed = gaming_hub_tesla_telemetry_num( $fields, 'VehicleSpeed' );
+	if ( null === $speed && isset( $cached['speed_km'] ) && is_numeric( $cached['speed_km'] ) ) {
+		$speed = (float) $cached['speed_km'];
+	}
+
+	if ( in_array( $gear, array( 'D', 'R' ), true ) ) {
+		return true;
+	}
+	if ( null !== $speed && abs( $speed ) >= 3 ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * Merge Fleet Telemetry fields into the Model 3 status cache.
  *
  * @param array<string, mixed> $payload Bridge body (vin, fields, received_at).
@@ -269,6 +342,64 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 		$updated[]                      = 'fast_charger_present';
 	}
 
+	if ( isset( $fields['Gear'] ) ) {
+		$gear = gaming_hub_tesla_telemetry_gear( $fields['Gear'] );
+		if ( '' !== $gear ) {
+			$cached['shift_state'] = $gear;
+			$cached['drive_ready'] = true;
+			$updated[]             = 'shift_state';
+		}
+	}
+
+	$speed = gaming_hub_tesla_telemetry_num( $fields, 'VehicleSpeed' );
+	if ( null !== $speed ) {
+		// Fleet VehicleSpeed is typically mph; values already in km/h are usually larger.
+		$speed_km = abs( $speed ) <= 200 ? abs( $speed ) * 1.60934 : abs( $speed );
+		$cached['speed_km'] = (int) round( $speed_km );
+		$updated[]          = 'speed_km';
+	}
+
+	if ( isset( $fields['HvacPower'] ) ) {
+		$hvac = gaming_hub_tesla_telemetry_strip_enum( $fields['HvacPower'] );
+		$hvac = preg_replace( '/^HvacPowerState/i', '', (string) $hvac );
+		$cached['climate_on'] = in_array( $hvac, array( 'On', 'Precondition', 'OverheatProtect' ), true );
+		$updated[]            = 'climate_on';
+	}
+
+	$moving = gaming_hub_tesla_telemetry_is_moving( $cached, $fields );
+	$pack   = gaming_hub_tesla_telemetry_pack_watts( $fields );
+
+	// Parked cabin approximation: pack discharge in watts (not whole-kW drive_state.power).
+	if ( null !== $pack ) {
+		if ( ! $charging && ! $moving ) {
+			$cabin_w = $pack['discharge_w'] >= 80 ? $pack['discharge_w'] : 0;
+			$cached['cabin_w'] = $cabin_w;
+			$cached['drive_w'] = 0;
+			$cached['regen_w'] = 0;
+			$updated[]         = 'cabin_w';
+
+			if ( function_exists( 'gaming_hub_tesla_record_cabin_energy' ) ) {
+				gaming_hub_tesla_record_cabin_energy( $cabin_w, true );
+			}
+		} elseif ( $moving && ! $charging ) {
+			// Drive vs regen from pack sign; cabin left to prior cache / poll.
+			if ( $pack['discharge_w'] >= 80 ) {
+				$cached['drive_w'] = $pack['discharge_w'];
+				$cached['regen_w'] = 0;
+				$cached['cabin_w'] = 0;
+				$updated[]         = 'drive_w';
+			} elseif ( $pack['charge_w'] >= 80 ) {
+				$cached['regen_w'] = $pack['charge_w'];
+				$cached['drive_w'] = 0;
+				$updated[]         = 'regen_w';
+			}
+		} elseif ( $charging ) {
+			$cached['cabin_w'] = 0;
+			$cached['drive_w'] = 0;
+			$cached['regen_w'] = 0;
+		}
+	}
+
 	if ( $charging || ! empty( $cached['plugged'] ) ) {
 		if ( ! empty( $cached['fast_charger_present'] ) || ( null !== $dc_kw && $dc_kw > 1 ) ) {
 			$cached['supply_kind']  = 'supercharger';
@@ -282,8 +413,12 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 			$cached['vehicle_mode'] = $charging ? 'wall' : ( $cached['vehicle_mode'] ?? 'idle' );
 		}
 		$updated[] = 'supply_kind';
+	} elseif ( $moving ) {
+		$cached['vehicle_mode'] = ( (int) ( $cached['regen_w'] ?? 0 ) >= 80 ) ? 'regen' : 'drive';
+	} elseif ( (int) ( $cached['cabin_w'] ?? 0 ) >= 80 ) {
+		$cached['vehicle_mode'] = 'cabin';
 	} elseif ( ! $charging ) {
-		$cached['vehicle_mode'] = $cached['vehicle_mode'] ?? 'idle';
+		$cached['vehicle_mode'] = 'idle';
 	}
 
 	$ttf = gaming_hub_tesla_telemetry_num( $fields, 'TimeToFullCharge' );
