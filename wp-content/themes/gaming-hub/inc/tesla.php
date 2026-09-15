@@ -35,7 +35,7 @@ define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v6'
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
 define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 8 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 5 * MINUTE_IN_SECONDS );
-define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 5 * MINUTE_IN_SECONDS );
+define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 30 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 8 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STALE_CHARGE_TTL', 10 * MINUTE_IN_SECONDS );
@@ -1260,11 +1260,18 @@ function gaming_hub_tesla_remember_home_plugged( array $model3 ) {
 
 /**
  * Whether the car was plugged at home recently (cache may be stale while asleep).
+ *
+ * @param int $max_age Max age in seconds (default 12 hours for command wake; was 14 days).
  */
-function gaming_hub_tesla_home_plugged_recent() {
+function gaming_hub_tesla_home_plugged_recent( $max_age = null ) {
 	$at = (int) get_option( GAMING_HUB_TESLA_HOME_PLUGGED_OPTION, 0 );
+	if ( $at <= 0 ) {
+		return false;
+	}
 
-	return $at > 0 && ( time() - $at ) < 14 * DAY_IN_SECONDS;
+	$max_age = null === $max_age ? 12 * HOUR_IN_SECONDS : max( 60, (int) $max_age );
+
+	return ( time() - $at ) < $max_age;
 }
 
 /**
@@ -4050,10 +4057,9 @@ function gaming_hub_tesla_sampler_cron() {
 
 	// Not forced: the 30s flow transient has long expired at this cadence, so this
 	// still takes a fresh sample without also re-fetching weather and cost data.
+	$GLOBALS['gaming_hub_tesla_force_plan_apply'] = true;
 	$status = gaming_hub_get_powerwall_flow_status();
-	if ( function_exists( 'gaming_hub_tesla_plan_auto_apply' ) ) {
-		gaming_hub_tesla_plan_auto_apply( is_array( $status ) ? $status : array() );
-	}
+	unset( $GLOBALS['gaming_hub_tesla_force_plan_apply'] );
 	if ( function_exists( 'gaming_hub_tesla_charge_log_sync_from_fleet' ) ) {
 		gaming_hub_tesla_charge_log_sync_from_fleet();
 	}
