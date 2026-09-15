@@ -139,6 +139,10 @@ export function wattsForFlow( flowId, status ) {
 	}
 
 	if ( flowId === 'cabin' ) {
+		if ( ! status.climate_on ) {
+			return 0;
+		}
+
 		return Number( status.cabin_w ) || 0;
 	}
 

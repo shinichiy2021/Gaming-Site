@@ -1119,6 +1119,12 @@ function gaming_hub_tesla_should_display_asleep( array $model3 ) {
 		return false;
 	}
 
+	// Prefer telemetry freshness: Fleet cache hits must not keep a silent car "awake".
+	$telem = (int) ( $model3['telemetry_at'] ?? 0 );
+	if ( $telem > 0 ) {
+		return ( time() - $telem ) >= GAMING_HUB_TESLA_SLEEP_STALE_TTL;
+	}
+
 	$at = gaming_hub_tesla_last_signal_at( $model3 );
 	if ( $at <= 0 ) {
 		return false;
@@ -1141,7 +1147,12 @@ function gaming_hub_tesla_snapshot_is_active( array $model3 ) {
 		return true;
 	}
 
-	if ( (int) ( $model3['drive_w'] ?? 0 ) >= 80 || (int) ( $model3['regen_w'] ?? 0 ) >= 80 || (int) ( $model3['cabin_w'] ?? 0 ) >= 80 ) {
+	if ( (int) ( $model3['drive_w'] ?? 0 ) >= 80 || (int) ( $model3['regen_w'] ?? 0 ) >= 80 ) {
+		return true;
+	}
+
+	// Cabin glow only while climate is actually on (pack vampire drain is not "active").
+	if ( ! empty( $model3['climate_on'] ) && (int) ( $model3['cabin_w'] ?? 0 ) >= 80 ) {
 		return true;
 	}
 
@@ -3587,7 +3598,7 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
 	$cabin_w = gaming_hub_tesla_cabin_watts_from_climate( $climate_state );
 	$regen_w = 0;
 
-	if ( null === $cabin_w && ! $charging && ! $moving && $has_pack && $pack_kw > 0.08 ) {
+	if ( null === $cabin_w && ! $charging && ! $moving && $climate_on && $has_pack && $pack_kw > 0.08 ) {
 		$cabin_w = max( 0, (int) round( $pack_kw * 1000 ) );
 	} elseif ( null === $cabin_w ) {
 		$cabin_w = ( $has_pack || $has_drive_slice ) ? 0 : null;

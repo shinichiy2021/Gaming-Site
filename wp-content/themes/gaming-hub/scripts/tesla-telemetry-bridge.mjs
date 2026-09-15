@@ -122,7 +122,9 @@ async function postWp( body ) {
 		vin: body.vin,
 		fields: body.fields,
 	} );
-	if ( key === lastPostKey && Date.now() - lastPostAt < heartbeatMs ) {
+	// Never re-POST an unchanged snapshot — heartbeats were keeping the car
+	// "awake" in WP with stale cabin_w long after the stream stopped.
+	if ( key === lastPostKey ) {
 		return;
 	}
 
