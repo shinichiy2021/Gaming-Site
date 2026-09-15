@@ -893,7 +893,151 @@ function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status, $l
 	$plan['delta_capacity_wh'] = (int) round( $delta_wh );
 	$plan['show_delta_soc']    = defined( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC' ) && GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC;
 
+	return gaming_hub_ecoflow_localize_charge_plan_labels( $plan );
+}
+
+/**
+ * Day titles / HUD labels for the charge-plan UI (always current locale).
+ *
+ * Cached plans bake English strings when cron builds them; refresh on serve.
+ *
+ * @param string     $day_key    yesterday|today|tomorrow.
+ * @param float|int|null $target_soc Target SOC for buy labels.
+ * @return array{title: string, solar_hud_label: string, deficit_hud_label: string}
+ */
+function gaming_hub_ecoflow_charge_plan_day_labels( $day_key, $target_soc = null ) {
+	$day_key = in_array( $day_key, array( 'yesterday', 'today', 'tomorrow' ), true ) ? $day_key : 'today';
+	$target  = null !== $target_soc && is_numeric( $target_soc )
+		? (float) $target_soc
+		: (float) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC;
+
+	$titles = array(
+		'yesterday' => __( 'Yesterday’s charge plan', 'gaming-hub' ),
+		'today'     => __( 'Today’s charge plan', 'gaming-hub' ),
+		'tomorrow'  => __( 'Tomorrow’s charge plan', 'gaming-hub' ),
+	);
+	$pv_labels = array(
+		'yesterday' => __( 'Measured generation', 'gaming-hub' ),
+		'today'     => __( 'Remaining expected generation', 'gaming-hub' ),
+		'tomorrow'  => __( 'Expected generation', 'gaming-hub' ),
+	);
+	$buy_labels = array(
+		'yesterday' => __( 'Yesterday’s import', 'gaming-hub' ),
+		'today'     => sprintf(
+			/* translators: %s: target SOC percent */
+			__( 'Charge to %s%%', 'gaming-hub' ),
+			number_format_i18n( $target )
+		),
+		'tomorrow'  => sprintf(
+			/* translators: %s: target SOC percent */
+			__( 'Tomorrow charge to %s%%', 'gaming-hub' ),
+			number_format_i18n( $target )
+		),
+	);
+
+	return array(
+		'title'             => $titles[ $day_key ],
+		'solar_hud_label'   => $pv_labels[ $day_key ],
+		'deficit_hud_label' => $buy_labels[ $day_key ],
+	);
+}
+
+/**
+ * Refresh locale-dependent labels on a plan payload.
+ *
+ * @param array<string, mixed> $plan Plan row.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_localize_charge_plan_labels( array $plan ) {
+	$day_key = (string) ( $plan['plan_day'] ?? '' );
+	if ( ! in_array( $day_key, array( 'yesterday', 'today', 'tomorrow' ), true ) ) {
+		$dates     = gaming_hub_ecoflow_plan_dates();
+		$plan_date = (string) ( $plan['plan_date'] ?? $dates['today'] );
+		$day_key   = $plan_date === $dates['yesterday']
+			? 'yesterday'
+			: ( $plan_date === $dates['tomorrow'] ? 'tomorrow' : 'today' );
+		$plan['plan_day'] = $day_key;
+	}
+
+	$labels = gaming_hub_ecoflow_charge_plan_day_labels(
+		$day_key,
+		isset( $plan['target_soc'] ) ? $plan['target_soc'] : null
+	);
+	$plan['title']             = $labels['title'];
+	$plan['solar_hud_label']   = $labels['solar_hud_label'];
+	$plan['deficit_hud_label'] = $labels['deficit_hud_label'];
+	$plan['note']              = gaming_hub_ecoflow_charge_plan_note_text( $plan );
+
+	$needs_grid = ! empty( $plan['needs_grid'] );
+	if ( ! $needs_grid ) {
+		$plan['window_label'] = __( 'No grid charge needed', 'gaming-hub' );
+	}
+
 	return $plan;
+}
+
+/**
+ * Rebuild the plan note in the active locale (cached English notes are discarded).
+ *
+ * @param array<string, mixed> $plan Plan row.
+ * @return string
+ */
+function gaming_hub_ecoflow_charge_plan_note_text( array $plan ) {
+	$day_key  = (string) ( $plan['plan_day'] ?? 'today' );
+	$target   = isset( $plan['target_soc'] ) && is_numeric( $plan['target_soc'] )
+		? (float) $plan['target_soc']
+		: (float) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC;
+	$headroom = isset( $plan['solar_headroom_soc'] ) && is_numeric( $plan['solar_headroom_soc'] )
+		? (int) $plan['solar_headroom_soc']
+		: 0;
+	$deficit  = isset( $plan['deficit_kwh'] ) && is_numeric( $plan['deficit_kwh'] )
+		? (float) $plan['deficit_kwh']
+		: 0.0;
+	$charge_w = isset( $plan['charge_w'] ) && is_numeric( $plan['charge_w'] )
+		? (int) $plan['charge_w']
+		: (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W;
+	$needs_grid = ! empty( $plan['needs_grid'] );
+
+	if ( 'yesterday' === $day_key ) {
+		return __( 'Yesterday’s measured data. Yellow/orange bars are SOC; gold bands are logged grid charge. Approve today’s plan only.', 'gaming-hub' );
+	}
+
+	if ( ! $needs_grid ) {
+		if ( 'tomorrow' === $day_key ) {
+			return sprintf(
+				/* translators: 1: cheap-hour target SOC, 2: solar headroom percent */
+				__( 'Leaving about %2$s%% for tomorrow’s solar, the cheap-hour target is %1$s%%. No grid charge needed.', 'gaming-hub' ),
+				number_format_i18n( $target ),
+				number_format_i18n( $headroom )
+			);
+		}
+
+		return sprintf(
+			/* translators: 1: cheap-hour target SOC, 2: solar headroom percent */
+			__( 'Leaving about %2$s%% for solar, the cheap-hour target is %1$s%%. Current SOC is enough, so no grid charge.', 'gaming-hub' ),
+			number_format_i18n( $target ),
+			number_format_i18n( $headroom )
+		);
+	}
+
+	if ( $deficit <= 0 ) {
+		return sprintf(
+			/* translators: %s: cheap-hour target SOC percent */
+			__( 'Charging in cheap hours would push past %s%%, so grid charge is skipped.', 'gaming-hub' ),
+			number_format_i18n( $target )
+		);
+	}
+
+	return sprintf(
+		/* translators: 1: charge kWh, 2: charge watts, 3: target SOC, 4: solar headroom percent */
+		'tomorrow' === $day_key
+			? __( 'Leaving about %4$s%% for tomorrow’s solar, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%%.', 'gaming-hub' )
+			: __( 'Leaving about %4$s%% for solar, about %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Pro near %3$s%%.', 'gaming-hub' ),
+		number_format_i18n( $deficit, 1 ),
+		number_format_i18n( $charge_w ),
+		number_format_i18n( $target ),
+		number_format_i18n( $headroom )
+	);
 }
 
 /**
@@ -1124,37 +1268,15 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		$solar_series[] = (int) round( max( 0, (float) ( $solar_hours[ $h ] ?? 0 ) ) );
 	}
 
-	$titles = array(
-		'yesterday' => __('Yesterday’s charge plan', 'gaming-hub'),
-		'today'     => __('Today’s charge plan', 'gaming-hub'),
-		'tomorrow'  => __('Tomorrow’s charge plan', 'gaming-hub'),
-	);
-	$pv_labels = array(
-		'yesterday' => __('Measured generation', 'gaming-hub'),
-		'today'     => __('Remaining expected generation', 'gaming-hub'),
-		'tomorrow'  => __('Expected generation', 'gaming-hub'),
-	);
-	$buy_labels = array(
-		'yesterday' => __('Yesterday’s import', 'gaming-hub'),
-		'today'     => sprintf(
-			/* translators: %s: target SOC percent */
-			__('Charge to %s%%', 'gaming-hub'),
-			number_format_i18n( $target_soc )
-		),
-		'tomorrow'  => sprintf(
-			/* translators: %s: target SOC percent */
-			__('Tomorrow charge to %s%%', 'gaming-hub'),
-			number_format_i18n( $target_soc )
-		),
-	);
+	$day_labels = gaming_hub_ecoflow_charge_plan_day_labels( $day_key, $target_soc );
 
 	return array(
 		'plan_date'            => $plan_date,
 		'plan_day'             => $day_key,
-		'title'                => $titles[ $day_key ],
+		'title'                => $day_labels['title'],
 		'solar_hud_kwh'        => 'today' === $day_key ? round( $solar_remaining_kwh, 2 ) : round( $solar_today_kwh, 2 ),
-		'solar_hud_label'      => $pv_labels[ $day_key ],
-		'deficit_hud_label'    => $buy_labels[ $day_key ],
+		'solar_hud_label'      => $day_labels['solar_hud_label'],
+		'deficit_hud_label'    => $day_labels['deficit_hud_label'],
 		'deficit_kwh'          => round( $deficit_kwh, 2 ),
 		'needs_grid'           => ! $needed,
 		'window_label'         => $windows ? implode( '、', $windows ) : __('No grid charge needed', 'gaming-hub'),

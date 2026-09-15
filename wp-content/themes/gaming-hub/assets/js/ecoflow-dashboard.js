@@ -1272,11 +1272,30 @@
 			today: t('Today’s charge plan'),
 			tomorrow: t('Tomorrow’s charge plan'),
 		};
-		setField('plan_title', plan.title || titles[plan.plan_day] || titles.today);
-		setField('plan_note', plan.note || '');
-		setField('plan_approval', isToday ? (plan.approval_note || '') : '');
+		// Prefer client locale titles; cached API payloads may still carry English.
+		setField('plan_title', titles[plan.plan_day] || t(plan.title || '') || titles.today);
+		setField('plan_note', t(plan.note || '') || plan.note || '');
+		setField('plan_approval', isToday ? (t(plan.approval_note || '') || plan.approval_note || '') : '');
 		setField('plan_deficit', formatKwh(plan.deficit_kwh));
-		setField('plan_deficit_label', plan.deficit_hud_label || '');
+		setField(
+			'plan_deficit_label',
+			(function () {
+				const raw = plan.deficit_hud_label || '';
+				const translated = t(raw);
+				if (translated !== raw) {
+					return translated;
+				}
+				const m = String(raw).match(/^Charge to\s+(\d+(?:\.\d+)?)%$/i);
+				if (m) {
+					return t('Charge to %s%%').replace('%s', m[1]);
+				}
+				const m2 = String(raw).match(/^Tomorrow charge to\s+(\d+(?:\.\d+)?)%$/i);
+				if (m2) {
+					return t('Tomorrow charge to %s%%').replace('%s', m2[1]);
+				}
+				return raw;
+			})()
+		);
 		setField('plan_window', plan.window_label || '—');
 		setField(
 			'plan_window_price',
@@ -1318,7 +1337,7 @@
 			'plan_solar',
 			formatKwh(plan.solar_hud_kwh != null ? plan.solar_hud_kwh : plan.solar_remaining_kwh)
 		);
-		setField('plan_solar_hud_label', plan.solar_hud_label || '');
+		setField('plan_solar_hud_label', t(plan.solar_hud_label || '') || plan.solar_hud_label || '');
 		setField('plan_load', formatKwh(plan.room_remaining_kwh != null ? plan.room_remaining_kwh : plan.load_remaining_kwh));
 		if (plan.room_daily_kwh != null) {
 			const dayPrefix = plan.plan_day === 'yesterday'
