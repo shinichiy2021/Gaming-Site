@@ -90,9 +90,10 @@
 		window.addEventListener('scroll', updateHeader, { passive: true });
 	}
 
+	const headerBar = document.querySelector('.site-header .header-inner');
 	const hubSwitcher = document.querySelector('.hub-switcher');
-	if (hubSwitcher) {
-		const mobileMq = window.matchMedia('(max-width: 768px)');
+	const scrollHideTargets = [headerBar, hubSwitcher].filter(Boolean);
+	if (scrollHideTargets.length) {
 		const HIDE_AFTER_Y = 72;
 		const DELTA_HIDE = 14;
 		const DELTA_SHOW = 14;
@@ -109,10 +110,19 @@
 			);
 		}
 
-		function setHubSwitcherHidden(hidden) {
-			const wasHidden = hubSwitcher.classList.contains('is-scroll-hidden');
-			hubSwitcher.classList.toggle('is-scroll-hidden', hidden);
-			if (wasHidden === hidden) {
+		function setScrollChromeHidden(hidden) {
+			let changed = false;
+			scrollHideTargets.forEach(function (el) {
+				const wasHidden = el.classList.contains('is-scroll-hidden');
+				el.classList.toggle('is-scroll-hidden', hidden);
+				if (wasHidden !== hidden) {
+					changed = true;
+				}
+			});
+			if (header) {
+				header.classList.toggle('is-chrome-hidden', hidden);
+			}
+			if (!changed) {
 				return;
 			}
 			lockedUntil = performance.now() + LOCK_MS;
@@ -121,20 +131,13 @@
 			});
 		}
 
-		function updateHubSwitcherVisibility() {
+		function updateScrollChromeVisibility() {
 			const y = window.pageYOffset || 0;
 			const now = performance.now();
 
-			if (!mobileMq.matches) {
-				setHubSwitcherHidden(false);
-				lastY = y;
-				ticking = false;
-				return;
-			}
-
 			// Short pages: collapsing the bar shifts scrollY and flickers.
 			if (scrollableRoom() < MIN_SCROLLABLE) {
-				setHubSwitcherHidden(false);
+				setScrollChromeHidden(false);
 				lastY = y;
 				ticking = false;
 				return;
@@ -148,11 +151,11 @@
 
 			const delta = y - lastY;
 			if (y <= HIDE_AFTER_Y) {
-				setHubSwitcherHidden(false);
+				setScrollChromeHidden(false);
 			} else if (delta > DELTA_HIDE) {
-				setHubSwitcherHidden(true);
+				setScrollChromeHidden(true);
 			} else if (delta < -DELTA_SHOW) {
-				setHubSwitcherHidden(false);
+				setScrollChromeHidden(false);
 			}
 
 			lastY = y;
@@ -166,21 +169,15 @@
 					return;
 				}
 				ticking = true;
-				window.requestAnimationFrame(updateHubSwitcherVisibility);
+				window.requestAnimationFrame(updateScrollChromeVisibility);
 			},
 			{ passive: true }
 		);
 
 		window.addEventListener('resize', function () {
 			lockedUntil = 0;
-			updateHubSwitcherVisibility();
+			updateScrollChromeVisibility();
 		}, { passive: true });
-
-		if (typeof mobileMq.addEventListener === 'function') {
-			mobileMq.addEventListener('change', updateHubSwitcherVisibility);
-		} else if (typeof mobileMq.addListener === 'function') {
-			mobileMq.addListener(updateHubSwitcherVisibility);
-		}
 	}
 
 	// Horizontally scrollable charts: flag scroll position on a positioned host

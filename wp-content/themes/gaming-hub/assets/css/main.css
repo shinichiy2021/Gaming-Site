@@ -107,6 +107,30 @@ a:hover {
 	align-items: center;
 	justify-content: space-between;
 	height: 70px;
+	overflow: hidden;
+	max-height: 70px;
+	opacity: 1;
+	transition:
+		max-height 0.28s ease,
+		opacity 0.2s ease,
+		border-color 0.28s ease;
+}
+
+.site-header .header-inner.is-scroll-hidden {
+	max-height: 0;
+	height: 0;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.site-header.is-chrome-hidden {
+	border-bottom-color: transparent;
+	box-shadow: none;
+}
+
+.site-header.is-chrome-hidden ~ .site-main .ecoflow-hub-nav,
+.site-header.is-chrome-hidden ~ .site-main .tesla-hub-nav {
+	top: 0;
 }
 
 .site-title,
@@ -2381,7 +2405,8 @@ body.home .site-header.is-scrolled {
 		animation: none;
 	}
 
-	.hub-switcher {
+	.hub-switcher,
+	.site-header .header-inner {
 		transition: none;
 	}
 }
@@ -3992,6 +4017,7 @@ body.home .site-header.is-scrolled {
 	background: rgba(10, 26, 15, 0.94);
 	backdrop-filter: blur(10px);
 	border-bottom: 1px solid rgba(0, 200, 83, 0.2);
+	transition: top 0.28s ease;
 }
 
 .ecoflow-hub-nav-inner {
@@ -4485,6 +4511,7 @@ body.home .site-header.is-scrolled {
 	background: rgba(26, 10, 12, 0.94);
 	backdrop-filter: blur(10px);
 	border-bottom: 1px solid rgba(227, 25, 55, 0.22);
+	transition: top 0.28s ease;
 }
 
 .tesla-hub-nav-inner {
@@ -7967,7 +7994,7 @@ body.home .site-header.is-scrolled {
 		transition: top 0.28s ease;
 	}
 
-	.site-header:has(.hub-switcher.is-scroll-hidden) ~ .site-main .ecoflow-hub-nav {
+	.site-header:has(.hub-switcher.is-scroll-hidden):not(:has(.header-inner.is-scroll-hidden)) ~ .site-main .ecoflow-hub-nav {
 		top: 70px;
 	}
 
@@ -7976,7 +8003,7 @@ body.home .site-header.is-scrolled {
 		transition: top 0.28s ease;
 	}
 
-	.site-header:has(.hub-switcher.is-scroll-hidden) ~ .site-main .tesla-hub-nav {
+	.site-header:has(.hub-switcher.is-scroll-hidden):not(:has(.header-inner.is-scroll-hidden)) ~ .site-main .tesla-hub-nav {
 		top: 70px;
 	}
 
