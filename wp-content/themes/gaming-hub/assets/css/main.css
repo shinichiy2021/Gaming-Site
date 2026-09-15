@@ -2116,23 +2116,35 @@ body.home .site-header.is-scrolled {
 	object-position: 58% 72%;
 }
 
-/* Teslogic dashboard dial on Tesla hero node */
-.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-art {
+/* Teslogic dial fills the Tesla hero art frame (no car photo). */
+.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-art.tesla-dash-art {
 	position: relative;
 	display: grid;
 	place-items: center;
+	width: min(280px, 72vw);
+	height: min(280px, 72vw);
+	margin: 0 auto 0.35rem;
+	padding: 0;
+	border-radius: 18px;
+	overflow: hidden;
+	background:
+		radial-gradient(circle at 50% 42%, rgba(24, 28, 36, 0.98) 0%, rgba(4, 6, 10, 1) 78%);
+	border: 1px solid rgba(77, 163, 255, 0.28);
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.45),
+		0 12px 28px rgba(0, 0, 0, 0.45);
 }
 
 .tesla-dash-gauge {
 	--tesla-dash-ring: #4da3ff;
-	position: absolute;
-	right: -10px;
-	bottom: -14px;
-	width: 168px;
-	height: 168px;
-	z-index: 2;
+	position: relative;
+	right: auto;
+	bottom: auto;
+	width: min(236px, 62vw);
+	height: min(236px, 62vw);
+	z-index: 1;
 	pointer-events: none;
-	filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.62));
+	filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.45));
 }
 
 .tesla-dash-gauge__svg {
@@ -2158,11 +2170,10 @@ body.home .site-header.is-scrolled {
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 0.12rem;
-	padding: 18px 12px 14px;
+	gap: 0.14rem;
+	padding: 18px 12px 16px;
 	border-radius: 50%;
-	background:
-		radial-gradient(circle at 50% 42%, rgba(28, 32, 40, 0.92) 0%, rgba(6, 8, 12, 0.94) 72%, rgba(0, 0, 0, 0.96) 100%);
+	background: transparent;
 	text-align: center;
 	line-height: 1;
 	pointer-events: none;
@@ -2170,12 +2181,12 @@ body.home .site-header.is-scrolled {
 
 .tesla-dash-gauge__gears {
 	display: flex;
-	gap: 0.42rem;
-	margin-bottom: 0.2rem;
-	font-size: 0.68rem;
+	gap: 0.55rem;
+	margin-bottom: 0.28rem;
+	font-size: 0.82rem;
 	font-weight: 600;
-	letter-spacing: 0.04em;
-	color: rgba(180, 188, 200, 0.45);
+	letter-spacing: 0.06em;
+	color: rgba(180, 188, 200, 0.42);
 }
 
 .tesla-dash-gauge__gears .is-active {
@@ -2184,7 +2195,7 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-dash-gauge__speed {
-	font-size: 2.55rem;
+	font-size: clamp(2.6rem, 8vw, 3.6rem);
 	font-weight: 700;
 	letter-spacing: -0.04em;
 	color: #ffffff;
@@ -2193,10 +2204,10 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-dash-gauge__unit {
-	margin-top: 0.1rem;
-	font-size: 0.72rem;
+	margin-top: 0.12rem;
+	font-size: 0.82rem;
 	font-weight: 600;
-	letter-spacing: 0.14em;
+	letter-spacing: 0.16em;
 	text-transform: uppercase;
 	color: rgba(170, 178, 190, 0.72);
 }
@@ -2204,9 +2215,9 @@ body.home .site-header.is-scrolled {
 .tesla-dash-gauge__soc {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.28rem;
-	margin-top: 0.45rem;
-	font-size: 0.78rem;
+	gap: 0.32rem;
+	margin-top: 0.55rem;
+	font-size: 0.92rem;
 	font-weight: 700;
 	letter-spacing: 0.02em;
 	color: #f4f1ea;
@@ -2215,8 +2226,8 @@ body.home .site-header.is-scrolled {
 
 .tesla-dash-gauge__batt {
 	position: relative;
-	width: 18px;
-	height: 9px;
+	width: 22px;
+	height: 11px;
 	border: 1.5px solid rgba(244, 241, 234, 0.7);
 	border-radius: 2px;
 	box-sizing: border-box;
@@ -2225,10 +2236,10 @@ body.home .site-header.is-scrolled {
 .tesla-dash-gauge__batt::after {
 	content: "";
 	position: absolute;
-	top: 1.5px;
-	right: -3.5px;
-	width: 2px;
-	height: 4px;
+	top: 2px;
+	right: -4px;
+	width: 2.5px;
+	height: 5px;
 	border-radius: 0 1px 1px 0;
 	background: rgba(244, 241, 234, 0.7);
 }
@@ -2255,12 +2266,19 @@ body.home .site-header.is-scrolled {
 	filter: none;
 }
 
-.tesla-flow-system [data-flow-id="tesla"].is-standby .tesla-photo-car {
-	filter: brightness(0.34) saturate(0.4) contrast(0.9);
+.tesla-flow-system [data-flow-id="tesla"].is-standby .tesla-dash-art {
+	opacity: 0.78;
+	filter: saturate(0.75) brightness(0.88);
 }
 
-.tesla-flow-system [data-flow-id="tesla"].is-active .tesla-photo-car {
-	filter: brightness(1.28) contrast(1.04) saturate(1.08);
+.tesla-flow-system [data-flow-id="tesla"].is-active .tesla-dash-art {
+	opacity: 1;
+	filter: none;
+	border-color: color-mix(in srgb, var(--batt-tone, #4da3ff) 55%, rgba(77, 163, 255, 0.35));
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.45),
+		0 12px 28px rgba(0, 0, 0, 0.45),
+		0 0 24px color-mix(in srgb, var(--batt-tone, #4da3ff) 28%, transparent);
 }
 
 .tesla-node-wall {
@@ -8537,30 +8555,28 @@ body.home .site-header.is-scrolled {
 		padding: 12px 10px 14px;
 	}
 
-	.tesla-flow-system [data-flow-id="tesla"] .tesla-photo-car {
-		width: min(176px, 58vw);
-		height: min(176px, 58vw);
-		border-radius: 14px;
+	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-art.tesla-dash-art {
+		width: min(220px, 78vw);
+		height: min(220px, 78vw);
+		border-radius: 16px;
 	}
 
 	.tesla-dash-gauge {
-		right: -6px;
-		bottom: -10px;
-		width: 138px;
-		height: 138px;
+		width: min(188px, 66vw);
+		height: min(188px, 66vw);
 	}
 
 	.tesla-dash-gauge__speed {
-		font-size: 2.05rem;
+		font-size: clamp(2.2rem, 11vw, 2.85rem);
 	}
 
 	.tesla-dash-gauge__gears {
-		font-size: 0.6rem;
-		gap: 0.32rem;
+		font-size: 0.72rem;
+		gap: 0.42rem;
 	}
 
 	.tesla-dash-gauge__soc {
-		font-size: 0.7rem;
+		font-size: 0.82rem;
 	}
 
 	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-label,
