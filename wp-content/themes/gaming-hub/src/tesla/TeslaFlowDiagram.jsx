@@ -485,19 +485,14 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 						data-flow-id="tesla"
 						style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }
 					>
-						<div className="ecoflow-node-art" style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }>
-							{ images.tesla ? (
-								<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
-							) : null }
-							{ status.live || hasSoc ? (
-								<TeslogicDashGauge
-									percent={ hasSoc ? soc : NaN }
-									speedKm={ status.speed_km }
-									shift={ status.shift }
-									charging={ charging || regenOn }
-									asleep={ asleep }
-								/>
-							) : null }
+						<div className="ecoflow-node-art tesla-dash-art" style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }>
+							<TeslogicDashGauge
+								percent={ hasSoc ? soc : NaN }
+								speedKm={ status.speed_km }
+								shift={ status.shift }
+								charging={ charging || regenOn }
+								asleep={ asleep }
+							/>
 						</div>
 						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
 						{ packLabel ? <small className="ecoflow-node-pack">{ packLabel }</small> : null }
