@@ -257,10 +257,11 @@ cp public-key.pem /opt/gaming-hub/tesla/public-key.pem
 curl -sI https://shinichiy-gaming-hub.com/.well-known/appspecific/com.tesla.3p.public-key.pem
 ```
 
-### Tesla Fleet Telemetry（Phase 1+2・任意）
+### Tesla Fleet Telemetry（Phase 1–4・任意）
 
-車から SOC / 充電状態を受け取り、MQTT ブリッジ経由で WordPress の Model 3 キャッシュを更新する。
-ポーリングは当面残す（Phase 3 で縮減）。
+車から SOC / 充電状態を受け取り、MQTT ブリッジ経由で WordPress の Model 3 キャッシュ・CHARGE LOG / SOC ログを更新する。
+AI PLAN の充電中／自宅判定はキャッシュ優先。コマンドは REST + wake 予算のまま。
+ポーリングは当面フォールバック（Phase 3 で縮減）。
 
 手順の詳細: [`tesla/README.md`](tesla/README.md)
 

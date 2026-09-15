@@ -80,5 +80,7 @@ docker compose -f docker-compose.prod.yml exec -T wordpress \
 
 - Local `docker-compose.yml` does **not** include telemetry (cars cannot reach localhost).
 - Phase 2 updates `GAMING_HUB_TESLA_STATUS_CACHE_KEY` via `POST /wp-json/gaming-hub/v1/tesla/telemetry`. Polling still runs (Phase 3 will reduce it).
+- Phase 4: CHARGE LOG / SOC log start from telemetry charge/SOC events; AI PLAN `is_charging` / `at_home` prefer cache (sticky home, no Location field).
 - Cabin watts: no dedicated cabin-W field. Parked discharge is `PackVoltage × PackCurrent` (W). Re-run `tesla-telemetry-configure.php` after field list changes.
+- Commands (`charge_start` / `charge_stop`) stay on REST + wake budget.
 - See `config/nginx/telemetry.shinichiy-gaming-hub.com.conf` for DNS / firewall notes.

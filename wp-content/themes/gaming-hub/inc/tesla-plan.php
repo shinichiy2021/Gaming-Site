@@ -1662,6 +1662,22 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
 }
 
 /**
+ * Whether Model 3 cache was recently refreshed by Fleet Telemetry.
+ *
+ * @param array<string, mixed> $model3 Model 3 payload.
+ * @return bool
+ */
+function gaming_hub_tesla_plan_telemetry_fresh( array $model3 ) {
+	if ( empty( $model3['telemetry'] ) || empty( $model3['telemetry_at'] ) ) {
+		return false;
+	}
+
+	$age = time() - (int) $model3['telemetry_at'];
+
+	return $age >= 0 && $age <= ( 5 * MINUTE_IN_SECONDS );
+}
+
+/**
  * Overlay live Tesla charging onto a cached plan (NOW / current hour).
  *
  * @param array<string, mixed>      $plan   Plan payload.
@@ -1679,7 +1695,8 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	}
 
 	$charging = ( ! empty( $flow['live'] ) && ! empty( $flow['is_charging'] ) && ! $asleep )
-		|| ( 'tesla' === (string) ( $status['model3_source'] ?? '' ) && ! empty( $model3['is_charging'] ) && ! $asleep );
+		|| ( 'tesla' === (string) ( $status['model3_source'] ?? '' ) && ! empty( $model3['is_charging'] ) && ! $asleep )
+		|| ( gaming_hub_tesla_plan_telemetry_fresh( $model3 ) && ! empty( $model3['is_charging'] ) && ! $asleep );
 	$wall_w   = (int) ( $flow['wall_w'] ?? 0 );
 	$super_w  = (int) ( $flow['super_w'] ?? 0 );
 	$watts    = $charging ? max( $wall_w, $super_w, (int) ( $model3['watts'] ?? 0 ) ) : 0;
@@ -1689,7 +1706,9 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$plan['live_supply']   = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
 	$plan['asleep']        = $asleep;
 	$plan['geofence_known'] = ! empty( $model3['geofence_known'] );
-	$plan['at_home']       = array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null;
+	$plan['at_home']       = function_exists( 'gaming_hub_tesla_model3_input_at_home' )
+		? gaming_hub_tesla_model3_input_at_home( $model3 )
+		: ( array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null );
 	$input                       = gaming_hub_tesla_plan_input_state( $status );
 	$plan['input_type']          = (string) $input['type'];
 	$plan['input_label']         = (string) $input['label'];
@@ -1731,7 +1750,7 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 		$plan['asleep_note']     = '';
 		$plan['sleep_held_soc']  = null;
 		$plan['sleep_from_hour'] = null;
-		if ( function_exists( 'gaming_hub_tesla_sleep_soc_clear' ) && ! empty( $flow['live'] ) ) {
+		if ( function_exists( 'gaming_hub_tesla_sleep_soc_clear' ) && ( ! empty( $flow['live'] ) || gaming_hub_tesla_plan_telemetry_fresh( $model3 ) ) ) {
 			gaming_hub_tesla_sleep_soc_clear();
 		}
 	}
@@ -1945,7 +1964,9 @@ function gaming_hub_tesla_plan_auto_desired( array $plan, $status = null ) {
 	$status  = is_array( $status ) ? $status : array();
 	$model3  = is_array( $status['model3'] ?? null ) ? $status['model3'] : array();
 	$kind    = gaming_hub_tesla_status_supply_kind( $status );
-	$at_home = array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null;
+	$at_home = function_exists( 'gaming_hub_tesla_model3_input_at_home' )
+		? gaming_hub_tesla_model3_input_at_home( $model3 )
+		: ( array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null );
 	$plugged = in_array( $kind, array( 'home', 'supercharger' ), true ) || ! empty( $model3['plugged'] );
 	$away_limit = GAMING_HUB_TESLA_PLAN_SATURDAY_SOC;
 	$limit   = (int) ( $plan['target_soc'] ?? GAMING_HUB_TESLA_PLAN_TARGET_SOC );
