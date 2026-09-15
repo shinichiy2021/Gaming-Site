@@ -489,15 +489,26 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 	$cached['telemetry']    = true;
 	$cached['telemetry_at'] = $received > 0 ? $received : time();
 	$cached['live']         = true;
-	$cached['asleep']       = false;
 	$cached['source']       = 'telemetry';
 
-	if ( function_exists( 'gaming_hub_tesla_clear_api_skip' ) ) {
-		gaming_hub_tesla_clear_api_skip();
+	// Streaming telemetry means the car is online, but don't clear Fleet sleep backoff
+	// on empty heartbeats — that forces vehicle_data polls and keeps the car awake.
+	$has_signal = ! empty( $updated ) || $charging || $moving;
+	if ( $has_signal ) {
+		$cached['asleep'] = false;
+		if ( function_exists( 'gaming_hub_tesla_clear_api_skip' ) ) {
+			gaming_hub_tesla_clear_api_skip();
+		}
 	}
 
 	if ( function_exists( 'gaming_hub_tesla_store_model3' ) ) {
-		gaming_hub_tesla_store_model3( $cached );
+		if ( $has_signal ) {
+			gaming_hub_tesla_store_model3( $cached );
+		} elseif ( function_exists( 'gaming_hub_tesla_store_model3_snapshot' ) ) {
+			gaming_hub_tesla_store_model3_snapshot( $cached, ! empty( $cached['asleep'] ) );
+		} else {
+			set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $cached, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
+		}
 	} else {
 		set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $cached, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
 	}

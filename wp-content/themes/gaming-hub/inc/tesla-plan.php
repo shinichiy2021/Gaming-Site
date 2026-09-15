@@ -2089,10 +2089,7 @@ function gaming_hub_tesla_plan_home_charge_context( array $plan, $status = null 
 		return true;
 	}
 
-	if ( function_exists( 'gaming_hub_tesla_home_plugged_recent' ) && gaming_hub_tesla_home_plugged_recent() ) {
-		return true;
-	}
-
+	// Live cable only — do not treat multi-day "recently plugged" as home for wake/commands.
 	return null === ( $model3['at_home'] ?? null ) && 'home' === (string) ( $plan['live_supply'] ?? '' );
 }
 
@@ -2116,13 +2113,18 @@ function gaming_hub_tesla_plan_auto_plugged( $status, $want, array $plan = array
 		return true;
 	}
 
-	if ( function_exists( 'gaming_hub_tesla_home_plugged_recent' ) && gaming_hub_tesla_home_plugged_recent() ) {
+	// Only while asleep: allow a short home-plug memory so scheduled charge can wake.
+	if (
+		$want
+		&& gaming_hub_tesla_plan_status_asleep( $status )
+		&& gaming_hub_tesla_plan_home_charge_context( $plan, $status )
+		&& function_exists( 'gaming_hub_tesla_home_plugged_recent' )
+		&& gaming_hub_tesla_home_plugged_recent( 12 * HOUR_IN_SECONDS )
+	) {
 		return true;
 	}
 
-	return $want
-		&& gaming_hub_tesla_plan_status_asleep( $status )
-		&& gaming_hub_tesla_plan_home_charge_context( $plan, $status );
+	return false;
 }
 
 /**
@@ -2196,9 +2198,19 @@ function gaming_hub_tesla_plan_auto_apply( $status = null ) {
 		if ( ! $want && ! $charging ) {
 			return true;
 		}
-		// Asleep in a charge hour: keep retrying wake + charge_start until charging begins.
+		// Already commanded this hour while awake: do not re-spam charge_start every ~40s.
+		if ( $want && ! $charging && ! $asleep ) {
+			return true;
+		}
+		// Asleep in a charge hour: retry wake + charge_start at most every 15 minutes.
 		if ( $want && $asleep && gaming_hub_tesla_plan_home_charge_context( $plan, $status ) ) {
+			if ( get_transient( 'gaming_hub_tesla_plan_wake_retry' ) ) {
+				return true;
+			}
+			set_transient( 'gaming_hub_tesla_plan_wake_retry', 1, 15 * MINUTE_IN_SECONDS );
 			$same = false;
+		} else {
+			return true;
 		}
 	}
 

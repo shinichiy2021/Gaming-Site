@@ -174,9 +174,10 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 		function_exists( 'gaming_hub_tesla_model3_is_configured' )
 		&& gaming_hub_tesla_model3_is_configured()
 		&& 'tesla' === (string) ( $status['model3_source'] ?? '' )
+		&& ! empty( $GLOBALS['gaming_hub_tesla_force_plan_apply'] )
 		&& function_exists( 'gaming_hub_tesla_plan_auto_apply' )
 	) {
-		// Match AI PLAN charge windows on every live flow rebuild (~90s), not only the 15m cron.
+		// Commands only from the 15-minute sampler (or explicit cron), not UI polls.
 		gaming_hub_tesla_plan_auto_apply( $status );
 	}
 

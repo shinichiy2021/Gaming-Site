@@ -55,7 +55,8 @@ TESLA_TELEMETRY_CERT_DIR=/etc/letsencrypt/live/telemetry.shinichiy-gaming-hub.co
 docker compose -f docker-compose.prod.yml --profile telemetry up -d
 
 # 5) Tell the car where to send data (signs via tesla-http-proxy)
-#    Re-run after vehicle-config fields change (Phase 2 adds charge power / latch).
+#    Re-run after vehicle-config fields/intervals change (keeps the car from
+#    staying awake on 5s pack streams — example defaults are 60–300s now).
 docker compose -f docker-compose.prod.yml exec -T wordpress \
   php /var/www/html/scripts/tesla-telemetry-configure.php
 
