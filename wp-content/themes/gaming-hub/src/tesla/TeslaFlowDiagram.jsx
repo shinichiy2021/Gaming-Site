@@ -15,33 +15,94 @@ function PackEta( { status } ) {
 	);
 }
 
-function PhoneBattery( { percent, charging } ) {
+/**
+ * Teslogic-style circular gauge: SOC arc + optional speed readout.
+ */
+function SocSpeedometer( { percent, speedKm, charging, asleep, labels } ) {
 	if ( ! Number.isFinite( percent ) ) {
 		return null;
 	}
 
 	const level = Math.max( 0, Math.min( 100, percent ) );
 	const tone = batteryTone( level );
+	const size = 132;
+	const stroke = 10;
+	const r = ( size - stroke ) / 2;
+	const c = 2 * Math.PI * r;
+	// Teslogic-like open arc (about 270°), starting near bottom-left.
+	const arcFrac = 0.75;
+	const trackLen = c * arcFrac;
+	const fillLen = trackLen * ( level / 100 );
+	const rotate = 135; // degrees — open gap at bottom
+	const speed = Number( speedKm );
+	const showSpeed = ! asleep && Number.isFinite( speed ) && speed >= 1;
 	const classes = [
-		'ecoflow-phone-batt',
+		'tesla-soc-gauge',
 		charging ? 'is-charging' : '',
+		asleep ? 'is-asleep' : '',
 		tone.className,
 	].filter( Boolean ).join( ' ' );
 
 	return (
-		<span
+		<div
 			className={ classes }
-			style={ { '--battery-level': level, '--batt-tone': tone.color } }
-			title={ `${ level }%` }
+			style={ { '--batt-tone': tone.color, '--battery-level': level } }
+			role="img"
+			aria-label={
+				showSpeed
+					? `${ level }% · ${ Math.round( speed ) } km/h`
+					: `${ level }%`
+			}
 		>
-			<span className="ecoflow-phone-batt-icon" aria-hidden="true">
-				<span className="ecoflow-phone-batt-shell">
-					<span className="ecoflow-phone-batt-fill" />
+			<svg
+				className="tesla-soc-gauge__svg"
+				viewBox={ `0 0 ${ size } ${ size }` }
+				width={ size }
+				height={ size }
+				aria-hidden="true"
+			>
+				<circle
+					className="tesla-soc-gauge__track"
+					cx={ size / 2 }
+					cy={ size / 2 }
+					r={ r }
+					fill="none"
+					strokeWidth={ stroke }
+					strokeLinecap="round"
+					strokeDasharray={ `${ trackLen } ${ c }` }
+					transform={ `rotate(${ rotate } ${ size / 2 } ${ size / 2 })` }
+				/>
+				<circle
+					className="tesla-soc-gauge__arc"
+					cx={ size / 2 }
+					cy={ size / 2 }
+					r={ r }
+					fill="none"
+					strokeWidth={ stroke }
+					strokeLinecap="round"
+					strokeDasharray={ `${ fillLen } ${ c }` }
+					transform={ `rotate(${ rotate } ${ size / 2 } ${ size / 2 })` }
+				/>
+			</svg>
+			<div className="tesla-soc-gauge__center">
+				<span className="tesla-soc-gauge__readout">
+					<strong className="tesla-soc-gauge__soc">{ `${ Math.round( level ) }` }</strong>
+					<span className="tesla-soc-gauge__unit">%</span>
 				</span>
-				<span className="ecoflow-phone-batt-nub" />
-			</span>
-			<span className="ecoflow-phone-batt-pct">{ `${ level }%` }</span>
-		</span>
+				{ showSpeed ? (
+					<span className="tesla-soc-gauge__speed">
+						{ Math.round( speed ).toLocaleString() }
+						<small> km/h</small>
+					</span>
+				) : (
+					<span className="tesla-soc-gauge__caption">
+						{ asleep
+							? ( labels.asleep || 'Asleep' )
+							: ( charging ? ( labels.charging || 'Charging' ) : ( labels.soc || 'SOC' ) ) }
+					</span>
+				) }
+			</div>
+		</div>
 	);
 }
 
@@ -445,7 +506,19 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							{ images.tesla ? (
 								<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
 							) : null }
-							{ hasSoc ? <PhoneBattery percent={ soc } charging={ charging || regenOn } /> : null }
+							{ hasSoc ? (
+								<SocSpeedometer
+									percent={ soc }
+									speedKm={ status.speed_km }
+									charging={ charging || regenOn }
+									asleep={ asleep }
+									labels={ {
+										soc: labels.soc || 'SOC',
+										charging: labels.charging || labels.chargeRaid || '充電',
+										asleep: labels.asleep || 'スリープ',
+									} }
+								/>
+							) : null }
 						</div>
 						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
 						{ packLabel ? <small className="ecoflow-node-pack">{ packLabel }</small> : null }

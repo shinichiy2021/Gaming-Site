@@ -2116,6 +2116,116 @@ body.home .site-header.is-scrolled {
 	object-position: 58% 72%;
 }
 
+/* Teslogic-style SOC / speed gauge on Tesla hero node */
+.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-art {
+	position: relative;
+	display: grid;
+	place-items: center;
+}
+
+.tesla-soc-gauge {
+	position: absolute;
+	right: -6px;
+	bottom: -10px;
+	width: 132px;
+	height: 132px;
+	z-index: 2;
+	pointer-events: none;
+	filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
+}
+
+.tesla-soc-gauge__svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.tesla-soc-gauge__track {
+	stroke: rgba(244, 241, 234, 0.18);
+}
+
+.tesla-soc-gauge__arc {
+	stroke: var(--batt-tone, #e82127);
+	transition: stroke-dasharray 0.6s ease, stroke 0.35s ease;
+}
+
+.tesla-soc-gauge.is-charging .tesla-soc-gauge__arc {
+	filter: drop-shadow(0 0 8px color-mix(in srgb, var(--batt-tone, #e82127) 75%, transparent));
+	animation: tesla-soc-gauge-pulse 1.8s ease-in-out infinite;
+}
+
+.tesla-soc-gauge__center {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	line-height: 1;
+	pointer-events: none;
+}
+
+.tesla-soc-gauge__soc {
+	display: inline;
+	font-size: 2.05rem;
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	color: #f4f1ea;
+	font-variant-numeric: tabular-nums;
+	text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
+}
+
+.tesla-soc-gauge__unit {
+	margin-left: 0.05rem;
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	color: rgba(244, 241, 234, 0.72);
+	vertical-align: 0.55em;
+}
+
+.tesla-soc-gauge__speed {
+	margin-top: 0.35rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: #ffe082;
+	font-variant-numeric: tabular-nums;
+	text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+}
+
+.tesla-soc-gauge__speed small {
+	margin-left: 0.15rem;
+	font-size: 0.62rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	color: rgba(255, 224, 130, 0.85);
+}
+
+.tesla-soc-gauge__caption {
+	margin-top: 0.35rem;
+	font-size: 0.62rem;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: rgba(244, 241, 234, 0.55);
+}
+
+.tesla-soc-gauge.is-asleep {
+	opacity: 0.72;
+}
+
+@keyframes tesla-soc-gauge-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.72;
+	}
+}
+
 .tesla-flow-system [data-flow-id="tesla"].is-standby .tesla-photo-car {
 	filter: brightness(0.34) saturate(0.4) contrast(0.9);
 }
@@ -8402,6 +8512,21 @@ body.home .site-header.is-scrolled {
 		width: min(176px, 58vw);
 		height: min(176px, 58vw);
 		border-radius: 14px;
+	}
+
+	.tesla-soc-gauge {
+		right: -4px;
+		bottom: -8px;
+		width: 112px;
+		height: 112px;
+	}
+
+	.tesla-soc-gauge__soc {
+		font-size: 1.7rem;
+	}
+
+	.tesla-soc-gauge__speed {
+		font-size: 0.85rem;
 	}
 
 	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-label,
