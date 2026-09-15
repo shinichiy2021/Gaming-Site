@@ -1875,7 +1875,7 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-flow-map.teslogic-map {
-	padding: 18px 14px 16px;
+	padding: clamp(16px, 2.2vw, 28px) clamp(12px, 2vw, 24px) clamp(14px, 2vw, 22px);
 	background:
 		radial-gradient(ellipse at 50% 20%, rgba(255, 214, 0, 0.08), transparent 42%),
 		radial-gradient(ellipse at 20% 80%, rgba(105, 240, 174, 0.06), transparent 40%),
@@ -1891,9 +1891,9 @@ body.home .site-header.is-scrolled {
 	position: relative;
 	z-index: 2;
 	display: grid;
-	gap: 18px;
+	gap: clamp(16px, 2.4vw, 28px);
 	width: 100%;
-	max-width: 920px;
+	max-width: min(1180px, 100%);
 	margin: 0 auto;
 }
 
@@ -1901,7 +1901,7 @@ body.home .site-header.is-scrolled {
 	margin: 0;
 	text-align: center;
 	font-family: var(--font-display);
-	font-size: 0.92rem;
+	font-size: clamp(0.92rem, 1.4vw, 1.1rem);
 	font-weight: 700;
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
@@ -1910,25 +1910,25 @@ body.home .site-header.is-scrolled {
 
 .teslogic-top {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(160px, 220px) minmax(0, 1fr);
-	gap: 14px 18px;
+	grid-template-columns: minmax(0, 1.05fr) minmax(220px, 0.9fr) minmax(0, 1.05fr);
+	gap: clamp(12px, 1.8vw, 22px) clamp(14px, 2vw, 28px);
 	align-items: stretch;
 }
 
 .teslogic-bottom {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
-	gap: 12px;
+	gap: clamp(10px, 1.5vw, 16px);
 	align-items: stretch;
 }
 
 .teslogic-card {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: clamp(8px, 1vw, 12px);
 	min-width: 0;
-	padding: 12px 12px 10px;
-	border-radius: 16px;
+	padding: clamp(12px, 1.4vw, 18px) clamp(12px, 1.4vw, 16px) clamp(10px, 1.2vw, 14px);
+	border-radius: clamp(14px, 1.4vw, 18px);
 	background: rgba(18, 18, 22, 0.94);
 	border: 1.5px solid rgba(255, 255, 255, 0.14);
 	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
@@ -1997,7 +1997,7 @@ body.home .site-header.is-scrolled {
 }
 
 .teslogic-card__label {
-	font-size: 0.82rem;
+	font-size: clamp(0.82rem, 1.1vw, 0.98rem);
 	font-weight: 700;
 	letter-spacing: 0.01em;
 	color: rgba(244, 241, 234, 0.92);
@@ -2006,7 +2006,7 @@ body.home .site-header.is-scrolled {
 .teslogic-card__note {
 	display: block;
 	margin-top: -2px;
-	font-size: 0.72rem;
+	font-size: clamp(0.72rem, 0.95vw, 0.82rem);
 	line-height: 1.3;
 	color: rgba(244, 241, 234, 0.55);
 }
@@ -2014,7 +2014,7 @@ body.home .site-header.is-scrolled {
 .teslogic-metrics {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 8px 10px;
+	gap: clamp(8px, 1vw, 12px) clamp(10px, 1.2vw, 14px);
 }
 
 .teslogic-metric {
@@ -2024,13 +2024,13 @@ body.home .site-header.is-scrolled {
 }
 
 .teslogic-metric__label {
-	font-size: 0.68rem;
+	font-size: clamp(0.68rem, 0.9vw, 0.78rem);
 	letter-spacing: 0.02em;
 	color: rgba(180, 186, 198, 0.72);
 }
 
 .teslogic-metric__value {
-	font-size: 1.05rem;
+	font-size: clamp(1.05rem, 1.6vw, 1.45rem);
 	font-weight: 700;
 	letter-spacing: -0.02em;
 	font-variant-numeric: tabular-nums;
@@ -2081,19 +2081,19 @@ body.home .site-header.is-scrolled {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 10px;
-	margin-bottom: 4px;
+	gap: clamp(10px, 1.4vw, 16px);
+	margin-bottom: 6px;
 }
 
 .teslogic-battery__soc {
-	font-size: 1.35rem;
+	font-size: clamp(1.55rem, 2.6vw, 2.35rem);
 	font-weight: 800;
 	letter-spacing: -0.03em;
 	font-variant-numeric: tabular-nums;
 }
 
 .teslogic-battery__temp {
-	font-size: 0.92rem;
+	font-size: clamp(0.95rem, 1.3vw, 1.15rem);
 	font-weight: 600;
 	color: rgba(244, 241, 234, 0.78);
 }
@@ -2102,7 +2102,7 @@ body.home .site-header.is-scrolled {
 	display: block;
 	margin-top: 4px;
 	text-align: center;
-	font-size: 0.78rem;
+	font-size: clamp(0.78rem, 1vw, 0.92rem);
 	font-weight: 700;
 	color: rgba(244, 241, 234, 0.7);
 }
@@ -2110,22 +2110,23 @@ body.home .site-header.is-scrolled {
 .teslogic-battery__state {
 	display: block;
 	text-align: center;
-	font-size: 0.7rem;
+	font-size: clamp(0.7rem, 0.9vw, 0.8rem);
 	color: rgba(244, 241, 234, 0.5);
 }
 
 .teslogic-batt-icon {
 	display: inline-flex;
 	align-items: center;
-	gap: 2px;
+	gap: 3px;
+	flex-shrink: 0;
 }
 
 .teslogic-batt-icon__body {
 	position: relative;
-	width: 28px;
-	height: 14px;
-	border: 1.5px solid #69f0ae;
-	border-radius: 3px;
+	width: clamp(40px, 4.2vw, 56px);
+	height: clamp(20px, 2.1vw, 28px);
+	border: 2px solid #69f0ae;
+	border-radius: 4px;
 	overflow: hidden;
 	background: rgba(0, 0, 0, 0.35);
 }
@@ -2142,21 +2143,25 @@ body.home .site-header.is-scrolled {
 	inset: 0;
 	display: grid;
 	place-items: center;
-	font-size: 0.7rem;
+	font-size: clamp(0.85rem, 1.2vw, 1.15rem);
 	line-height: 1;
 	color: #fff;
 	text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
 }
 
 .teslogic-batt-icon__nub {
-	width: 3px;
-	height: 7px;
+	width: clamp(4px, 0.45vw, 6px);
+	height: clamp(10px, 1.1vw, 14px);
 	border-radius: 0 2px 2px 0;
 	background: #69f0ae;
 }
 
 .teslogic-batt-icon.is-charging .teslogic-batt-icon__body {
-	box-shadow: 0 0 10px rgba(105, 240, 174, 0.55);
+	box-shadow: 0 0 12px rgba(105, 240, 174, 0.6);
+}
+
+.teslogic-card--battery .teslogic-metric__value {
+	font-size: clamp(1.2rem, 1.9vw, 1.7rem);
 }
 
 /* Keep legacy selectors harmless if referenced elsewhere */
@@ -2728,7 +2733,8 @@ body.home .site-header.is-scrolled {
 	}
 }
 
-@media (max-width: 900px) {
+/* Phone only: stack Teslogic cards. Tablets keep the full 3+4 layout. */
+@media (max-width: 640px) {
 	.teslogic-top {
 		grid-template-columns: 1fr 1fr;
 		gap: 10px;
@@ -2742,6 +2748,44 @@ body.home .site-header.is-scrolled {
 	.teslogic-bottom {
 		grid-template-columns: 1fr 1fr;
 		gap: 10px;
+	}
+}
+
+/* Tablet / desktop: keep room for flow lines between cards */
+@media (min-width: 641px) {
+	.teslogic-top {
+		min-height: 168px;
+	}
+
+	.teslogic-card--battery {
+		justify-content: center;
+		min-height: 100%;
+	}
+
+	.teslogic-card__extras {
+		display: grid;
+	}
+}
+
+@media (min-width: 1100px) {
+	.teslogic-system {
+		max-width: 1240px;
+		gap: 32px;
+	}
+
+	.teslogic-top {
+		grid-template-columns: minmax(0, 1fr) minmax(260px, 320px) minmax(0, 1fr);
+		gap: 24px 36px;
+	}
+
+	.teslogic-bottom {
+		gap: 18px;
+	}
+
+	.teslogic-card__icon {
+		width: 1.55rem;
+		height: 1.55rem;
+		font-size: 1.15rem;
 	}
 }
 
@@ -5068,6 +5112,66 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-energy-content {
 	position: relative;
+}
+
+.ecoflow-energy-map.teslogic-map.is-gaming {
+	padding: clamp(16px, 2vw, 28px) clamp(12px, 2vw, 22px);
+	background:
+		radial-gradient(ellipse at 50% 15%, rgba(0, 245, 212, 0.08), transparent 42%),
+		radial-gradient(ellipse at 20% 80%, rgba(198, 255, 0, 0.05), transparent 40%),
+		#0a0a0c;
+	border-color: rgba(255, 255, 255, 0.08);
+	box-shadow: none;
+}
+
+.ecoflow-dual-layout.teslogic-dual {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: clamp(18px, 2.5vw, 32px);
+	align-items: start;
+	width: 100%;
+}
+
+.ecoflow-dual-layout.teslogic-dual .teslogic-system {
+	max-width: none;
+	width: 100%;
+	margin: 0;
+}
+
+.ecoflow-dual-layout.teslogic-dual .teslogic-bottom--single {
+	grid-template-columns: minmax(0, 1fr);
+	max-width: 420px;
+	margin: 0 auto;
+	width: 100%;
+}
+
+.ecoflow-dual-layout.teslogic-dual .teslogic-bottom:not(.teslogic-bottom--single) {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.teslogic-card.is-unavailable {
+	opacity: 0.55;
+	filter: grayscale(0.25);
+}
+
+.ecoflow-teslogic-system .ecoflow-node-eta {
+	margin: 0;
+	text-align: center;
+	font-size: 0.72rem;
+	color: rgba(244, 241, 234, 0.55);
+}
+
+.ecoflow-teslogic-system .ecoflow-node-eta strong {
+	display: inline;
+	margin-left: 0.35rem;
+	color: #c6ff00;
+	font-size: 0.78rem;
+}
+
+@media (max-width: 980px) {
+	.ecoflow-dual-layout.teslogic-dual {
+		grid-template-columns: 1fr;
+	}
 }
 
 .ecoflow-dual-layout {
@@ -8716,8 +8820,8 @@ body.home .site-header.is-scrolled {
 	}
 }
 
-/* Tesla energy flow — mobile (Teslogic cards). */
-@media (max-width: 800px) {
+/* Tesla energy flow — phone (Teslogic cards). */
+@media (max-width: 640px) {
 	.tesla-flow-map {
 		padding: 12px 8px 10px;
 		overflow: hidden;
@@ -8745,6 +8849,15 @@ body.home .site-header.is-scrolled {
 
 	.teslogic-metric__value {
 		font-size: 0.95rem;
+	}
+
+	.teslogic-battery__soc {
+		font-size: 1.45rem;
+	}
+
+	.teslogic-batt-icon__body {
+		width: 36px;
+		height: 18px;
 	}
 
 	.teslogic-card__extras {

@@ -282,7 +282,188 @@ function useLiveTodayBuy( todayBuy ) {
 	return liveTodayBuy( todayBuy );
 }
 
-function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsage, liveBuy } ) {
+function asWatts( value ) {
+	const watts = Number( value );
+	return Number.isFinite( watts ) ? Math.max( 0, watts ) : 0;
+}
+
+function whToKwh( value ) {
+	const wh = Number( value );
+	return Number.isFinite( wh ) ? Math.max( 0, wh ) / 1000 : 0;
+}
+
+function pctOf( part, whole ) {
+	if ( ! Number.isFinite( part ) || ! Number.isFinite( whole ) || whole <= 0 ) {
+		return 0;
+	}
+
+	return Math.max( 0, Math.min( 100, ( part / whole ) * 100 ) );
+}
+
+function formatPct( value ) {
+	const n = Number( value );
+	if ( ! Number.isFinite( n ) || n <= 0 ) {
+		return '0';
+	}
+
+	if ( n < 10 ) {
+		return n.toLocaleString( undefined, { maximumFractionDigits: 1 } );
+	}
+
+	return Math.round( n ).toLocaleString();
+}
+
+function formatKw( watts ) {
+	const w = asWatts( watts );
+	if ( w < FLOW_THRESHOLD ) {
+		return '0';
+	}
+
+	return ( w / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } );
+}
+
+function BattIcon( { charging } ) {
+	return (
+		<span className={ `teslogic-batt-icon${ charging ? ' is-charging' : '' }` } aria-hidden="true">
+			<span className="teslogic-batt-icon__body">
+				<span className="teslogic-batt-icon__fill" />
+				{ charging ? <span className="teslogic-batt-icon__bolt">⚡</span> : null }
+			</span>
+			<span className="teslogic-batt-icon__nub" />
+		</span>
+	);
+}
+
+function MetricPair( { currentLabel, currentValue, totalLabel, totalValue, currentPct, totalPct, showBars } ) {
+	return (
+		<div className="teslogic-metrics">
+			<div className="teslogic-metric">
+				<span className="teslogic-metric__label">{ currentLabel }</span>
+				<strong className="teslogic-metric__value">{ currentValue }</strong>
+				{ showBars ? (
+					<span className="teslogic-metric__bar" style={ { '--bar': `${ Math.min( 100, currentPct || 0 ) }%` } } />
+				) : null }
+			</div>
+			<div className="teslogic-metric">
+				<span className="teslogic-metric__label">{ totalLabel }</span>
+				<strong className="teslogic-metric__value">{ totalValue }</strong>
+				{ showBars ? (
+					<span className="teslogic-metric__bar" style={ { '--bar': `${ Math.min( 100, totalPct || 0 ) }%` } } />
+				) : null }
+			</div>
+		</div>
+	);
+}
+
+function FlowCard( {
+	flowId,
+	label,
+	icon,
+	active,
+	unavailable,
+	className,
+	currentLabel,
+	currentValue,
+	totalLabel,
+	totalValue,
+	currentPct,
+	totalPct,
+	showBars,
+	note,
+	extra,
+} ) {
+	const classes = [
+		'teslogic-card',
+		unavailable ? 'is-unavailable' : ( active ? 'is-active' : 'is-standby' ),
+		className,
+	].filter( Boolean ).join( ' ' );
+
+	return (
+		<div className={ classes } data-flow-id={ flowId }>
+			<div className="teslogic-card__head">
+				{ icon ? <span className="teslogic-card__icon" aria-hidden="true">{ icon }</span> : null }
+				<span className="teslogic-card__label">{ label }</span>
+			</div>
+			{ note ? <small className="teslogic-card__note">{ note }</small> : null }
+			<MetricPair
+				currentLabel={ currentLabel }
+				currentValue={ currentValue }
+				totalLabel={ totalLabel }
+				totalValue={ totalValue }
+				currentPct={ currentPct }
+				totalPct={ totalPct }
+				showBars={ showBars }
+			/>
+			{ extra }
+		</div>
+	);
+}
+
+function PackBatteryCard( {
+	flowId,
+	label,
+	soc,
+	hasSoc,
+	charging,
+	discharging,
+	unavailable,
+	currentW,
+	totalKwh,
+	stateLabel,
+	packLabel,
+	eta,
+} ) {
+	const tone = batteryTone( hasSoc ? soc : NaN );
+	const classes = [
+		'teslogic-card',
+		'teslogic-card--battery',
+		charging ? 'is-charging' : '',
+		unavailable ? 'is-unavailable is-asleep' : '',
+		( ! unavailable && ( charging || discharging || currentW >= FLOW_THRESHOLD ) ) ? 'is-active' : 'is-standby',
+		tone.className,
+	].filter( Boolean ).join( ' ' );
+
+	return (
+		<div
+			className={ classes }
+			data-flow-id={ flowId }
+			style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }
+		>
+			<div className="teslogic-battery__top">
+				<strong className="teslogic-battery__soc">
+					{ hasSoc ? formatSoc( soc ) : '—' }
+				</strong>
+				<BattIcon charging={ charging } />
+			</div>
+			<MetricPair
+				currentLabel="Current, kW"
+				currentValue={ unavailable ? '—' : formatKw( currentW ) }
+				totalLabel="Total, kWh"
+				totalValue={ unavailable ? '—' : totalKwh.toLocaleString( undefined, { maximumFractionDigits: 1 } ) }
+			/>
+			<span className="teslogic-battery__name">{ label }</span>
+			{ packLabel ? <small className="teslogic-battery__state">{ packLabel }</small> : null }
+			<small className="teslogic-battery__state">{ stateLabel }</small>
+			{ eta }
+		</div>
+	);
+}
+
+function ExtraLines( { lines } ) {
+	if ( ! lines?.length ) {
+		return null;
+	}
+
+	return (
+		<div className="teslogic-card__extras">
+			{ lines.map( ( line ) => (
+				<small key={ line }>{ line }</small>
+			) ) }
+		</div>
+	);
+}
+
+function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveBuy } ) {
 	const pro = status.pro || {};
 	const delta = status.delta || {};
 	const solarWatts = solarToDelta( status );
@@ -304,8 +485,6 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 	const extraCapLabel = extraMissing
 		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
 		: ( extra.capacity_source === 'stale' ? `${ extraCapText } · ${ extraLastLabel }` : extraCapText );
-	const deltaSoc = formatSoc( delta.battery_percent );
-	const extraTone = batteryTone( extraSoc );
 	const deltaMissing = isDeltaMqttMissing( status );
 	const upsLive = status.ups_source === 'ecoflow' || status.ups_source === 'switchbot';
 	const extraCharging = ! extraMissing && ! deltaMissing && (
@@ -314,224 +493,262 @@ function DualFlowDiagram( { status, labels, images, liveYen, liveSolar, liveUsag
 	const extraDischarging = ! extraMissing && ! deltaMissing && (
 		extra.eta_mode === 'discharge' || !! extra.is_discharging
 	);
-	const extraStandby = extraMissing || deltaMissing || ( ! extraCharging && ! extraDischarging );
+
+	const proSoc = parseSoc( pro.battery_percent );
+	const hasProSoc = proSoc !== null;
+	const proCharging = pro.eta_mode === 'charge' || ( pro.eta_mode !== 'discharge' && !! pro.is_charging );
+	const proAcOut = Number( pro.ac_out ) || 0;
+	const proOutTotal = Number( pro.output_total ) || 0;
+	const proDischarging = pro.eta_mode === 'discharge' || ( pro.eta_mode !== 'charge' && (
+		!! pro.is_discharging || ( ! proCharging && Math.max( proAcOut, proOutTotal, roomWatts ) >= FLOW_THRESHOLD )
+	) );
+	const proInW = asWatts( proGrid.watts ) + asWatts( hvWatts );
+	const proOutW = asWatts( roomWatts );
+	const proCurrentW = proCharging ? proInW : proOutW;
+	const proTodayKwh = proCharging
+		? whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro )
+		: whToKwh( liveUsage?.room );
+	const proFullWh = Number( pro.capacity_wh );
+	const proRemainWh = Number.isFinite( Number( pro.remain_capacity ) )
+		? Number( pro.remain_capacity )
+		: ( hasProSoc && Number.isFinite( proFullWh ) ? proFullWh * proSoc / 100 : null );
+	const proPackLabel = Number.isFinite( proFullWh ) && proFullWh > 0 ? formatPack( proRemainWh, proFullWh ) : '';
+
+	const deltaSocNum = parseSoc( delta.battery_percent );
+	const hasDeltaSoc = ! deltaMissing && deltaSocNum !== null;
+	const deltaCharging = ! deltaMissing && (
+		delta.eta_mode === 'charge' || ( delta.eta_mode !== 'discharge' && !! delta.is_charging )
+	);
+	const deltaAcOut = Number( delta.ac_out ) || 0;
+	const deltaOutTotal = Number( delta.output_total ) || 0;
+	const deltaDischarging = ! deltaMissing && (
+		delta.eta_mode === 'discharge' || ( delta.eta_mode !== 'charge' && (
+			!! delta.is_discharging || ( ! deltaCharging && Math.max( deltaAcOut, deltaOutTotal, asWatts( upsWatts ) ) >= FLOW_THRESHOLD )
+		) )
+	);
+	const deltaInW = asWatts( deltaAcIn ) + asWatts( solarWatts );
+	const deltaOutW = asWatts( upsWatts );
+	const deltaCurrentW = deltaCharging ? deltaInW : deltaOutW;
+	const deltaTodayKwh = deltaCharging
+		? whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta )
+		: whToKwh( liveUsage?.ups );
+	const deltaFullWh = Number( delta.capacity_wh );
+	const deltaRemainWh = Number.isFinite( Number( delta.remain_capacity ) )
+		? Number( delta.remain_capacity )
+		: ( hasDeltaSoc && Number.isFinite( deltaFullWh ) ? deltaFullWh * deltaSocNum / 100 : null );
+	const deltaPackLabel = deltaMissing
+		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
+		: ( Number.isFinite( deltaFullWh ) && deltaFullWh > 0 ? formatPack( deltaRemainWh, deltaFullWh ) : '' );
+
+	const gridShare = pctOf( asWatts( proGrid.watts ), Math.max( proInW, 1 ) );
+	const hvShare = pctOf( asWatts( hvWatts ), Math.max( proInW, 1 ) );
+	const homeShare = pctOf( proOutW, Math.max( proOutW, 1 ) );
+	const dGridShare = pctOf( asWatts( deltaAcIn ), Math.max( deltaInW, 1 ) );
+	const solarShare = pctOf( asWatts( solarWatts ), Math.max( deltaInW, 1 ) );
+	const upsShare = pctOf( deltaOutW, Math.max( deltaOutW, 1 ) );
+
+	const na = typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a';
 
 	return (
-		<div className="ecoflow-dual-layout is-independent">
-			<section className="ecoflow-system ecoflow-system-pro" aria-label={ labels.pro }>
-				<p className="ecoflow-system-title">{ labels.pro }</p>
+		<div className="ecoflow-dual-layout is-independent teslogic-dual">
+			<section className="teslogic-system ecoflow-teslogic-system" aria-label={ labels.pro }>
+				<p className="teslogic-title">{ labels.pro }</p>
 
-				<div className="ecoflow-input-stack">
-					<div
-						className={ flowNodeClass( 'ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot ecoflow-node-banner', isFlowActive( 'grid', status ) ? 'is-active' : 'is-standby' ) }
-						data-flow-id="grid"
-					>
-						{ images.grid ? (
-							<img src={ images.grid } alt="" className="ecoflow-node-photo ecoflow-node-photo-grid" />
-						) : (
-							<span className="ecoflow-node-banner-art" aria-hidden="true">
-								<span className="ecoflow-node-icon">⚡</span>
-							</span>
+				<div className="teslogic-top">
+					<FlowCard
+						flowId="grid"
+						label={ labels.gridCharge || labels.grid }
+						icon="⚡"
+						active={ isFlowActive( 'grid', status ) }
+						currentLabel="Current"
+						currentValue={ `${ formatPct( isFlowActive( 'grid', status ) ? Math.max( gridShare, 1 ) : 0 ) }%` }
+						totalLabel="Total"
+						totalValue={ `${ formatPct( pctOf( whToKwh( liveBuy?.pro ), Math.max( whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ), 0.001 ) ) ) }%` }
+						currentPct={ isFlowActive( 'grid', status ) ? gridShare : 0 }
+						totalPct={ pctOf( whToKwh( liveBuy?.pro ), Math.max( whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ), 0.001 ) ) }
+						showBars
+						note={ formatWatts( proGrid.watts ) }
+						extra={ (
+							<ExtraLines
+								lines={ [
+									`${ labels.todayBuy || '今日 買電' } ${ formatTodayWatts( liveBuy?.pro ) }`,
+									formatYenInt( liveYen?.proGrid ),
+									proGrid.message || null,
+								].filter( Boolean ) }
+							/>
 						) }
-						<span className="ecoflow-node-label">{ labels.gridCharge || labels.grid }</span>
-						<strong>{ formatWatts( proGrid.watts ) }</strong>
-						<small className="ecoflow-node-yen ecoflow-node-gen">
-							{ labels.todayBuy || '今日 買電' } { formatTodayWatts( liveBuy?.pro ) }
-						</small>
-						<small className="ecoflow-node-yen is-buy">
-							{ formatYenInt( liveYen?.proGrid ) }
-						</small>
-						{ proGrid.message ? <small>{ proGrid.message }</small> : null }
-					</div>
+					/>
 
-					<div
-						className={ flowNodeClass( 'ecoflow-node ecoflow-node-hv ecoflow-node-banner', isFlowActive( 'hv', status ) ? 'is-active' : 'is-standby' ) }
-						data-flow-id="hv"
-					>
-						{ images.solar ? (
-							<img src={ images.solar } alt="" className="ecoflow-node-photo ecoflow-node-photo-solar" />
-						) : (
-							<span className="ecoflow-node-banner-art" aria-hidden="true">
-								<span className="ecoflow-node-icon">☀️</span>
-							</span>
+					<PackBatteryCard
+						flowId="pro"
+						label={ labels.pro }
+						soc={ proSoc }
+						hasSoc={ hasProSoc }
+						charging={ proCharging }
+						discharging={ proDischarging }
+						unavailable={ false }
+						currentW={ proCurrentW }
+						totalKwh={ proTodayKwh }
+						stateLabel={ pro.charge_state || '—' }
+						packLabel={ proPackLabel }
+						eta={ <PackEta device={ pro } /> }
+					/>
+
+					<FlowCard
+						flowId="hv"
+						label={ labels.hv || 'ハイボルト' }
+						icon="☀️"
+						active={ isFlowActive( 'hv', status ) }
+						currentLabel="Current"
+						currentValue={ `${ formatPct( isFlowActive( 'hv', status ) ? Math.max( hvShare, 1 ) : 0 ) }%` }
+						totalLabel="Total"
+						totalValue={ `${ formatPct( pctOf( whToKwh( liveSolar?.pro ), Math.max( whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ), 0.001 ) ) ) }%` }
+						currentPct={ isFlowActive( 'hv', status ) ? hvShare : 0 }
+						totalPct={ pctOf( whToKwh( liveSolar?.pro ), Math.max( whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ), 0.001 ) ) }
+						showBars
+						note={ formatWatts( hvWatts ) }
+						extra={ (
+							<ExtraLines
+								lines={ [ `${ labels.todayGen || '今日 発電' } ${ formatTodayWatts( liveSolar?.pro ) }` ] }
+							/>
 						) }
-						<span className="ecoflow-node-label">{ labels.hv || 'ハイボルト' }</span>
-						<strong>{ formatWatts( hvWatts ) }</strong>
-						<small className="ecoflow-node-yen ecoflow-node-gen">
-							{ labels.todayGen || '今日 発電' } { formatTodayWatts( liveSolar?.pro ) }
-						</small>
-					</div>
+					/>
 				</div>
 
-				<DeviceNode device={ pro } label={ labels.pro } flowId="pro" photo={ images.pro } hero />
-
-				<div
-					className={ flowNodeClass( 'ecoflow-node ecoflow-node-home ecoflow-node-room ecoflow-node-banner', isFlowActive( 'proToHome', status ) ? 'is-active' : 'is-standby' ) }
-					data-flow-id="home"
-				>
-					{ images.room ? (
-						<img src={ images.room } alt="" className="ecoflow-node-photo ecoflow-node-photo-room" />
-					) : (
-						<span className="ecoflow-node-icon" aria-hidden="true">🏠</span>
-					) }
-					<span className="ecoflow-node-label">{ labels.home }</span>
-					<strong>{ formatWatts( roomWatts ) }</strong>
-					<small className="ecoflow-node-yen ecoflow-node-gen">
-						{ labels.todayUse || '今日 使用' } { formatTodayWatts( liveUsage?.room ) }
-					</small>
-					<small className="ecoflow-node-yen">
-						{ labels.todaySave || '今日 節約' } { formatYenInt( liveYen?.room ) }
-					</small>
-				</div>
-
-				<div className="ecoflow-flow-summary ecoflow-flow-summary-system">
-					<div className="ecoflow-flow-summary-item">
-						<span>{ labels.gridCharge || labels.grid }</span>
-						<strong>{ formatWatts( proGrid.watts ) }</strong>
-						<small className="ecoflow-node-yen ecoflow-node-gen">
-							{ labels.todayBuy || '今日 買電' } { formatTodayWatts( liveBuy?.pro ) }
-						</small>
-						{ proGrid.message ? <small>{ proGrid.message }</small> : null }
-					</div>
-					<div className="ecoflow-flow-summary-item">
-						<span>{ labels.hv || 'ハイボルト' }</span>
-						<strong>{ formatWatts( hvWatts ) }</strong>
-					</div>
-					<div className="ecoflow-flow-summary-item">
-						<span>{ labels.home }</span>
-						<strong>{ formatWatts( roomWatts ) }</strong>
-						<small>{ pro.charge_state || '—' }</small>
-					</div>
+				<div className="teslogic-bottom teslogic-bottom--single">
+					<FlowCard
+						flowId="home"
+						label={ labels.home }
+						icon="🏠"
+						active={ isFlowActive( 'proToHome', status ) }
+						currentLabel="Current"
+						currentValue={ `${ formatPct( isFlowActive( 'proToHome', status ) ? 100 : 0 ) }%` }
+						totalLabel="Total"
+						totalValue={ `${ formatPct( homeShare || ( whToKwh( liveUsage?.room ) > 0 ? 100 : 0 ) ) }%` }
+						currentPct={ isFlowActive( 'proToHome', status ) ? 100 : 0 }
+						totalPct={ whToKwh( liveUsage?.room ) > 0 ? 100 : 0 }
+						showBars
+						note={ formatWatts( roomWatts ) }
+						extra={ (
+							<ExtraLines
+								lines={ [
+									`${ labels.todayUse || '今日 使用' } ${ formatTodayWatts( liveUsage?.room ) }`,
+									`${ labels.todaySave || '今日 節約' } ${ formatYenInt( liveYen?.room ) }`,
+								] }
+							/>
+						) }
+					/>
 				</div>
 			</section>
 
-			<section className="ecoflow-system ecoflow-system-delta" aria-label={ labels.delta }>
-				<p className="ecoflow-system-title">{ labels.delta }</p>
+			<section className="teslogic-system ecoflow-teslogic-system" aria-label={ labels.delta }>
+				<p className="teslogic-title">{ labels.delta }</p>
 
-				<div className="ecoflow-input-stack">
-					<div
-						className={ flowNodeClass( 'ecoflow-node ecoflow-node-grid ecoflow-node-grid-slot ecoflow-node-banner', deltaMissing ? 'is-unavailable' : ( isFlowActive( 'deltaGrid', status ) ? 'is-active' : 'is-standby' ) ) }
-						data-flow-id="deltaGrid"
-					>
-						{ images.grid ? (
-							<img src={ images.grid } alt="" className="ecoflow-node-photo ecoflow-node-photo-grid" />
-						) : (
-							<span className="ecoflow-node-banner-art" aria-hidden="true">
-								<span className="ecoflow-node-icon">⚡</span>
-							</span>
+				<div className="teslogic-top">
+					<FlowCard
+						flowId="deltaGrid"
+						label={ labels.deltaGrid || 'グリッド AC 入力' }
+						icon="⚡"
+						active={ ! deltaMissing && isFlowActive( 'deltaGrid', status ) }
+						unavailable={ deltaMissing }
+						currentLabel="Current"
+						currentValue={ deltaMissing ? na : `${ formatPct( isFlowActive( 'deltaGrid', status ) ? Math.max( dGridShare, 1 ) : 0 ) }%` }
+						totalLabel="Total"
+						totalValue={ deltaMissing ? na : `${ formatPct( pctOf( whToKwh( liveBuy?.delta ), Math.max( whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta ), 0.001 ) ) ) }%` }
+						currentPct={ ! deltaMissing && isFlowActive( 'deltaGrid', status ) ? dGridShare : 0 }
+						totalPct={ pctOf( whToKwh( liveBuy?.delta ), Math.max( whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta ), 0.001 ) ) }
+						showBars
+						note={ formatWatts( deltaAcIn ) }
+						extra={ deltaMissing ? null : (
+							<ExtraLines
+								lines={ [
+									`${ labels.todayBuy || '今日 買電' } ${ formatTodayWatts( liveBuy?.delta ) }`,
+									formatYenInt( liveYen?.grid ),
+								] }
+							/>
 						) }
-						<span className="ecoflow-node-label">{ labels.deltaGrid || 'グリッド AC 入力' }</span>
-						<strong>{ formatWatts( deltaAcIn ) }</strong>
-						{ deltaMissing ? (
-							<small>{ typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' }</small>
-						) : (
-							<>
-								<small className="ecoflow-node-yen ecoflow-node-gen">
-									{ labels.todayBuy || '今日 買電' } { formatTodayWatts( liveBuy?.delta ) }
-								</small>
-								<small className="ecoflow-node-yen is-buy">
-									{ formatYenInt( liveYen?.grid ) }
-								</small>
-							</>
-						) }
-					</div>
+					/>
 
-					<div
-						className={ flowNodeClass( 'ecoflow-node ecoflow-node-solar ecoflow-node-banner', solarWatts === null || solarWatts === undefined ? ( deltaMissing ? 'is-unavailable' : 'is-standby' ) : ( isFlowActive( 'solar', status ) ? 'is-active' : 'is-standby' ) ) }
-						data-flow-id="solar"
-					>
-						{ images.solar ? (
-							<img src={ images.solar } alt="" className="ecoflow-node-photo ecoflow-node-photo-solar" />
-						) : (
-							<span className="ecoflow-node-banner-art" aria-hidden="true">
-								<span className="ecoflow-node-icon">☀️</span>
-							</span>
+					<PackBatteryCard
+						flowId="delta"
+						label={ labels.delta }
+						soc={ deltaSocNum }
+						hasSoc={ hasDeltaSoc }
+						charging={ deltaCharging }
+						discharging={ deltaDischarging }
+						unavailable={ deltaMissing }
+						currentW={ deltaCurrentW }
+						totalKwh={ deltaTodayKwh }
+						stateLabel={ deltaMissing ? na : ( delta.charge_state || '—' ) }
+						packLabel={ deltaPackLabel }
+						eta={ deltaMissing ? null : <PackEta device={ delta } /> }
+					/>
+
+					<FlowCard
+						flowId="solar"
+						label={ labels.solar }
+						icon="☀️"
+						active={ ! deltaMissing && isFlowActive( 'solar', status ) }
+						unavailable={ solarWatts === null || solarWatts === undefined || deltaMissing }
+						currentLabel="Current"
+						currentValue={ ( solarWatts === null || solarWatts === undefined || deltaMissing ) ? na : `${ formatPct( isFlowActive( 'solar', status ) ? Math.max( solarShare, 1 ) : 0 ) }%` }
+						totalLabel="Total"
+						totalValue={ ( solarWatts === null || solarWatts === undefined || deltaMissing ) ? na : `${ formatPct( pctOf( whToKwh( liveSolar?.delta ), Math.max( whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta ), 0.001 ) ) ) }%` }
+						currentPct={ ! deltaMissing && isFlowActive( 'solar', status ) ? solarShare : 0 }
+						totalPct={ pctOf( whToKwh( liveSolar?.delta ), Math.max( whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta ), 0.001 ) ) }
+						showBars
+						note={ formatWatts( solarWatts ) }
+						extra={ ( solarWatts === null || solarWatts === undefined ) ? null : (
+							<ExtraLines
+								lines={ [ `${ labels.todayGen || '今日 発電' } ${ formatTodayWatts( liveSolar?.delta ) }` ] }
+							/>
 						) }
-						<span className="ecoflow-node-label">{ labels.solar }</span>
-						<strong>{ formatWatts( solarWatts ) }</strong>
-						<small className={ solarWatts === null || solarWatts === undefined ? '' : 'ecoflow-node-yen ecoflow-node-gen' }>{
-							solarWatts === null || solarWatts === undefined
-								? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
-								: `${ labels.todayGen || '今日 発電' } ${ formatTodayWatts( liveSolar?.delta ) }`
-						}</small>
-					</div>
+					/>
 				</div>
 
-				<div className="ecoflow-delta-cluster">
-					<DeviceNode device={ delta } label={ labels.delta } flowId="delta" photo={ images.delta } prominent />
-				</div>
+				<div className="teslogic-bottom">
+					<FlowCard
+						flowId="extra"
+						className="teslogic-card--aux"
+						label={ labels.extra || 'Extra Battery 1kW' }
+						icon="🔋"
+						active={ ! extraMissing && ! deltaMissing && ( extraCharging || extraDischarging ) }
+						unavailable={ extraMissing }
+						currentLabel="Current"
+						currentValue={ extraMissing ? na : formatSoc( extraSoc ) }
+						totalLabel="Total"
+						totalValue={ extraCapLabel }
+						currentPct={ extraMissing ? 0 : extraSoc }
+						totalPct={ extraMissing ? 0 : extraSoc }
+						showBars
+						note={ extraCharging ? ( labels.charging || '充電' ) : ( extraDischarging ? ( labels.discharging || '放電' ) : null ) }
+						extra={ ( ! extraMissing && ! deltaMissing ) ? <PackEta device={ extra } /> : null }
+					/>
 
-				<div
-					className={ flowNodeClass(
-						'ecoflow-node ecoflow-node-extra ecoflow-node-banner',
-						Number.isFinite( extraSoc ) ? 'has-soc' : '',
-						extraCharging ? 'is-charging' : '',
-						extraDischarging ? 'is-discharging' : '',
-						extraMissing ? 'is-unavailable' : ( extraStandby ? 'is-standby' : 'is-active' ),
-						extraTone.className
-					) }
-					data-flow-id="extra"
-					style={ Number.isFinite( extraSoc ) ? { '--battery-level': extraSoc, '--batt-tone': extraTone.color } : undefined }
-				>
-					<div className="ecoflow-node-art ecoflow-extra-pack">
-						{ images.extra ? (
-							<img src={ images.extra } alt="" className="ecoflow-node-photo ecoflow-node-photo-extra" />
-						) : (
-							<span className="ecoflow-node-banner-art" aria-hidden="true">
-								<span className="ecoflow-node-icon">🔋</span>
-							</span>
-						) }
-						<PhoneBattery percent={ extraSoc } charging={ extraCharging } />
-					</div>
-					<span className="ecoflow-node-label">{ labels.extra || 'Extra Battery 1kW' }</span>
-					<small>{ extraCapLabel }</small>
-					{ ! extraMissing && ! deltaMissing ? <PackEta device={ extra } /> : null }
-				</div>
-
-				<div
-					className={ flowNodeClass( 'ecoflow-node ecoflow-node-home ecoflow-node-ups ecoflow-node-banner', ( deltaMissing && status.ups_source !== 'switchbot' ) ? 'is-unavailable' : ( isFlowActive( 'deltaToUps', status ) ? 'is-active' : 'is-standby' ) ) }
-					data-flow-id="ups"
-				>
-					{ images.ups ? (
-						<img src={ images.ups } alt="" className="ecoflow-node-photo ecoflow-node-photo-ups" />
-					) : (
-						<span className="ecoflow-node-icon" aria-hidden="true">🔋</span>
-					) }
-					<span className="ecoflow-node-label">{ labels.ups || '常時稼働エリア (UPS)' }</span>
-					<strong>{ formatWatts( upsWatts ) }</strong>
-					{ upsLive ? (
-						<>
-							<small className="ecoflow-node-yen ecoflow-node-gen">
-								{ labels.todayUse || '今日 使用' } { formatTodayWatts( liveUsage?.ups ) }
-							</small>
-							<small className="ecoflow-node-yen">
-								{ labels.todaySave || '今日 節約' } { formatYenInt( liveYen?.ups ) }
-							</small>
-						</>
-					) : (
-						<small>{ typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' }</small>
-					) }
-				</div>
-
-				<div className="ecoflow-flow-summary ecoflow-flow-summary-system">
-					<div className="ecoflow-flow-summary-item">
-						<span>{ labels.deltaGrid || 'グリッド AC 入力' }</span>
-						<strong>{ formatWatts( deltaAcIn ) }</strong>
-						{ ! deltaMissing ? (
-							<small className="ecoflow-node-yen ecoflow-node-gen">
-								{ labels.todayBuy || '今日 買電' } { formatTodayWatts( liveBuy?.delta ) }
-							</small>
+					<FlowCard
+						flowId="ups"
+						className="teslogic-card--aux"
+						label={ labels.ups || '常時稼働エリア (UPS)' }
+						icon="🔌"
+						active={ ! ( deltaMissing && status.ups_source !== 'switchbot' ) && isFlowActive( 'deltaToUps', status ) }
+						unavailable={ deltaMissing && status.ups_source !== 'switchbot' }
+						currentLabel="Current"
+						currentValue={ ( deltaMissing && status.ups_source !== 'switchbot' ) ? na : `${ formatPct( isFlowActive( 'deltaToUps', status ) ? 100 : 0 ) }%` }
+						totalLabel="Total"
+						totalValue={ upsLive ? `${ formatPct( upsShare || ( whToKwh( liveUsage?.ups ) > 0 ? 100 : 0 ) ) }%` : na }
+						currentPct={ isFlowActive( 'deltaToUps', status ) ? 100 : 0 }
+						totalPct={ upsLive && whToKwh( liveUsage?.ups ) > 0 ? 100 : 0 }
+						showBars
+						note={ formatWatts( upsWatts ) }
+						extra={ upsLive ? (
+							<ExtraLines
+								lines={ [
+									`${ labels.todayUse || '今日 使用' } ${ formatTodayWatts( liveUsage?.ups ) }`,
+									`${ labels.todaySave || '今日 節約' } ${ formatYenInt( liveYen?.ups ) }`,
+								] }
+							/>
 						) : null }
-					</div>
-					<div className="ecoflow-flow-summary-item">
-						<span>{ labels.solar }</span>
-						<strong>{ formatWatts( solarWatts ) }</strong>
-					</div>
-					<div className="ecoflow-flow-summary-item">
-						<span>{ labels.ups || '常時稼働エリア (UPS)' }</span>
-						<strong>{ formatWatts( upsWatts ) }</strong>
-						<small>{ delta.charge_state || '—' } · { deltaSoc } · EB { formatSoc( extraSoc ) }</small>
-					</div>
+					/>
 				</div>
 			</section>
 		</div>
@@ -610,7 +827,6 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 	const mapRef = useRef( null );
 	const canvasRef = useRef( null );
 	const [ status, setStatus ] = useState( initial || {} );
-	const images = window.gamingHubEcoflowFlow?.images || {};
 	const liveYen = useLiveTodayYen( status.today_yen );
 	const liveSolar = useLiveTodaySolar( status.today_solar );
 	const liveUsage = useLiveTodayUsage( status.today_usage );
@@ -634,7 +850,7 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 	return (
 		<div
 			ref={ mapRef }
-			className={ `ecoflow-energy-map${ isDual ? ' is-dual is-gaming' : '' }` }
+			className={ `ecoflow-energy-map teslogic-map${ isDual ? ' is-dual is-gaming' : '' }` }
 			data-charging={ status.is_charging ? '1' : '0' }
 			data-dual={ isDual ? '1' : '0' }
 			aria-label={ labels.flow }
@@ -643,7 +859,7 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 
 			<div className="ecoflow-energy-content">
 				{ isDual ? (
-					<DualFlowDiagram status={ status } labels={ labels } images={ images } liveYen={ liveYen } liveSolar={ liveSolar } liveUsage={ liveUsage } liveBuy={ liveBuy } />
+					<DualFlowDiagram status={ status } labels={ labels } liveYen={ liveYen } liveSolar={ liveSolar } liveUsage={ liveUsage } liveBuy={ liveBuy } />
 				) : (
 					<SingleFlowDiagram status={ status } labels={ labels } />
 				) }
