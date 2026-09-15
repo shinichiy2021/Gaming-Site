@@ -1967,8 +1967,61 @@ body.home .site-header.is-scrolled {
 }
 
 .teslogic-card--battery.is-asleep {
-	opacity: 0.72;
-	filter: saturate(0.7);
+	opacity: 0.78;
+	filter: saturate(0.35) brightness(0.92);
+	border-color: rgba(148, 163, 184, 0.45);
+	box-shadow:
+		0 0 0 1px rgba(148, 163, 184, 0.12),
+		0 8px 18px rgba(0, 0, 0, 0.35);
+	background:
+		radial-gradient(circle at 50% 0%, rgba(148, 163, 184, 0.08), transparent 55%),
+		rgba(12, 14, 18, 0.96);
+}
+
+.tesla-flow-map.teslogic-map.is-asleep {
+	background:
+		radial-gradient(ellipse at 50% 18%, rgba(100, 116, 139, 0.12), transparent 44%),
+		#07080b;
+	border-color: rgba(148, 163, 184, 0.22);
+}
+
+.tesla-flow-map.teslogic-map.is-asleep .teslogic-card {
+	opacity: 0.62;
+	filter: saturate(0.45);
+	border-color: rgba(148, 163, 184, 0.28);
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.32);
+}
+
+.tesla-flow-map.teslogic-map.is-asleep .teslogic-card.is-active {
+	opacity: 0.62;
+	border-color: rgba(148, 163, 184, 0.28);
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.32);
+}
+
+.tesla-flow-map.teslogic-map.is-asleep .teslogic-card--battery {
+	opacity: 0.88;
+	filter: saturate(0.4) brightness(0.95);
+}
+
+.teslogic-sleep-badge {
+	display: inline-block;
+	margin-left: 0.55em;
+	padding: 0.12em 0.55em;
+	border-radius: 999px;
+	border: 1px solid rgba(148, 163, 184, 0.45);
+	background: rgba(30, 41, 59, 0.85);
+	color: #cbd5e1;
+	font-family: var(--font-body, inherit);
+	font-size: 0.78em;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	vertical-align: middle;
+}
+
+.teslogic-card--battery.is-asleep .teslogic-battery__state {
+	color: #94a3b8;
+	font-weight: 600;
+	letter-spacing: 0.06em;
 }
 
 .teslogic-card--motor.is-regen.is-active {
@@ -2862,11 +2915,14 @@ body.home .site-header.is-scrolled {
 .pw-flow-sleep-note {
 	margin: 0 0 16px;
 	padding: 10px 14px;
-	font-size: 0.85rem;
-	color: #c5c8d0;
-	background: rgba(255, 255, 255, 0.04);
-	border: 1px solid rgba(255, 255, 255, 0.12);
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: #cbd5e1;
+	background: rgba(30, 41, 59, 0.65);
+	border: 1px solid rgba(148, 163, 184, 0.4);
 	border-radius: var(--radius-md);
+	text-align: center;
+	letter-spacing: 0.02em;
 }
 
 .pw-flow-error {

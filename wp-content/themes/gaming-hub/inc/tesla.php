@@ -39,6 +39,8 @@ define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 30 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 8 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STALE_CHARGE_TTL', 10 * MINUTE_IN_SECONDS );
+/** No Fleet/telemetry signal for this long → treat as asleep in the UI. */
+define( 'GAMING_HUB_TESLA_SLEEP_STALE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_TAG_SLUG', 'tesla' );
 
 /**
@@ -955,16 +957,18 @@ function gaming_hub_tesla_invalidate_status_caches() {
 /**
  * Last successful Model 3 snapshot, if any.
  *
- * @param bool $asleep Mark the snapshot as sleep-mode.
+ * @param bool|null $asleep When non-null, override the stored sleep flag. Null keeps cache.
  * @return array<string, mixed>|null
  */
-function gaming_hub_tesla_cached_model3( $asleep = false ) {
+function gaming_hub_tesla_cached_model3( $asleep = null ) {
 	$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
 	if ( ! is_array( $cached ) ) {
 		return null;
 	}
 
-	$cached['asleep'] = (bool) $asleep;
+	if ( null !== $asleep ) {
+		$cached['asleep'] = (bool) $asleep;
+	}
 
 	return $cached;
 }
@@ -1014,6 +1018,13 @@ function gaming_hub_tesla_mark_api_skip( $ttl, $reason = 'error' ) {
 	$cached['asleep']      = true;
 	$cached['is_charging'] = false;
 	$cached['watts']       = 0;
+	$cached['drive_w']     = 0;
+	$cached['cabin_w']     = 0;
+	$cached['regen_w']     = 0;
+	$cached['climate_on']  = false;
+	$cached['sentry_mode'] = false;
+	$cached['speed_km']    = 0;
+	$cached['vehicle_mode'] = 'idle';
 	set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $cached, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
 }
 
@@ -1055,6 +1066,13 @@ function gaming_hub_tesla_store_model3_snapshot( array $model3, $asleep = false 
 		$model3['charge_rate_kw']            = 0;
 		$model3['time_to_full_charge_hours'] = 0;
 		$model3['minutes_to_full']           = 0;
+		$model3['drive_w']                   = 0;
+		$model3['cabin_w']                   = 0;
+		$model3['regen_w']                   = 0;
+		$model3['climate_on']                = false;
+		$model3['sentry_mode']               = false;
+		$model3['speed_km']                  = 0;
+		$model3['vehicle_mode']              = 'idle';
 		if ( isset( $model3['battery_percent'] ) && is_numeric( $model3['battery_percent'] ) && function_exists( 'gaming_hub_tesla_sleep_soc_freeze' ) ) {
 			gaming_hub_tesla_sleep_soc_freeze( $model3['battery_percent'] );
 		}
@@ -1063,11 +1081,62 @@ function gaming_hub_tesla_store_model3_snapshot( array $model3, $asleep = false 
 }
 
 /**
+ * Last live signal time (Fleet fetch or telemetry).
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ */
+function gaming_hub_tesla_last_signal_at( array $model3 ) {
+	return max(
+		(int) ( $model3['fetched_at'] ?? 0 ),
+		(int) ( $model3['telemetry_at'] ?? 0 )
+	);
+}
+
+/**
+ * Whether the dashboard should show sleep (stale parked snapshot, not charging).
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ */
+function gaming_hub_tesla_should_display_asleep( array $model3 ) {
+	if ( ! empty( $model3['is_charging'] ) ) {
+		return false;
+	}
+
+	if ( ! empty( $model3['asleep'] ) ) {
+		return true;
+	}
+
+	$shift = strtoupper( (string) ( $model3['shift_state'] ?? '' ) );
+	if ( in_array( $shift, array( 'D', 'R' ), true ) ) {
+		return false;
+	}
+
+	if ( (int) ( $model3['speed_km'] ?? 0 ) >= 3 ) {
+		return false;
+	}
+
+	if ( (int) ( $model3['drive_w'] ?? 0 ) >= 80 || (int) ( $model3['regen_w'] ?? 0 ) >= 80 ) {
+		return false;
+	}
+
+	$at = gaming_hub_tesla_last_signal_at( $model3 );
+	if ( $at <= 0 ) {
+		return false;
+	}
+
+	return ( time() - $at ) >= GAMING_HUB_TESLA_SLEEP_STALE_TTL;
+}
+
+/**
  * Charging or driving — poll more often while the car is already awake.
  *
  * @param array<string, mixed> $model3 Mapped Model 3 payload.
  */
 function gaming_hub_tesla_snapshot_is_active( array $model3 ) {
+	if ( ! empty( $model3['asleep'] ) || gaming_hub_tesla_should_display_asleep( $model3 ) ) {
+		return false;
+	}
+
 	if ( ! empty( $model3['is_charging'] ) ) {
 		return true;
 	}
@@ -3638,10 +3707,10 @@ function gaming_hub_fetch_tesla_model3_status() {
 	if ( '' !== $skip_reason ) {
 		$keep_charging = is_array( $cached ) && ! empty( $cached['is_charging'] );
 		if ( $cached && ( ! $keep_charging || 'error' === $skip_reason ) ) {
-			return gaming_hub_tesla_finish_cached_model3(
-				$cached,
-				'asleep' === $skip_reason && ! $keep_charging
-			);
+			$asleep = ( 'asleep' === $skip_reason || gaming_hub_tesla_should_display_asleep( $cached ) )
+				&& ! $keep_charging;
+
+			return gaming_hub_tesla_finish_cached_model3( $cached, $asleep );
 		}
 
 		if ( ! $cached ) {
@@ -3655,9 +3724,11 @@ function gaming_hub_fetch_tesla_model3_status() {
 	}
 
 	if ( is_array( $cached ) ) {
-		$age = time() - (int) ( $cached['fetched_at'] ?? 0 );
+		$age = time() - gaming_hub_tesla_last_signal_at( $cached );
 		if ( $age >= 0 && $age < gaming_hub_tesla_snapshot_ttl( $cached ) ) {
-			return gaming_hub_tesla_finish_cached_model3( $cached );
+			$asleep = gaming_hub_tesla_should_display_asleep( $cached );
+
+			return gaming_hub_tesla_finish_cached_model3( $cached, $asleep );
 		}
 	}
 
@@ -3668,7 +3739,10 @@ function gaming_hub_fetch_tesla_model3_status() {
 		gaming_hub_tesla_mark_api_skip( GAMING_HUB_TESLA_ERROR_SKIP_TTL, 'error' );
 
 		if ( $cached ) {
-			return gaming_hub_tesla_finish_cached_model3( $cached );
+			return gaming_hub_tesla_finish_cached_model3(
+				$cached,
+				gaming_hub_tesla_should_display_asleep( $cached )
+			);
 		}
 
 		return $api;

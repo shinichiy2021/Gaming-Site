@@ -127,7 +127,9 @@ function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
 				if ( function_exists( 'gaming_hub_tesla_finish_cached_model3' ) ) {
 					$cached = gaming_hub_tesla_finish_cached_model3(
 						$cached,
-						! empty( $cached['asleep'] )
+						function_exists( 'gaming_hub_tesla_should_display_asleep' )
+							? gaming_hub_tesla_should_display_asleep( $cached )
+							: ( ! empty( $cached['asleep'] ) && empty( $cached['is_charging'] ) )
 					);
 				} else {
 					$cached['asleep'] = ! empty( $cached['asleep'] ) && empty( $cached['is_charging'] );

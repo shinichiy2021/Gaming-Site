@@ -166,7 +166,7 @@ function BatteryCard( {
 		'teslogic-card--battery',
 		charging || regenOn ? 'is-charging' : '',
 		asleep ? 'is-asleep' : '',
-		( charging || regenOn || currentW > 0 ) ? 'is-active' : 'is-standby',
+		( ! asleep && ( charging || regenOn || currentW > 0 ) ) ? 'is-active' : 'is-standby',
 		tone.className,
 	].filter( Boolean ).join( ' ' );
 
@@ -311,7 +311,11 @@ function ExtraLines( { lines, highlight } ) {
 }
 
 function teslaStateLabel( status, labels ) {
-	if ( ! status.live || status.asleep ) {
+	if ( status.asleep ) {
+		return labels.asleep || labels.idle || 'スリープ中';
+	}
+
+	if ( ! status.live ) {
 		return labels.idle;
 	}
 
@@ -421,16 +425,21 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const speed = asleep ? 0 : ( Number( status.speed_km ) || 0 );
 
 	return (
-		<div className="tesla-flow-scene">
+		<div className={ `tesla-flow-scene${ asleep ? ' is-asleep' : '' }` }>
 			<div
 				ref={ mapRef }
-				className="tesla-flow-map ecoflow-energy-map teslogic-map"
+				className={ `tesla-flow-map ecoflow-energy-map teslogic-map${ asleep ? ' is-asleep' : '' }` }
 				aria-label={ labels.flow }
 			>
 				<canvas ref={ canvasRef } className="ecoflow-energy-canvas tesla-flow-canvas" aria-hidden="true" />
 
 				<div className="teslogic-system">
-					<p className="teslogic-title">{ labels.title }</p>
+					<p className="teslogic-title">
+						{ labels.title }
+						{ asleep ? (
+							<span className="teslogic-sleep-badge">{ labels.asleep || 'スリープ中' }</span>
+						) : null }
+					</p>
 
 					<div className="teslogic-top">
 						<FlowCard
@@ -438,7 +447,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							className={ `teslogic-card--motor${ regenOn ? ' is-regen' : '' }` }
 							label={ regenOn ? ( labels.regen || '回生' ) : ( labels.rearMotor || labels.drive || 'リアモーター' ) }
 							icon={ ICONS.motor }
-							active={ ! asleep && ( driveOn || regenOn || ( status.gas?.saved_yen || 0 ) > 0 ) }
+							active={ ! asleep && ( driveOn || regenOn ) }
 							currentLabel="Current"
 							currentValue={ `${ formatPct( driveShareNow ) }%` }
 							totalLabel="Total"
