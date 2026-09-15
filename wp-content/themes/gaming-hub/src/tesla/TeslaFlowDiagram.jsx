@@ -16,91 +16,74 @@ function PackEta( { status } ) {
 }
 
 /**
- * Teslogic-style circular gauge: SOC arc + optional speed readout.
+ * Teslogic dashboard-style dial: gear + speed center, SOC chip, blue ring.
  */
-function SocSpeedometer( { percent, speedKm, charging, asleep, labels } ) {
-	if ( ! Number.isFinite( percent ) ) {
-		return null;
-	}
-
-	const level = Math.max( 0, Math.min( 100, percent ) );
-	const tone = batteryTone( level );
-	const size = 132;
-	const stroke = 10;
-	const r = ( size - stroke ) / 2;
-	const c = 2 * Math.PI * r;
-	// Teslogic-like open arc (about 270°), starting near bottom-left.
-	const arcFrac = 0.75;
-	const trackLen = c * arcFrac;
-	const fillLen = trackLen * ( level / 100 );
-	const rotate = 135; // degrees — open gap at bottom
-	const speed = Number( speedKm );
-	const showSpeed = ! asleep && Number.isFinite( speed ) && speed >= 1;
+function TeslogicDashGauge( { percent, speedKm, shift, charging, asleep } ) {
+	const hasSoc = Number.isFinite( percent );
+	const level = hasSoc ? Math.max( 0, Math.min( 100, percent ) ) : null;
+	const tone = hasSoc ? batteryTone( level ) : { color: '#4da3ff', className: '' };
+	const speedRaw = asleep ? 0 : Number( speedKm );
+	const speed = Number.isFinite( speedRaw ) ? Math.max( 0, Math.round( speedRaw ) ) : 0;
+	const gears = [ 'P', 'R', 'N', 'D' ];
+	const current = asleep ? 'P' : String( shift || '' ).toUpperCase();
+	const gearReady = gears.includes( current );
+	const size = 168;
+	const stroke = 3.5;
+	const r = ( size - stroke ) / 2 - 2;
 	const classes = [
-		'tesla-soc-gauge',
+		'tesla-dash-gauge',
 		charging ? 'is-charging' : '',
 		asleep ? 'is-asleep' : '',
+		speed >= 1 ? 'is-moving' : '',
 		tone.className,
 	].filter( Boolean ).join( ' ' );
 
 	return (
 		<div
 			className={ classes }
-			style={ { '--batt-tone': tone.color, '--battery-level': level } }
+			style={ hasSoc ? { '--batt-tone': tone.color, '--battery-level': level } : undefined }
 			role="img"
 			aria-label={
-				showSpeed
-					? `${ level }% · ${ Math.round( speed ) } km/h`
-					: `${ level }%`
+				hasSoc
+					? `${ speed } km/h · ${ Math.round( level ) }%${ gearReady ? ` · ${ current }` : '' }`
+					: `${ speed } km/h`
 			}
 		>
 			<svg
-				className="tesla-soc-gauge__svg"
+				className="tesla-dash-gauge__svg"
 				viewBox={ `0 0 ${ size } ${ size }` }
-				width={ size }
-				height={ size }
 				aria-hidden="true"
 			>
 				<circle
-					className="tesla-soc-gauge__track"
+					className="tesla-dash-gauge__ring"
 					cx={ size / 2 }
 					cy={ size / 2 }
 					r={ r }
 					fill="none"
 					strokeWidth={ stroke }
-					strokeLinecap="round"
-					strokeDasharray={ `${ trackLen } ${ c }` }
-					transform={ `rotate(${ rotate } ${ size / 2 } ${ size / 2 })` }
-				/>
-				<circle
-					className="tesla-soc-gauge__arc"
-					cx={ size / 2 }
-					cy={ size / 2 }
-					r={ r }
-					fill="none"
-					strokeWidth={ stroke }
-					strokeLinecap="round"
-					strokeDasharray={ `${ fillLen } ${ c }` }
-					transform={ `rotate(${ rotate } ${ size / 2 } ${ size / 2 })` }
 				/>
 			</svg>
-			<div className="tesla-soc-gauge__center">
-				<span className="tesla-soc-gauge__readout">
-					<strong className="tesla-soc-gauge__soc">{ `${ Math.round( level ) }` }</strong>
-					<span className="tesla-soc-gauge__unit">%</span>
-				</span>
-				{ showSpeed ? (
-					<span className="tesla-soc-gauge__speed">
-						{ Math.round( speed ).toLocaleString() }
-						<small> km/h</small>
+			<div className="tesla-dash-gauge__center">
+				<div className="tesla-dash-gauge__gears" aria-hidden="true">
+					{ gears.map( ( gear ) => (
+						<span
+							key={ gear }
+							className={ gearReady && gear === current ? 'is-active' : '' }
+						>
+							{ gear }
+						</span>
+					) ) }
+				</div>
+				<strong className="tesla-dash-gauge__speed">{ speed.toLocaleString() }</strong>
+				<span className="tesla-dash-gauge__unit">km/h</span>
+				{ hasSoc ? (
+					<span className={ `tesla-dash-gauge__soc${ charging ? ' is-charging' : '' }` }>
+						<span className="tesla-dash-gauge__batt" aria-hidden="true">
+							<span className="tesla-dash-gauge__batt-fill" />
+						</span>
+						{ `${ Math.round( level ) }%` }
 					</span>
-				) : (
-					<span className="tesla-soc-gauge__caption">
-						{ asleep
-							? ( labels.asleep || 'Asleep' )
-							: ( charging ? ( labels.charging || 'Charging' ) : ( labels.soc || 'SOC' ) ) }
-					</span>
-				) }
+				) : null }
 			</div>
 		</div>
 	);
@@ -506,17 +489,13 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							{ images.tesla ? (
 								<img src={ images.tesla } alt="" className="ecoflow-node-photo ecoflow-node-photo-pro tesla-photo-car" />
 							) : null }
-							{ hasSoc ? (
-								<SocSpeedometer
-									percent={ soc }
+							{ status.live || hasSoc ? (
+								<TeslogicDashGauge
+									percent={ hasSoc ? soc : NaN }
 									speedKm={ status.speed_km }
+									shift={ status.shift }
 									charging={ charging || regenOn }
 									asleep={ asleep }
-									labels={ {
-										soc: labels.soc || 'SOC',
-										charging: labels.charging || labels.chargeRaid || '充電',
-										asleep: labels.asleep || 'スリープ',
-									} }
 								/>
 							) : null }
 						</div>
