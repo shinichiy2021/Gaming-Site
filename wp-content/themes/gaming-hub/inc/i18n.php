@@ -291,8 +291,23 @@ function gaming_hub_gettext_fill_ja( $translation, $text, $domain ) {
 	}
 
 	$map = gaming_hub_japanese_map();
+	if ( isset( $map[ $text ] ) ) {
+		return $map[ $text ];
+	}
 
-	return isset( $map[ $text ] ) ? $map[ $text ] : $translation;
+	// Curly vs straight apostrophe mismatches between source and the JA map.
+	$curly    = "\u{2019}";
+	$straight = str_replace( $curly, "'", $text );
+	if ( $straight !== $text && isset( $map[ $straight ] ) ) {
+		return $map[ $straight ];
+	}
+
+	$as_curly = str_replace( "'", $curly, $text );
+	if ( $as_curly !== $text && isset( $map[ $as_curly ] ) ) {
+		return $map[ $as_curly ];
+	}
+
+	return $translation;
 }
 add_filter( 'gettext', 'gaming_hub_gettext_fill_ja', 10, 3 );
 
