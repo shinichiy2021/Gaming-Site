@@ -1,10 +1,12 @@
 <?php
 /**
- * Phase 2: Fleet Telemetry → WordPress one-way bridge.
+ * Phase 2+4: Fleet Telemetry → WordPress one-way bridge.
  *
  * POST /wp-json/gaming-hub/v1/tesla/telemetry (bridge token required)
- * merges SOC / charge fields into GAMING_HUB_TESLA_STATUS_CACHE_KEY.
- * Polling remains as fallback (Phase 3 will reduce it).
+ * merges SOC / charge fields into GAMING_HUB_TESLA_STATUS_CACHE_KEY,
+ * drives CHARGE LOG / SOC log from telemetry events, and keeps AI PLAN
+ * inputs cache-first. Commands stay on REST + wake budget.
+ * Location is intentionally not subscribed (privacy).
  *
  * @package Gaming_Hub
  */
@@ -406,7 +408,8 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 			$cached['supply_label'] = function_exists( '__' ) ? __( 'Supercharger', 'gaming-hub' ) : 'Supercharger';
 			$cached['vehicle_mode'] = 'supercharger';
 		} else {
-			$cached['supply_kind']  = 'wall';
+			// supply_kind matches vehicle_data path ('home'); vehicle_mode stays 'wall' for flow art.
+			$cached['supply_kind']  = 'home';
 			$cached['supply_label'] = function_exists( 'gaming_hub_tesla_plan_charge_label' )
 				? gaming_hub_tesla_plan_charge_label()
 				: ( function_exists( '__' ) ? __( 'Home charging', 'gaming-hub' ) : 'Home charging' );
@@ -440,6 +443,46 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 		$km = $range < 500 ? $range * 1.60934 : $range;
 		$cached['range_km'] = (int) round( $km );
 		$updated[]          = 'range_km';
+	}
+
+	// Phase 4: sticky at-home without Location — clear on drive / Supercharger only.
+	if ( function_exists( 'gaming_hub_tesla_apply_cached_at_home' ) ) {
+		$cached = gaming_hub_tesla_apply_cached_at_home( $cached );
+		$updated[] = 'at_home';
+	}
+
+	// Phase 4: SOC hourly log from telemetry (same option as vehicle_data path).
+	if ( isset( $cached['battery_percent'] ) && is_numeric( $cached['battery_percent'] )
+		&& function_exists( 'gaming_hub_tesla_soc_log_record' ) ) {
+		gaming_hub_tesla_soc_log_record( (float) $cached['battery_percent'] );
+		$updated[] = 'soc_log';
+	}
+
+	// Phase 4: CHARGE LOG sessions from telemetry start/stop (watt integrate; no Location).
+	$charge_w = $charging ? max( 0, (int) ( null !== $watts ? $watts : ( $cached['watts'] ?? 0 ) ) ) : 0;
+	$kind     = (string) ( $cached['supply_kind'] ?? '' );
+	$at_home  = function_exists( 'gaming_hub_tesla_model3_input_at_home' )
+		? gaming_hub_tesla_model3_input_at_home( $cached )
+		: ( array_key_exists( 'at_home', $cached ) ? $cached['at_home'] : null );
+	$charge_meta = array(
+		'soc'       => isset( $cached['battery_percent'] ) ? (int) $cached['battery_percent'] : null,
+		'limit_soc' => isset( $cached['charge_limit_percent'] ) ? (int) $cached['charge_limit_percent'] : null,
+		'at_home'   => $at_home,
+	);
+
+	$is_super = 'supercharger' === $kind
+		|| ! empty( $cached['fast_charger_present'] )
+		|| ( null !== $dc_kw && $dc_kw > 1 );
+	$wall_on  = $charging && ! $is_super;
+	$super_on = $charging && $is_super;
+
+	if ( function_exists( 'gaming_hub_tesla_record_wall_energy' ) ) {
+		gaming_hub_tesla_record_wall_energy( $wall_on ? $charge_w : 0, $wall_on, null, $charge_meta );
+		$updated[] = 'wall_energy';
+	}
+	if ( function_exists( 'gaming_hub_tesla_record_super_energy' ) ) {
+		gaming_hub_tesla_record_super_energy( $super_on ? $charge_w : 0, $super_on, null, $charge_meta );
+		$updated[] = 'super_energy';
 	}
 
 	$received = isset( $payload['received_at'] ) ? (int) $payload['received_at'] : time();

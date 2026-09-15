@@ -2706,9 +2706,15 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 	if ( null !== $added && ( $accumulate || $was_on ) ) {
 		// A counter that went backwards means the car began a new charge between
 		// polls, so everything it reports now is new energy.
-		$delta_kwh = ( null !== $last_added && $added >= $last_added )
-			? $added - $last_added
-			: $added;
+		if ( null !== $last_added && $added >= $last_added ) {
+			$delta_kwh = $added - $last_added;
+		} elseif ( null === $last_added && (float) ( $saved['session_wh'] ?? 0 ) > 0 ) {
+			// Telemetry already watt-integrated this session — adopt the car
+			// counter without double-counting the session total.
+			$delta_kwh = 0.0;
+		} else {
+			$delta_kwh = $added;
+		}
 	} elseif ( $was_on && $last_ts > 0 && $last_w > 0 ) {
 		$gap = $now - $last_ts;
 		if ( $gap > 0 && $gap <= $max_gap ) {
@@ -2825,9 +2831,15 @@ function gaming_hub_tesla_record_super_energy( $watts, $accumulate, $energy_adde
 
 	$delta_kwh = 0.0;
 	if ( null !== $added && ( $accumulate || $was_on ) ) {
-		$delta_kwh = ( null !== $last_added && $added >= $last_added )
-			? $added - $last_added
-			: $added;
+		if ( null !== $last_added && $added >= $last_added ) {
+			$delta_kwh = $added - $last_added;
+		} elseif ( null === $last_added && (float) ( $saved['session_wh'] ?? 0 ) > 0 ) {
+			// Telemetry already watt-integrated this session — adopt the car
+			// counter without double-counting the session total.
+			$delta_kwh = 0.0;
+		} else {
+			$delta_kwh = $added;
+		}
 	} elseif ( $was_on && $last_ts > 0 && $last_w > 0 ) {
 		$gap = $now - $last_ts;
 		if ( $gap > 0 && $gap <= $max_gap ) {
