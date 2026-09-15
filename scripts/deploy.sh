@@ -66,6 +66,10 @@ echo "==> Syncing to ${REMOTE}:${DEPLOY_PATH} ..."
   --exclude 'tesla/tls-key.pem' \
   --exclude 'tesla/tls-cert.pem' \
   --exclude 'tesla/session-cache.json' \
+  --exclude 'tesla/telemetry/vehicle-config.json' \
+  --exclude 'tesla/telemetry/config.json' \
+  --exclude 'tesla/telemetry/certs/' \
+  --exclude 'tesla/telemetry-data/' \
   --exclude '.DS_Store' \
   "$ROOT/" "${REMOTE}:${DEPLOY_PATH}/"
 
