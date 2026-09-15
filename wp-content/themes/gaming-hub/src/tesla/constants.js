@@ -2,30 +2,30 @@ export const FLOW_THRESHOLD = 80;
 
 export const FLOW_CONNECTIONS = [
 	{
+		id: 'drive',
+		from: { id: 'tesla', side: 'left' },
+		to: { id: 'drive', side: 'right' },
+		color: '#c6ff00',
+		showLabel: true,
+	},
+	{
 		id: 'wall',
-		from: { id: 'wall', side: 'right' },
-		to: { id: 'tesla', side: 'left' },
-		color: '#64d2ff',
+		from: { id: 'wall', side: 'top' },
+		to: { id: 'tesla', side: 'bottom' },
+		color: '#ffd600',
 		showLabel: true,
 	},
 	{
 		id: 'super',
-		from: { id: 'super', side: 'right' },
-		to: { id: 'tesla', side: 'left' },
+		from: { id: 'super', side: 'top' },
+		to: { id: 'tesla', side: 'bottom' },
 		color: '#e82127',
 		showLabel: true,
 	},
 	{
-		id: 'drive',
-		from: { id: 'tesla', side: 'right' },
-		to: { id: 'drive', side: 'left' },
-		color: '#ffb300',
-		showLabel: true,
-	},
-	{
 		id: 'cabin',
-		from: { id: 'tesla', side: 'right' },
-		to: { id: 'cabin', side: 'left' },
+		from: { id: 'tesla', side: 'bottom' },
+		to: { id: 'cabin', side: 'top' },
 		color: '#69f0ae',
 		showLabel: true,
 	},
@@ -86,8 +86,8 @@ export function connectionsForStatus( status ) {
 
 		return {
 			...connection,
-			from: { id: 'drive', side: 'left' },
-			to: { id: 'tesla', side: 'right' },
+			from: { id: 'drive', side: 'right' },
+			to: { id: 'tesla', side: 'left' },
 			color: '#64d2ff',
 		};
 	} );

@@ -1874,57 +1874,299 @@ body.home .site-header.is-scrolled {
 	overflow: visible;
 }
 
+.tesla-flow-map.teslogic-map {
+	padding: 18px 14px 16px;
+	background:
+		radial-gradient(ellipse at 50% 20%, rgba(255, 214, 0, 0.08), transparent 42%),
+		radial-gradient(ellipse at 20% 80%, rgba(105, 240, 174, 0.06), transparent 40%),
+		#0a0a0c;
+	border-color: rgba(255, 255, 255, 0.08);
+}
+
 .tesla-flow-canvas {
 	z-index: 1;
 }
 
+.teslogic-system {
+	position: relative;
+	z-index: 2;
+	display: grid;
+	gap: 18px;
+	width: 100%;
+	max-width: 920px;
+	margin: 0 auto;
+}
+
+.teslogic-title {
+	margin: 0;
+	text-align: center;
+	font-family: var(--font-display);
+	font-size: 0.92rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: rgba(244, 241, 234, 0.7);
+}
+
+.teslogic-top {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(160px, 220px) minmax(0, 1fr);
+	gap: 14px 18px;
+	align-items: stretch;
+}
+
+.teslogic-bottom {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+	align-items: stretch;
+}
+
+.teslogic-card {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	padding: 12px 12px 10px;
+	border-radius: 16px;
+	background: rgba(18, 18, 22, 0.94);
+	border: 1.5px solid rgba(255, 255, 255, 0.14);
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+	color: #f4f1ea;
+}
+
+.teslogic-card.is-active {
+	border-color: #c6ff00;
+	box-shadow:
+		0 0 0 1px rgba(198, 255, 0, 0.2),
+		0 0 18px rgba(198, 255, 0, 0.22),
+		0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.teslogic-card.is-standby {
+	opacity: 0.88;
+}
+
+.teslogic-card--battery {
+	border-color: #ffd600;
+	box-shadow:
+		0 0 0 1px rgba(255, 214, 0, 0.18),
+		0 0 22px rgba(255, 214, 0, 0.2),
+		0 10px 24px rgba(0, 0, 0, 0.4);
+	background:
+		radial-gradient(circle at 50% 0%, rgba(255, 214, 0, 0.12), transparent 55%),
+		rgba(16, 16, 18, 0.96);
+}
+
+.teslogic-card--battery.is-charging {
+	border-color: #69f0ae;
+	box-shadow:
+		0 0 0 1px rgba(105, 240, 174, 0.22),
+		0 0 22px rgba(105, 240, 174, 0.25),
+		0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+.teslogic-card--battery.is-asleep {
+	opacity: 0.72;
+	filter: saturate(0.7);
+}
+
+.teslogic-card--motor.is-regen.is-active {
+	border-color: #64d2ff;
+	box-shadow:
+		0 0 0 1px rgba(100, 210, 255, 0.22),
+		0 0 18px rgba(100, 210, 255, 0.22),
+		0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.teslogic-card__head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 1.4rem;
+}
+
+.teslogic-card__icon {
+	display: grid;
+	place-items: center;
+	width: 1.35rem;
+	height: 1.35rem;
+	font-size: 0.95rem;
+	line-height: 1;
+	opacity: 0.9;
+}
+
+.teslogic-card__label {
+	font-size: 0.82rem;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	color: rgba(244, 241, 234, 0.92);
+}
+
+.teslogic-card__note {
+	display: block;
+	margin-top: -2px;
+	font-size: 0.72rem;
+	line-height: 1.3;
+	color: rgba(244, 241, 234, 0.55);
+}
+
+.teslogic-metrics {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px 10px;
+}
+
+.teslogic-metric {
+	display: grid;
+	gap: 3px;
+	min-width: 0;
+}
+
+.teslogic-metric__label {
+	font-size: 0.68rem;
+	letter-spacing: 0.02em;
+	color: rgba(180, 186, 198, 0.72);
+}
+
+.teslogic-metric__value {
+	font-size: 1.05rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+	color: #fff;
+	line-height: 1.1;
+}
+
+.teslogic-metric__bar {
+	display: block;
+	height: 3px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.1);
+	overflow: hidden;
+}
+
+.teslogic-metric__bar::after {
+	content: "";
+	display: block;
+	height: 100%;
+	width: var(--bar, 0%);
+	border-radius: inherit;
+	background: #c6ff00;
+	box-shadow: 0 0 8px rgba(198, 255, 0, 0.45);
+}
+
+.teslogic-card.is-standby .teslogic-metric__bar::after {
+	background: rgba(255, 255, 255, 0.28);
+	box-shadow: none;
+}
+
+.teslogic-card__extras {
+	display: grid;
+	gap: 2px;
+	margin-top: 2px;
+}
+
+.teslogic-card__extras small {
+	font-size: 0.68rem;
+	line-height: 1.35;
+	color: rgba(244, 241, 234, 0.55);
+}
+
+.teslogic-card__extras small.is-accent {
+	color: #c6ff00;
+}
+
+.teslogic-battery__top {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	margin-bottom: 4px;
+}
+
+.teslogic-battery__soc {
+	font-size: 1.35rem;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	font-variant-numeric: tabular-nums;
+}
+
+.teslogic-battery__temp {
+	font-size: 0.92rem;
+	font-weight: 600;
+	color: rgba(244, 241, 234, 0.78);
+}
+
+.teslogic-battery__name {
+	display: block;
+	margin-top: 4px;
+	text-align: center;
+	font-size: 0.78rem;
+	font-weight: 700;
+	color: rgba(244, 241, 234, 0.7);
+}
+
+.teslogic-battery__state {
+	display: block;
+	text-align: center;
+	font-size: 0.7rem;
+	color: rgba(244, 241, 234, 0.5);
+}
+
+.teslogic-batt-icon {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.teslogic-batt-icon__body {
+	position: relative;
+	width: 28px;
+	height: 14px;
+	border: 1.5px solid #69f0ae;
+	border-radius: 3px;
+	overflow: hidden;
+	background: rgba(0, 0, 0, 0.35);
+}
+
+.teslogic-batt-icon__fill {
+	display: block;
+	height: 100%;
+	width: calc(var(--battery-level, 0) * 1%);
+	background: #69f0ae;
+}
+
+.teslogic-batt-icon__bolt {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	font-size: 0.7rem;
+	line-height: 1;
+	color: #fff;
+	text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+.teslogic-batt-icon__nub {
+	width: 3px;
+	height: 7px;
+	border-radius: 0 2px 2px 0;
+	background: #69f0ae;
+}
+
+.teslogic-batt-icon.is-charging .teslogic-batt-icon__body {
+	box-shadow: 0 0 10px rgba(105, 240, 174, 0.55);
+}
+
+/* Keep legacy selectors harmless if referenced elsewhere */
 .tesla-flow-system {
 	position: relative;
 	z-index: 2;
-	grid-template-columns: minmax(150px, 1fr) auto minmax(180px, 1fr);
-	grid-template-areas:
-		"title title title"
-		"inputs device output";
-	border-color: rgba(232, 33, 39, 0.28);
-	background: rgba(12, 6, 8, 0.45);
 }
 
 .tesla-flow-title {
 	color: #ff8a80;
-}
-
-.tesla-flow-inputs {
-	grid-area: inputs;
-	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	justify-content: center;
-	gap: 12px;
-	width: 100%;
-	max-width: 176px;
-}
-
-.tesla-flow-outputs {
-	grid-area: output;
-	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	justify-content: center;
-	gap: 12px;
-	width: 100%;
-	max-width: 240px;
-	justify-self: center;
-}
-
-.tesla-flow-system [data-flow-id="tesla"] {
-	grid-area: device;
-	width: max-content;
-	max-width: 100%;
-	--flow-pulse: color-mix(in srgb, var(--batt-tone, #e82127) 48%, transparent);
-}
-
-.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-pack {
-	font-size: 1.05rem;
 }
 
 .tesla-card-vitals {
@@ -2483,26 +2725,23 @@ body.home .site-header.is-scrolled {
 @media (max-width: 800px) {
 	.tesla-flow-system {
 		grid-template-columns: 1fr;
-		grid-template-areas:
-			"title"
-			"inputs"
-			"device"
-			"output";
+	}
+}
+
+@media (max-width: 900px) {
+	.teslogic-top {
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
 	}
 
-	.tesla-flow-inputs,
-	.tesla-flow-outputs {
-		max-width: none;
-		flex-direction: column;
-		flex-wrap: nowrap;
-		justify-content: flex-start;
-		align-items: stretch;
+	.teslogic-card--battery {
+		grid-column: 1 / -1;
+		order: -1;
 	}
 
-	.tesla-flow-system [data-flow-id="tesla"] {
-		justify-self: stretch;
-		width: 100%;
-		max-width: 100%;
+	.teslogic-bottom {
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
 	}
 }
 
@@ -8477,7 +8716,7 @@ body.home .site-header.is-scrolled {
 	}
 }
 
-/* Tesla energy flow — mobile stack (must follow EcoFlow .ecoflow-system mobile rules). */
+/* Tesla energy flow — mobile (Teslogic cards). */
 @media (max-width: 800px) {
 	.tesla-flow-map {
 		padding: 12px 8px 10px;
@@ -8489,128 +8728,27 @@ body.home .site-header.is-scrolled {
 		display: none;
 	}
 
-	.ecoflow-system.tesla-flow-system {
-		display: grid;
-		grid-template-columns: 1fr;
-		grid-template-areas:
-			"title"
-			"inputs"
-			"device"
-			"output";
-		gap: 10px;
-		padding: 12px 10px;
-		align-items: stretch;
-		justify-items: stretch;
+	.teslogic-system {
+		gap: 12px;
 	}
 
-	.tesla-flow-title {
-		grid-area: title;
+	.teslogic-title {
 		text-align: left;
+		font-size: 0.85rem;
+		letter-spacing: 0.08em;
+	}
+
+	.teslogic-card {
+		padding: 10px;
+		border-radius: 14px;
+	}
+
+	.teslogic-metric__value {
 		font-size: 0.95rem;
-		letter-spacing: 0.06em;
 	}
 
-	.tesla-flow-inputs,
-	.tesla-flow-outputs {
-		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		justify-content: flex-start;
-		gap: 8px;
-		width: 100%;
-		max-width: none;
-		justify-self: stretch;
-	}
-
-	.tesla-flow-system .ecoflow-node-banner {
-		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		width: 100%;
-		max-width: none;
-		min-width: 0;
-		flex: none;
-		padding: 0;
-		text-align: left;
-		overflow: hidden;
-	}
-
-	.tesla-flow-system .ecoflow-node-banner .ecoflow-node-photo,
-	.tesla-flow-system .tesla-photo-wall,
-	.tesla-flow-system .tesla-photo-super,
-	.tesla-flow-system .tesla-photo-cabin {
-		width: 100%;
-		height: 118px;
-		max-width: none;
-		border-radius: 12px 12px 0 0;
-		object-fit: cover;
-	}
-
-	.tesla-flow-system .tesla-shift {
-		width: 100%;
-		height: 118px;
-		max-width: none;
-		border-radius: 12px 12px 0 0;
-	}
-
-	.tesla-flow-system .ecoflow-node-banner .ecoflow-node-label {
-		padding: 10px 12px 0;
-		align-self: flex-start;
-	}
-
-	.tesla-flow-system .ecoflow-node-banner > small,
-	.tesla-flow-system .ecoflow-node-banner .tesla-gas-saved {
-		padding: 0 12px;
-		margin: 0;
-		align-self: flex-start;
-		text-align: left;
-	}
-
-	.tesla-flow-system .ecoflow-node-banner strong {
-		padding: 2px 12px 12px;
-		font-size: 1.25rem;
-		align-self: flex-start;
-		justify-self: start;
-	}
-
-	.tesla-flow-system [data-flow-id="tesla"] {
-		grid-area: device;
-		justify-self: stretch;
-		align-self: stretch;
-		width: 100%;
-		max-width: 100%;
-		padding: 12px 10px 14px;
-	}
-
-	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-art.tesla-dash-art {
-		width: min(220px, 78vw);
-		height: min(220px, 78vw);
-		border-radius: 16px;
-	}
-
-	.tesla-dash-gauge {
-		width: min(188px, 66vw);
-		height: min(188px, 66vw);
-	}
-
-	.tesla-dash-gauge__speed {
-		font-size: clamp(2.2rem, 11vw, 2.85rem);
-	}
-
-	.tesla-dash-gauge__gears {
-		font-size: 0.72rem;
-		gap: 0.42rem;
-	}
-
-	.tesla-dash-gauge__soc {
-		font-size: 0.82rem;
-	}
-
-	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-label,
-	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-pack,
-	.tesla-flow-system [data-flow-id="tesla"] .ecoflow-node-state,
-	.tesla-flow-system [data-flow-id="tesla"] .tesla-card-vitals {
-		text-align: center;
+	.teslogic-card__extras {
+		display: none;
 	}
 }
 

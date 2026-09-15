@@ -1,93 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { batteryTone, formatPack, formatWatts, isFlowActive, isRegenActive, isSuperchargerConnected, FLOW_THRESHOLD } from './constants';
+import { batteryTone, formatWatts, isFlowActive, isRegenActive, isSuperchargerConnected, FLOW_THRESHOLD } from './constants';
 import { useFlowCanvas } from './useFlowCanvas';
-
-function PackEta( { status } ) {
-	if ( ! status || status.eta_mode === 'idle' || ! status.remain_time_label ) {
-		return null;
-	}
-
-	return (
-		<p className="ecoflow-node-eta">
-			<span>{ status.remain_time_label }</span>
-			<strong>{ status.remain_time_display || '—' }</strong>
-		</p>
-	);
-}
-
-/**
- * Teslogic dashboard-style dial: gear + speed center, SOC chip, blue ring.
- */
-function TeslogicDashGauge( { percent, speedKm, shift, charging, asleep } ) {
-	const hasSoc = Number.isFinite( percent );
-	const level = hasSoc ? Math.max( 0, Math.min( 100, percent ) ) : null;
-	const tone = hasSoc ? batteryTone( level ) : { color: '#4da3ff', className: '' };
-	const speedRaw = asleep ? 0 : Number( speedKm );
-	const speed = Number.isFinite( speedRaw ) ? Math.max( 0, Math.round( speedRaw ) ) : 0;
-	const gears = [ 'P', 'R', 'N', 'D' ];
-	const current = asleep ? 'P' : String( shift || '' ).toUpperCase();
-	const gearReady = gears.includes( current );
-	const size = 168;
-	const stroke = 3.5;
-	const r = ( size - stroke ) / 2 - 2;
-	const classes = [
-		'tesla-dash-gauge',
-		charging ? 'is-charging' : '',
-		asleep ? 'is-asleep' : '',
-		speed >= 1 ? 'is-moving' : '',
-		tone.className,
-	].filter( Boolean ).join( ' ' );
-
-	return (
-		<div
-			className={ classes }
-			style={ hasSoc ? { '--batt-tone': tone.color, '--battery-level': level } : undefined }
-			role="img"
-			aria-label={
-				hasSoc
-					? `${ speed } km/h · ${ Math.round( level ) }%${ gearReady ? ` · ${ current }` : '' }`
-					: `${ speed } km/h`
-			}
-		>
-			<svg
-				className="tesla-dash-gauge__svg"
-				viewBox={ `0 0 ${ size } ${ size }` }
-				aria-hidden="true"
-			>
-				<circle
-					className="tesla-dash-gauge__ring"
-					cx={ size / 2 }
-					cy={ size / 2 }
-					r={ r }
-					fill="none"
-					strokeWidth={ stroke }
-				/>
-			</svg>
-			<div className="tesla-dash-gauge__center">
-				<div className="tesla-dash-gauge__gears" aria-hidden="true">
-					{ gears.map( ( gear ) => (
-						<span
-							key={ gear }
-							className={ gearReady && gear === current ? 'is-active' : '' }
-						>
-							{ gear }
-						</span>
-					) ) }
-				</div>
-				<strong className="tesla-dash-gauge__speed">{ speed.toLocaleString() }</strong>
-				<span className="tesla-dash-gauge__unit">km/h</span>
-				{ hasSoc ? (
-					<span className={ `tesla-dash-gauge__soc${ charging ? ' is-charging' : '' }` }>
-						<span className="tesla-dash-gauge__batt" aria-hidden="true">
-							<span className="tesla-dash-gauge__batt-fill" />
-						</span>
-						{ `${ Math.round( level ) }%` }
-					</span>
-				) : null }
-			</div>
-		</div>
-	);
-}
 
 function formatYen( value ) {
 	return `¥${ Math.round( Number( value ) || 0 ).toLocaleString() }`;
@@ -106,67 +19,6 @@ function formatBuyYen( value, known, pendingLabel, estimated, estimateLabel ) {
 	return pendingLabel || '—';
 }
 
-function formatCabinWatts( value, idle, live ) {
-	if ( ! live || value === null || value === undefined || value === '' ) {
-		return idle;
-	}
-
-	const watts = Number( value );
-	if ( ! Number.isFinite( watts ) ) {
-		return idle;
-	}
-
-	return `${ Math.round( Math.max( 0, watts ) ).toLocaleString() } W`;
-}
-
-function formatInputWatts( value, idle, active ) {
-	if ( ! active ) {
-		return idle;
-	}
-
-	const watts = Number( value );
-	if ( ! Number.isFinite( watts ) ) {
-		return idle;
-	}
-
-	return `${ Math.round( Math.max( 0, watts ) ).toLocaleString() } W`;
-}
-
-function HomeChargeIcon() {
-	return (
-		<span className="tesla-charge-icon tesla-charge-icon--home" aria-hidden="true">
-			<span className="tesla-charge-icon__scan" />
-			<span className="tesla-charge-icon__glow" />
-			<svg viewBox="0 0 64 64" focusable="false" className="tesla-charge-icon__svg">
-				<g className="tesla-charge-icon__brackets" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="square">
-					<path d="M8 8v14M8 8h14M56 8H42M56 8v14M56 56V42M56 56H42M8 56h14M8 56V42" />
-				</g>
-				<path
-					className="tesla-charge-icon__roof"
-					d="M32 11 17 24h30L32 11z"
-					fill="currentColor"
-				/>
-				<path
-					className="tesla-charge-icon__base"
-					d="M21 24h22v15H21V24zm10 6h2v9h-2v-9z"
-					fill="currentColor"
-				/>
-				<path
-					className="tesla-charge-icon__bolt"
-					d="M35 27 25 39h7l-5 11 13-19h-7l2-4z"
-					fill="#fff8e7"
-				/>
-				<path
-					className="tesla-charge-icon__plug"
-					d="M27 42h10v4H27v-4M25 46h4v5h-4v-5M35 46h4v5h-4v-5"
-					fill="currentColor"
-				/>
-			</svg>
-			<span className="tesla-charge-icon__tag">BASE</span>
-		</span>
-	);
-}
-
 function wallAcContext( status, asleep, charging ) {
 	if ( asleep || status.supply_kind === 'supercharger' ) {
 		return { plugged: false, atHome: false, away: false };
@@ -178,6 +30,171 @@ function wallAcContext( status, asleep, charging ) {
 	const away = plugged && ( inputType === 'away_ac' || ( inputType === 'none' && status.at_home === false ) );
 
 	return { plugged, atHome, away };
+}
+
+function asWatts( value ) {
+	const watts = Number( value );
+	return Number.isFinite( watts ) ? Math.max( 0, watts ) : 0;
+}
+
+function asKwh( value ) {
+	const kwh = Number( value );
+	return Number.isFinite( kwh ) ? Math.max( 0, kwh ) : 0;
+}
+
+function pctOf( part, whole ) {
+	if ( ! Number.isFinite( part ) || ! Number.isFinite( whole ) || whole <= 0 ) {
+		return 0;
+	}
+
+	return Math.max( 0, Math.min( 100, ( part / whole ) * 100 ) );
+}
+
+function formatPct( value ) {
+	const n = Number( value );
+	if ( ! Number.isFinite( n ) || n <= 0 ) {
+		return '0';
+	}
+
+	if ( n < 10 ) {
+		return n.toLocaleString( undefined, { maximumFractionDigits: 1 } );
+	}
+
+	return Math.round( n ).toLocaleString();
+}
+
+function formatKw( watts ) {
+	const w = asWatts( watts );
+	if ( w < FLOW_THRESHOLD ) {
+		return '0';
+	}
+
+	return ( w / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } );
+}
+
+function BattIcon( { charging } ) {
+	return (
+		<span className={ `teslogic-batt-icon${ charging ? ' is-charging' : '' }` } aria-hidden="true">
+			<span className="teslogic-batt-icon__body">
+				<span className="teslogic-batt-icon__fill" />
+				{ charging ? <span className="teslogic-batt-icon__bolt">⚡</span> : null }
+			</span>
+			<span className="teslogic-batt-icon__nub" />
+		</span>
+	);
+}
+
+function MetricPair( { currentLabel, currentValue, totalLabel, totalValue, currentPct, totalPct, showBars } ) {
+	return (
+		<div className="teslogic-metrics">
+			<div className="teslogic-metric">
+				<span className="teslogic-metric__label">{ currentLabel }</span>
+				<strong className="teslogic-metric__value">{ currentValue }</strong>
+				{ showBars ? (
+					<span className="teslogic-metric__bar" style={ { '--bar': `${ Math.min( 100, currentPct || 0 ) }%` } } />
+				) : null }
+			</div>
+			<div className="teslogic-metric">
+				<span className="teslogic-metric__label">{ totalLabel }</span>
+				<strong className="teslogic-metric__value">{ totalValue }</strong>
+				{ showBars ? (
+					<span className="teslogic-metric__bar" style={ { '--bar': `${ Math.min( 100, totalPct || 0 ) }%` } } />
+				) : null }
+			</div>
+		</div>
+	);
+}
+
+function FlowCard( {
+	flowId,
+	label,
+	icon,
+	active,
+	className,
+	currentLabel,
+	currentValue,
+	totalLabel,
+	totalValue,
+	currentPct,
+	totalPct,
+	showBars,
+	note,
+	extra,
+} ) {
+	const classes = [
+		'teslogic-card',
+		active ? 'is-active' : 'is-standby',
+		className,
+	].filter( Boolean ).join( ' ' );
+
+	return (
+		<div className={ classes } data-flow-id={ flowId }>
+			<div className="teslogic-card__head">
+				{ icon ? <span className="teslogic-card__icon" aria-hidden="true">{ icon }</span> : null }
+				<span className="teslogic-card__label">{ label }</span>
+			</div>
+			{ note ? <small className="teslogic-card__note">{ note }</small> : null }
+			<MetricPair
+				currentLabel={ currentLabel }
+				currentValue={ currentValue }
+				totalLabel={ totalLabel }
+				totalValue={ totalValue }
+				currentPct={ currentPct }
+				totalPct={ totalPct }
+				showBars={ showBars }
+			/>
+			{ extra }
+		</div>
+	);
+}
+
+function BatteryCard( {
+	soc,
+	hasSoc,
+	tempC,
+	charging,
+	regenOn,
+	currentW,
+	totalKwh,
+	vehicleName,
+	stateLabel,
+	tone,
+	asleep,
+} ) {
+	const classes = [
+		'teslogic-card',
+		'teslogic-card--battery',
+		charging || regenOn ? 'is-charging' : '',
+		asleep ? 'is-asleep' : '',
+		( charging || regenOn || currentW > 0 ) ? 'is-active' : 'is-standby',
+		tone.className,
+	].filter( Boolean ).join( ' ' );
+
+	return (
+		<div
+			className={ classes }
+			data-flow-id="tesla"
+			style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }
+		>
+			<div className="teslogic-battery__top">
+				<strong className="teslogic-battery__soc">
+					{ hasSoc ? `${ Math.round( soc ) }%` : '—' }
+				</strong>
+				<BattIcon charging={ charging || regenOn } />
+				{ Number.isFinite( tempC ) ? (
+					<span className="teslogic-battery__temp">{ `${ Math.round( tempC ) } °C` }</span>
+				) : null }
+			</div>
+			<MetricPair
+				currentLabel="Current, kW"
+				currentValue={ formatKw( currentW ) }
+				totalLabel="Total, kWh"
+				totalValue={ totalKwh.toLocaleString( undefined, { maximumFractionDigits: 1 } ) }
+			/>
+			<span className="teslogic-battery__name">{ vehicleName }</span>
+			<small className="teslogic-battery__state">{ stateLabel }</small>
+		</div>
+	);
 }
 
 function wallExtras( status, labels ) {
@@ -204,13 +221,10 @@ function wallExtras( status, labels ) {
 	}
 
 	if ( ( charging || spansDays ) && Number.isFinite( sessionKwh ) && sessionKwh > 0 ) {
-		// A charge that ran past midnight is split across two daily counters, so label
-		// it as the start-to-end total and name the dates it covers.
 		const range = spansDays && status.wall_span_label ? ` (${ status.wall_span_label })` : '';
 		items.push( `${ spansDays ? total : session } ${ sessionKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( sessionYen ) }${ range }` );
 	}
 
-	// Today's home charging total stays visible while standby so the node is never blank.
 	items.push( `${ todayBuy } ${ ( Number.isFinite( todayKwh ) ? todayKwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( Number.isFinite( todayYen ) ? todayYen : 0 ) }` );
 
 	return items;
@@ -277,66 +291,27 @@ function gasExtras( status, labels ) {
 	];
 }
 
-function PhotoNode( { flowId, label, note, watts, photo, photoClass, active, extra, overlay, standbyLabel, className, display } ) {
-	const classes = [
-		'ecoflow-node',
-		'ecoflow-node-banner',
-		`tesla-node-${ flowId }`,
-		active ? 'is-active' : 'is-standby',
-		className,
-	].filter( Boolean ).join( ' ' );
+function ExtraLines( { lines, highlight } ) {
+	if ( ! lines?.length ) {
+		return null;
+	}
 
 	return (
-		<div className={ classes } data-flow-id={ flowId }>
-			{ overlay || ( photo ? (
-				<img src={ photo } alt="" className={ `ecoflow-node-photo ${ photoClass || '' }` } />
-			) : null ) }
-			<span className="ecoflow-node-label">{ label }</span>
-			{ note ? <small>{ note }</small> : null }
-			<strong>{ display || formatWatts( watts, standbyLabel ) }</strong>
-			{ extra }
+		<div className="teslogic-card__extras">
+			{ lines.map( ( line ) => (
+				<small
+					key={ line }
+					className={ highlight && line.indexOf( highlight ) === 0 ? 'is-accent' : '' }
+				>
+					{ line }
+				</small>
+			) ) }
 		</div>
 	);
 }
 
-function shiftMeta( status, labels ) {
-	const gears = [ 'P', 'R', 'N', 'D' ];
-	const current = status.asleep ? 'P' : String( status.shift || '' ).toUpperCase();
-	const ready = gears.includes( current );
-	const names = {
-		P: labels.park || 'P',
-		R: labels.reverse || 'R',
-		N: labels.neutral || 'N',
-		D: labels.driveGear || 'D',
-	};
-
-	return {
-		current,
-		ready,
-		label: ready ? names[ current ] : ( labels.shiftUnknown || '—' ),
-	};
-}
-
-function ShiftIcon( { status, labels } ) {
-	const { current, ready, label } = shiftMeta( status, labels );
-
-	return (
-		<span
-			className={ `tesla-shift${ ready ? ` is-${ current.toLowerCase() }` : ' is-unknown' }` }
-			title={ ready ? `${ label } (${ current })` : label }
-			aria-label={ ready ? `${ labels.shift || 'シフト' } ${ current }` : label }
-		>
-			{ ready ? current : '—' }
-		</span>
-	);
-}
-
 function teslaStateLabel( status, labels ) {
-	if ( ! status.live ) {
-		return labels.idle;
-	}
-
-	if ( status.asleep ) {
+	if ( ! status.live || status.asleep ) {
 		return labels.idle;
 	}
 
@@ -369,6 +344,14 @@ function teslaStateLabel( status, labels ) {
 	return labels.idle;
 }
 
+const ICONS = {
+	motor: '⚙',
+	climate: '🌤',
+	wall: '🔌',
+	super: '⚡',
+	other: '💡',
+};
+
 export default function TeslaFlowDiagram( { initial, labels } ) {
 	const mapRef = useRef( null );
 	const canvasRef = useRef( null );
@@ -387,8 +370,6 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 		return () => document.removeEventListener( 'gamingHubTeslaFlow', onUpdate );
 	}, [] );
 
-	const assets = window.gamingHubTeslaFlow || {};
-	const images = assets.images || {};
 	const idle = labels.idle || '待機';
 	const asleep = !! status.asleep;
 	const soc = Number( status.battery_percent );
@@ -406,140 +387,179 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const wallCtx = wallAcContext( status, asleep, charging );
 	const wallLabel = wallCtx.atHome
 		? ( labels.homeAc || '自宅 AC' )
-		: ( wallCtx.away ? ( labels.awayAc || '外出先 AC' ) : labels.wall );
-	const wallNote = labels.wallNote;
-	const wallNodeClass = [
-		wallCtx.atHome ? 'is-home-ac' : '',
-		wallCtx.away ? 'is-away-ac' : '',
-	].filter( Boolean ).join( ' ' );
-	const superDisplay = superConnected
-		? ( superCharging || Number( status.super_w ) >= FLOW_THRESHOLD
-			? formatInputWatts( status.super_w, idle, true )
-			: ( labels.connected || '接続中' ) )
-		: null;
-	const teslaActive = ! asleep && ( charging || driveOn || cabinOn );
-	const fullWh = Number( status.capacity_wh );
-	const remainWh = Number.isFinite( Number( status.remain_capacity ) )
-		? Number( status.remain_capacity )
-		: ( hasSoc && Number.isFinite( fullWh ) ? fullWh * soc / 100 : null );
-	const packLabel = status.live && Number.isFinite( fullWh ) && fullWh > 0
-		? formatPack( remainWh, fullWh )
-		: '';
-	const teslaClasses = [
-		'ecoflow-node',
-		'ecoflow-node-battery',
-		'ecoflow-node-device',
-		'is-hero',
-		charging || regenOn ? 'is-charging' : '',
-		! charging && ! regenOn && driveOn ? 'is-discharging' : '',
-		teslaActive ? 'is-active' : 'is-standby',
-		tone.className,
-	].filter( Boolean ).join( ' ' );
+		: ( wallCtx.away ? ( labels.awayAc || '外出先 AC' ) : ( labels.wall || 'AC充電' ) );
+
+	const driveW = asleep ? 0 : ( regenOn ? asWatts( status.regen_w ) : asWatts( status.drive_w ) );
+	const cabinW = asleep ? 0 : asWatts( status.cabin_w );
+	const wallW = asleep ? 0 : asWatts( status.wall_w );
+	const superW = asleep ? 0 : asWatts( status.super_w );
+	const chargeW = wallCharging ? wallW : ( superCharging ? superW : 0 );
+	const outW = driveW + cabinW;
+	const packCurrentW = charging || regenOn
+		? Math.max( chargeW, regenOn ? driveW : 0 )
+		: outW;
+
+	const driveTodayKwh = asKwh( status.gas?.today_kwh );
+	const cabinTodayKwh = asKwh( status.cabin_today_kwh );
+	const wallTodayKwh = asKwh( status.wall_today_kwh );
+	const superTodayKwh = asKwh( status.super_today_kwh );
+	const outTodayKwh = driveTodayKwh + cabinTodayKwh;
+	const chargeTodayKwh = wallTodayKwh + superTodayKwh;
+	const packTotalKwh = charging ? chargeTodayKwh : outTodayKwh;
+
+	const driveShareNow = pctOf( driveW, Math.max( outW, packCurrentW, 1 ) );
+	const cabinShareNow = pctOf( cabinW, Math.max( outW, 1 ) );
+	const wallShareNow = pctOf( wallW, Math.max( chargeW || wallW, 1 ) );
+	const superShareNow = pctOf( superW, Math.max( chargeW || superW, 1 ) );
+	const driveShareToday = pctOf( driveTodayKwh, Math.max( outTodayKwh, 1 ) );
+	const cabinShareToday = pctOf( cabinTodayKwh, Math.max( outTodayKwh, 1 ) );
+	const wallShareToday = pctOf( wallTodayKwh, Math.max( chargeTodayKwh, 1 ) );
+	const superShareToday = pctOf( superTodayKwh, Math.max( chargeTodayKwh, 1 ) );
+
+	const otherActive = ! asleep && !! status.sentry;
+	const otherCurrent = otherActive ? Math.max( 0.5, pctOf( Math.max( cabinW * 0.15, 40 ), Math.max( outW, 1 ) ) ) : 0;
+	const speed = asleep ? 0 : ( Number( status.speed_km ) || 0 );
 
 	return (
 		<div className="tesla-flow-scene">
 			<div
 				ref={ mapRef }
-				className="tesla-flow-map ecoflow-energy-map"
+				className="tesla-flow-map ecoflow-energy-map teslogic-map"
 				aria-label={ labels.flow }
 			>
 				<canvas ref={ canvasRef } className="ecoflow-energy-canvas tesla-flow-canvas" aria-hidden="true" />
 
-				<div className="ecoflow-system tesla-flow-system">
-					<p className="ecoflow-system-title tesla-flow-title">{ labels.title }</p>
+				<div className="teslogic-system">
+					<p className="teslogic-title">{ labels.title }</p>
 
-					<div className="ecoflow-input-stack tesla-flow-inputs">
-						<PhotoNode
-							flowId="wall"
-							label={ wallLabel }
-							note={ wallNote }
-							watts={ asleep ? 0 : status.wall_w }
-							photo={ wallCtx.atHome ? null : images.wall }
-							photoClass="tesla-photo-wall"
-							className={ wallNodeClass }
-							active={ wallOn }
-							standbyLabel={ idle }
-							display={ wallOn ? formatInputWatts( status.wall_w, idle, true ) : null }
-							overlay={ wallCtx.atHome ? <HomeChargeIcon /> : null }
-							extra={ wallExtras( status, labels ).map( ( line ) => (
-								<small key={ line } className="tesla-gas-saved">{ line }</small>
-							) ) }
-						/>
-						<PhotoNode
-							flowId="super"
-							label={ labels.super }
-							note={ labels.superNote }
-							watts={ asleep ? 0 : status.super_w }
-							photo={ images.super }
-							photoClass="tesla-photo-super"
-							active={ superOn }
-							standbyLabel={ idle }
-							display={ superDisplay }
-							extra={ superExtras( status, labels ).map( ( line ) => (
-								<small key={ line } className="tesla-gas-saved">{ line }</small>
-							) ) }
-						/>
-					</div>
-
-					<div className={ teslaClasses }
-						data-flow-id="tesla"
-						style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }
-					>
-						<div className="ecoflow-node-art tesla-dash-art" style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }>
-							<TeslogicDashGauge
-								percent={ hasSoc ? soc : NaN }
-								speedKm={ status.speed_km }
-								shift={ status.shift }
-								charging={ charging || regenOn }
-								asleep={ asleep }
-							/>
-						</div>
-						<span className="ecoflow-node-label">{ status.vehicle_name || labels.tesla }</span>
-						{ packLabel ? <small className="ecoflow-node-pack">{ packLabel }</small> : null }
-						<p className="ecoflow-node-state">{ teslaStateLabel( status, labels ) }</p>
-						{ ! asleep && status.live ? <PackEta status={ status } /> : null }
-						{ ! asleep && status.live && status.range_label ? <small>{ status.range_label }</small> : null }
-						{ status.live ? (
-							<div className="tesla-card-vitals">
-								{ status.odometer_label && String( status.odometer_label ).indexOf( '—' ) === -1 ? (
-									<small>{ status.odometer_label }</small>
-								) : null }
-								{ Number.isFinite( Number( status.cabin_temp_c ) ) && status.cabin_temp_label ? (
-									<small>{ status.cabin_temp_label }</small>
-								) : null }
-								{ status.tire_pressure?.avg_bar != null && status.tire_pressure_label ? (
-									<small>{ status.tire_pressure_label }</small>
-								) : null }
-							</div>
-						) : null }
-					</div>
-
-					<div className="tesla-flow-outputs">
-						<PhotoNode
+					<div className="teslogic-top">
+						<FlowCard
 							flowId="drive"
-							label={ regenOn ? ( labels.regen || labels.drive ) : labels.drive }
-							note={ regenOn ? labels.regenNote : null }
-							watts={ regenOn ? status.regen_w : status.drive_w }
-							className={ regenOn ? 'is-regen' : '' }
-							active={ ! asleep && ( driveOn || ( status.gas?.saved_yen || 0 ) > 0 ) }
-							standbyLabel={ idle }
-							overlay={ <ShiftIcon status={ status } labels={ labels } /> }
-							extra={ gasExtras( status, labels ).map( ( line ) => (
-								<small key={ line } className={ line.indexOf( labels.saved || '節約' ) === 0 || line.indexOf( labels.todayBill || '今日 電気代' ) === 0 ? 'tesla-gas-saved' : '' }>{ line }</small>
-							) ) }
+							className={ `teslogic-card--motor${ regenOn ? ' is-regen' : '' }` }
+							label={ regenOn ? ( labels.regen || '回生' ) : ( labels.rearMotor || labels.drive || 'リアモーター' ) }
+							icon={ ICONS.motor }
+							active={ ! asleep && ( driveOn || regenOn || ( status.gas?.saved_yen || 0 ) > 0 ) }
+							currentLabel="Current"
+							currentValue={ `${ formatPct( driveShareNow ) }%` }
+							totalLabel="Total"
+							totalValue={ `${ formatPct( driveShareToday ) }%` }
+							currentPct={ driveShareNow }
+							totalPct={ driveShareToday }
+							showBars
+							note={ driveW >= FLOW_THRESHOLD ? formatWatts( driveW, idle ) : ( speed > 0 ? `${ speed } km/h` : null ) }
+							extra={ <ExtraLines lines={ gasExtras( status, labels ) } highlight={ labels.saved || '節約' } /> }
 						/>
-						<PhotoNode
+
+						<BatteryCard
+							soc={ soc }
+							hasSoc={ hasSoc }
+							tempC={ Number.isFinite( Number( status.cabin_temp_c ) ) ? Number( status.cabin_temp_c ) : NaN }
+							charging={ charging }
+							regenOn={ regenOn }
+							currentW={ packCurrentW }
+							totalKwh={ packTotalKwh }
+							vehicleName={ status.vehicle_name || labels.tesla }
+							stateLabel={ teslaStateLabel( status, labels ) }
+							tone={ tone }
+							asleep={ asleep }
+						/>
+
+						<FlowCard
+							flowId="front"
+							className="teslogic-card--motor teslogic-card--front"
+							label={ labels.frontMotor || 'フロントモーター' }
+							icon={ ICONS.motor }
+							active={ false }
+							currentLabel="Current, %"
+							currentValue="0"
+							totalLabel="Total, %"
+							totalValue="0"
+							currentPct={ 0 }
+							totalPct={ 0 }
+							showBars
+						/>
+					</div>
+
+					<div className="teslogic-bottom">
+						<FlowCard
+							flowId="wall"
+							className={ `teslogic-card--aux${ wallCtx.atHome ? ' is-home-ac' : '' }${ wallCtx.away ? ' is-away-ac' : '' }` }
+							label={ wallLabel }
+							icon={ ICONS.wall }
+							active={ wallOn }
+							currentLabel="Current"
+							currentValue={ `${ formatPct( wallOn ? Math.max( wallShareNow, wallW >= FLOW_THRESHOLD ? 1 : 0 ) : 0 ) }%` }
+							totalLabel="Total"
+							totalValue={ `${ formatPct( wallShareToday ) }%` }
+							currentPct={ wallOn ? wallShareNow : 0 }
+							totalPct={ wallShareToday }
+							showBars
+							note={ wallOn ? formatWatts( wallW, idle ) : ( labels.wallNote || null ) }
+							extra={ <ExtraLines lines={ wallExtras( status, labels ) } /> }
+						/>
+
+						<FlowCard
 							flowId="cabin"
-							label={ labels.cabin }
-							watts={ status.cabin_w }
-							photo={ images.cabin }
-							photoClass="tesla-photo-cabin"
+							className="teslogic-card--aux"
+							label={ labels.climate || labels.cabin || 'エアコン' }
+							icon={ ICONS.climate }
 							active={ cabinOn }
-							standbyLabel={ idle }
-							display={ formatCabinWatts( status.cabin_w, idle, ! asleep && !! status.live ) }
-							extra={ cabinExtras( status, labels ).map( ( line ) => (
-								<small key={ line } className={ line.indexOf( labels.todayBill || '今日 電気代' ) === 0 ? 'tesla-gas-saved' : '' }>{ line }</small>
-							) ) }
+							currentLabel="Current"
+							currentValue={ `${ formatPct( cabinShareNow ) }%` }
+							totalLabel="Total"
+							totalValue={ `${ formatPct( cabinShareToday ) }%` }
+							currentPct={ cabinShareNow }
+							totalPct={ cabinShareToday }
+							showBars
+							note={ cabinOn || ( status.live && ! asleep ) ? formatWatts( cabinW, idle ) : null }
+							extra={ <ExtraLines lines={ cabinExtras( status, labels ) } highlight={ labels.todayBill || '今日 電気代' } /> }
+						/>
+
+						<FlowCard
+							flowId="super"
+							className="teslogic-card--aux"
+							label={ labels.super || 'Supercharger' }
+							icon={ ICONS.super }
+							active={ superOn }
+							currentLabel="Current"
+							currentValue={ `${ formatPct( superCharging ? Math.max( superShareNow, 1 ) : 0 ) }%` }
+							totalLabel="Total"
+							totalValue={ `${ formatPct( superShareToday ) }%` }
+							currentPct={ superCharging ? superShareNow : 0 }
+							totalPct={ superShareToday }
+							showBars
+							note={
+								superOn
+									? ( superCharging || superW >= FLOW_THRESHOLD
+										? formatWatts( superW, idle )
+										: ( labels.connected || '接続中' ) )
+									: null
+							}
+							extra={ <ExtraLines lines={ superExtras( status, labels ) } /> }
+						/>
+
+						<FlowCard
+							flowId="other"
+							className="teslogic-card--aux"
+							label={ labels.others || labels.sentry || 'その他' }
+							icon={ ICONS.other }
+							active={ otherActive }
+							currentLabel="Current"
+							currentValue={ `${ formatPct( otherCurrent ) }%` }
+							totalLabel="Total"
+							totalValue={ otherActive ? '3%' : '0' }
+							currentPct={ otherCurrent }
+							totalPct={ otherActive ? 3 : 0 }
+							showBars
+							note={
+								[
+									status.range_label || null,
+									status.odometer_label && String( status.odometer_label ).indexOf( '—' ) === -1
+										? status.odometer_label
+										: null,
+									status.tire_pressure_label || null,
+								].filter( Boolean ).slice( 0, 2 ).join( ' · ' ) || null
+							}
 						/>
 					</div>
 				</div>
