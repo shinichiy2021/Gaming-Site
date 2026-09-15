@@ -99,10 +99,23 @@ chmod 644 "${CERTS}/ca.pem" 2>/dev/null || true
 
 
 # Vehicle config "ca" must verify server.crt.
-# Self-signed: the leaf is the CA. Let's Encrypt: prefer ISRG Root X1 if present.
-if [[ ! -f "${CERTS}/ca.pem" ]]; then
-	if openssl x509 -in "${CERTS}/server.crt" -noout -issuer 2>/dev/null | grep -qi "Let's Encrypt\|ISRG"; then
-		if [[ -f /etc/ssl/certs/ISRG_Root_X1.pem ]]; then
+# Self-signed: the leaf is the CA.
+# Let's Encrypt ECDSA (YE1 / Root YE): ISRG Root X2. RSA path: ISRG Root X1.
+if [[ ! -f "${CERTS}/ca.pem" || "${TESLA_TELEMETRY_FORCE_CERTS:-}" == "1" ]]; then
+	if openssl x509 -in "${CERTS}/server.crt" -noout -issuer 2>/dev/null | grep -qi "Let's Encrypt\|ISRG\|YE1\|Root YE"; then
+		issuer="$(openssl x509 -in "${CERTS}/server.crt" -noout -issuer 2>/dev/null || true)"
+		if echo "${issuer}" | grep -qiE 'YE1|Root YE|E1'; then
+			if [[ -f /etc/ssl/certs/ISRG_Root_X2.pem ]]; then
+				cp /etc/ssl/certs/ISRG_Root_X2.pem "${CERTS}/ca.pem"
+				echo "==> Wrote ca.pem from ISRG_Root_X2 (ECDSA / YE1)"
+			elif [[ -f /etc/ssl/certs/ISRG_Root_X1.pem ]]; then
+				cp /etc/ssl/certs/ISRG_Root_X1.pem "${CERTS}/ca.pem"
+				echo "==> Wrote ca.pem from ISRG_Root_X1 (X2 missing)"
+			else
+				cp "${CERTS}/server.crt" "${CERTS}/ca.pem"
+				echo "==> Wrote ca.pem from server.crt (no ISRG roots on host)"
+			fi
+		elif [[ -f /etc/ssl/certs/ISRG_Root_X1.pem ]]; then
 			cp /etc/ssl/certs/ISRG_Root_X1.pem "${CERTS}/ca.pem"
 			echo "==> Wrote ca.pem from ISRG_Root_X1"
 		else
