@@ -208,14 +208,14 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	}
 
 	$model3 = gaming_hub_powerwall_model3_present( $model3 );
+	$asleep_hint = function_exists( 'gaming_hub_tesla_should_display_asleep' )
+		? gaming_hub_tesla_should_display_asleep( $model3 )
+		: ! empty( $model3['asleep'] );
 	if ( 'tesla' === $source && function_exists( 'gaming_hub_tesla_finish_cached_model3' ) ) {
-		$model3 = gaming_hub_tesla_finish_cached_model3(
-			$model3,
-			! empty( $model3['asleep'] )
-		);
+		$model3 = gaming_hub_tesla_finish_cached_model3( $model3, $asleep_hint );
 	}
 	$charging = ! empty( $model3['is_charging'] );
-	$asleep   = ! $charging && ! empty( $model3['asleep'] );
+	$asleep   = ! $charging && ( ! empty( $model3['asleep'] ) || $asleep_hint );
 	$kind     = (string) ( $model3['supply_kind'] ?? '' );
 	if ( '' === $kind || 'none' === $kind ) {
 		if ( ! empty( $model3['fast_charger_present'] ) ) {
@@ -245,6 +245,10 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 	$drive_w = array_key_exists( 'drive_w', $model3 ) ? gaming_hub_tesla_live_watt( $model3['drive_w'] ) : null;
 	$cabin_w = array_key_exists( 'cabin_w', $model3 ) ? gaming_hub_tesla_live_watt( $model3['cabin_w'] ) : null;
 	$regen_w = array_key_exists( 'regen_w', $model3 ) ? gaming_hub_tesla_live_watt( $model3['regen_w'] ) : 0;
+	// Pack vampire drain without climate must not look like HVAC flow.
+	if ( empty( $model3['climate_on'] ) ) {
+		$cabin_w = 0;
+	}
 	$mode    = (string) ( $model3['vehicle_mode'] ?? '' );
 
 	if ( '' === $mode ) {

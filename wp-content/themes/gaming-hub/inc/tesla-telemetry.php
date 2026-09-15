@@ -371,10 +371,12 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 	$moving = gaming_hub_tesla_telemetry_is_moving( $cached, $fields );
 	$pack   = gaming_hub_tesla_telemetry_pack_watts( $fields );
 
-	// Parked cabin approximation: pack discharge in watts (not whole-kW drive_state.power).
+	// Parked cabin approximation: pack discharge only while climate is on.
 	if ( null !== $pack ) {
 		if ( ! $charging && ! $moving ) {
-			$cabin_w = $pack['discharge_w'] >= 80 ? $pack['discharge_w'] : 0;
+			$cabin_w = ( ! empty( $cached['climate_on'] ) && $pack['discharge_w'] >= 80 )
+				? $pack['discharge_w']
+				: 0;
 			$cached['cabin_w'] = $cabin_w;
 			$cached['drive_w'] = 0;
 			$cached['regen_w'] = 0;
@@ -418,7 +420,7 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 		$updated[] = 'supply_kind';
 	} elseif ( $moving ) {
 		$cached['vehicle_mode'] = ( (int) ( $cached['regen_w'] ?? 0 ) >= 80 ) ? 'regen' : 'drive';
-	} elseif ( (int) ( $cached['cabin_w'] ?? 0 ) >= 80 ) {
+	} elseif ( ! empty( $cached['climate_on'] ) && (int) ( $cached['cabin_w'] ?? 0 ) >= 80 ) {
 		$cached['vehicle_mode'] = 'cabin';
 	} elseif ( ! $charging ) {
 		$cached['vehicle_mode'] = 'idle';
@@ -486,6 +488,9 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 	}
 
 	$received = isset( $payload['received_at'] ) ? (int) $payload['received_at'] : time();
+	if ( $received > 0 && ( time() - $received ) > ( 3 * MINUTE_IN_SECONDS ) ) {
+		return new WP_Error( 'tesla_telemetry_stale', 'Stale telemetry payload ignored.' );
+	}
 	$cached['telemetry']    = true;
 	$cached['telemetry_at'] = $received > 0 ? $received : time();
 	$cached['live']         = true;
@@ -493,7 +498,16 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 
 	// Streaming telemetry means the car is online, but don't clear Fleet sleep backoff
 	// on empty heartbeats — that forces vehicle_data polls and keeps the car awake.
-	$has_signal = ! empty( $updated ) || $charging || $moving;
+	// is_charging is written on every apply; only real field changes count as a signal.
+	$signal_fields = array_values(
+		array_filter(
+			$updated,
+			static function ( $key ) {
+				return 'is_charging' !== $key && 'charge_state' !== $key;
+			}
+		)
+	);
+	$has_signal = ! empty( $signal_fields ) || $charging || $moving;
 	if ( $has_signal ) {
 		$cached['asleep'] = false;
 		if ( function_exists( 'gaming_hub_tesla_clear_api_skip' ) ) {
