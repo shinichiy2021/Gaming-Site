@@ -407,6 +407,11 @@ function formatWattsExact( watts ) {
 	return `${ w.toLocaleString() } W`;
 }
 
+function formatTodayKw( wh ) {
+	const kwh = whToKwh( wh );
+	return `${ kwh.toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kW`;
+}
+
 function PackBatteryCard( {
 	flowId,
 	label,
@@ -568,10 +573,8 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
 		: ( Number.isFinite( deltaFullWh ) && deltaFullWh > 0 ? formatPack( deltaRemainWh, deltaFullWh ) : '' );
 
-	const gridShare = pctOf( asWatts( proGrid.watts ), Math.max( proInW, 1 ) );
 	const hvShare = pctOf( asWatts( hvWatts ), Math.max( proInW, 1 ) );
 	const homeShare = pctOf( proOutW, Math.max( proOutW, 1 ) );
-	const dGridShare = pctOf( asWatts( deltaAcIn ), Math.max( deltaInW, 1 ) );
 	const solarShare = pctOf( asWatts( solarWatts ), Math.max( deltaInW, 1 ) );
 	const upsShare = pctOf( deltaOutW, Math.max( deltaOutW, 1 ) );
 
@@ -589,17 +592,12 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						icon="⚡"
 						active={ isFlowActive( 'grid', status ) }
 						currentLabel="Current"
-						currentValue={ `${ formatPct( isFlowActive( 'grid', status ) ? Math.max( gridShare, 1 ) : 0 ) }%` }
-						totalLabel="Total"
-						totalValue={ `${ formatPct( pctOf( whToKwh( liveBuy?.pro ), Math.max( whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ), 0.001 ) ) ) }%` }
-						currentPct={ isFlowActive( 'grid', status ) ? gridShare : 0 }
-						totalPct={ pctOf( whToKwh( liveBuy?.pro ), Math.max( whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ), 0.001 ) ) }
-						showBars
-						note={ formatWatts( proGrid.watts ) }
+						currentValue={ formatWattsExact( proGrid.watts ) }
+						totalLabel="Today"
+						totalValue={ formatTodayKw( liveBuy?.pro ) }
 						extra={ (
 							<ExtraLines
 								lines={ [
-									`${ labels.todayBuy || '今日 買電' } ${ formatTodayWatts( liveBuy?.pro ) }`,
 									formatYenInt( liveYen?.proGrid ),
 									proGrid.message || null,
 								].filter( Boolean ) }
@@ -683,19 +681,12 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						active={ ! deltaMissing && isFlowActive( 'deltaGrid', status ) }
 						unavailable={ deltaMissing }
 						currentLabel="Current"
-						currentValue={ deltaMissing ? na : `${ formatPct( isFlowActive( 'deltaGrid', status ) ? Math.max( dGridShare, 1 ) : 0 ) }%` }
-						totalLabel="Total"
-						totalValue={ deltaMissing ? na : `${ formatPct( pctOf( whToKwh( liveBuy?.delta ), Math.max( whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta ), 0.001 ) ) ) }%` }
-						currentPct={ ! deltaMissing && isFlowActive( 'deltaGrid', status ) ? dGridShare : 0 }
-						totalPct={ pctOf( whToKwh( liveBuy?.delta ), Math.max( whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta ), 0.001 ) ) }
-						showBars
-						note={ formatWatts( deltaAcIn ) }
+						currentValue={ deltaMissing ? na : formatWattsExact( deltaAcIn ) }
+						totalLabel="Today"
+						totalValue={ deltaMissing ? na : formatTodayKw( liveBuy?.delta ) }
 						extra={ deltaMissing ? null : (
 							<ExtraLines
-								lines={ [
-									`${ labels.todayBuy || '今日 買電' } ${ formatTodayWatts( liveBuy?.delta ) }`,
-									formatYenInt( liveYen?.grid ),
-								] }
+								lines={ [ formatYenInt( liveYen?.grid ) ] }
 							/>
 						) }
 					/>
