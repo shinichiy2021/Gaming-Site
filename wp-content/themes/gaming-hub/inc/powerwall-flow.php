@@ -12,10 +12,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_KEY', 'gaming_hub_powerwall_flow_v22' );
-define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 90 );
+define( 'GAMING_HUB_POWERWALL_FLOW_CACHE_TTL', 12 );
 define( 'GAMING_HUB_POWERWALL_SOLAR_POLL_MS', HOUR_IN_SECONDS * 1000 );
 /** Browser refresh while viewing Tesla dashboards (Fleet calls still gated by sleep/idle TTLs). */
-define( 'GAMING_HUB_TESLA_BROWSER_POLL_MS', 2 * MINUTE_IN_SECONDS * 1000 );
+define( 'GAMING_HUB_TESLA_BROWSER_POLL_MS', 15 * 1000 );
 
 /**
  * Build a time-of-day demo profile for the flow diagram.

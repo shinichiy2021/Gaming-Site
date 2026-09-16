@@ -300,9 +300,10 @@
 			});
 	}
 
-	const interval = Number(window.gamingHubPowerwall.interval) || 30000;
+	const interval = Number(window.gamingHubPowerwall.interval) || 15000;
 	const solarInterval = Number(window.gamingHubPowerwall.solarInterval) || 3600000;
 
+	refresh();
 	setInterval(refresh, interval);
 	setInterval(refresh, solarInterval);
 })();
