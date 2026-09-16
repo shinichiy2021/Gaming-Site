@@ -626,7 +626,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						flowId="hv"
 						className={ `teslogic-card--hv teslogic-card--icon-lg${ isFlowActive( 'hv', status ) ? ' is-inputting' : '' }` }
 						label={ labels.hv || 'ハイボルト' }
-						icon={ isFlowActive( 'hv', status ) ? '🔆' : '☀️' }
+						icon={ isFlowActive( 'hv', status ) ? '☀️' : '🔆' }
 						active={ isFlowActive( 'hv', status ) }
 						currentLabel="Current"
 						currentValue={ formatWattsExact( hvWatts ) }
@@ -640,7 +640,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						flowId="home"
 						className={ `teslogic-card--home teslogic-card--icon-lg${ isFlowActive( 'proToHome', status ) ? ' is-outputting' : '' }` }
 						label={ labels.home }
-						icon={ isFlowActive( 'proToHome', status ) ? '💨' : '🏠' }
+						icon={ isFlowActive( 'proToHome', status ) ? '❄️' : '🌤' }
 						active={ isFlowActive( 'proToHome', status ) }
 						currentLabel="Current"
 						currentValue={ formatWattsExact( roomWatts ) }
