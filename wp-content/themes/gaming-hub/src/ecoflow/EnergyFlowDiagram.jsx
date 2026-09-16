@@ -399,6 +399,11 @@ function FlowCard( {
 	);
 }
 
+function formatWattsExact( watts ) {
+	const w = Math.round( asWatts( watts ) );
+	return `${ w.toLocaleString() } W`;
+}
+
 function PackBatteryCard( {
 	flowId,
 	label,
@@ -409,6 +414,9 @@ function PackBatteryCard( {
 	unavailable,
 	currentW,
 	totalKwh,
+	inputW,
+	outputW,
+	showIo,
 	stateLabel,
 	packLabel,
 	eta,
@@ -419,7 +427,7 @@ function PackBatteryCard( {
 		'teslogic-card--battery',
 		charging ? 'is-charging' : '',
 		unavailable ? 'is-unavailable is-asleep' : '',
-		( ! unavailable && ( charging || discharging || currentW >= FLOW_THRESHOLD ) ) ? 'is-active' : 'is-standby',
+		( ! unavailable && ( charging || discharging || currentW >= FLOW_THRESHOLD || ( showIo && ( asWatts( inputW ) >= FLOW_THRESHOLD || asWatts( outputW ) >= FLOW_THRESHOLD ) ) ) ) ? 'is-active' : 'is-standby',
 		tone.className,
 	].filter( Boolean ).join( ' ' );
 
@@ -435,12 +443,21 @@ function PackBatteryCard( {
 				</strong>
 				<BattIcon charging={ charging } />
 			</div>
-			<MetricPair
-				currentLabel="Current, kW"
-				currentValue={ unavailable ? '—' : formatKw( currentW ) }
-				totalLabel="Total, kWh"
-				totalValue={ unavailable ? '—' : totalKwh.toLocaleString( undefined, { maximumFractionDigits: 1 } ) }
-			/>
+			{ showIo ? (
+				<MetricPair
+					currentLabel="Input"
+					currentValue={ unavailable ? '—' : formatWattsExact( inputW ) }
+					totalLabel="Output"
+					totalValue={ unavailable ? '—' : formatWattsExact( outputW ) }
+				/>
+			) : (
+				<MetricPair
+					currentLabel="Current, kW"
+					currentValue={ unavailable ? '—' : formatKw( currentW ) }
+					totalLabel="Total, kWh"
+					totalValue={ unavailable ? '—' : totalKwh.toLocaleString( undefined, { maximumFractionDigits: 1 } ) }
+				/>
+			) }
 			<span className="teslogic-battery__name">{ label }</span>
 			{ packLabel ? <small className="teslogic-battery__state">{ packLabel }</small> : null }
 			<small className="teslogic-battery__state">{ stateLabel }</small>
@@ -502,8 +519,15 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const proDischarging = pro.eta_mode === 'discharge' || ( pro.eta_mode !== 'charge' && (
 		!! pro.is_discharging || ( ! proCharging && Math.max( proAcOut, proOutTotal, roomWatts ) >= FLOW_THRESHOLD )
 	) );
-	const proInW = asWatts( proGrid.watts ) + asWatts( hvWatts );
-	const proOutW = asWatts( roomWatts );
+	const proInW = Math.max(
+		asWatts( pro.input_total ),
+		asWatts( proGrid.watts ) + asWatts( hvWatts )
+	);
+	const proOutW = Math.max(
+		asWatts( pro.output_total ),
+		asWatts( roomWatts ),
+		asWatts( proAcOut )
+	);
 	const proCurrentW = proCharging ? proInW : proOutW;
 	const proTodayKwh = proCharging
 		? whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro )
@@ -587,6 +611,9 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						charging={ proCharging }
 						discharging={ proDischarging }
 						unavailable={ false }
+						showIo
+						inputW={ proInW }
+						outputW={ proOutW }
 						currentW={ proCurrentW }
 						totalKwh={ proTodayKwh }
 						stateLabel={ pro.charge_state || '—' }
