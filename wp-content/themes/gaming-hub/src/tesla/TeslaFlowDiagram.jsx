@@ -448,8 +448,8 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ regenOn ? ( labels.regen || '回生' ) : ( labels.rearMotor || labels.drive || 'モーター' ) }
 							icon={ ICONS.motor }
 							active={ ! asleep && ( driveOn || regenOn ) }
-							currentLabel="Current"
-							currentValue={ `${ formatPct( driveShareNow ) }%` }
+							currentLabel="Current, kW"
+							currentValue={ formatKw( driveW ) }
 							totalLabel="Total"
 							totalValue={ `${ formatPct( driveShareToday ) }%` }
 							currentPct={ driveShareNow }
@@ -481,8 +481,8 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ wallLabel }
 							icon={ ICONS.wall }
 							active={ wallOn }
-							currentLabel="Current"
-							currentValue={ `${ formatPct( wallOn ? Math.max( wallShareNow, wallW >= FLOW_THRESHOLD ? 1 : 0 ) : 0 ) }%` }
+							currentLabel="Current, kW"
+							currentValue={ formatKw( wallOn ? wallW : 0 ) }
 							totalLabel="Total"
 							totalValue={ `${ formatPct( wallShareToday ) }%` }
 							currentPct={ wallOn ? wallShareNow : 0 }
@@ -498,8 +498,8 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ labels.climate || labels.cabin || 'エアコン' }
 							icon={ ICONS.climate }
 							active={ cabinOn }
-							currentLabel="Current"
-							currentValue={ `${ formatPct( cabinShareNow ) }%` }
+							currentLabel="Current, kW"
+							currentValue={ formatKw( cabinW ) }
 							totalLabel="Total"
 							totalValue={ `${ formatPct( cabinShareToday ) }%` }
 							currentPct={ cabinShareNow }
@@ -515,8 +515,8 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ labels.super || 'Supercharger' }
 							icon={ ICONS.super }
 							active={ superOn }
-							currentLabel="Current"
-							currentValue={ `${ formatPct( superCharging ? Math.max( superShareNow, 1 ) : 0 ) }%` }
+							currentLabel="Current, kW"
+							currentValue={ formatKw( superCharging ? superW : 0 ) }
 							totalLabel="Total"
 							totalValue={ `${ formatPct( superShareToday ) }%` }
 							currentPct={ superCharging ? superShareNow : 0 }
@@ -538,8 +538,8 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ labels.others || labels.sentry || 'その他' }
 							icon={ ICONS.other }
 							active={ otherActive }
-							currentLabel="Current"
-							currentValue={ `${ formatPct( otherCurrent ) }%` }
+							currentLabel="Current, kW"
+							currentValue={ formatKw( otherActive ? Math.max( cabinW * 0.15, 40 ) : 0 ) }
 							totalLabel="Total"
 							totalValue={ otherActive ? '3%' : '0' }
 							currentPct={ otherCurrent }

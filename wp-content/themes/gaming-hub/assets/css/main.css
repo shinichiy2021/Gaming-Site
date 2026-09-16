@@ -2057,6 +2057,18 @@ body.home .site-header.is-scrolled {
 	opacity: 0.9;
 }
 
+/* Tesla flow: larger icons on every card except the battery */
+.tesla-flow-map.teslogic-map .teslogic-card:not(.teslogic-card--battery) .teslogic-card__icon {
+	width: 2.15rem;
+	height: 2.15rem;
+	font-size: 1.55rem;
+	opacity: 1;
+}
+
+.tesla-flow-map.teslogic-map .teslogic-system {
+	gap: clamp(28px, 4vw, 44px);
+}
+
 .teslogic-card__label {
 	font-size: clamp(0.82rem, 1.1vw, 0.98rem);
 	font-weight: 700;
@@ -2862,6 +2874,12 @@ body.home .site-header.is-scrolled {
 		width: 1.55rem;
 		height: 1.55rem;
 		font-size: 1.15rem;
+	}
+
+	.tesla-flow-map.teslogic-map .teslogic-card:not(.teslogic-card--battery) .teslogic-card__icon {
+		width: 2.45rem;
+		height: 2.45rem;
+		font-size: 1.75rem;
 	}
 }
 
