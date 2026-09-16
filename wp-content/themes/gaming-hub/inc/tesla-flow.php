@@ -460,6 +460,7 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'simulated'       => false,
 		'drive_ready'     => ! $asleep && ! empty( $model3['drive_ready'] ),
 		'asleep'          => $asleep,
+		'yen_per_kwh'     => round( (float) $yen_kwh, 1 ),
 		'gas'             => $gas,
 		'efficiency'      => $efficiency,
 	);
@@ -510,6 +511,8 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'saved'         => __('Saved', 'gaming-hub'),
 			'todayUse'      => __('Used today', 'gaming-hub'),
 			'todayBill'     => __('Today\'s electricity cost', 'gaming-hub'),
+			'powerCost'     => __('Power / cost', 'gaming-hub'),
+			'todayPowerCost'=> __('Today\'s power / cost', 'gaming-hub'),
 			'buy'           => __('Grid import', 'gaming-hub'),
 			'todayBuy'      => __('Import today', 'gaming-hub'),
 			'yenPerHour'    => __('yen/h', 'gaming-hub'),

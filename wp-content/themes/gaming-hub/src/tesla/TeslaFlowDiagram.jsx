@@ -5,19 +5,6 @@ function formatYen( value ) {
 	return `¥${ Math.round( Number( value ) || 0 ).toLocaleString() }`;
 }
 
-function formatBuyYen( value, known, pendingLabel, estimated, estimateLabel ) {
-	if ( known ) {
-		const yen = formatYen( value );
-		if ( estimated ) {
-			return `${ yen }（${ estimateLabel || '見込み' }）`;
-		}
-
-		return yen;
-	}
-
-	return pendingLabel || '—';
-}
-
 function wallAcContext( status, asleep, charging ) {
 	if ( asleep || status.supply_kind === 'supercharger' ) {
 		return { plugged: false, atHome: false, away: false };
@@ -49,26 +36,45 @@ function pctOf( part, whole ) {
 	return Math.max( 0, Math.min( 100, ( part / whole ) * 100 ) );
 }
 
-function formatPct( value ) {
-	const n = Number( value );
-	if ( ! Number.isFinite( n ) || n <= 0 ) {
-		return '0';
-	}
-
-	if ( n < 10 ) {
-		return n.toLocaleString( undefined, { maximumFractionDigits: 1 } );
-	}
-
-	return Math.round( n ).toLocaleString();
-}
-
 function formatKw( watts ) {
 	const w = asWatts( watts );
 	if ( w < FLOW_THRESHOLD ) {
-		return '0';
+		return '0 kW';
 	}
 
-	return ( w / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } );
+	return `${ ( w / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kW`;
+}
+
+function formatKwh( value ) {
+	const kwh = asKwh( value );
+	return `${ kwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh`;
+}
+
+function yenPerHour( watts, yenPerKwh ) {
+	const w = asWatts( watts );
+	const rate = Number( yenPerKwh );
+	if ( w < FLOW_THRESHOLD || ! Number.isFinite( rate ) || rate <= 0 ) {
+		return 0;
+	}
+
+	return Math.round( ( w / 1000 ) * rate );
+}
+
+function formatNowMetric( watts, yenPerKwh, yenPerHOverride ) {
+	const power = formatKw( watts );
+	const yenH = Number.isFinite( yenPerHOverride ) && yenPerHOverride > 0
+		? Math.round( yenPerHOverride )
+		: yenPerHour( watts, yenPerKwh );
+	if ( yenH > 0 ) {
+		return `${ power } / ${ formatYen( yenH ) }/h`;
+	}
+
+	return `${ power } / —`;
+}
+
+function formatTodayMetric( kwh, yen ) {
+	const cost = Number.isFinite( Number( yen ) ) ? formatYen( yen ) : '—';
+	return `${ formatKwh( kwh ) } / ${ cost }`;
 }
 
 function BattIcon( { charging } ) {
@@ -156,8 +162,11 @@ function BatteryCard( {
 	tempC,
 	charging,
 	regenOn,
-	currentW,
-	totalKwh,
+	livePower,
+	currentValue,
+	totalValue,
+	currentLabel,
+	totalLabel,
 	vehicleName,
 	stateLabel,
 	tone,
@@ -168,7 +177,7 @@ function BatteryCard( {
 		'teslogic-card--battery',
 		charging || regenOn ? 'is-charging' : '',
 		asleep ? 'is-asleep' : '',
-		( ! asleep && ( charging || regenOn || currentW > 0 ) ) ? 'is-active' : 'is-standby',
+		( ! asleep && ( charging || regenOn || livePower ) ) ? 'is-active' : 'is-standby',
 		tone.className,
 	].filter( Boolean ).join( ' ' );
 
@@ -188,10 +197,10 @@ function BatteryCard( {
 				) : null }
 			</div>
 			<MetricPair
-				currentLabel="Current, kW"
-				currentValue={ formatKw( currentW ) }
-				totalLabel="Total, kWh"
-				totalValue={ totalKwh.toLocaleString( undefined, { maximumFractionDigits: 1 } ) }
+				currentLabel={ currentLabel }
+				currentValue={ currentValue }
+				totalLabel={ totalLabel }
+				totalValue={ totalValue }
 			/>
 			<span className="teslogic-battery__name">{ vehicleName }</span>
 			<small className="teslogic-battery__state">{ stateLabel }</small>
@@ -206,28 +215,16 @@ function wallExtras( status, labels ) {
 
 	const charging = ! status.asleep && !! status.is_charging && status.supply_kind !== 'supercharger';
 	const items = [];
-	const yenH = Number( status.wall_yen_per_h );
-	const todayYen = Number( status.wall_today_yen );
-	const todayKwh = Number( status.wall_today_kwh );
 	const sessionKwh = Number( status.wall_session_kwh );
 	const sessionYen = Number( status.wall_session_yen );
 	const spansDays = !! status.wall_span_days;
-	const buy = labels.buy || '買電';
-	const perHour = labels.yenPerHour || '円/時';
-	const todayBuy = labels.todayBuy || '今日 買電';
 	const session = labels.session || '今回';
 	const total = labels.total || '合計';
-
-	if ( charging && Number.isFinite( yenH ) && yenH > 0 ) {
-		items.push( `${ buy } ${ Math.round( yenH ).toLocaleString() } ${ perHour }` );
-	}
 
 	if ( ( charging || spansDays ) && Number.isFinite( sessionKwh ) && sessionKwh > 0 ) {
 		const range = spansDays && status.wall_span_label ? ` (${ status.wall_span_label })` : '';
 		items.push( `${ spansDays ? total : session } ${ sessionKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( sessionYen ) }${ range }` );
 	}
-
-	items.push( `${ todayBuy } ${ ( Number.isFinite( todayKwh ) ? todayKwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatYen( Number.isFinite( todayYen ) ? todayYen : 0 ) }` );
 
 	return items;
 }
@@ -237,16 +234,10 @@ function superExtras( status, labels ) {
 		return [];
 	}
 
-	const superConnected = isSuperchargerConnected( status );
 	const charging = ! status.asleep && !! status.is_charging && status.supply_kind === 'supercharger';
 	const items = [];
-	const todayBuy = labels.todayBuy || '今日 買電';
 	const session = labels.session || '今回';
 	const total = labels.total || '合計';
-	const todayKwh = Number( status.super_today_kwh );
-	const todayYen = Number( status.super_today_yen );
-	const todayYenKnown = !! status.super_today_yen_known;
-	const todayYenEstimated = !! status.super_today_yen_estimated;
 	const sessionKwh = Number( status.super_session_kwh );
 	const spansDays = !! status.super_span_days;
 
@@ -255,27 +246,7 @@ function superExtras( status, labels ) {
 		items.push( `${ spansDays ? total : session } ${ sessionKwh.toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh${ range }` );
 	}
 
-	if ( superConnected || charging || ( Number.isFinite( todayKwh ) && todayKwh > 0 ) || todayYenKnown ) {
-		items.push(
-			`${ todayBuy } ${ ( Number.isFinite( todayKwh ) ? todayKwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh · ${ formatBuyYen( todayYen, todayYenKnown, labels.billPending, todayYenEstimated, labels.billEstimate ) }`
-		);
-	}
-
 	return items;
-}
-
-function cabinExtras( status, labels ) {
-	if ( ! status.live ) {
-		return [];
-	}
-
-	const kwh = Number( status.cabin_today_kwh );
-	const yen = Number( status.cabin_today_yen );
-
-	return [
-		`${ labels.todayUse || '今日 使用' } ${ ( Number.isFinite( kwh ) ? kwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh`,
-		`${ labels.todayBill || '今日 電気代' } ${ formatYen( yen ) }`,
-	];
 }
 
 function gasExtras( status, labels ) {
@@ -284,12 +255,8 @@ function gasExtras( status, labels ) {
 	}
 
 	const gas = status.gas || {};
-	const kwh = Number( gas.today_kwh );
-
 	return [
-		`${ labels.todayUse || '今日 使用' } ${ ( Number.isFinite( kwh ) ? kwh : 0 ).toLocaleString( undefined, { maximumFractionDigits: 2 } ) } kWh`,
 		`${ labels.saved || '節約' } ${ formatYen( gas.saved_yen ) }`,
-		`${ labels.todayBill || '今日 電気代' } ${ formatYen( gas.ev_yen ) }`,
 	];
 }
 
@@ -408,6 +375,14 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const outTodayKwh = driveTodayKwh + cabinTodayKwh;
 	const chargeTodayKwh = wallTodayKwh + superTodayKwh;
 	const packTotalKwh = charging ? chargeTodayKwh : outTodayKwh;
+	const yenKwh = Number( status.yen_per_kwh ) > 0 ? Number( status.yen_per_kwh ) : 30;
+	const driveTodayYen = Number( status.gas?.ev_yen ) || 0;
+	const cabinTodayYen = Number( status.cabin_today_yen ) || 0;
+	const wallTodayYen = Number( status.wall_today_yen ) || 0;
+	const superTodayYen = Number( status.super_today_yen ) || 0;
+	const packTodayYen = charging ? ( wallTodayYen + superTodayYen ) : ( driveTodayYen + cabinTodayYen );
+	const powerCostLabel = labels.powerCost || '消費電力 / 電気代';
+	const todayPowerCostLabel = labels.todayPowerCost || '今日の消費電力 / 電気代';
 
 	const driveShareNow = pctOf( driveW, Math.max( outW, packCurrentW, 1 ) );
 	const cabinShareNow = pctOf( cabinW, Math.max( outW, 1 ) );
@@ -445,10 +420,10 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ regenOn ? ( labels.regen || '回生' ) : ( labels.rearMotor || labels.drive || 'モーター' ) }
 							icon={ ICONS.motor }
 							active={ ! asleep && ( driveOn || regenOn ) }
-							currentLabel="Current, kW"
-							currentValue={ formatKw( driveW ) }
-							totalLabel="Total"
-							totalValue={ `${ formatPct( driveShareToday ) }%` }
+							currentLabel={ powerCostLabel }
+							currentValue={ formatNowMetric( driveW, yenKwh ) }
+							totalLabel={ todayPowerCostLabel }
+							totalValue={ formatTodayMetric( driveTodayKwh, driveTodayYen ) }
 							currentPct={ driveShareNow }
 							totalPct={ driveShareToday }
 							showBars
@@ -462,8 +437,11 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							tempC={ Number.isFinite( Number( status.cabin_temp_c ) ) ? Number( status.cabin_temp_c ) : NaN }
 							charging={ charging }
 							regenOn={ regenOn }
-							currentW={ packCurrentW }
-							totalKwh={ packTotalKwh }
+							livePower={ packCurrentW >= FLOW_THRESHOLD }
+							currentLabel={ powerCostLabel }
+							currentValue={ formatNowMetric( packCurrentW, yenKwh ) }
+							totalLabel={ todayPowerCostLabel }
+							totalValue={ formatTodayMetric( packTotalKwh, packTodayYen ) }
 							vehicleName={ status.vehicle_name || labels.tesla }
 							stateLabel={ teslaStateLabel( status, labels ) }
 							tone={ tone }
@@ -478,19 +456,15 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ wallLabel }
 							icon={ ICONS.wall }
 							active={ wallOn }
-							showMetrics={ false }
+							currentLabel={ powerCostLabel }
+							currentValue={ formatNowMetric( wallOn ? wallW : 0, yenKwh, Number( status.wall_yen_per_h ) ) }
+							totalLabel={ todayPowerCostLabel }
+							totalValue={ formatTodayMetric( wallTodayKwh, wallTodayYen ) }
+							currentPct={ wallOn ? wallShareNow : 0 }
+							totalPct={ wallShareToday }
+							showBars
 							note={ labels.wallNote || null }
 							extra={ <ExtraLines lines={ wallExtras( status, labels ) } /> }
-						/>
-
-						<FlowCard
-							flowId="cabin"
-							className="teslogic-card--aux"
-							label={ labels.climate || labels.cabin || 'エアコン' }
-							icon={ ICONS.climate }
-							active={ cabinOn }
-							showMetrics={ false }
-							extra={ <ExtraLines lines={ cabinExtras( status, labels ) } highlight={ labels.todayBill || '今日 電気代' } /> }
 						/>
 
 						<FlowCard
@@ -499,10 +473,10 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ labels.super || 'Supercharger' }
 							icon={ ICONS.super }
 							active={ superOn }
-							currentLabel="Current, kW"
-							currentValue={ formatKw( superCharging ? superW : 0 ) }
-							totalLabel="Total"
-							totalValue={ `${ formatPct( superShareToday ) }%` }
+							currentLabel={ powerCostLabel }
+							currentValue={ formatNowMetric( superCharging ? superW : 0, yenKwh ) }
+							totalLabel={ todayPowerCostLabel }
+							totalValue={ formatTodayMetric( superTodayKwh, superTodayYen ) }
 							currentPct={ superCharging ? superShareNow : 0 }
 							totalPct={ superShareToday }
 							showBars
@@ -512,6 +486,21 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 									: null
 							}
 							extra={ <ExtraLines lines={ superExtras( status, labels ) } /> }
+						/>
+
+						<FlowCard
+							flowId="cabin"
+							className="teslogic-card--aux"
+							label={ labels.climate || labels.cabin || 'エアコン' }
+							icon={ ICONS.climate }
+							active={ cabinOn }
+							currentLabel={ powerCostLabel }
+							currentValue={ formatNowMetric( cabinW, yenKwh ) }
+							totalLabel={ todayPowerCostLabel }
+							totalValue={ formatTodayMetric( cabinTodayKwh, cabinTodayYen ) }
+							currentPct={ cabinShareNow }
+							totalPct={ cabinShareToday }
+							showBars
 						/>
 
 						<FlowCard
