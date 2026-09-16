@@ -573,8 +573,6 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
 		: ( Number.isFinite( deltaFullWh ) && deltaFullWh > 0 ? formatPack( deltaRemainWh, deltaFullWh ) : '' );
 
-	const hvShare = pctOf( asWatts( hvWatts ), Math.max( proInW, 1 ) );
-	const homeShare = pctOf( proOutW, Math.max( proOutW, 1 ) );
 	const solarShare = pctOf( asWatts( solarWatts ), Math.max( deltaInW, 1 ) );
 	const upsShare = pctOf( deltaOutW, Math.max( deltaOutW, 1 ) );
 
@@ -629,39 +627,26 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						icon="☀️"
 						active={ isFlowActive( 'hv', status ) }
 						currentLabel="Current"
-						currentValue={ `${ formatPct( isFlowActive( 'hv', status ) ? Math.max( hvShare, 1 ) : 0 ) }%` }
-						totalLabel="Total"
-						totalValue={ `${ formatPct( pctOf( whToKwh( liveSolar?.pro ), Math.max( whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ), 0.001 ) ) ) }%` }
-						currentPct={ isFlowActive( 'hv', status ) ? hvShare : 0 }
-						totalPct={ pctOf( whToKwh( liveSolar?.pro ), Math.max( whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ), 0.001 ) ) }
-						showBars
-						note={ formatWatts( hvWatts ) }
-						extra={ (
-							<ExtraLines
-								lines={ [ `${ labels.todayGen || '今日 発電' } ${ formatTodayWatts( liveSolar?.pro ) }` ] }
-							/>
-						) }
+						currentValue={ formatWattsExact( hvWatts ) }
+						totalLabel="Today"
+						totalValue={ formatTodayKw( liveSolar?.pro ) }
 					/>
 				</div>
 
 				<div className="teslogic-bottom teslogic-bottom--single">
 					<FlowCard
 						flowId="home"
+						className={ `teslogic-card--home teslogic-card--icon-lg${ isFlowActive( 'proToHome', status ) ? ' is-outputting' : '' }` }
 						label={ labels.home }
-						icon="🏠"
+						icon={ isFlowActive( 'proToHome', status ) ? '💨' : '🏠' }
 						active={ isFlowActive( 'proToHome', status ) }
 						currentLabel="Current"
-						currentValue={ `${ formatPct( isFlowActive( 'proToHome', status ) ? 100 : 0 ) }%` }
-						totalLabel="Total"
-						totalValue={ `${ formatPct( homeShare || ( whToKwh( liveUsage?.room ) > 0 ? 100 : 0 ) ) }%` }
-						currentPct={ isFlowActive( 'proToHome', status ) ? 100 : 0 }
-						totalPct={ whToKwh( liveUsage?.room ) > 0 ? 100 : 0 }
-						showBars
-						note={ formatWatts( roomWatts ) }
+						currentValue={ formatWattsExact( roomWatts ) }
+						totalLabel="Today"
+						totalValue={ formatTodayKw( liveUsage?.room ) }
 						extra={ (
 							<ExtraLines
 								lines={ [
-									`${ labels.todayUse || '今日 使用' } ${ formatTodayWatts( liveUsage?.room ) }`,
 									`${ labels.todaySave || '今日 節約' } ${ formatYenInt( liveYen?.room ) }`,
 								] }
 							/>
