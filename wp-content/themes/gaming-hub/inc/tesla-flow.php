@@ -485,7 +485,7 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'superNote'  => __( 'Supercharger', 'gaming-hub' ),
 			'tesla'      => __( 'Tesla', 'gaming-hub' ),
 			'drive'      => __('Gasoline equivalent', 'gaming-hub'),
-			'rearMotor'  => __('Rear motor', 'gaming-hub'),
+			'rearMotor'  => __('Motor', 'gaming-hub'),
 			'frontMotor' => __('Front motor', 'gaming-hub'),
 			'regen'      => __('Regen charging', 'gaming-hub'),
 			'regenNote'  => __('Braking / regen', 'gaming-hub'),

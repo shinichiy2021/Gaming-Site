@@ -539,6 +539,7 @@ return array(
 	'Measured data × shop links' => '実測 × 購入リンク',
 	'Measured generation' => '発電実績',
 	'Mega' => 'メガ',
+	'Motor' => 'モーター',
 	'Model 3 API not set — showing demo data' => 'Model 3 API 未設定 — Model 3 はデモデータです',
 	'Model 3 Amazon affiliate URL (optional)' => 'Model 3 関連 Amazonアフィ URL（任意）',
 	'Model 3 URL (official or A8)' => 'Model 3 URL（公式 or A8）',
