@@ -1915,12 +1915,13 @@ body.home .site-header.is-scrolled {
 	align-items: stretch;
 }
 
-/* Tesla: no front motor — motor | battery */
+/* Tesla: battery alone on top */
 .tesla-flow-map.teslogic-map .teslogic-top {
-	grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.95fr);
-	max-width: min(820px, 100%);
+	grid-template-columns: minmax(240px, 360px);
+	max-width: min(420px, 100%);
 	margin-inline: auto;
 	width: 100%;
+	justify-content: center;
 }
 
 .teslogic-bottom {
@@ -2868,9 +2869,9 @@ body.home .site-header.is-scrolled {
 	}
 
 	.tesla-flow-map.teslogic-map .teslogic-top {
-		grid-template-columns: minmax(0, 1.2fr) minmax(280px, 340px);
-		gap: 28px 40px;
-		max-width: min(880px, 100%);
+		grid-template-columns: minmax(280px, 360px);
+		gap: 0;
+		max-width: min(420px, 100%);
 	}
 
 	.teslogic-bottom {

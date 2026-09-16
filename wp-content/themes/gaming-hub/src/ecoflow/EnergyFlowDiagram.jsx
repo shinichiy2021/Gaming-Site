@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
-import { useFlowCanvas } from './useFlowCanvas';
+// import { useFlowCanvas } from './useFlowCanvas'; // energy flow canvas temporarily disabled
 
 function isFlowActive( flowId, status ) {
 	if ( ! status ) {
@@ -825,14 +825,11 @@ function SingleFlowDiagram( { status, labels } ) {
 
 export default function EnergyFlowDiagram( { initial, labels } ) {
 	const mapRef = useRef( null );
-	const canvasRef = useRef( null );
 	const [ status, setStatus ] = useState( initial || {} );
 	const liveYen = useLiveTodayYen( status.today_yen );
 	const liveSolar = useLiveTodaySolar( status.today_solar );
 	const liveUsage = useLiveTodayUsage( status.today_usage );
 	const liveBuy = useLiveTodayBuy( status.today_buy );
-
-	useFlowCanvas( canvasRef, mapRef, status );
 
 	useEffect( () => {
 		const onUpdate = ( event ) => {
@@ -850,12 +847,12 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 	return (
 		<div
 			ref={ mapRef }
-			className={ `ecoflow-energy-map teslogic-map${ isDual ? ' is-dual is-gaming' : '' }` }
+			className={ `ecoflow-energy-map teslogic-map is-flow-hidden${ isDual ? ' is-dual is-gaming' : '' }` }
 			data-charging={ status.is_charging ? '1' : '0' }
 			data-dual={ isDual ? '1' : '0' }
 			aria-label={ labels.flow }
 		>
-			<canvas ref={ canvasRef } className="ecoflow-energy-canvas" aria-hidden="true" />
+			{ /* Energy flow canvas temporarily disabled */ }
 
 			<div className="ecoflow-energy-content">
 				{ isDual ? (
