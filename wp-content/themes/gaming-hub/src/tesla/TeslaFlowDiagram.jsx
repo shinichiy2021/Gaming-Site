@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { batteryTone, formatWatts, isFlowActive, isRegenActive, isSuperchargerConnected, FLOW_THRESHOLD } from './constants';
-import { useFlowCanvas } from './useFlowCanvas';
+import { batteryTone, isFlowActive, isRegenActive, isSuperchargerConnected, FLOW_THRESHOLD } from './constants';
 
 function formatYen( value ) {
 	return `¥${ Math.round( Number( value ) || 0 ).toLocaleString() }`;
@@ -118,6 +117,7 @@ function FlowCard( {
 	currentPct,
 	totalPct,
 	showBars,
+	showMetrics = true,
 	note,
 	extra,
 } ) {
@@ -134,15 +134,17 @@ function FlowCard( {
 				<span className="teslogic-card__label">{ label }</span>
 			</div>
 			{ note ? <small className="teslogic-card__note">{ note }</small> : null }
-			<MetricPair
-				currentLabel={ currentLabel }
-				currentValue={ currentValue }
-				totalLabel={ totalLabel }
-				totalValue={ totalValue }
-				currentPct={ currentPct }
-				totalPct={ totalPct }
-				showBars={ showBars }
-			/>
+			{ showMetrics ? (
+				<MetricPair
+					currentLabel={ currentLabel }
+					currentValue={ currentValue }
+					totalLabel={ totalLabel }
+					totalValue={ totalValue }
+					currentPct={ currentPct }
+					totalPct={ totalPct }
+					showBars={ showBars }
+				/>
+			) : null }
 			{ extra }
 		</div>
 	);
@@ -358,10 +360,7 @@ const ICONS = {
 
 export default function TeslaFlowDiagram( { initial, labels } ) {
 	const mapRef = useRef( null );
-	const canvasRef = useRef( null );
 	const [ status, setStatus ] = useState( initial || {} );
-
-	useFlowCanvas( canvasRef, mapRef, status );
 
 	useEffect( () => {
 		const onUpdate = ( event ) => {
@@ -374,7 +373,6 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 		return () => document.removeEventListener( 'gamingHubTeslaFlow', onUpdate );
 	}, [] );
 
-	const idle = labels.idle || '待機';
 	const asleep = !! status.asleep;
 	const soc = Number( status.battery_percent );
 	const hasSoc = status.live && Number.isFinite( soc );
@@ -421,17 +419,16 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const superShareToday = pctOf( superTodayKwh, Math.max( chargeTodayKwh, 1 ) );
 
 	const otherActive = ! asleep && !! status.sentry;
-	const otherCurrent = otherActive ? Math.max( 0.5, pctOf( Math.max( cabinW * 0.15, 40 ), Math.max( outW, 1 ) ) ) : 0;
 	const speed = asleep ? 0 : ( Number( status.speed_km ) || 0 );
 
 	return (
 		<div className={ `tesla-flow-scene${ asleep ? ' is-asleep' : '' }` }>
 			<div
 				ref={ mapRef }
-				className={ `tesla-flow-map ecoflow-energy-map teslogic-map${ asleep ? ' is-asleep' : '' }` }
+				className={ `tesla-flow-map ecoflow-energy-map teslogic-map is-flow-hidden${ asleep ? ' is-asleep' : '' }` }
 				aria-label={ labels.flow }
 			>
-				<canvas ref={ canvasRef } className="ecoflow-energy-canvas tesla-flow-canvas" aria-hidden="true" />
+				{ /* Energy flow canvas temporarily disabled */ }
 
 				<div className="teslogic-system">
 					<p className="teslogic-title">
@@ -455,7 +452,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							currentPct={ driveShareNow }
 							totalPct={ driveShareToday }
 							showBars
-							note={ driveW >= FLOW_THRESHOLD ? formatWatts( driveW, idle ) : ( speed > 0 ? `${ speed } km/h` : null ) }
+							note={ speed > 0 ? `${ speed } km/h` : null }
 							extra={ <ExtraLines lines={ gasExtras( status, labels ) } highlight={ labels.saved || '節約' } /> }
 						/>
 
@@ -481,14 +478,8 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ wallLabel }
 							icon={ ICONS.wall }
 							active={ wallOn }
-							currentLabel="Current, kW"
-							currentValue={ formatKw( wallOn ? wallW : 0 ) }
-							totalLabel="Total"
-							totalValue={ `${ formatPct( wallShareToday ) }%` }
-							currentPct={ wallOn ? wallShareNow : 0 }
-							totalPct={ wallShareToday }
-							showBars
-							note={ wallOn ? formatWatts( wallW, idle ) : ( labels.wallNote || null ) }
+							showMetrics={ false }
+							note={ labels.wallNote || null }
 							extra={ <ExtraLines lines={ wallExtras( status, labels ) } /> }
 						/>
 
@@ -498,14 +489,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ labels.climate || labels.cabin || 'エアコン' }
 							icon={ ICONS.climate }
 							active={ cabinOn }
-							currentLabel="Current, kW"
-							currentValue={ formatKw( cabinW ) }
-							totalLabel="Total"
-							totalValue={ `${ formatPct( cabinShareToday ) }%` }
-							currentPct={ cabinShareNow }
-							totalPct={ cabinShareToday }
-							showBars
-							note={ cabinOn || ( status.live && ! asleep ) ? formatWatts( cabinW, idle ) : null }
+							showMetrics={ false }
 							extra={ <ExtraLines lines={ cabinExtras( status, labels ) } highlight={ labels.todayBill || '今日 電気代' } /> }
 						/>
 
@@ -523,10 +507,8 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							totalPct={ superShareToday }
 							showBars
 							note={
-								superOn
-									? ( superCharging || superW >= FLOW_THRESHOLD
-										? formatWatts( superW, idle )
-										: ( labels.connected || '接続中' ) )
+								superOn && ! superCharging && superW < FLOW_THRESHOLD
+									? ( labels.connected || '接続中' )
 									: null
 							}
 							extra={ <ExtraLines lines={ superExtras( status, labels ) } /> }
@@ -538,13 +520,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							label={ labels.others || labels.sentry || 'その他' }
 							icon={ ICONS.other }
 							active={ otherActive }
-							currentLabel="Current, kW"
-							currentValue={ formatKw( otherActive ? Math.max( cabinW * 0.15, 40 ) : 0 ) }
-							totalLabel="Total"
-							totalValue={ otherActive ? '3%' : '0' }
-							currentPct={ otherCurrent }
-							totalPct={ otherActive ? 3 : 0 }
-							showBars
+							showMetrics={ false }
 							note={
 								[
 									status.range_label || null,
