@@ -586,8 +586,9 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 				<div className="teslogic-top">
 					<FlowCard
 						flowId="grid"
+						className={ `teslogic-card--grid teslogic-card--icon-lg${ isFlowActive( 'grid', status ) ? ' is-inputting' : '' }` }
 						label={ labels.gridCharge || labels.grid }
-						icon="⚡"
+						icon={ isFlowActive( 'grid', status ) ? '⚡' : '🔌' }
 						active={ isFlowActive( 'grid', status ) }
 						currentLabel="Current"
 						currentValue={ formatWattsExact( proGrid.watts ) }
@@ -623,8 +624,9 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 
 					<FlowCard
 						flowId="hv"
+						className={ `teslogic-card--hv teslogic-card--icon-lg${ isFlowActive( 'hv', status ) ? ' is-inputting' : '' }` }
 						label={ labels.hv || 'ハイボルト' }
-						icon="☀️"
+						icon={ isFlowActive( 'hv', status ) ? '🔆' : '☀️' }
 						active={ isFlowActive( 'hv', status ) }
 						currentLabel="Current"
 						currentValue={ formatWattsExact( hvWatts ) }
