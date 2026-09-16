@@ -445,7 +445,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 						<FlowCard
 							flowId="drive"
 							className={ `teslogic-card--motor${ regenOn ? ' is-regen' : '' }` }
-							label={ regenOn ? ( labels.regen || '回生' ) : ( labels.rearMotor || labels.drive || 'リアモーター' ) }
+							label={ regenOn ? ( labels.regen || '回生' ) : ( labels.rearMotor || labels.drive || 'モーター' ) }
 							icon={ ICONS.motor }
 							active={ ! asleep && ( driveOn || regenOn ) }
 							currentLabel="Current"
@@ -471,21 +471,6 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							stateLabel={ teslaStateLabel( status, labels ) }
 							tone={ tone }
 							asleep={ asleep }
-						/>
-
-						<FlowCard
-							flowId="front"
-							className="teslogic-card--motor teslogic-card--front"
-							label={ labels.frontMotor || 'フロントモーター' }
-							icon={ ICONS.motor }
-							active={ false }
-							currentLabel="Current, %"
-							currentValue="0"
-							totalLabel="Total, %"
-							totalValue="0"
-							currentPct={ 0 }
-							totalPct={ 0 }
-							showBars
 						/>
 					</div>
 
