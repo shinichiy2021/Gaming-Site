@@ -322,7 +322,6 @@ const ICONS = {
 	climate: '🌤',
 	wall: '🔌',
 	super: '⚡',
-	other: '💡',
 };
 
 export default function TeslaFlowDiagram( { initial, labels } ) {
@@ -393,7 +392,6 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const wallShareToday = pctOf( wallTodayKwh, Math.max( chargeTodayKwh, 1 ) );
 	const superShareToday = pctOf( superTodayKwh, Math.max( chargeTodayKwh, 1 ) );
 
-	const otherActive = ! asleep && !! status.sentry;
 	const speed = asleep ? 0 : ( Number( status.speed_km ) || 0 );
 
 	return (
@@ -414,23 +412,6 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 					</p>
 
 					<div className="teslogic-top">
-						<FlowCard
-							flowId="drive"
-							className={ `teslogic-card--motor${ regenOn ? ' is-regen' : '' }` }
-							label={ regenOn ? ( labels.regen || '回生' ) : ( labels.rearMotor || labels.drive || 'モーター' ) }
-							icon={ ICONS.motor }
-							active={ ! asleep && ( driveOn || regenOn ) }
-							currentLabel={ powerCostLabel }
-							currentValue={ formatNowMetric( driveW, yenKwh ) }
-							totalLabel={ todayPowerCostLabel }
-							totalValue={ formatTodayMetric( driveTodayKwh, driveTodayYen ) }
-							currentPct={ driveShareNow }
-							totalPct={ driveShareToday }
-							showBars
-							note={ speed > 0 ? `${ speed } km/h` : null }
-							extra={ <ExtraLines lines={ gasExtras( status, labels ) } highlight={ labels.saved || '節約' } /> }
-						/>
-
 						<BatteryCard
 							soc={ soc }
 							hasSoc={ hasSoc }
@@ -504,21 +485,20 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 						/>
 
 						<FlowCard
-							flowId="other"
-							className="teslogic-card--aux"
-							label={ labels.others || labels.sentry || 'その他' }
-							icon={ ICONS.other }
-							active={ otherActive }
-							showMetrics={ false }
-							note={
-								[
-									status.range_label || null,
-									status.odometer_label && String( status.odometer_label ).indexOf( '—' ) === -1
-										? status.odometer_label
-										: null,
-									status.tire_pressure_label || null,
-								].filter( Boolean ).slice( 0, 2 ).join( ' · ' ) || null
-							}
+							flowId="drive"
+							className={ `teslogic-card--aux teslogic-card--motor${ regenOn ? ' is-regen' : '' }` }
+							label={ regenOn ? ( labels.regen || '回生' ) : ( labels.rearMotor || labels.drive || 'モーター' ) }
+							icon={ ICONS.motor }
+							active={ ! asleep && ( driveOn || regenOn ) }
+							currentLabel={ powerCostLabel }
+							currentValue={ formatNowMetric( driveW, yenKwh ) }
+							totalLabel={ todayPowerCostLabel }
+							totalValue={ formatTodayMetric( driveTodayKwh, driveTodayYen ) }
+							currentPct={ driveShareNow }
+							totalPct={ driveShareToday }
+							showBars
+							note={ speed > 0 ? `${ speed } km/h` : null }
+							extra={ <ExtraLines lines={ gasExtras( status, labels ) } highlight={ labels.saved || '節約' } /> }
 						/>
 					</div>
 				</div>
