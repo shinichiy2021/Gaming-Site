@@ -70,22 +70,22 @@ function resolveConnection( mapEl, connection ) {
 
 function drawArrow( ctx, from, to, color ) {
 	const angle = Math.atan2( to.y - from.y, to.x - from.x );
-	const size = 9;
+	const size = 13;
 
 	ctx.beginPath();
 	ctx.moveTo( to.x, to.y );
 	ctx.lineTo(
-		to.x - size * Math.cos( angle - 0.45 ),
-		to.y - size * Math.sin( angle - 0.45 )
+		to.x - size * Math.cos( angle - 0.42 ),
+		to.y - size * Math.sin( angle - 0.42 )
 	);
 	ctx.lineTo(
-		to.x - size * Math.cos( angle + 0.45 ),
-		to.y - size * Math.sin( angle + 0.45 )
+		to.x - size * Math.cos( angle + 0.42 ),
+		to.y - size * Math.sin( angle + 0.42 )
 	);
 	ctx.closePath();
 	ctx.fillStyle = color;
 	ctx.shadowColor = color;
-	ctx.shadowBlur = 8;
+	ctx.shadowBlur = 12;
 	ctx.fill();
 	ctx.shadowBlur = 0;
 }
@@ -94,30 +94,41 @@ function drawWattsLabel( ctx, from, to, watts, color ) {
 	const text = `${ Math.round( watts ).toLocaleString() } W`;
 	const mx = ( from.x + to.x ) / 2;
 	const my = ( from.y + to.y ) / 2;
+	// Nudge off the line center so the pill sits in open space between cards.
+	const dx = to.x - from.x;
+	const dy = to.y - from.y;
+	const len = Math.hypot( dx, dy ) || 1;
+	const nx = -dy / len;
+	const ny = dx / len;
+	const ox = mx + nx * 10;
+	const oy = my + ny * 10;
 
-	ctx.font = '700 11px Inter, sans-serif';
+	ctx.font = '700 15px "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif';
 	const width = ctx.measureText( text ).width;
-	const boxW = width + 14;
-	const boxH = 18;
-	const x = mx - boxW / 2;
-	const y = my - boxH / 2;
+	const boxW = width + 22;
+	const boxH = 28;
+	const x = ox - boxW / 2;
+	const y = oy - boxH / 2;
 
 	ctx.beginPath();
 	if ( typeof ctx.roundRect === 'function' ) {
-		ctx.roundRect( x, y, boxW, boxH, 4 );
+		ctx.roundRect( x, y, boxW, boxH, 8 );
 	} else {
 		ctx.rect( x, y, boxW, boxH );
 	}
-	ctx.fillStyle = 'rgba(8, 12, 22, 0.92)';
+	ctx.fillStyle = 'rgba(6, 8, 14, 0.94)';
+	ctx.shadowColor = color;
+	ctx.shadowBlur = 14;
 	ctx.fill();
-	ctx.lineWidth = 1;
+	ctx.shadowBlur = 0;
+	ctx.lineWidth = 1.5;
 	ctx.strokeStyle = color;
 	ctx.stroke();
 
-	ctx.fillStyle = color;
+	ctx.fillStyle = '#f4f1ea';
 	ctx.textAlign = 'center';
 	ctx.textBaseline = 'middle';
-	ctx.fillText( text, mx, my + 0.5 );
+	ctx.fillText( text, ox, oy + 0.5 );
 }
 
 function drawPath( ctx, path, active, dashOffset, watts ) {
@@ -127,9 +138,12 @@ function drawPath( ctx, path, active, dashOffset, watts ) {
 	ctx.moveTo( from.x, from.y );
 	ctx.lineTo( to.x, to.y );
 	ctx.lineCap = 'round';
-	ctx.lineWidth = active ? 3.5 : 2;
-	ctx.strokeStyle = active ? `${ color }99` : 'rgba(255, 255, 255, 0.22)';
+	ctx.lineWidth = active ? 5.5 : 2.5;
+	ctx.strokeStyle = active ? `${ color }aa` : 'rgba(255, 255, 255, 0.2)';
+	ctx.shadowColor = active ? color : 'transparent';
+	ctx.shadowBlur = active ? 10 : 0;
 	ctx.stroke();
+	ctx.shadowBlur = 0;
 
 	if ( ! active ) {
 		drawArrow( ctx, from, to, 'rgba(255, 255, 255, 0.35)' );
@@ -139,11 +153,11 @@ function drawPath( ctx, path, active, dashOffset, watts ) {
 	ctx.beginPath();
 	ctx.moveTo( from.x, from.y );
 	ctx.lineTo( to.x, to.y );
-	ctx.setLineDash( [ 10, 14 ] );
+	ctx.setLineDash( [ 12, 12 ] );
 	ctx.lineDashOffset = -dashOffset;
-	ctx.lineWidth = 3;
+	ctx.lineWidth = 4.5;
 	ctx.strokeStyle = color;
-	ctx.globalAlpha = 0.85;
+	ctx.globalAlpha = 0.95;
 	ctx.stroke();
 	ctx.setLineDash( [] );
 	ctx.globalAlpha = 1;
@@ -160,10 +174,10 @@ function drawParticle( ctx, path, progress, color ) {
 	const y = path.from.y + ( path.to.y - path.from.y ) * progress;
 
 	ctx.beginPath();
-	ctx.arc( x, y, 5, 0, Math.PI * 2 );
+	ctx.arc( x, y, 7, 0, Math.PI * 2 );
 	ctx.fillStyle = color;
 	ctx.shadowColor = color;
-	ctx.shadowBlur = 10;
+	ctx.shadowBlur = 16;
 	ctx.fill();
 	ctx.shadowBlur = 0;
 }
