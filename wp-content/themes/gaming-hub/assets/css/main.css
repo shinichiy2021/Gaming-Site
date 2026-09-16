@@ -5291,6 +5291,25 @@ body.home .site-header.is-scrolled {
 	width: 100%;
 }
 
+.ecoflow-dual-layout.teslogic-dual .teslogic-card--icon-lg .teslogic-card__icon {
+	width: 2.6rem;
+	height: 2.6rem;
+	font-size: 1.85rem;
+	opacity: 1;
+}
+
+.ecoflow-dual-layout.teslogic-dual .teslogic-card--home.is-outputting {
+	border-color: #69f0ae;
+	box-shadow:
+		0 0 0 1px rgba(105, 240, 174, 0.22),
+		0 0 18px rgba(105, 240, 174, 0.22),
+		0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.ecoflow-dual-layout.teslogic-dual .teslogic-card--home.is-outputting .teslogic-card__icon {
+	filter: drop-shadow(0 0 8px rgba(105, 240, 174, 0.55));
+}
+
 .ecoflow-dual-layout.teslogic-dual .teslogic-bottom:not(.teslogic-bottom--single) {
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
