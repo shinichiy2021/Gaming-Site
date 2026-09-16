@@ -322,12 +322,15 @@ function formatKw( watts ) {
 	return ( w / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } );
 }
 
-function BattIcon( { charging } ) {
+function BattIcon( { charging, discharging } ) {
+	const mode = charging ? 'is-charging' : ( discharging ? 'is-discharging' : '' );
+
 	return (
-		<span className={ `teslogic-batt-icon${ charging ? ' is-charging' : '' }` } aria-hidden="true">
+		<span className={ `teslogic-batt-icon${ mode ? ` ${ mode }` : '' }` } aria-hidden="true">
 			<span className="teslogic-batt-icon__body">
 				<span className="teslogic-batt-icon__fill" />
-				{ charging ? <span className="teslogic-batt-icon__bolt">⚡</span> : null }
+				{ charging ? <span className="teslogic-batt-icon__mark">⚡</span> : null }
+				{ ! charging && discharging ? <span className="teslogic-batt-icon__mark">↓</span> : null }
 			</span>
 			<span className="teslogic-batt-icon__nub" />
 		</span>
@@ -426,6 +429,7 @@ function PackBatteryCard( {
 		'teslogic-card',
 		'teslogic-card--battery',
 		charging ? 'is-charging' : '',
+		( ! charging && discharging ) ? 'is-discharging' : '',
 		unavailable ? 'is-unavailable is-asleep' : '',
 		( ! unavailable && ( charging || discharging || currentW >= FLOW_THRESHOLD || ( showIo && ( asWatts( inputW ) >= FLOW_THRESHOLD || asWatts( outputW ) >= FLOW_THRESHOLD ) ) ) ) ? 'is-active' : 'is-standby',
 		tone.className,
@@ -437,11 +441,12 @@ function PackBatteryCard( {
 			data-flow-id={ flowId }
 			style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }
 		>
-			<div className="teslogic-battery__top">
+			<div className="teslogic-battery__top teslogic-battery__top--stack">
+				<BattIcon charging={ charging } discharging={ discharging } />
 				<strong className="teslogic-battery__soc">
 					{ hasSoc ? formatSoc( soc ) : '—' }
 				</strong>
-				<BattIcon charging={ charging } />
+				{ packLabel ? <small className="teslogic-battery__pack">{ packLabel }</small> : null }
 			</div>
 			{ showIo ? (
 				<MetricPair
@@ -459,7 +464,6 @@ function PackBatteryCard( {
 				/>
 			) }
 			<span className="teslogic-battery__name">{ label }</span>
-			{ packLabel ? <small className="teslogic-battery__state">{ packLabel }</small> : null }
 			<small className="teslogic-battery__state">{ stateLabel }</small>
 			{ eta }
 		</div>
