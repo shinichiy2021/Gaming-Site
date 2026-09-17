@@ -1922,6 +1922,87 @@ function gaming_hub_tesla_session_charge_input( $supply, $gps = null ) {
 }
 
 /**
+ * Whether drive_state looks parked (no meaningful motion).
+ *
+ * @param array<string, mixed> $data vehicle_data.
+ */
+function gaming_hub_tesla_vehicle_data_is_parked( array $data ) {
+	$drive = isset( $data['drive_state'] ) && is_array( $data['drive_state'] )
+		? $data['drive_state']
+		: array();
+	$shift = strtoupper( (string) ( $drive['shift_state'] ?? '' ) );
+	if ( in_array( $shift, array( 'D', 'R', 'N' ), true ) ) {
+		return false;
+	}
+
+	$speed = 0.0;
+	if ( isset( $drive['speed'] ) && is_numeric( $drive['speed'] ) ) {
+		// Tesla speed is usually mph when present.
+		$speed = (float) $drive['speed'] * 1.60934;
+	}
+
+	return $speed < 3.0;
+}
+
+/**
+ * gps_as_of / timestamp from drive_state or location_data (unix seconds).
+ *
+ * @param array<string, mixed> $data vehicle_data.
+ * @return int|null
+ */
+function gaming_hub_tesla_vehicle_gps_as_of( array $data ) {
+	$slices = array();
+	if ( isset( $data['drive_state'] ) && is_array( $data['drive_state'] ) ) {
+		$slices[] = $data['drive_state'];
+	}
+	if ( isset( $data['location_data'] ) && is_array( $data['location_data'] ) ) {
+		$slices[] = $data['location_data'];
+	}
+
+	foreach ( $slices as $slice ) {
+		foreach ( array( 'gps_as_of', 'timestamp' ) as $key ) {
+			if ( ! isset( $slice[ $key ] ) || ! is_numeric( $slice[ $key ] ) ) {
+				continue;
+			}
+			$ts = (int) $slice[ $key ];
+			if ( $ts > 1000000000000 ) {
+				$ts = (int) round( $ts / 1000 );
+			}
+			if ( $ts > 1000000000 ) {
+				return $ts;
+			}
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Parked cars often keep the last trip lat/lon in drive_state. That must not
+ * force Away AC while Wall Connector charging at home.
+ *
+ * @param array<string, mixed> $data           vehicle_data.
+ * @param float                $dist_from_home Metres from home pin.
+ */
+function gaming_hub_tesla_parked_gps_unreliable( array $data, $dist_from_home ) {
+	if ( ! gaming_hub_tesla_vehicle_data_is_parked( $data ) ) {
+		return false;
+	}
+
+	$home   = gaming_hub_tesla_home_geofence();
+	$far_m  = (float) max( 3000, 8 * (float) $home['radius_m'] );
+	$as_of  = gaming_hub_tesla_vehicle_gps_as_of( $data );
+	$stale  = null === $as_of || ( time() - $as_of ) > ( 20 * MINUTE_IN_SECONDS );
+
+	// Far from home while parked: treat as leftover trip coordinates.
+	if ( (float) $dist_from_home > $far_m ) {
+		return true;
+	}
+
+	return $stale && (float) $dist_from_home > (float) $home['radius_m'];
+}
+
+/**
  * Home geofence status from vehicle_data.
  *
  * @param array<string, mixed> $data vehicle_data.
@@ -1962,6 +2043,16 @@ function gaming_hub_tesla_geofence_status( array $data ) {
 
 	// Cached GPS from an earlier trip must not force Away AC while parked at home.
 	if ( ! $live && ! $at_home ) {
+		return array(
+			'at_home'          => null,
+			'at_home_geofence' => null,
+			'distance_m'       => (int) round( $dist ),
+			'known'            => false,
+		);
+	}
+
+	// drive_state often still carries the last trip fix while parked / charging.
+	if ( ! $at_home && gaming_hub_tesla_parked_gps_unreliable( $data, $dist ) ) {
 		return array(
 			'at_home'          => null,
 			'at_home_geofence' => null,
@@ -2085,6 +2176,18 @@ function gaming_hub_tesla_at_home_resolve( array $geofence, $moving, $supercharg
 			'at_home'             => true,
 			'geofence_known'      => false,
 			'geofence_distance_m' => null,
+			'at_home_sticky'      => true,
+		);
+	}
+
+	// Parked Wall Connector with unreliable GPS: default to home, not Away AC.
+	if ( $ac_plugged ) {
+		gaming_hub_tesla_at_home_sticky_mark();
+
+		return array(
+			'at_home'             => true,
+			'geofence_known'      => false,
+			'geofence_distance_m' => $geofence['distance_m'] ?? null,
 			'at_home_sticky'      => true,
 		);
 	}
@@ -2385,7 +2488,16 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 		$wh_per_km = defined( 'GAMING_HUB_MODEL3_WH_PER_KM' ) ? (float) GAMING_HUB_MODEL3_WH_PER_KM : 150.0;
 		$last_ts   = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
 		$from      = ( $last_ts > 0 && $last_ts < $now ) ? $last_ts : $now - MINUTE_IN_SECONDS;
-		$rate      = function_exists( 'gaming_hub_looop_average_rate_between' )
+		$elapsed_h = max( 1.0 / 60.0, ( $now - $from ) / HOUR_IN_SECONDS );
+		// Ignore impossible odometer jumps between polls (stale cache / unit glitches).
+		$max_plausible = max( 5.0, 180.0 * $elapsed_h );
+		if ( $delta_km > $max_plausible && null !== $last_km ) {
+			$odometer_km = $last_km;
+			$today_km    = max( 0, round( $odometer_km - $start_km, 1 ) );
+			$delta_km    = 0.0;
+		}
+
+		$rate = function_exists( 'gaming_hub_looop_average_rate_between' )
 			? gaming_hub_looop_average_rate_between( $from, $now )
 			: 30.0;
 
