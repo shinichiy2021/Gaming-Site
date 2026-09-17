@@ -2,7 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import { batteryTone, isFlowActive, isRegenActive, isSuperchargerConnected, FLOW_THRESHOLD } from './constants';
 
 function formatYen( value ) {
+	if ( typeof window !== 'undefined' && typeof window.gamingHubYen === 'function' ) {
+		return window.gamingHubYen( value );
+	}
+
 	return `¥${ Math.round( Number( value ) || 0 ).toLocaleString() }`;
+}
+
+function formatYenPerHour( value, yenPerHourLabel ) {
+	const n = Math.round( Number( value ) || 0 ).toLocaleString();
+	const isEn = typeof window !== 'undefined' && typeof window.gamingHubLang === 'function'
+		&& window.gamingHubLang() === 'en';
+
+	if ( isEn ) {
+		return `¥${ n }/h`;
+	}
+
+	return `${ n } ${ yenPerHourLabel || '円/時' }`;
 }
 
 function wallAcContext( status, asleep, charging ) {
@@ -60,13 +76,13 @@ function yenPerHour( watts, yenPerKwh ) {
 	return Math.round( ( w / 1000 ) * rate );
 }
 
-function formatNowMetric( watts, yenPerKwh, yenPerHOverride ) {
+function formatNowMetric( watts, yenPerKwh, yenPerHOverride, yenPerHourLabel ) {
 	const power = formatKw( watts );
 	const yenH = Number.isFinite( yenPerHOverride ) && yenPerHOverride > 0
 		? Math.round( yenPerHOverride )
 		: yenPerHour( watts, yenPerKwh );
 	if ( yenH > 0 ) {
-		return `${ power } / ${ formatYen( yenH ) }/h`;
+		return `${ power } / ${ formatYenPerHour( yenH, yenPerHourLabel ) }`;
 	}
 
 	return `${ power } / —`;
@@ -380,8 +396,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const wallTodayYen = Number( status.wall_today_yen ) || 0;
 	const superTodayYen = Number( status.super_today_yen ) || 0;
 	const packTodayYen = charging ? ( wallTodayYen + superTodayYen ) : ( driveTodayYen + cabinTodayYen );
-	const powerCostLabel = labels.powerCost || '消費電力 / 電気代';
-	const todayPowerCostLabel = labels.todayPowerCost || '今日の消費電力 / 電気代';
+	const powerCostLabel = labels.powerCost || '消費 / 電気代';
+	const todayPowerCostLabel = labels.todayPowerCost || '今日 / 電気代';
+	const yenPerHourLabel = labels.yenPerHour || '円/時';
 
 	const driveShareNow = pctOf( driveW, Math.max( outW, packCurrentW, 1 ) );
 	const cabinShareNow = pctOf( cabinW, Math.max( outW, 1 ) );
@@ -420,7 +437,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							regenOn={ regenOn }
 							livePower={ packCurrentW >= FLOW_THRESHOLD }
 							currentLabel={ powerCostLabel }
-							currentValue={ formatNowMetric( packCurrentW, yenKwh ) }
+							currentValue={ formatNowMetric( packCurrentW, yenKwh, null, yenPerHourLabel ) }
 							totalLabel={ todayPowerCostLabel }
 							totalValue={ formatTodayMetric( packTotalKwh, packTodayYen ) }
 							vehicleName={ status.vehicle_name || labels.tesla }
@@ -438,7 +455,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							icon={ ICONS.wall }
 							active={ wallOn }
 							currentLabel={ powerCostLabel }
-							currentValue={ formatNowMetric( wallOn ? wallW : 0, yenKwh, Number( status.wall_yen_per_h ) ) }
+							currentValue={ formatNowMetric( wallOn ? wallW : 0, yenKwh, Number( status.wall_yen_per_h ), yenPerHourLabel ) }
 							totalLabel={ todayPowerCostLabel }
 							totalValue={ formatTodayMetric( wallTodayKwh, wallTodayYen ) }
 							currentPct={ wallOn ? wallShareNow : 0 }
@@ -455,7 +472,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							icon={ ICONS.super }
 							active={ superOn }
 							currentLabel={ powerCostLabel }
-							currentValue={ formatNowMetric( superCharging ? superW : 0, yenKwh ) }
+							currentValue={ formatNowMetric( superCharging ? superW : 0, yenKwh, null, yenPerHourLabel ) }
 							totalLabel={ todayPowerCostLabel }
 							totalValue={ formatTodayMetric( superTodayKwh, superTodayYen ) }
 							currentPct={ superCharging ? superShareNow : 0 }
@@ -476,7 +493,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							icon={ ICONS.climate }
 							active={ cabinOn }
 							currentLabel={ powerCostLabel }
-							currentValue={ formatNowMetric( cabinW, yenKwh ) }
+							currentValue={ formatNowMetric( cabinW, yenKwh, null, yenPerHourLabel ) }
 							totalLabel={ todayPowerCostLabel }
 							totalValue={ formatTodayMetric( cabinTodayKwh, cabinTodayYen ) }
 							currentPct={ cabinShareNow }
@@ -491,7 +508,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							icon={ ICONS.motor }
 							active={ ! asleep && ( driveOn || regenOn ) }
 							currentLabel={ powerCostLabel }
-							currentValue={ formatNowMetric( driveW, yenKwh ) }
+							currentValue={ formatNowMetric( driveW, yenKwh, null, yenPerHourLabel ) }
 							totalLabel={ todayPowerCostLabel }
 							totalValue={ formatTodayMetric( driveTodayKwh, driveTodayYen ) }
 							currentPct={ driveShareNow }
