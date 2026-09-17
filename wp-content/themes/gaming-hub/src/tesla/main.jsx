@@ -3,16 +3,37 @@ import TeslaFlowDiagram from './TeslaFlowDiagram';
 
 const mountNode = document.getElementById( 'tesla-energy-flow-root' );
 
+function localizeLabels( labels ) {
+	if ( ! labels || typeof labels !== 'object' ) {
+		return labels;
+	}
+
+	const t = typeof window !== 'undefined' && typeof window.gamingHubT === 'function'
+		? window.gamingHubT
+		: null;
+	if ( ! t ) {
+		return labels;
+	}
+
+	const out = { ...labels };
+	Object.keys( out ).forEach( ( key ) => {
+		if ( typeof out[ key ] === 'string' ) {
+			out[ key ] = t( out[ key ] );
+		}
+	} );
+	return out;
+}
+
 if ( mountNode ) {
 	const initial = mountNode.dataset.initial ? JSON.parse( mountNode.dataset.initial ) : {};
-	const labels = window.gamingHubTeslaFlow?.labels || {
+	const labels = localizeLabels( window.gamingHubTeslaFlow?.labels || {
 		title: 'Tesla 電力フロー',
 		wall: '普通充電',
 		wallNote: '200V',
 		homeAc: '自宅 AC',
 		awayAc: '外出先 AC',
 		super: '急速充電',
-		superNote: 'Supercharger',
+		superNote: '急速充電',
 		tesla: 'Tesla',
 		drive: 'ガソリン換算',
 		rearMotor: 'モーター',
@@ -21,7 +42,7 @@ if ( mountNode ) {
 		cabin: '車内電力',
 		others: 'その他',
 		flow: 'Tesla の入出力',
-		idle: 'Standby',
+		idle: '待機',
 		connected: '接続中',
 		charging: '充電中',
 		driving: '走行中',
@@ -45,7 +66,7 @@ if ( mountNode ) {
 		yenPerHour: '円/時',
 		session: '今回',
 		total: '合計',
-	};
+	} );
 
 	createRoot( mountNode ).render(
 		<TeslaFlowDiagram initial={ initial } labels={ labels } />

@@ -286,7 +286,7 @@ function gaming_hub_japanese_map() {
  * @return string
  */
 function gaming_hub_gettext_fill_ja( $translation, $text, $domain ) {
-	if ( GAMING_HUB_TEXT_DOMAIN !== $domain || 'ja' !== gaming_hub_lang() || $translation !== $text ) {
+	if ( GAMING_HUB_TEXT_DOMAIN !== $domain || 'ja' !== gaming_hub_lang() ) {
 		return $translation;
 	}
 
