@@ -4679,6 +4679,7 @@ body.home .site-header.is-scrolled {
 	padding: 8px 14px;
 	border-radius: 999px;
 	border: 1px solid rgba(0, 200, 83, 0.35);
+	background: rgba(8, 16, 12, 0.3);
 	color: var(--ecoflow-green);
 	font-size: 0.85rem;
 	font-weight: 600;
@@ -4688,7 +4689,7 @@ body.home .site-header.is-scrolled {
 }
 
 .ecoflow-hub-nav-link:hover {
-	background: rgba(0, 200, 83, 0.12);
+	background: rgba(8, 16, 12, 0.45);
 	color: var(--ecoflow-green);
 }
 
@@ -5173,6 +5174,7 @@ body.home .site-header.is-scrolled {
 	padding: 8px 14px;
 	border-radius: 999px;
 	border: 1px solid rgba(227, 25, 55, 0.4);
+	background: rgba(18, 8, 10, 0.3);
 	color: #ff6b7f;
 	font-size: 0.85rem;
 	font-weight: 600;
@@ -5182,7 +5184,7 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-hub-nav-link:hover {
-	background: rgba(227, 25, 55, 0.12);
+	background: rgba(18, 8, 10, 0.45);
 	color: #ff6b7f;
 }
 
