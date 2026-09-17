@@ -249,17 +249,20 @@ function gaming_hub_tesla_date_span_label( $start_date, $end_date ) {
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simulated' ) {
-	if ( function_exists( 'gaming_hub_tesla_is_local_host' ) && gaming_hub_tesla_is_local_host() ) {
+	$live = ( 'tesla' === $source ) || ! empty( $model3['live'] );
+
+	// Layout fixture only when there is no live Tesla slice — never mask real today_km / drive_kwh.
+	if (
+		! $live
+		&& function_exists( 'gaming_hub_tesla_is_local_host' )
+		&& gaming_hub_tesla_is_local_host()
+	) {
 		return gaming_hub_tesla_layout_demo_payload( $model3 );
 	}
-
-	$live = 'tesla' === $source;
 
 	$empty_gas = function_exists( 'gaming_hub_tesla_gasoline_compare' )
 		? gaming_hub_tesla_gasoline_compare( $model3, 0, 0 )
 		: array();
-
-	$live = $live || ! empty( $model3['live'] );
 
 	if ( ! $live ) {
 		return array(
