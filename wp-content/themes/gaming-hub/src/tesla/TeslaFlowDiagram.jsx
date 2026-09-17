@@ -337,6 +337,10 @@ const ICONS = {
 	motor: '⚙',
 	climate: '🌤',
 	wall: '🔌',
+	home: '🏠',
+	homeCharging: '⚡',
+	away: '🔌',
+	awayCharging: '⚡',
 	super: '⚡',
 };
 
@@ -372,6 +376,11 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const wallLabel = wallCtx.atHome
 		? ( labels.homeAc || '自宅 AC' )
 		: ( wallCtx.away ? ( labels.awayAc || '外出先 AC' ) : ( labels.wall || 'AC充電' ) );
+	const wallIcon = wallCtx.atHome
+		? ( wallOn ? ICONS.homeCharging : ICONS.home )
+		: ( wallCtx.away
+			? ( wallOn ? ICONS.awayCharging : ICONS.away )
+			: ( wallOn ? ICONS.homeCharging : ICONS.wall ) );
 
 	const driveW = asleep ? 0 : ( regenOn ? asWatts( status.regen_w ) : asWatts( status.drive_w ) );
 	const cabinW = asleep ? 0 : asWatts( status.cabin_w );
@@ -450,9 +459,9 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 					<div className="teslogic-bottom">
 						<FlowCard
 							flowId="wall"
-							className={ `teslogic-card--aux${ wallCtx.atHome ? ' is-home-ac' : '' }${ wallCtx.away ? ' is-away-ac' : '' }` }
+							className={ `teslogic-card--aux${ wallCtx.atHome ? ' is-home-ac' : '' }${ wallCtx.away ? ' is-away-ac' : '' }${ wallOn && wallCtx.atHome ? ' is-inputting' : '' }` }
 							label={ wallLabel }
-							icon={ ICONS.wall }
+							icon={ wallIcon }
 							active={ wallOn }
 							currentLabel={ powerCostLabel }
 							currentValue={ formatNowMetric( wallOn ? wallW : 0, yenKwh, Number( status.wall_yen_per_h ), yenPerHourLabel ) }

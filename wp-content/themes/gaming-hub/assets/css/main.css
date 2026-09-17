@@ -2066,12 +2066,63 @@ body.home .site-header.is-scrolled {
 	opacity: 0.9;
 }
 
-/* Tesla flow: larger icons on every card except the battery */
+/* Tesla flow: EcoFlow-sized icons on every card except the battery */
+.tesla-flow-map.teslogic-map .teslogic-card:not(.teslogic-card--battery) .teslogic-card__head {
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 0;
+	text-align: center;
+}
+
 .tesla-flow-map.teslogic-map .teslogic-card:not(.teslogic-card--battery) .teslogic-card__icon {
-	width: 2.15rem;
-	height: 2.15rem;
-	font-size: 1.55rem;
+	width: clamp(3.2rem, 5.5vw, 4.2rem);
+	height: clamp(3.2rem, 5.5vw, 4.2rem);
+	font-size: clamp(2.3rem, 4vw, 3.1rem);
 	opacity: 1;
+}
+
+.tesla-flow-map.teslogic-map .teslogic-card.is-home-ac {
+	border-color: rgba(105, 240, 174, 0.45);
+}
+
+.tesla-flow-map.teslogic-map .teslogic-card.is-home-ac.is-active {
+	border-color: #69f0ae;
+	box-shadow:
+		0 0 0 1px rgba(105, 240, 174, 0.28),
+		0 0 22px rgba(105, 240, 174, 0.35),
+		0 0 40px rgba(105, 240, 174, 0.18),
+		0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+.tesla-flow-map.teslogic-map .teslogic-card.is-home-ac.is-active .teslogic-card__icon {
+	filter: drop-shadow(0 0 10px rgba(105, 240, 174, 0.85)) drop-shadow(0 0 20px rgba(105, 240, 174, 0.45));
+	animation: tesla-home-ac-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes tesla-home-ac-glow {
+	0%,
+	100% {
+		filter: drop-shadow(0 0 8px rgba(105, 240, 174, 0.65)) drop-shadow(0 0 16px rgba(105, 240, 174, 0.3));
+		transform: scale(1);
+	}
+	50% {
+		filter: drop-shadow(0 0 14px rgba(105, 240, 174, 1)) drop-shadow(0 0 28px rgba(105, 240, 174, 0.55));
+		transform: scale(1.06);
+	}
+}
+
+.tesla-flow-map.teslogic-map .teslogic-card.is-away-ac.is-active {
+	border-color: #ffd60a;
+	box-shadow:
+		0 0 0 1px rgba(255, 214, 10, 0.25),
+		0 0 18px rgba(255, 214, 10, 0.22),
+		0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.tesla-flow-map.teslogic-map .teslogic-card.is-away-ac.is-active .teslogic-card__icon {
+	filter: drop-shadow(0 0 8px rgba(255, 214, 10, 0.55));
 }
 
 .tesla-flow-map.teslogic-map .teslogic-system {
@@ -3087,9 +3138,9 @@ body.home .site-header.is-scrolled {
 	}
 
 	.tesla-flow-map.teslogic-map .teslogic-card:not(.teslogic-card--battery) .teslogic-card__icon {
-		width: 2.45rem;
-		height: 2.45rem;
-		font-size: 1.75rem;
+		width: clamp(3.2rem, 5.5vw, 4.2rem);
+		height: clamp(3.2rem, 5.5vw, 4.2rem);
+		font-size: clamp(2.3rem, 4vw, 3.1rem);
 	}
 }
 
