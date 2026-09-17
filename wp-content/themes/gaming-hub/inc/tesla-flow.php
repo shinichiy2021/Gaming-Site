@@ -512,7 +512,7 @@ function gaming_hub_tesla_vehicle_flow_assets() {
 			'todayUse'      => __('Used today', 'gaming-hub'),
 			'todayBill'     => __('Today\'s electricity cost', 'gaming-hub'),
 			'powerCost'     => __('Power / cost', 'gaming-hub'),
-			'todayPowerCost'=> __('Today\'s power / cost', 'gaming-hub'),
+			'todayPowerCost'=> __('Today / cost', 'gaming-hub'),
 			'buy'           => __('Grid import', 'gaming-hub'),
 			'todayBuy'      => __('Import today', 'gaming-hub'),
 			'yenPerHour'    => __('yen/h', 'gaming-hub'),

@@ -38,6 +38,8 @@ if ( mountNode ) {
 		saved: '節約',
 		todayUse: '今日 使用',
 		todayBill: '今日 電気代',
+		powerCost: '消費 / 電気代',
+		todayPowerCost: '今日 / 電気代',
 		buy: '買電',
 		todayBuy: '今日 買電',
 		yenPerHour: '円/時',
