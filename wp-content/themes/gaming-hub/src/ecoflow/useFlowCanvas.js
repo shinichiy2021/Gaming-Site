@@ -147,57 +147,81 @@ function resolvePaths( mapEl, status ) {
 		.filter( Boolean );
 }
 
-function drawArrow( ctx, from, to, color ) {
+function drawArrow( ctx, from, to, color, opts = {} ) {
 	const angle = Math.atan2( to.y - from.y, to.x - from.x );
-	const size = 9;
+	const size = ( opts.size || 9 ) * ( opts.pulse || 1 );
+	const spread = opts.spread || 0.48;
 
 	ctx.beginPath();
 	ctx.moveTo( to.x, to.y );
 	ctx.lineTo(
-		to.x - size * Math.cos( angle - 0.45 ),
-		to.y - size * Math.sin( angle - 0.45 )
+		to.x - size * Math.cos( angle - spread ),
+		to.y - size * Math.sin( angle - spread )
 	);
 	ctx.lineTo(
-		to.x - size * Math.cos( angle + 0.45 ),
-		to.y - size * Math.sin( angle + 0.45 )
+		to.x - size * Math.cos( angle + spread ),
+		to.y - size * Math.sin( angle + spread )
 	);
 	ctx.closePath();
 	ctx.fillStyle = color;
 	ctx.shadowColor = color;
-	ctx.shadowBlur = 8;
+	ctx.shadowBlur = opts.glow || 8;
 	ctx.fill();
 	ctx.shadowBlur = 0;
+
+	if ( opts.stroke ) {
+		ctx.lineWidth = 1.25;
+		ctx.strokeStyle = opts.stroke;
+		ctx.stroke();
+	}
 }
 
-function drawPath( ctx, path, active, dashOffset ) {
-	const { from, to, color } = path;
+function isDischargeFlow( flowId ) {
+	return flowId === 'proToHome' || flowId === 'home' || flowId === 'deltaToUps' || flowId === 'ups';
+}
+
+function drawPath( ctx, path, active, dashOffset, timeSec = 0 ) {
+	const { from, to, color, id } = path;
+	const discharge = isDischargeFlow( id );
+	const arrowColor = active && discharge ? '#ffea00' : ( active ? color : 'rgba(0, 245, 212, 0.28)' );
+	const pulse = active && discharge
+		? 1 + 0.18 * Math.sin( timeSec * 6.2 )
+		: 1;
 
 	ctx.beginPath();
 	ctx.moveTo( from.x, from.y );
 	ctx.lineTo( to.x, to.y );
 	ctx.lineCap = 'round';
-	ctx.lineWidth = active ? 3.5 : 2;
-	ctx.strokeStyle = active ? `${ color }73` : 'rgba(0, 245, 212, 0.14)';
+	ctx.lineWidth = active ? ( discharge ? 4.5 : 3.5 ) : 2;
+	ctx.strokeStyle = active
+		? ( discharge ? 'rgba(255, 234, 0, 0.42)' : `${ color }73` )
+		: 'rgba(0, 245, 212, 0.14)';
 	ctx.stroke();
 
 	if ( ! active ) {
-		drawArrow( ctx, from, to, 'rgba(0, 245, 212, 0.28)' );
+		drawArrow( ctx, from, to, arrowColor, { size: 9, glow: 4 } );
 		return;
 	}
 
 	ctx.beginPath();
 	ctx.moveTo( from.x, from.y );
 	ctx.lineTo( to.x, to.y );
-	ctx.setLineDash( [ 10, 14 ] );
+	ctx.setLineDash( discharge ? [ 12, 12 ] : [ 10, 14 ] );
 	ctx.lineDashOffset = -dashOffset;
-	ctx.lineWidth = 3;
-	ctx.strokeStyle = color;
-	ctx.globalAlpha = 0.75;
+	ctx.lineWidth = discharge ? 4 : 3;
+	ctx.strokeStyle = discharge ? '#ffea00' : color;
+	ctx.globalAlpha = 0.85;
 	ctx.stroke();
 	ctx.setLineDash( [] );
 	ctx.globalAlpha = 1;
 
-	drawArrow( ctx, from, to, color );
+	drawArrow( ctx, from, to, arrowColor, {
+		size: discharge ? 22 : 9,
+		spread: discharge ? 0.72 : 0.45,
+		glow: discharge ? 18 : 8,
+		pulse,
+		stroke: discharge ? 'rgba(0, 0, 0, 0.55)' : null,
+	} );
 }
 
 function drawParticle( ctx, path, progress, color ) {
@@ -271,8 +295,10 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 			paths.forEach( ( path ) => {
 				const watts = wattsForFlow( path.id, status );
 				const active = isActiveFlow( watts );
+				const timeSec = time / 1000;
+				const discharge = isDischargeFlow( path.id );
 
-				drawPath( ctx, path, active, dashOffsetRef.current );
+				drawPath( ctx, path, active, dashOffsetRef.current, timeSec );
 
 				if ( ! active ) {
 					return;
@@ -287,13 +313,14 @@ export function useFlowCanvas( canvasRef, mapRef, status ) {
 				}
 
 				const speed = flowSpeed( Number( watts ) || 0 );
+				const particleColor = discharge ? '#ffea00' : path.color;
 				particles.forEach( ( particle ) => {
 					let progress = particle.progress + speed * delta;
 					while ( progress > 1 ) {
 						progress -= 1;
 					}
 
-					drawParticle( ctx, path, progress, path.color );
+					drawParticle( ctx, path, progress, particleColor );
 					nextParticles.push( { id: path.id, progress } );
 				} );
 			} );

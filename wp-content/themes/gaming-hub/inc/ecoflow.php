@@ -233,7 +233,8 @@ function gaming_hub_ecoflow_is_local_host() {
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_layout_demo_status() {
-	$charging = __( 'Charging', 'gaming-hub' );
+	$charging    = __( 'Charging', 'gaming-hub' );
+	$discharging = __( 'Discharging', 'gaming-hub' );
 	$pro_cap  = defined( 'GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH' )
 		? (int) GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH
 		: 4096;
@@ -289,26 +290,26 @@ function gaming_hub_ecoflow_layout_demo_status() {
 		'mqtt_live'          => true,
 		'soc_source'         => 'live',
 		'solar_in_source'    => 'hv',
-		'hv_in'              => 620,
-		'ac_in'              => 800,
-		'ac_out'             => 450,
+		'hv_in'              => 180,
+		'ac_in'              => 0,
+		'ac_out'             => 920,
 		'dc_out'             => 0,
 		'solar_in'           => 280,
 		'solar_delta'        => 280,
-		'input_total'        => 1420,
-		'output_total'       => 450,
+		'input_total'        => 180,
+		'output_total'       => 920,
 		'battery_percent'    => $pro_soc,
 		'capacity_wh'        => $pro_cap,
 		'remain_capacity'    => (int) round( $pro_cap * $pro_soc / 100 ),
 		'capacity_source'    => 'default',
-		'is_charging'        => true,
-		'is_discharging'     => false,
-		'charge_state'       => $charging,
-		'charge_state_key'   => 'charging',
+		'is_charging'        => false,
+		'is_discharging'     => true,
+		'charge_state'       => $discharging,
+		'charge_state_key'   => 'discharging',
 		'updated_at'         => gaming_hub_format_date( null, 'datetime' ),
 		'pro_grid_charge'    => array(
-			'active'  => true,
-			'watts'   => 800,
+			'active'  => false,
+			'watts'   => 0,
 			'message' => '',
 		),
 		'ups_plug'           => array(

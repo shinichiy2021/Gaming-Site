@@ -2356,6 +2356,7 @@ body.home .site-header.is-scrolled {
 .teslogic-batt-icon__mark {
 	position: absolute;
 	inset: 0;
+	z-index: 2;
 	display: grid;
 	place-items: center;
 	font-size: clamp(0.85rem, 1.2vw, 1.15rem);
@@ -2363,6 +2364,7 @@ body.home .site-header.is-scrolled {
 	color: #fff;
 	text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
 	font-weight: 800;
+	pointer-events: none;
 }
 
 .teslogic-batt-icon__nub {
@@ -2379,6 +2381,12 @@ body.home .site-header.is-scrolled {
 .teslogic-batt-icon.is-discharging .teslogic-batt-icon__body {
 	border-color: #ffd600;
 	box-shadow: 0 0 12px rgba(255, 214, 0, 0.55);
+	overflow: visible;
+	height: clamp(24px, 2.5vw, 32px);
+}
+
+.teslogic-batt-icon.is-discharging .teslogic-batt-icon__fill {
+	opacity: 0.55;
 }
 
 .teslogic-batt-icon.is-discharging .teslogic-batt-icon__nub {
@@ -2386,9 +2394,53 @@ body.home .site-header.is-scrolled {
 }
 
 .teslogic-batt-icon.is-discharging .teslogic-batt-icon__mark {
-	color: #111;
+	color: #ffea00;
 	text-shadow: none;
-	font-size: clamp(1rem, 1.4vw, 1.35rem);
+	font-size: clamp(1.05rem, 1.45vw, 1.4rem);
+}
+
+.teslogic-batt-icon__mark--discharge {
+	color: #ffea00;
+	-webkit-text-fill-color: #ffea00;
+}
+
+.teslogic-batt-icon__mark--discharge::before {
+	content: '';
+	position: absolute;
+	width: 1.25em;
+	height: 1.25em;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.72);
+	z-index: -1;
+}
+
+.teslogic-batt-icon__arrow {
+	display: block;
+	width: 0.95em;
+	height: 0.95em;
+	filter:
+		drop-shadow(0 0 1px #000)
+		drop-shadow(0 0 5px rgba(255, 234, 0, 0.95));
+	animation: teslogic-discharge-arrow 0.85s ease-in-out infinite;
+}
+
+@keyframes teslogic-discharge-arrow {
+	0%,
+	100% {
+		transform: translateY(-2px) scale(1);
+		opacity: 1;
+	}
+
+	50% {
+		transform: translateY(3px) scale(1.08);
+		opacity: 0.82;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.teslogic-batt-icon__arrow {
+		animation: none;
+	}
 }
 
 .teslogic-card--battery .teslogic-metric__value {
@@ -5367,6 +5419,7 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-energy-content {
 	position: relative;
+	z-index: 2;
 }
 
 .ecoflow-energy-map.teslogic-map.is-gaming {
