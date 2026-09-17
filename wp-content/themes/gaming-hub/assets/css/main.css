@@ -4604,9 +4604,9 @@ body.home .site-header.is-scrolled {
 	position: sticky;
 	top: 70px;
 	z-index: 90;
-	background: rgba(10, 26, 15, 0.94);
-	backdrop-filter: blur(10px);
-	border-bottom: 1px solid rgba(0, 200, 83, 0.2);
+	background: transparent;
+	backdrop-filter: none;
+	border-bottom: 1px solid transparent;
 	transition: top 0.28s ease;
 }
 
@@ -5098,9 +5098,9 @@ body.home .site-header.is-scrolled {
 	position: sticky;
 	top: 70px;
 	z-index: 90;
-	background: rgba(26, 10, 12, 0.94);
-	backdrop-filter: blur(10px);
-	border-bottom: 1px solid rgba(227, 25, 55, 0.22);
+	background: transparent;
+	backdrop-filter: none;
+	border-bottom: 1px solid transparent;
 	transition: top 0.28s ease;
 }
 
