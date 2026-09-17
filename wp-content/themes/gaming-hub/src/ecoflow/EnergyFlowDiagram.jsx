@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
-// import { useFlowCanvas } from './useFlowCanvas'; // energy flow canvas temporarily disabled
+// Flow canvas lines disabled — keep BattIcon discharge arrow only.
 
 function isFlowActive( flowId, status ) {
 	if ( ! status ) {
@@ -301,7 +301,19 @@ function BattIcon( { charging, discharging } ) {
 			<span className="teslogic-batt-icon__body">
 				<span className="teslogic-batt-icon__fill" />
 				{ charging ? <span className="teslogic-batt-icon__mark">⚡</span> : null }
-				{ ! charging && discharging ? <span className="teslogic-batt-icon__mark">↓</span> : null }
+				{ ! charging && discharging ? (
+					<span className="teslogic-batt-icon__mark teslogic-batt-icon__mark--discharge">
+						<svg className="teslogic-batt-icon__arrow" viewBox="0 0 24 24" width="1em" height="1em" focusable="false">
+							<path
+								fill="#ffea00"
+								stroke="#111"
+								strokeWidth="1.4"
+								strokeLinejoin="round"
+								d="M8 2h8v9h5L12 22 3 11h5V2z"
+							/>
+						</svg>
+					</span>
+				) : null }
 			</span>
 			<span className="teslogic-batt-icon__nub" />
 		</span>
@@ -879,8 +891,6 @@ export default function EnergyFlowDiagram( { initial, labels } ) {
 			data-dual={ isDual ? '1' : '0' }
 			aria-label={ labels.flow }
 		>
-			{ /* Energy flow canvas temporarily disabled */ }
-
 			<div className="ecoflow-energy-content">
 				{ isDual ? (
 					<DualFlowDiagram status={ status } labels={ labels } liveYen={ liveYen } liveSolar={ liveSolar } liveUsage={ liveUsage } liveBuy={ liveBuy } />
