@@ -546,15 +546,6 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const extraSoc = parseSoc( extra.battery_percent );
 	const extraCap = Number( extra.capacity_wh ) || 1000;
 	const extraMissing = extraSoc === null;
-	const extraCapText = extraCap >= 1000
-		? `${ ( extraCap / 1000 ).toLocaleString( undefined, { maximumFractionDigits: 1 } ) } kWh`
-		: `${ extraCap } Wh`;
-	const extraLastLabel = typeof window !== 'undefined' && window.gamingHubT
-		? window.gamingHubT( 'last' )
-		: 'last';
-	const extraCapLabel = extraMissing
-		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
-		: ( extra.capacity_source === 'stale' ? `${ extraCapText } · ${ extraLastLabel }` : extraCapText );
 	const deltaMissing = isDeltaMqttMissing( status );
 	const upsLive = status.ups_source === 'ecoflow' || status.ups_source === 'switchbot';
 	const na = typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a';
@@ -635,6 +626,9 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const mainCapLabel = deltaMissing
 		? na
 		: formatPack( mainRemainWh, mainFullWh );
+	const extraCapLabel = ( extraMissing || deltaMissing )
+		? na
+		: formatPack( extraRemainWh, extraCap );
 	const unitCharging = deltaCharging || extraCharging;
 	const unitDischarging = ! unitCharging && ( deltaDischarging || extraDischarging );
 
@@ -775,7 +769,6 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 								charging={ extraCharging }
 								discharging={ extraDischarging }
 								unavailable={ extraMissing || deltaMissing }
-								eta={ ( ! extraMissing && ! deltaMissing ) ? <PackEta device={ extra } /> : null }
 							/>
 						</div>
 					</PackBatteryCard>
