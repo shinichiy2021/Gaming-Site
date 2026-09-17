@@ -2151,14 +2151,32 @@ function gaming_hub_tesla_apply_cached_at_home( array $model3 ) {
 	$model3['geofence_distance_m'] = $ctx['geofence_distance_m'];
 	$model3['at_home_sticky']      = ! empty( $ctx['at_home_sticky'] );
 
-	$kind     = (string) ( $model3['supply_kind'] ?? '' );
-	$charging = ! empty( $model3['is_charging'] );
-	if ( in_array( $kind, array( 'home', 'supercharger' ), true ) || ! empty( $model3['plugged'] ) ) {
+	$charging_state = (string) ( $model3['charging_state_raw'] ?? '' );
+	$charging       = ! empty( $model3['is_charging'] );
+	$plugged_known  = array_key_exists( 'plugged', $model3 );
+	$plugged        = $plugged_known ? ! empty( $model3['plugged'] ) : null;
+
+	// Disconnected / explicit unplug must clear stale home/supercharger supply.
+	if ( 'Disconnected' === $charging_state || false === $plugged ) {
+		$model3['plugged']      = false;
+		$model3['supply_kind']  = 'none';
+		$model3['supply_label'] = __('Unplugged', 'gaming-hub');
+		if ( in_array( (string) ( $model3['vehicle_mode'] ?? '' ), array( 'wall', 'supercharger' ), true ) ) {
+			$model3['vehicle_mode'] = gaming_hub_tesla_snapshot_is_moving( $model3 ) ? 'drive' : 'idle';
+		}
+
+		return $model3;
+	}
+
+	// Only re-label while actually plugged/charging — never invent a cable from a stale kind.
+	if ( true === $plugged || $charging || gaming_hub_tesla_snapshot_is_supercharger( $model3 )
+		|| in_array( $charging_state, array( 'Complete', 'Stopped', 'NoPower', 'Charging', 'Starting' ), true ) ) {
+		$kind   = (string) ( $model3['supply_kind'] ?? '' );
 		$supply = gaming_hub_tesla_model3_supply(
 			array(
-				'conn_charge_cable'    => 'supercharger' === $kind ? 'NONE' : 'IEC',
+				'conn_charge_cable'    => 'supercharger' !== $kind ? 'IEC' : 'NONE',
 				'fast_charger_present' => gaming_hub_tesla_snapshot_is_supercharger( $model3 ),
-				'fast_charger_type'    => 'supercharger' === $kind ? 'Supercharger' : '',
+				'fast_charger_type'    => gaming_hub_tesla_snapshot_is_supercharger( $model3 ) ? 'Supercharger' : '',
 			),
 			$charging,
 			$ctx['at_home']
@@ -2166,6 +2184,11 @@ function gaming_hub_tesla_apply_cached_at_home( array $model3 ) {
 		$model3['supply_kind']  = $supply['kind'];
 		$model3['supply_label'] = $supply['label'];
 		$model3['plugged']      = $supply['plugged'];
+	} elseif ( in_array( (string) ( $model3['supply_kind'] ?? '' ), array( 'home', 'supercharger' ), true ) ) {
+		// Stale supply with no plug evidence (common after leaving home without a Disconnected frame).
+		$model3['plugged']      = false;
+		$model3['supply_kind']  = 'none';
+		$model3['supply_label'] = __('Unplugged', 'gaming-hub');
 	}
 
 	return $model3;

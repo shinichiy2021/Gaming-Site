@@ -404,7 +404,21 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 		}
 	}
 
-	if ( $charging || ! empty( $cached['plugged'] ) ) {
+	if ( false === ( $cached['plugged'] ?? null ) || 'Disconnected' === $charge_state ) {
+		// Unplugged: drop sticky home/supercharger so AI PLAN INPUT does not stay "Away AC · Connected".
+		$cached['plugged']              = false;
+		$cached['supply_kind']          = 'none';
+		$cached['supply_label']         = function_exists( '__' ) ? __( 'Unplugged', 'gaming-hub' ) : 'Unplugged';
+		$cached['fast_charger_present'] = false;
+		$updated[]                      = 'supply_kind';
+		if ( $moving ) {
+			$cached['vehicle_mode'] = ( (int) ( $cached['regen_w'] ?? 0 ) >= 80 ) ? 'regen' : 'drive';
+		} elseif ( (int) ( $cached['cabin_w'] ?? 0 ) >= 80 ) {
+			$cached['vehicle_mode'] = 'cabin';
+		} else {
+			$cached['vehicle_mode'] = 'idle';
+		}
+	} elseif ( $charging || ! empty( $cached['plugged'] ) ) {
 		if ( ! empty( $cached['fast_charger_present'] ) || ( null !== $dc_kw && $dc_kw > 1 ) ) {
 			$cached['supply_kind']  = 'supercharger';
 			$cached['supply_label'] = function_exists( '__' ) ? __( 'Supercharger', 'gaming-hub' ) : 'Supercharger';

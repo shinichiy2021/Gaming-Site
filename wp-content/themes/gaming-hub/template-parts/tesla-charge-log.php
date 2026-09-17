@@ -23,14 +23,20 @@ $format_yen = static function ( $value, $known = true ) {
 	if ( ! $known || null === $value || '' === $value ) {
 		return '—';
 	}
-	return number_format( (float) $value, 0 ) . ' 円';
+	return function_exists( 'gaming_hub_yen' )
+		? gaming_hub_yen( $value )
+		: number_format( (float) $value, 0 ) . ' 円';
 };
 
 $format_rate = static function ( $value ) {
 	if ( null === $value || '' === $value ) {
 		return '—';
 	}
-	return number_format( (float) $value, 1 ) . ' 円/kWh';
+	$amount = number_format( (float) $value, 1 );
+
+	return function_exists( 'gaming_hub_lang' ) && 'en' === gaming_hub_lang()
+		? '¥' . $amount . '/kWh'
+		: $amount . ' 円/kWh';
 };
 
 $now_label = __('Standby', 'gaming-hub');

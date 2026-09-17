@@ -29,14 +29,20 @@
 		if (!known || value == null || value === '') {
 			return '—';
 		}
-		return Math.round(Number(value)).toLocaleString() + ' 円';
+		return window.gamingHubYen
+			? window.gamingHubYen(value)
+			: Math.round(Number(value)).toLocaleString() + ' 円';
 	}
 
 	function formatRate(value) {
 		if (value == null || value === '') {
 			return '—';
 		}
-		return Number(value).toFixed(1) + ' 円/kWh';
+		const amount = Number(value).toFixed(1);
+		if (window.gamingHubLang && window.gamingHubLang() === 'en') {
+			return '¥' + amount + '/kWh';
+		}
+		return amount + ' 円/kWh';
 	}
 
 	function setText(sel, text) {
@@ -59,12 +65,12 @@
 	function rowHtml(session, active) {
 		const isSuper = session.supply === 'supercharger';
 		const limit = session.limit_soc
-			? '<span class="tesla-charge-limit">' + esc('上限 ' + session.limit_soc + '%') + '</span>'
+			? '<span class="tesla-charge-limit">' + esc(t('Limit %s%%').replace('%s', String(session.limit_soc))) + '</span>'
 			: '';
 		const badge = active
-			? '<span class="tesla-charge-badge">' + esc('進行中') + '</span>'
+			? '<span class="tesla-charge-badge">' + esc(t('In progress')) + '</span>'
 			: '';
-		const supply = '<span class="tesla-charge-supply">' + esc(session.supply_label || (isSuper ? '急速充電' : '自宅充電')) + '</span>';
+		const supply = '<span class="tesla-charge-supply">' + esc(session.supply_label || (isSuper ? t('Supercharger') : t('Home charging'))) + '</span>';
 		const site = session.site_name
 			? '<span class="tesla-charge-site">' + esc(session.site_name) + '</span>'
 			: '';
@@ -76,7 +82,7 @@
 			(active ? ' data-tesla-charge-current' : '') +
 			'>' +
 			'<div class="tesla-charge-when">' +
-			'<strong>' + esc(session.when_label || (active ? '充電中' : '—')) + '</strong>' +
+			'<strong>' + esc(session.when_label || (active ? t('Charging') : '—')) + '</strong>' +
 			badge +
 			supply +
 			site +
@@ -114,9 +120,9 @@
 		const current = data.current || null;
 		const sessions = Array.isArray(data.sessions) ? data.sessions : [];
 
-		let nowLabel = '待機';
+		let nowLabel = t('Standby');
 		if (current) {
-			nowLabel = current.supply === 'supercharger' ? '急速充電中' : '充電中';
+			nowLabel = current.supply === 'supercharger' ? t('Supercharging') : t('Charging');
 		}
 		setText('[data-tesla-charge-now]', nowLabel);
 		if (current) {
@@ -131,18 +137,23 @@
 		setText('[data-tesla-charge-count]', String(totals.count || 0));
 		setText(
 			'[data-tesla-charge-count-detail]',
-			'自宅 ' + (totals.home_count || 0) + ' · 急速 ' + (totals.super_count || 0)
+			t('Home %1$s · Super %2$s')
+				.replace('%1$s', String(totals.home_count || 0))
+				.replace('%2$s', String(totals.super_count || 0))
 		);
 		setText('[data-tesla-charge-kwh]', formatKwh(totals.kwh || 0));
 		setText(
 			'[data-tesla-charge-kwh-detail]',
-			'自宅 ' + Number(totals.home_kwh || 0).toFixed(2) + ' · 急速 ' + Number(totals.super_kwh || 0).toFixed(2)
+			t('Home %1$s · Super %2$s')
+				.replace('%1$s', Number(totals.home_kwh || 0).toFixed(2))
+				.replace('%2$s', Number(totals.super_kwh || 0).toFixed(2))
 		);
 		setText('[data-tesla-charge-yen]', formatYen(totals.yen || 0, true));
 		setText(
 			'[data-tesla-charge-yen-detail]',
-			'自宅 ' + Math.round(Number(totals.home_yen || 0)).toLocaleString() +
-			' · 急速 ' + Math.round(Number(totals.super_yen || 0)).toLocaleString()
+			t('Home %1$s · Super %2$s')
+				.replace('%1$s', Math.round(Number(totals.home_yen || 0)).toLocaleString())
+				.replace('%2$s', Math.round(Number(totals.super_yen || 0)).toLocaleString())
 		);
 
 		const hiddenEl = root.querySelector('[data-tesla-charge-hidden]');
@@ -170,7 +181,7 @@
 		if (!sessions.length && !current) {
 			html +=
 				'<li class="tesla-charge-empty" data-tesla-charge-empty>' +
-				esc('この月の充電セッションはまだありません。次回の自宅／急速充電、または Fleet 履歴の同期から記録されます。') +
+				esc(t('No charge sessions this month yet. They appear after the next home/Supercharger session or a Fleet history sync.')) +
 				'</li>';
 		}
 		sessions.forEach(function (session) {
@@ -183,7 +194,10 @@
 		if (!endpoint) {
 			return;
 		}
-		const url = endpoint + (month ? '?month=' + encodeURIComponent(month) : '');
+		let url = endpoint + (month ? '?month=' + encodeURIComponent(month) : '');
+		if (window.gamingHubWithLang) {
+			url = window.gamingHubWithLang(url);
+		}
 		fetch(url, { credentials: 'same-origin' })
 			.then(function (res) {
 				return res.json();
