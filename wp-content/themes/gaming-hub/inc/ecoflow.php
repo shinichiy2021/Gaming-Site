@@ -218,7 +218,146 @@ function gaming_hub_energy_url( $query = array() ) {
  * @param bool $force_refresh Skip cache.
  * @return array<string, mixed>|WP_Error
  */
+/**
+ * Whether this request is on a local WordPress host (layout demos).
+ */
+function gaming_hub_ecoflow_is_local_host() {
+	return function_exists( 'gaming_hub_tesla_is_local_host' ) && gaming_hub_tesla_is_local_host();
+}
+
+/**
+ * Filled dual-layout snapshot for localhost when EcoFlow API is unavailable.
+ *
+ * Exercises Pro + Delta (nested Extra), Grid/HV/Low Volt/UPS cards, and Today columns.
+ *
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_layout_demo_status() {
+	$charging = __( 'Charging', 'gaming-hub' );
+	$pro_cap  = defined( 'GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH' )
+		? (int) GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH
+		: 4096;
+	$main_cap = function_exists( 'gaming_hub_ecoflow_main_pack_default_wh' )
+		? (int) gaming_hub_ecoflow_main_pack_default_wh()
+		: 1500;
+	$extra_cap = (int) GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH;
+
+	$pro_soc   = 68;
+	$delta_soc = 82;
+	$extra_soc = 74;
+
+	$extra = gaming_hub_ecoflow_extra_battery_slice( $extra_soc, $extra_cap );
+	$extra['input_watts']    = 120;
+	$extra['output_watts']   = 0;
+	$extra['is_charging']    = true;
+	$extra['is_discharging'] = false;
+	$extra['eta_mode']       = 'idle';
+	$extra['remain_time']    = null;
+	$extra['remain_time_label']   = '';
+	$extra['remain_time_display'] = '—';
+
+	$secondary = array(
+		'device_name'       => __( 'Delta 3 1500', 'gaming-hub' ),
+		'device_sn'         => 'DEMO-DELTA1500',
+		'online'            => true,
+		'mqtt_live'         => true,
+		'soc_source'        => 'live',
+		'solar_in_source'   => 'lv',
+		'battery_percent'   => $delta_soc,
+		'capacity_wh'       => $main_cap,
+		'remain_capacity'   => (int) round( $main_cap * $delta_soc / 100 ),
+		'capacity_source'   => 'default',
+		'solar_in'          => 280,
+		'hv_in'             => 0,
+		'ac_in'             => 350,
+		'ac_out'            => 85,
+		'dc_out'            => 0,
+		'input_total'       => 630,
+		'output_total'      => 85,
+		'is_charging'       => true,
+		'is_discharging'    => false,
+		'charge_state'      => $charging,
+		'charge_state_key'  => 'charging',
+		'updated_at'        => gaming_hub_format_date( null, 'datetime' ),
+		'extra'             => $extra,
+	);
+
+	return array(
+		'device_name'        => 'Delta Pro 3',
+		'device_sn'          => 'DEMO-PRO3',
+		'online'             => true,
+		'mqtt_live'          => true,
+		'soc_source'         => 'live',
+		'solar_in_source'    => 'hv',
+		'hv_in'              => 620,
+		'ac_in'              => 800,
+		'ac_out'             => 450,
+		'dc_out'             => 0,
+		'solar_in'           => 280,
+		'solar_delta'        => 280,
+		'input_total'        => 1420,
+		'output_total'       => 450,
+		'battery_percent'    => $pro_soc,
+		'capacity_wh'        => $pro_cap,
+		'remain_capacity'    => (int) round( $pro_cap * $pro_soc / 100 ),
+		'capacity_source'    => 'default',
+		'is_charging'        => true,
+		'is_discharging'     => false,
+		'charge_state'       => $charging,
+		'charge_state_key'   => 'charging',
+		'updated_at'         => gaming_hub_format_date( null, 'datetime' ),
+		'pro_grid_charge'    => array(
+			'active'  => true,
+			'watts'   => 800,
+			'message' => '',
+		),
+		'ups_plug'           => array(
+			'watts'      => 85,
+			'source'     => 'ecoflow',
+			'online'     => true,
+			'updated_at' => gaming_hub_format_date( null, 'datetime' ),
+		),
+		'secondary'          => $secondary,
+		'charge_plan'        => array(
+			'plan_day'    => 'today',
+			'plan_date'   => wp_date( 'Y-m-d' ),
+			'slots'       => array(),
+			'soc_series'  => array_fill( 0, 24, null ),
+			'note'        => '',
+			'needs_grid'  => false,
+			'can_approve' => false,
+		),
+		'energy'             => null,
+		'simulated'          => true,
+		'today_yen'          => array(
+			'room_yen'     => 186,
+			'ups_yen'      => 42,
+			'grid_yen'     => 68,
+			'pro_grid_yen' => 124,
+			'buy_yen'      => 192,
+			'net_yen'      => 36,
+			'yen_per_kwh'  => 38.0,
+		),
+		'today_solar'        => array(
+			'pro_wh'   => 4200,
+			'delta_wh' => 1800,
+		),
+		'today_usage'        => array(
+			'room_wh' => 5600,
+			'ups_wh'  => 2100,
+		),
+		'today_buy'          => array(
+			'pro_wh'   => 3100,
+			'delta_wh' => 2400,
+		),
+	);
+}
+
 function gaming_hub_get_ecoflow_status( $force_refresh = false ) {
+	if ( gaming_hub_ecoflow_is_local_host() ) {
+		return gaming_hub_ecoflow_layout_demo_status();
+	}
+
 	if ( ! gaming_hub_ecoflow_is_configured() ) {
 		return new WP_Error(
 			'ecoflow_not_configured',
@@ -1873,18 +2012,26 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 		'extra'               => isset( $delta_slice['extra'] ) && is_array( $delta_slice['extra'] )
 			? $delta_slice['extra']
 			: gaming_hub_ecoflow_extra_battery_slice(),
-		'today_yen'           => function_exists( 'gaming_hub_ecoflow_energy_today_yen' )
-			? gaming_hub_ecoflow_energy_today_yen( $status )
-			: array(),
-		'today_solar'         => function_exists( 'gaming_hub_ecoflow_energy_today_solar' )
-			? gaming_hub_ecoflow_energy_today_solar( $status )
-			: array(),
-		'today_usage'         => function_exists( 'gaming_hub_ecoflow_energy_today_usage' )
-			? gaming_hub_ecoflow_energy_today_usage( $status )
-			: array(),
-		'today_buy'           => function_exists( 'gaming_hub_ecoflow_energy_today_buy' )
-			? gaming_hub_ecoflow_energy_today_buy( $status )
-			: array(),
+		'today_yen'           => isset( $status['today_yen'] ) && is_array( $status['today_yen'] )
+			? $status['today_yen']
+			: ( function_exists( 'gaming_hub_ecoflow_energy_today_yen' )
+				? gaming_hub_ecoflow_energy_today_yen( $status )
+				: array() ),
+		'today_solar'         => isset( $status['today_solar'] ) && is_array( $status['today_solar'] )
+			? $status['today_solar']
+			: ( function_exists( 'gaming_hub_ecoflow_energy_today_solar' )
+				? gaming_hub_ecoflow_energy_today_solar( $status )
+				: array() ),
+		'today_usage'         => isset( $status['today_usage'] ) && is_array( $status['today_usage'] )
+			? $status['today_usage']
+			: ( function_exists( 'gaming_hub_ecoflow_energy_today_usage' )
+				? gaming_hub_ecoflow_energy_today_usage( $status )
+				: array() ),
+		'today_buy'           => isset( $status['today_buy'] ) && is_array( $status['today_buy'] )
+			? $status['today_buy']
+			: ( function_exists( 'gaming_hub_ecoflow_energy_today_buy' )
+				? gaming_hub_ecoflow_energy_today_buy( $status )
+				: array() ),
 	);
 
 	return $payload;
@@ -2811,6 +2958,18 @@ function gaming_hub_render_ecoflow_setup_instructions() {
  * latency does not block the rest of the page (e.g. articles below).
  */
 function gaming_hub_render_ecoflow_dashboard() {
+	if ( gaming_hub_ecoflow_is_local_host() ) {
+		get_template_part(
+			'template-parts/ecoflow',
+			'dashboard',
+			array(
+				'status' => gaming_hub_ecoflow_layout_demo_status(),
+				'async'  => false,
+			)
+		);
+		return;
+	}
+
 	if ( ! gaming_hub_ecoflow_is_configured() ) {
 		get_template_part(
 			'template-parts/ecoflow',

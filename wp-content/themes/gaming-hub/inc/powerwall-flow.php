@@ -106,7 +106,9 @@ function gaming_hub_powerwall_simulated_flow( $force_solar_refresh = false ) {
  * @return array<string, mixed>
  */
 function gaming_hub_get_powerwall_flow_status( $force_refresh = false ) {
-	if ( ! $force_refresh ) {
+	$local = function_exists( 'gaming_hub_tesla_is_local_host' ) && gaming_hub_tesla_is_local_host();
+
+	if ( ! $force_refresh && ! $local ) {
 		$cached = get_transient( GAMING_HUB_POWERWALL_FLOW_CACHE_KEY );
 		if ( is_array( $cached ) ) {
 			return $cached;
