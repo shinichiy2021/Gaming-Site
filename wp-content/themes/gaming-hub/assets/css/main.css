@@ -2138,6 +2138,16 @@ body.home .site-header.is-scrolled {
 	align-items: stretch;
 }
 
+.tesla-flow-map.teslogic-map .teslogic-metric {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+}
+
+.tesla-flow-map.teslogic-map .teslogic-metric__bar {
+	margin-top: auto;
+}
+
 .teslogic-metric__bar {
 	display: block;
 	height: 3px;
