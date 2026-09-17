@@ -513,13 +513,26 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 		);
 	}
 
+	$dist = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
+		? (int) $model3['geofence_distance_m']
+		: null;
+	$home_radius = function_exists( 'gaming_hub_tesla_home_geofence' )
+		? (float) ( gaming_hub_tesla_home_geofence()['radius_m'] ?? 400 )
+		: 400.0;
+	$absurd_far = null !== $dist && $dist > (int) max( 15000, 40 * $home_radius );
+
+	// Parked AC with leftover trip GPS (tens of km) must not show Away AC.
+	if ( true === $at_home || $absurd_far || ! empty( $model3['at_home_sticky'] ) ) {
+		return array(
+			'type'     => 'home_ac',
+			'label'    => gaming_hub_tesla_plan_charge_label(),
+			'watts'    => $charging ? max( $wall_w, $watts ) : 0,
+			'plugged'  => true,
+			'charging' => $charging,
+		);
+	}
+
 	if ( false === $at_home ) {
-		$dist = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
-			? (int) $model3['geofence_distance_m']
-			: null;
-		$home_radius = function_exists( 'gaming_hub_tesla_home_geofence' )
-			? (float) ( gaming_hub_tesla_home_geofence()['radius_m'] ?? 400 )
-			: 400.0;
 		$far_away = null !== $dist && $dist > (int) max( 3000, 8 * $home_radius );
 		$prefer_home = ! $far_away && (
 			! empty( $model3['at_home_sticky'] )

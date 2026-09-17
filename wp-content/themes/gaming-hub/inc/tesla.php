@@ -31,7 +31,7 @@ define( 'GAMING_HUB_TESLA_WAKE_GRACE_KEY', 'gaming_hub_tesla_wake_grace_v1' );
 define( 'GAMING_HUB_TESLA_COORD_MAX_AGE', 45 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_FLEET_URL_OPTION', 'gaming_hub_tesla_fleet_base_url' );
 define( 'GAMING_HUB_TESLA_FLEET_DEFAULT_URL', 'https://fleet-api.prd.na.vn.cloud.tesla.com' );
-define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v6' );
+define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v7' );
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
 define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 8 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 5 * MINUTE_IN_SECONDS );
@@ -2137,6 +2137,19 @@ function gaming_hub_tesla_at_home_resolve( array $geofence, $moving, $supercharg
 		$dist     = isset( $geofence['distance_m'] ) ? (int) $geofence['distance_m'] : null;
 		$near     = null !== $dist && $dist <= (int) max( 2500, 6 * (float) $home['radius_m'] );
 		$far_away = null !== $dist && $dist > (int) max( 3000, 8 * (float) $home['radius_m'] );
+		// 15km+ while parked on AC is almost always leftover trip GPS, not a real destination charge.
+		$absurd_far = null !== $dist && $dist > (int) max( 15000, 40 * (float) $home['radius_m'] );
+
+		if ( $ac_plugged && $absurd_far ) {
+			gaming_hub_tesla_at_home_sticky_mark();
+
+			return array(
+				'at_home'             => true,
+				'geofence_known'      => false,
+				'geofence_distance_m' => $dist,
+				'at_home_sticky'      => true,
+			);
+		}
 
 		// Wall Connector / home AC: prefer home unless GPS is clearly far from the house.
 		if ( $ac_plugged && ! $far_away ) {
@@ -2242,24 +2255,42 @@ function gaming_hub_tesla_snapshot_is_supercharger( array $model3 ) {
  * @return array<string, mixed>
  */
 function gaming_hub_tesla_apply_cached_at_home( array $model3 ) {
-	$geofence = array(
-		'at_home'    => ! empty( $model3['geofence_known'] ) && array_key_exists( 'at_home', $model3 )
-			? $model3['at_home']
-			: null,
-		'distance_m' => $model3['geofence_distance_m'] ?? null,
-		'known'      => ! empty( $model3['geofence_known'] ),
-	);
+	$dist = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
+		? (int) $model3['geofence_distance_m']
+		: null;
+	$home = gaming_hub_tesla_home_geofence();
+	$absurd_far = null !== $dist && $dist > (int) max( 15000, 40 * (float) $home['radius_m'] );
+	$ac_plugged = ! empty( $model3['plugged'] ) && 'supercharger' !== (string) ( $model3['supply_kind'] ?? '' );
+	$moving     = gaming_hub_tesla_snapshot_is_moving( $model3 );
 
-	if ( empty( $geofence['known'] ) ) {
-		$geofence['at_home']    = null;
-		$geofence['distance_m'] = null;
+	// Telemetry/cache often keeps a trip-era "away" fix. While parked on AC with an
+	// absurd distance, drop known-away so resolve can prefer home.
+	if ( ! $moving && $ac_plugged && $absurd_far ) {
+		$geofence = array(
+			'at_home'    => null,
+			'distance_m' => $dist,
+			'known'      => false,
+		);
+	} else {
+		$geofence = array(
+			'at_home'    => ! empty( $model3['geofence_known'] ) && array_key_exists( 'at_home', $model3 )
+				? $model3['at_home']
+				: null,
+			'distance_m' => $dist,
+			'known'      => ! empty( $model3['geofence_known'] ),
+		);
+
+		if ( empty( $geofence['known'] ) ) {
+			$geofence['at_home']    = null;
+			$geofence['distance_m'] = null;
+		}
 	}
 
 	$ctx = gaming_hub_tesla_at_home_resolve(
 		$geofence,
-		gaming_hub_tesla_snapshot_is_moving( $model3 ),
+		$moving,
 		gaming_hub_tesla_snapshot_is_supercharger( $model3 ),
-		! empty( $model3['plugged'] ) && 'supercharger' !== (string) ( $model3['supply_kind'] ?? '' )
+		$ac_plugged || ! empty( $model3['is_charging'] )
 	);
 
 	$model3['at_home']             = $ctx['at_home'];
