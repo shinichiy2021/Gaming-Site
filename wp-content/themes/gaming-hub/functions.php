@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'GAMING_HUB_VERSION', '1.23.32' );
 
-/** Temporary: set true to show the UNIT � EV card under flow diagrams. */
+/** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
 
 /**
@@ -164,7 +164,7 @@ function gaming_hub_default_entry_url() {
 }
 
 /**
- * Legacy hub section id ?Etag URL.
+ * Legacy hub section id ↁEtag URL.
  *
  * @param string               $section Section id without #.
  * @param array<string, mixed> $query   Optional query args.
@@ -225,7 +225,7 @@ function gaming_hub_url_hub_section( $url ) {
 }
 
 /**
- * Home ?EEcoFlow (or Tesla while driving). Old pages/tags ?Ethe new tag screens.
+ * Home ↁEEcoFlow (or Tesla while driving). Old pages/tags ↁEthe new tag screens.
  */
 function gaming_hub_redirect_legacy_section_pages() {
 	if ( is_admin() || wp_doing_ajax() || wp_doing_cron() || is_feed() || is_customize_preview() ) {
@@ -540,7 +540,7 @@ function gaming_hub_get_rating_stars( $rating ) {
 
 	for ( $i = 1; $i <= 5; $i++ ) {
 		$class = $i <= $full ? 'star filled' : 'star';
-		$html .= '<span class="' . esc_attr( $class ) . '">?E/span>';
+		$html .= '<span class="' . esc_attr( $class ) . '">☁E/span>';
 	}
 
 	$html .= '</div>';
@@ -592,7 +592,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 	) );
 
 	$wp_customize->add_setting( 'hero_subtitle', array(
-		'default'           => __('Live Powerwall and EcoFlow dashboards, plus Pok�mon GO and game reviews. Check power bills and play, here.', 'gaming-hub'),
+		'default'           => __('Live Powerwall and EcoFlow dashboards, plus Pokémon GO and game reviews. Check power bills and play, here.', 'gaming-hub'),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'hero_subtitle', array(
@@ -700,7 +700,7 @@ function gaming_hub_customize_register( $wp_customize ) {
 		'type'    => 'select',
 		'choices' => array(
 			'us' => 'US / Global (api.ecoflow.com)',
-			'a'  => 'Asia / ?? (api-a.ecoflow.com)',
+			'a'  => 'Asia / 日本 (api-a.ecoflow.com)',
 			'eu' => 'Europe (api-e.ecoflow.com)',
 		),
 	) );
@@ -839,7 +839,7 @@ function gaming_hub_customize_register_tesla( $wp_customize ) {
 		'tesla_home_radius_m',
 		array(
 			'label'       => __('Home radius (m)', 'gaming-hub'),
-			'description' => __('Allow 300?E00 m for GPS error. Default 400 m.', 'gaming-hub'),
+			'description' => __('Allow 300 E00 m for GPS error. Default 400 m.', 'gaming-hub'),
 			'section'     => 'gaming_hub_tesla_api',
 			'type'        => 'number',
 			'input_attrs' => array(
@@ -856,7 +856,7 @@ function gaming_hub_fallback_menu() {
 	$items = array(
 		array( 'url' => gaming_hub_ecoflow_url(), 'label' => __( 'EcoFlow', 'gaming-hub' ), 'current' => is_tag( 'ecoflow' ) ),
 		array( 'url' => gaming_hub_tesla_url(), 'label' => __( 'Tesla', 'gaming-hub' ), 'current' => is_tag( 'tesla' ) ),
-		array( 'url' => gaming_hub_pokemon_go_url(), 'label' => __( 'Pok�mon GO', 'gaming-hub' ), 'current' => is_tag( 'pokemon-go' ) ),
+		array( 'url' => gaming_hub_pokemon_go_url(), 'label' => __( 'Pokémon GO', 'gaming-hub' ), 'current' => is_tag( 'pokemon-go' ) ),
 	);
 
 	echo '<ul class="nav-menu">';
@@ -905,14 +905,14 @@ function gaming_hub_hide_nav_categories( $items ) {
 					return false;
 				}
 
-				if ( in_array( $title, array( 'home', '??E?', 'energy', '????' ), true )
+				if ( in_array( $title, array( 'home', 'ホ�Eム', 'energy', '発電ログ' ), true )
 					|| false !== strpos( $url, '/tag/energy' ) ) {
 					return false;
 				}
 
 				$path = untrailingslashit( (string) wp_parse_url( $url, PHP_URL_PATH ) );
 				$hash = (string) wp_parse_url( $url, PHP_URL_FRAGMENT );
-				if ( ( '' === $path || '/' === $path ) && '' === $hash && in_array( $title, array( 'home', '??E?', '' ), true ) ) {
+				if ( ( '' === $path || '/' === $path ) && '' === $hash && in_array( $title, array( 'home', 'ホ�Eム', '' ), true ) ) {
 					return false;
 				}
 
@@ -934,7 +934,7 @@ function gaming_hub_hide_nav_categories( $items ) {
 add_filter( 'wp_nav_menu_objects', 'gaming_hub_hide_nav_categories' );
 
 /**
- * Point menu items at the tag screens (EcoFlow / Tesla / Pok�mon GO).
+ * Point menu items at the tag screens (EcoFlow / Tesla / Pokémon GO).
  *
  * @param array<int, WP_Post> $items Menu items.
  * @return array<int, WP_Post>
