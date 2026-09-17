@@ -229,14 +229,6 @@ function useLiveTodayYen( todayYen ) {
 	return liveTodayYen( todayYen );
 }
 
-function formatTodayWatts( value ) {
-	if ( ! Number.isFinite( value ) ) {
-		return '—';
-	}
-
-	return Math.round( Math.max( 0, value ) ).toLocaleString() + ' W';
-}
-
 function liveTodaySolar( todaySolar ) {
 	if ( ! todaySolar || typeof todaySolar !== 'object' ) {
 		return { pro: null, delta: null };
@@ -290,27 +282,6 @@ function asWatts( value ) {
 function whToKwh( value ) {
 	const wh = Number( value );
 	return Number.isFinite( wh ) ? Math.max( 0, wh ) / 1000 : 0;
-}
-
-function pctOf( part, whole ) {
-	if ( ! Number.isFinite( part ) || ! Number.isFinite( whole ) || whole <= 0 ) {
-		return 0;
-	}
-
-	return Math.max( 0, Math.min( 100, ( part / whole ) * 100 ) );
-}
-
-function formatPct( value ) {
-	const n = Number( value );
-	if ( ! Number.isFinite( n ) || n <= 0 ) {
-		return '0';
-	}
-
-	if ( n < 10 ) {
-		return n.toLocaleString( undefined, { maximumFractionDigits: 1 } );
-	}
-
-	return Math.round( n ).toLocaleString();
 }
 
 function formatKw( watts ) {
@@ -469,7 +440,7 @@ function PackBatteryCard( {
 					totalValue={ unavailable ? '—' : totalKwh.toLocaleString( undefined, { maximumFractionDigits: 1 } ) }
 				/>
 			) }
-			<span className="teslogic-battery__name">{ label }</span>
+			{ label ? <span className="teslogic-battery__name">{ label }</span> : null }
 			<small className="teslogic-battery__state">{ stateLabel }</small>
 			{ eta }
 			{ children }
@@ -632,9 +603,6 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const unitCharging = deltaCharging || extraCharging;
 	const unitDischarging = ! unitCharging && ( deltaDischarging || extraDischarging );
 
-	const solarShare = pctOf( asWatts( solarWatts ), Math.max( deltaInW, 1 ) );
-	const upsShare = pctOf( deltaOutW, Math.max( deltaOutW, 1 ) );
-
 	return (
 		<div className="ecoflow-dual-layout is-independent teslogic-dual">
 			<section className="teslogic-system ecoflow-teslogic-system" aria-label={ labels.pro }>
@@ -714,30 +682,13 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 				</div>
 			</section>
 
-			<section className="teslogic-system ecoflow-teslogic-system" aria-label={ labels.delta }>
+			<section className="teslogic-system ecoflow-teslogic-system ecoflow-teslogic-system--delta" aria-label={ labels.delta }>
 				<p className="teslogic-title">{ labels.delta }</p>
 
-				<div className="teslogic-top">
-					<FlowCard
-						flowId="deltaGrid"
-						label={ labels.deltaGrid || 'グリッド AC 入力' }
-						icon="⚡"
-						active={ ! deltaMissing && isFlowActive( 'deltaGrid', status ) }
-						unavailable={ deltaMissing }
-						currentLabel="Current"
-						currentValue={ deltaMissing ? na : formatWattsExact( deltaAcIn ) }
-						totalLabel="Today"
-						totalValue={ deltaMissing ? na : formatTodayKw( liveBuy?.delta ) }
-						extra={ deltaMissing ? null : (
-							<ExtraLines
-								lines={ [ formatYenInt( liveYen?.grid ) ] }
-							/>
-						) }
-					/>
-
+				<div className="teslogic-top teslogic-top--single">
 					<PackBatteryCard
 						flowId="delta"
-						label={ labels.delta }
+						label=""
 						soc={ unitSoc }
 						hasSoc={ hasUnitSoc }
 						charging={ unitCharging }
@@ -772,48 +723,54 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 							/>
 						</div>
 					</PackBatteryCard>
+				</div>
 
+				<div className="teslogic-bottom teslogic-bottom--triple">
 					<FlowCard
-						flowId="solar"
-						label={ labels.solar }
-						icon="☀️"
-						active={ ! deltaMissing && isFlowActive( 'solar', status ) }
-						unavailable={ solarWatts === null || solarWatts === undefined || deltaMissing }
+						flowId="deltaGrid"
+						className={ `teslogic-card--grid teslogic-card--icon-lg${ ! deltaMissing && isFlowActive( 'deltaGrid', status ) ? ' is-inputting' : '' }` }
+						label={ labels.deltaGrid || 'グリッド AC 入力' }
+						icon="⚡"
+						active={ ! deltaMissing && isFlowActive( 'deltaGrid', status ) }
+						unavailable={ deltaMissing }
 						currentLabel="Current"
-						currentValue={ ( solarWatts === null || solarWatts === undefined || deltaMissing ) ? na : `${ formatPct( isFlowActive( 'solar', status ) ? Math.max( solarShare, 1 ) : 0 ) }%` }
-						totalLabel="Total"
-						totalValue={ ( solarWatts === null || solarWatts === undefined || deltaMissing ) ? na : `${ formatPct( pctOf( whToKwh( liveSolar?.delta ), Math.max( whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta ), 0.001 ) ) ) }%` }
-						currentPct={ ! deltaMissing && isFlowActive( 'solar', status ) ? solarShare : 0 }
-						totalPct={ pctOf( whToKwh( liveSolar?.delta ), Math.max( whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta ), 0.001 ) ) }
-						showBars
-						note={ formatWatts( solarWatts ) }
-						extra={ ( solarWatts === null || solarWatts === undefined ) ? null : (
+						currentValue={ deltaMissing ? na : formatWattsExact( deltaAcIn ) }
+						totalLabel="Today"
+						totalValue={ deltaMissing ? na : formatTodayKw( liveBuy?.delta ) }
+						extra={ deltaMissing ? null : (
 							<ExtraLines
-								lines={ [ `${ labels.todayGen || '今日 発電' } ${ formatTodayWatts( liveSolar?.delta ) }` ] }
+								lines={ [ formatYenInt( liveYen?.grid ) ] }
 							/>
 						) }
 					/>
-				</div>
 
-				<div className="teslogic-bottom teslogic-bottom--single">
+					<FlowCard
+						flowId="solar"
+						className={ `teslogic-card--hv teslogic-card--icon-lg${ ! deltaMissing && isFlowActive( 'solar', status ) ? ' is-inputting' : '' }` }
+						label={ labels.solar }
+						icon={ ! deltaMissing && isFlowActive( 'solar', status ) ? '☀️' : '🔆' }
+						active={ ! deltaMissing && isFlowActive( 'solar', status ) }
+						unavailable={ solarWatts === null || solarWatts === undefined || deltaMissing }
+						currentLabel="Current"
+						currentValue={ ( solarWatts === null || solarWatts === undefined || deltaMissing ) ? na : formatWattsExact( solarWatts ) }
+						totalLabel="Today"
+						totalValue={ ( solarWatts === null || solarWatts === undefined || deltaMissing ) ? na : formatTodayKw( liveSolar?.delta ) }
+					/>
+
 					<FlowCard
 						flowId="ups"
+						className={ `teslogic-card--home teslogic-card--icon-lg${ isFlowActive( 'deltaToUps', status ) ? ' is-outputting' : '' }` }
 						label={ labels.ups || '常時稼働エリア (UPS)' }
 						icon="🔌"
 						active={ ! ( deltaMissing && status.ups_source !== 'switchbot' ) && isFlowActive( 'deltaToUps', status ) }
 						unavailable={ deltaMissing && status.ups_source !== 'switchbot' }
 						currentLabel="Current"
-						currentValue={ ( deltaMissing && status.ups_source !== 'switchbot' ) ? na : `${ formatPct( isFlowActive( 'deltaToUps', status ) ? 100 : 0 ) }%` }
-						totalLabel="Total"
-						totalValue={ upsLive ? `${ formatPct( upsShare || ( whToKwh( liveUsage?.ups ) > 0 ? 100 : 0 ) ) }%` : na }
-						currentPct={ isFlowActive( 'deltaToUps', status ) ? 100 : 0 }
-						totalPct={ upsLive && whToKwh( liveUsage?.ups ) > 0 ? 100 : 0 }
-						showBars
-						note={ formatWatts( upsWatts ) }
+						currentValue={ ( deltaMissing && status.ups_source !== 'switchbot' ) ? na : formatWattsExact( upsWatts ) }
+						totalLabel="Today"
+						totalValue={ upsLive ? formatTodayKw( liveUsage?.ups ) : na }
 						extra={ upsLive ? (
 							<ExtraLines
 								lines={ [
-									`${ labels.todayUse || '今日 使用' } ${ formatTodayWatts( liveUsage?.ups ) }`,
 									`${ labels.todaySave || '今日 節約' } ${ formatYenInt( liveYen?.ups ) }`,
 								] }
 							/>
