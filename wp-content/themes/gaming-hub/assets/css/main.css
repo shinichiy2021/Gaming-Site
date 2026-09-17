@@ -5378,6 +5378,26 @@ body.home .site-header.is-scrolled {
 	width: 100%;
 }
 
+.ecoflow-dual-layout.teslogic-dual .teslogic-top--single {
+	grid-template-columns: minmax(0, 1fr);
+	max-width: min(720px, 100%);
+	margin: 0 auto;
+	width: 100%;
+}
+
+.ecoflow-dual-layout.teslogic-dual .teslogic-bottom--triple {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	max-width: none;
+	margin: 0;
+	width: 100%;
+}
+
+@media (max-width: 720px) {
+	.ecoflow-dual-layout.teslogic-dual .teslogic-bottom--triple {
+		grid-template-columns: 1fr;
+	}
+}
+
 .ecoflow-dual-layout.teslogic-dual .teslogic-card--icon-lg .teslogic-card__head {
 	flex-direction: column;
 	align-items: center;
@@ -5430,7 +5450,7 @@ body.home .site-header.is-scrolled {
 	filter: drop-shadow(0 0 8px rgba(255, 214, 0, 0.55));
 }
 
-.ecoflow-dual-layout.teslogic-dual .teslogic-bottom:not(.teslogic-bottom--single) {
+.ecoflow-dual-layout.teslogic-dual .teslogic-bottom:not(.teslogic-bottom--single):not(.teslogic-bottom--triple) {
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
