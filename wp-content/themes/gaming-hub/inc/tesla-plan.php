@@ -476,13 +476,34 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 	$at_home  = function_exists( 'gaming_hub_tesla_model3_input_at_home' )
 		? gaming_hub_tesla_model3_input_at_home( $model3 )
 		: ( array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null );
-	$plugged  = ! empty( $model3['plugged'] ) || in_array( $kind, array( 'home', 'supercharger' ), true );
-	$charging = ! empty( $flow['is_charging'] ) || ! empty( $model3['is_charging'] );
-	$wall_w   = (int) ( $flow['wall_w'] ?? 0 );
-	$super_w  = (int) ( $flow['super_w'] ?? 0 );
-	$watts    = max( $wall_w, $super_w, (int) ( $model3['watts'] ?? 0 ) );
+	$charge_state = (string) ( $model3['charging_state_raw'] ?? ( $flow['charging_state_raw'] ?? '' ) );
+	$charging     = ! empty( $flow['is_charging'] ) || ! empty( $model3['is_charging'] );
+	$wall_w       = (int) ( $flow['wall_w'] ?? 0 );
+	$super_w      = (int) ( $flow['super_w'] ?? 0 );
+	$watts        = max( $wall_w, $super_w, (int) ( $model3['watts'] ?? 0 ) );
 
-	if ( 'supercharger' === $kind ) {
+	// Prefer live plug evidence. Stale supply_kind=home must not imply connected after unplug.
+	if ( 'Disconnected' === $charge_state ) {
+		$plugged = false;
+	} elseif ( array_key_exists( 'plugged', $model3 ) ) {
+		$plugged = ! empty( $model3['plugged'] );
+	} elseif ( $charging ) {
+		$plugged = true;
+	} else {
+		$plugged = in_array( $kind, array( 'home', 'supercharger' ), true );
+	}
+
+	if ( ! $plugged && ! $charging ) {
+		return array(
+			'type'     => 'none',
+			'label'    => __('Unplugged', 'gaming-hub'),
+			'watts'    => 0,
+			'plugged'  => false,
+			'charging' => false,
+		);
+	}
+
+	if ( 'supercharger' === $kind || ! empty( $model3['fast_charger_present'] ) ) {
 		return array(
 			'type'     => 'dc',
 			'label'    => __('DC input', 'gaming-hub'),
@@ -492,42 +513,22 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 		);
 	}
 
-	if ( $plugged || 'home' === $kind ) {
-		if ( false === $at_home ) {
-			return array(
-				'type'     => 'away_ac',
-				'label'    => __('Away AC', 'gaming-hub'),
-				'watts'    => $charging ? max( $wall_w, $watts ) : 0,
-				'plugged'  => true,
-				'charging' => $charging,
-			);
-		}
-
-		if ( true === $at_home ) {
-			return array(
-				'type'     => 'home_ac',
-				'label'    => gaming_hub_tesla_plan_charge_label(),
-				'watts'    => $charging ? max( $wall_w, $watts ) : 0,
-				'plugged'  => true,
-				'charging' => $charging,
-			);
-		}
-
+	if ( false === $at_home ) {
 		return array(
-			'type'     => 'home_ac',
-			'label'    => gaming_hub_tesla_plan_charge_label(),
+			'type'     => 'away_ac',
+			'label'    => __('Away AC', 'gaming-hub'),
 			'watts'    => $charging ? max( $wall_w, $watts ) : 0,
-			'plugged'  => $plugged || 'home' === $kind,
+			'plugged'  => true,
 			'charging' => $charging,
 		);
 	}
 
 	return array(
-		'type'     => 'none',
-		'label'    => __('Unplugged', 'gaming-hub'),
-		'watts'    => 0,
-		'plugged'  => false,
-		'charging' => false,
+		'type'     => 'home_ac',
+		'label'    => gaming_hub_tesla_plan_charge_label(),
+		'watts'    => $charging ? max( $wall_w, $watts ) : 0,
+		'plugged'  => true,
+		'charging' => $charging,
 	);
 }
 
@@ -1704,6 +1705,10 @@ function gaming_hub_tesla_plan_apply_live( array $plan, $status = null ) {
 	$plan['live_charging'] = $charging;
 	$plan['live_charge_w'] = $watts;
 	$plan['live_supply']   = (string) ( $flow['supply_kind'] ?? ( $model3['supply_kind'] ?? '' ) );
+	$plan['live_moving']   = function_exists( 'gaming_hub_tesla_snapshot_is_moving' )
+		? gaming_hub_tesla_snapshot_is_moving( $model3 )
+		: false;
+	$plan['live_speed_km'] = (int) ( $model3['speed_km'] ?? ( $flow['speed_km'] ?? 0 ) );
 	$plan['asleep']        = $asleep;
 	$plan['geofence_known'] = ! empty( $model3['geofence_known'] );
 	$plan['at_home']       = function_exists( 'gaming_hub_tesla_model3_input_at_home' )
@@ -1828,7 +1833,7 @@ function gaming_hub_tesla_plan_auto_note( array $plan, array $auto ) {
 		return __('Asleep — no charge commands. Battery % stays at the pre-sleep value.', 'gaming-hub');
 	}
 
-	$plugged = ! empty( $plan['live_charging'] ) || 'home' === (string) ( $plan['live_supply'] ?? '' );
+	$plugged = ! empty( $plan['live_charging'] ) || ! empty( $plan['input_plugged'] );
 	if ( $plugged && empty( $plan['geofence_known'] ) ) {
 		if ( function_exists( 'gaming_hub_tesla_has_location_scope' ) && ! gaming_hub_tesla_has_location_scope() ) {
 			return __('Cannot detect home without the location scope. Re-authenticate from the Tesla tag page (vehicle_location required).', 'gaming-hub');

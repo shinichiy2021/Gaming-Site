@@ -15,6 +15,7 @@ if ( mountNode ) {
 		home: 'リビングエアコン他',
 		ups: '常時稼働エリア (UPS)',
 		extra: 'Extra Battery 1kW',
+		mainPack: 'Main pack',
 		battery: 'バッテリー',
 		pro: 'Delta Pro 3',
 		delta: 'Delta 3 1500',

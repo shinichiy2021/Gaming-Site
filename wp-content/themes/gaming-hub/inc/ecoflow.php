@@ -510,17 +510,19 @@ function gaming_hub_parse_ecoflow_quota( $quota, $device_sn, $device_name, $onli
 		}
 	}
 
+	// powInSumW is often 0 on Delta 1500 while Low Volt (mppt / powGetPvL) is charging.
+	$feed_parts = array_filter( array( $solar, $hv_in, $ac_in ), 'is_numeric' );
+	$feed_sum   = ! empty( $feed_parts ) ? array_sum( $feed_parts ) : null;
+	if ( null === $input || ( null !== $feed_sum && (float) $feed_sum > (float) $input ) ) {
+		if ( null !== $feed_sum ) {
+			$input = $feed_sum;
+		}
+	}
+
 	$chg_dsg_state = gaming_hub_ecoflow_chg_dsg_state( $quota );
 	$is_charging   = gaming_hub_ecoflow_is_charging( $quota, $input, $output, $chg_dsg_state );
 	$is_discharging = gaming_hub_ecoflow_is_discharging( $quota, $input, $output, $chg_dsg_state );
 	$remain        = gaming_hub_ecoflow_remain_time( $quota, $is_charging, $is_discharging );
-
-	if ( null === $input ) {
-		$parts = array_filter( array( $solar, $hv_in ), 'is_numeric' );
-		if ( ! empty( $parts ) ) {
-			$input = array_sum( $parts );
-		}
-	}
 
 	if ( null === $remain_cap && null !== $capacity && null !== $battery ) {
 		$remain_cap = $capacity * ( $battery / 100 );
@@ -562,6 +564,7 @@ function gaming_hub_parse_ecoflow_quota( $quota, $device_sn, $device_name, $onli
 			$parsed['solar_in']        = max( 0, (int) round( (float) $lv_in ) );
 			$parsed['solar_in_source'] = 'mqtt';
 			$parsed['input_total']     = max( (float) ( $parsed['input_total'] ?? 0 ), (float) $parsed['solar_in'] );
+			$parsed                    = gaming_hub_ecoflow_sync_device_activity( $parsed );
 		} else {
 			$parsed['solar_in']        = null;
 			$parsed['solar_in_source'] = '';
@@ -2170,6 +2173,10 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 			$solar_watts                             = max( 0, (int) round( $solar ) );
 			$status['secondary']['solar_in']        = $solar_watts;
 			$status['secondary']['solar_in_source'] = 'mqtt';
+			$status['secondary']['input_total']     = max(
+				(float) ( $status['secondary']['input_total'] ?? 0 ),
+				(float) $solar_watts
+			);
 			$status['solar_in']                     = $solar_watts;
 			$status['solar_delta']                  = $solar_watts;
 			$status['solar_in_source']              = 'mqtt';
@@ -2178,10 +2185,9 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 
 	$ac_out = gaming_hub_ecoflow_ac_output_watts( gaming_hub_ecoflow_delta1500_quota( $status['secondary'] ) );
 	if ( null !== $ac_out ) {
-		$watts                                 = (int) round( max( 0, (float) $ac_out ) );
-		$status['secondary']['ac_out']        = $watts;
-		$status['secondary']                  = gaming_hub_ecoflow_sync_device_activity( $status['secondary'] );
-		$status['ups_plug']                    = array(
+		$watts                          = (int) round( max( 0, (float) $ac_out ) );
+		$status['secondary']['ac_out'] = $watts;
+		$status['ups_plug']             = array(
 			'watts'      => $watts,
 			'source'     => 'ecoflow',
 			'online'     => ! empty( $status['secondary']['online'] ),
@@ -2197,37 +2203,82 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 	$ac_in = gaming_hub_ecoflow_ac_input_watts( gaming_hub_ecoflow_delta1500_quota( $status['secondary'] ) );
 	$status['secondary']['ac_in'] = null !== $ac_in ? (int) round( max( 0, (float) $ac_in ) ) : null;
 
+	$status['secondary'] = gaming_hub_ecoflow_attach_device_pack_eta(
+		gaming_hub_ecoflow_sync_device_activity( $status['secondary'] )
+	);
+
 	return $status;
 }
 
 /**
  * Keep charge/discharge flags in sync with live watts.
  *
- * Delta 1500 often reports pd.chgDsgState = 0 (idle) while AC out is active.
+ * Delta 1500 often reports pd.chgDsgState / bmsChgDsgState = 0 (idle) while
+ * Low Volt MPPT or AC out is active. Also powInSumW can stay 0 while solar_in
+ * (Low Volt) is charging the pack.
  *
  * @param array<string, mixed> $device Device status slice.
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_sync_device_activity( array $device ) {
-	if ( ! empty( $device['is_charging'] ) ) {
-		return $device;
-	}
+	$thr = defined( 'GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W' )
+		? (int) GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W
+		: 8;
+
+	$solar = ( isset( $device['solar_in'] ) && is_numeric( $device['solar_in'] ) ) ? max( 0, (float) $device['solar_in'] ) : 0.0;
+	$ac_in = ( isset( $device['ac_in'] ) && is_numeric( $device['ac_in'] ) ) ? max( 0, (float) $device['ac_in'] ) : 0.0;
+	$hv_in = ( isset( $device['hv_in'] ) && is_numeric( $device['hv_in'] ) ) ? max( 0, (float) $device['hv_in'] ) : 0.0;
+	$input = ( isset( $device['input_total'] ) && is_numeric( $device['input_total'] ) ) ? max( 0, (float) $device['input_total'] ) : 0.0;
+	$input = max( $input, $solar + $ac_in + $hv_in, $solar, $ac_in, $hv_in );
 
 	$out = 0.0;
-	foreach ( array( 'ac_out', 'output_total', 'dc_out' ) as $key ) {
+	foreach ( array( 'ac_out', 'output_total', 'dc_out', 'output_watts' ) as $key ) {
 		if ( isset( $device[ $key ] ) && is_numeric( $device[ $key ] ) ) {
 			$out = max( $out, (float) $device[ $key ] );
 		}
 	}
 
-	if ( $out < GAMING_HUB_ECOFLOW_FLOW_THRESHOLD_W ) {
+	$net_charge = $input - $out;
+	$charging   = ! empty( $device['is_charging'] )
+		|| $net_charge >= $thr
+		|| $solar >= $thr
+		|| ( $ac_in >= $thr && $net_charge >= -$thr )
+		|| ( $hv_in >= $thr && $net_charge >= -$thr );
+
+	if ( $charging ) {
+		$device['is_charging']      = true;
+		$device['is_discharging']   = false;
+		$device['charge_state_key'] = 'charging';
+		$device['input_total']      = max( (float) ( $device['input_total'] ?? 0 ), $input );
+
+		if ( $ac_in >= 50 && $ac_in >= $solar && $ac_in >= $hv_in ) {
+			$device['charge_state'] = __('Grid charging', 'gaming-hub');
+		} elseif ( $hv_in >= 50 && $hv_in >= $solar ) {
+			$device['charge_state'] = __('High-volt charging', 'gaming-hub');
+		} elseif ( $solar >= 50 ) {
+			$device['charge_state'] = __('Low Volt charging', 'gaming-hub');
+		} else {
+			$device['charge_state'] = __('Charging', 'gaming-hub');
+		}
+
 		return $device;
 	}
 
-	$device['is_discharging'] = true;
+	if ( $out < $thr ) {
+		return $device;
+	}
+
+	$device['is_discharging']   = true;
 	$device['charge_state_key'] = 'discharging';
-	$state                    = (string) ( $device['charge_state'] ?? '' );
-	if ( '' === $state || false !== strpos( $state, '待機' ) || 0 === strcasecmp( $state, 'Idle' ) || 0 === strcasecmp( $state, 'Standby' ) ) {
+	$state                     = (string) ( $device['charge_state'] ?? '' );
+	if (
+		'' === $state
+		|| false !== strpos( $state, '待機' )
+		|| 0 === strcasecmp( $state, 'Idle' )
+		|| 0 === strcasecmp( $state, 'Standby' )
+		|| 0 === strcasecmp( $state, 'Inputting' )
+		|| false !== strpos( $state, '入力' )
+	) {
 		$device['charge_state'] = __('Discharging', 'gaming-hub');
 	}
 
@@ -2583,7 +2634,7 @@ function gaming_hub_ecoflow_charge_state_label( $quota, $is_charging, $is_discha
 			return __('High-volt charging', 'gaming-hub');
 		}
 		if ( $solar_w >= 50 ) {
-			return __('Solar charging', 'gaming-hub');
+			return __('Low Volt charging', 'gaming-hub');
 		}
 		return __('Charging', 'gaming-hub');
 	}
@@ -3064,6 +3115,7 @@ function gaming_hub_ecoflow_scripts() {
 					'pro'         => __( 'Delta Pro 3', 'gaming-hub' ),
 					'delta'       => __( 'Delta 3 1500', 'gaming-hub' ),
 					'extra'       => __( 'Extra Battery 1kW', 'gaming-hub' ),
+					'mainPack'    => __( 'Main pack', 'gaming-hub' ),
 					'dcLink'      => __( 'DC 12V', 'gaming-hub' ),
 					'acLink'      => __( 'DC 12V', 'gaming-hub' ),
 					'acOut'       => __('AC out', 'gaming-hub'),

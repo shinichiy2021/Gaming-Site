@@ -7,7 +7,8 @@
 	}
 
 	const endpoint = gamingHubTeslaGas.url || '';
-	const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+	const weekdaysJa = ['日', '月', '火', '水', '木', '金', '土'];
+	const weekdaysEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 	let summaryData = parseSummary(root.getAttribute('data-summary'));
 	let summaryPeriod = 'day';
 
@@ -58,14 +59,20 @@
 		if (value === null || value === undefined || value === '') {
 			return '—';
 		}
-		return Math.round(Number(value)).toLocaleString() + ' 円';
+		return window.gamingHubYen
+			? window.gamingHubYen(value)
+			: Math.round(Number(value)).toLocaleString() + ' 円';
 	}
 
 	function formatAvg(value) {
 		if (value === null || value === undefined || value === '') {
 			return '—';
 		}
-		return Number(value).toFixed(1) + ' 円/km';
+		const amount = Number(value).toFixed(1);
+		if (window.gamingHubLang && window.gamingHubLang() === 'en') {
+			return '¥' + amount + '/km';
+		}
+		return amount + ' 円/km';
 	}
 
 	function formatWhen(ymd) {
@@ -77,15 +84,25 @@
 		if (Number.isNaN(dt.getTime())) {
 			return String(ymd);
 		}
-		return (dt.getMonth() + 1) + '/' + dt.getDate() + '（' + weekdays[dt.getDay()] + '）';
+		const isEn = window.gamingHubLang && window.gamingHubLang() === 'en';
+		const weekdays = isEn ? weekdaysEn : weekdaysJa;
+		if (isEn) {
+			const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+			return months[dt.getMonth()] + ' ' + dt.getDate() + ' (' + weekdays[dt.getDay()] + ')';
+		}
+		return (dt.getMonth() + 1) + '月' + dt.getDate() + '日 (' + weekdays[dt.getDay()] + ')';
 	}
 
 	function formatNow(now) {
 		const yenH = now && Number(now.saved_yen_per_h);
 		if (!now || now.asleep || !yenH) {
-			return t('待機');
+			return t('Standby');
 		}
-		return Math.round(yenH).toLocaleString() + ' 円/時';
+		const amount = Math.round(yenH).toLocaleString();
+		if (window.gamingHubLang && window.gamingHubLang() === 'en') {
+			return '¥' + amount + '/h';
+		}
+		return amount + ' 円/時';
 	}
 
 	function setText(sel, text) {
@@ -208,7 +225,10 @@
 		if (!endpoint) {
 			return;
 		}
-		const url = endpoint + (month ? '?month=' + encodeURIComponent(month) : '');
+		let url = endpoint + (month ? '?month=' + encodeURIComponent(month) : '');
+		if (window.gamingHubWithLang) {
+			url = window.gamingHubWithLang(url);
+		}
 		fetch(url, { credentials: 'same-origin' })
 			.then(function (res) {
 				return res.json();

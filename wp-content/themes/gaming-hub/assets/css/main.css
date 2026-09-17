@@ -2217,6 +2217,93 @@ body.home .site-header.is-scrolled {
 	color: rgba(244, 241, 234, 0.5);
 }
 
+.teslogic-pack-unit {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin-top: 10px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.teslogic-pack-cell {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	padding: 8px 10px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.04);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.teslogic-pack-cell.is-charging {
+	border-color: rgba(105, 240, 174, 0.45);
+	background: rgba(105, 240, 174, 0.08);
+}
+
+.teslogic-pack-cell.is-discharging {
+	border-color: rgba(255, 214, 0, 0.4);
+}
+
+.teslogic-pack-cell.is-unavailable {
+	opacity: 0.55;
+}
+
+.teslogic-pack-cell__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.teslogic-pack-cell__label {
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: rgba(244, 241, 234, 0.62);
+}
+
+.teslogic-pack-cell__soc {
+	font-size: 0.95rem;
+	font-weight: 800;
+	font-variant-numeric: tabular-nums;
+	color: #f4f1ea;
+}
+
+.teslogic-pack-cell__bar {
+	display: block;
+	height: 6px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.1);
+	overflow: hidden;
+}
+
+.teslogic-pack-cell__fill {
+	display: block;
+	height: 100%;
+	width: calc(var(--battery-level, 0) * 1%);
+	border-radius: inherit;
+	background: var(--batt-tone, #ffd600);
+	transition: width 0.35s ease;
+}
+
+.teslogic-pack-cell__cap {
+	font-size: 0.68rem;
+	color: rgba(244, 241, 234, 0.5);
+}
+
+.teslogic-pack-cell .ecoflow-node-eta {
+	margin: 0;
+	text-align: left;
+	font-size: 0.65rem;
+}
+
+.teslogic-card--battery .teslogic-pack-unit {
+	width: 100%;
+}
+
 .teslogic-batt-icon {
 	display: inline-flex;
 	align-items: center;
@@ -9045,6 +9132,17 @@ body.home .site-header.is-scrolled {
 
 	.teslogic-battery__soc {
 		font-size: 1.45rem;
+	}
+
+	.teslogic-pack-unit {
+		grid-template-columns: 1fr;
+		gap: 6px;
+		margin-top: 8px;
+		padding-top: 8px;
+	}
+
+	.teslogic-pack-cell {
+		padding: 8px;
 	}
 
 	.teslogic-batt-icon__body {

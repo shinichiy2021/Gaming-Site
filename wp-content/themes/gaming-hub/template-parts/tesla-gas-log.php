@@ -42,14 +42,20 @@ $format_yen = static function ( $value ) {
 	if ( null === $value || '' === $value ) {
 		return '—';
 	}
-	return number_format( (float) $value, 0 ) . ' 円';
+	return function_exists( 'gaming_hub_yen' )
+		? gaming_hub_yen( $value )
+		: number_format( (float) $value, 0 ) . ' 円';
 };
 
 $format_avg = static function ( $value ) {
 	if ( null === $value || '' === $value ) {
 		return '—';
 	}
-	return number_format( (float) $value, 1 ) . ' 円/km';
+	$amount = number_format( (float) $value, 1 );
+
+	return function_exists( 'gaming_hub_lang' ) && 'en' === gaming_hub_lang()
+		? '¥' . $amount . '/km'
+		: $amount . ' 円/km';
 };
 
 $format_when = static function ( $ymd ) {
@@ -73,7 +79,11 @@ $rows = array_reverse( $rows );
 
 $now_yen_h = (int) ( $now['saved_yen_per_h'] ?? 0 );
 $now_idle  = ! empty( $now['asleep'] ) || $now_yen_h <= 0;
-$now_text  = $now_idle ? __('Standby', 'gaming-hub') : ( number_format( $now_yen_h ) . ' 円/時' );
+$now_text  = $now_idle
+	? __('Standby', 'gaming-hub')
+	: ( function_exists( 'gaming_hub_lang' ) && 'en' === gaming_hub_lang()
+		? '¥' . number_format( $now_yen_h ) . '/h'
+		: number_format( $now_yen_h ) . ' 円/時' );
 $price_label = (string) ( $now['price_label'] ?? '' );
 ?>
 

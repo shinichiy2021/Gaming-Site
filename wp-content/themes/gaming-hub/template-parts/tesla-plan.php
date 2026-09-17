@@ -75,12 +75,16 @@ for ( $h = 0; $h < 24; $h++ ) {
 $now_slot = $by_hour[ $now_hour ] ?? array();
 $now_mode = (string) ( $now_slot['mode'] ?? 'idle' );
 $live_charging = $is_today && ! empty( $plan['live_charging'] );
+$live_moving   = $is_today && ! empty( $plan['live_moving'] );
 $live_charge_w = (int) ( $plan['live_charge_w'] ?? 0 );
 $asleep        = $is_today && ! empty( $plan['asleep'] );
 if ( $asleep ) {
 	$now_mode = 'sleep';
 } elseif ( $live_charging ) {
 	$now_mode = 'charge';
+} elseif ( $is_today ) {
+	// Live day: show vehicle state, not the plan hour's expected drive/charge.
+	$now_mode = $live_moving ? 'drive' : 'idle';
 }
 $mode_label = array(
 	'charge' => __('Charge', 'gaming-hub'),
@@ -167,9 +171,11 @@ $plan_day   = (string) ( $plan['plan_day'] ?? 'today' );
 					);
 				} elseif ( $live_charging ) {
 					echo esc_html( number_format_i18n( max( 0, $live_charge_w ) ) . ' W' );
-				} elseif ( 'drive' === $now_mode && isset( $now_slot['drive_km'] ) ) {
+				} elseif ( $live_moving && isset( $plan['live_speed_km'] ) && (int) $plan['live_speed_km'] > 0 ) {
+					echo esc_html( number_format_i18n( (int) $plan['live_speed_km'] ) . ' km/h' );
+				} elseif ( 'drive' === $now_mode && isset( $now_slot['drive_km'] ) && ! $is_today ) {
 					echo esc_html( number_format_i18n( (float) $now_slot['drive_km'], 1 ) . ' km' );
-				} elseif ( isset( $now_slot['watts'] ) && null !== $now_slot['watts'] ) {
+				} elseif ( isset( $now_slot['watts'] ) && null !== $now_slot['watts'] && ! $is_today ) {
 					echo esc_html( number_format_i18n( (int) $now_slot['watts'] ) . ' W' );
 				} else {
 					echo '—';

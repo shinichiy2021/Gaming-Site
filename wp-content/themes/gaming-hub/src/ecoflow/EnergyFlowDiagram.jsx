@@ -428,6 +428,7 @@ function PackBatteryCard( {
 	stateLabel,
 	packLabel,
 	eta,
+	children,
 } ) {
 	const tone = batteryTone( hasSoc ? soc : NaN );
 	const classes = [
@@ -471,6 +472,49 @@ function PackBatteryCard( {
 			<span className="teslogic-battery__name">{ label }</span>
 			<small className="teslogic-battery__state">{ stateLabel }</small>
 			{ eta }
+			{ children }
+		</div>
+	);
+}
+
+function PackCell( {
+	flowId,
+	label,
+	soc,
+	hasSoc,
+	capLabel,
+	charging,
+	discharging,
+	unavailable,
+	eta,
+} ) {
+	const tone = batteryTone( hasSoc ? soc : NaN );
+	const classes = [
+		'teslogic-pack-cell',
+		charging ? 'is-charging' : '',
+		discharging ? 'is-discharging' : '',
+		unavailable ? 'is-unavailable' : '',
+		tone.className,
+	].filter( Boolean ).join( ' ' );
+
+	return (
+		<div
+			className={ classes }
+			data-flow-id={ flowId }
+			style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }
+		>
+			<div className="teslogic-pack-cell__head">
+				<span className="teslogic-pack-cell__label">{ label }</span>
+				<strong className="teslogic-pack-cell__soc">{ hasSoc ? formatSoc( soc ) : '—' }</strong>
+			</div>
+			<span
+				className="teslogic-pack-cell__bar"
+				aria-hidden="true"
+			>
+				<span className="teslogic-pack-cell__fill" />
+			</span>
+			<small className="teslogic-pack-cell__cap">{ capLabel }</small>
+			{ eta }
 		</div>
 	);
 }
@@ -513,6 +557,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 		: ( extra.capacity_source === 'stale' ? `${ extraCapText } · ${ extraLastLabel }` : extraCapText );
 	const deltaMissing = isDeltaMqttMissing( status );
 	const upsLive = status.ups_source === 'ecoflow' || status.ups_source === 'switchbot';
+	const na = typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a';
 	const extraCharging = ! extraMissing && ! deltaMissing && (
 		extra.eta_mode === 'charge' || !! extra.is_charging
 	);
@@ -565,18 +610,36 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const deltaTodayKwh = deltaCharging
 		? whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta )
 		: whToKwh( liveUsage?.ups );
-	const deltaFullWh = Number( delta.capacity_wh );
-	const deltaRemainWh = Number.isFinite( Number( delta.remain_capacity ) )
+	const mainFullWh = Number.isFinite( Number( delta.capacity_wh ) ) && Number( delta.capacity_wh ) > 0
+		? Number( delta.capacity_wh )
+		: 1500;
+	const unitFullWh = mainFullWh + ( extraMissing ? 0 : extraCap );
+	const mainRemainWh = Number.isFinite( Number( delta.remain_capacity ) )
 		? Number( delta.remain_capacity )
-		: ( hasDeltaSoc && Number.isFinite( deltaFullWh ) ? deltaFullWh * deltaSocNum / 100 : null );
+		: ( hasDeltaSoc ? mainFullWh * deltaSocNum / 100 : null );
+	const extraRemainWh = ! extraMissing && Number.isFinite( Number( extra.remain_capacity ) )
+		? Number( extra.remain_capacity )
+		: ( ! extraMissing && extraSoc !== null ? extraCap * extraSoc / 100 : 0 );
+	const unitRemainWh = mainRemainWh === null
+		? null
+		: mainRemainWh + ( extraMissing ? 0 : extraRemainWh );
+	const mainSoc = hasDeltaSoc ? deltaSocNum : null;
+	const hasMainSoc = hasDeltaSoc;
+	const unitSoc = ( unitRemainWh !== null && unitFullWh > 0 )
+		? Math.max( 0, Math.min( 100, ( unitRemainWh / unitFullWh ) * 100 ) )
+		: deltaSocNum;
+	const hasUnitSoc = ! deltaMissing && unitSoc !== null;
 	const deltaPackLabel = deltaMissing
 		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
-		: ( Number.isFinite( deltaFullWh ) && deltaFullWh > 0 ? formatPack( deltaRemainWh, deltaFullWh ) : '' );
+		: ( unitFullWh > 0 ? formatPack( unitRemainWh, unitFullWh ) : '' );
+	const mainCapLabel = deltaMissing
+		? na
+		: formatPack( mainRemainWh, mainFullWh );
+	const unitCharging = deltaCharging || extraCharging;
+	const unitDischarging = ! unitCharging && ( deltaDischarging || extraDischarging );
 
 	const solarShare = pctOf( asWatts( solarWatts ), Math.max( deltaInW, 1 ) );
 	const upsShare = pctOf( deltaOutW, Math.max( deltaOutW, 1 ) );
-
-	const na = typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a';
 
 	return (
 		<div className="ecoflow-dual-layout is-independent teslogic-dual">
@@ -681,17 +744,41 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 					<PackBatteryCard
 						flowId="delta"
 						label={ labels.delta }
-						soc={ deltaSocNum }
-						hasSoc={ hasDeltaSoc }
-						charging={ deltaCharging }
-						discharging={ deltaDischarging }
+						soc={ unitSoc }
+						hasSoc={ hasUnitSoc }
+						charging={ unitCharging }
+						discharging={ unitDischarging }
 						unavailable={ deltaMissing }
 						currentW={ deltaCurrentW }
 						totalKwh={ deltaTodayKwh }
 						stateLabel={ deltaMissing ? na : ( delta.charge_state || '—' ) }
 						packLabel={ deltaPackLabel }
 						eta={ deltaMissing ? null : <PackEta device={ delta } /> }
-					/>
+					>
+						<div className="teslogic-pack-unit" aria-label={ labels.delta }>
+							<PackCell
+								flowId="delta-main"
+								label={ labels.mainPack || 'Main pack' }
+								soc={ mainSoc }
+								hasSoc={ hasMainSoc }
+								capLabel={ mainCapLabel }
+								charging={ deltaCharging }
+								discharging={ deltaDischarging && ! deltaCharging }
+								unavailable={ deltaMissing }
+							/>
+							<PackCell
+								flowId="extra"
+								label={ labels.extra || 'Extra Battery 1kW' }
+								soc={ extraSoc }
+								hasSoc={ ! extraMissing && ! deltaMissing }
+								capLabel={ extraCapLabel }
+								charging={ extraCharging }
+								discharging={ extraDischarging }
+								unavailable={ extraMissing || deltaMissing }
+								eta={ ( ! extraMissing && ! deltaMissing ) ? <PackEta device={ extra } /> : null }
+							/>
+						</div>
+					</PackBatteryCard>
 
 					<FlowCard
 						flowId="solar"
@@ -715,28 +802,9 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 					/>
 				</div>
 
-				<div className="teslogic-bottom">
-					<FlowCard
-						flowId="extra"
-						className="teslogic-card--aux"
-						label={ labels.extra || 'Extra Battery 1kW' }
-						icon="🔋"
-						active={ ! extraMissing && ! deltaMissing && ( extraCharging || extraDischarging ) }
-						unavailable={ extraMissing }
-						currentLabel="Current"
-						currentValue={ extraMissing ? na : formatSoc( extraSoc ) }
-						totalLabel="Total"
-						totalValue={ extraCapLabel }
-						currentPct={ extraMissing ? 0 : extraSoc }
-						totalPct={ extraMissing ? 0 : extraSoc }
-						showBars
-						note={ extraCharging ? ( labels.charging || '充電' ) : ( extraDischarging ? ( labels.discharging || '放電' ) : null ) }
-						extra={ ( ! extraMissing && ! deltaMissing ) ? <PackEta device={ extra } /> : null }
-					/>
-
+				<div className="teslogic-bottom teslogic-bottom--single">
 					<FlowCard
 						flowId="ups"
-						className="teslogic-card--aux"
 						label={ labels.ups || '常時稼働エリア (UPS)' }
 						icon="🔌"
 						active={ ! ( deltaMissing && status.ups_source !== 'switchbot' ) && isFlowActive( 'deltaToUps', status ) }

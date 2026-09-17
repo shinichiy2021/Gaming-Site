@@ -367,8 +367,11 @@
 		const nowSlot = byHour[hour] || {};
 		const asleepNow = isLiveDay && !!(plan.asleep || (views.today && views.today.asleep));
 		const liveCharging = isLiveDay && !asleepNow && !!(liveCharge.charging || plan.live_charging);
+		const liveMoving = isLiveDay && !asleepNow && !liveCharging && !!(plan.live_moving);
 		const liveWatts = Number(liveCharge.watts || plan.live_charge_w || 0);
-		const nowMode = asleepNow ? 'sleep' : (liveCharging ? 'charge' : (isLiveDay ? (nowSlot.mode || 'idle') : 'idle'));
+		const nowMode = asleepNow
+			? 'sleep'
+			: (liveCharging ? 'charge' : (isLiveDay ? (liveMoving ? 'drive' : 'idle') : (nowSlot.mode || 'idle')));
 		const nowEl = root.querySelector('[data-tesla-plan-now-mode]');
 		const nowWrap = root.querySelector('.ecoflow-plan-stat-now');
 		if (nowEl) {
@@ -386,9 +389,11 @@
 			);
 		} else if (liveCharging) {
 			setText('[data-tesla-plan-now-watts]', Math.round(Math.max(0, liveWatts)).toLocaleString() + ' W');
-		} else if (nowMode === 'drive' && nowSlot.drive_km != null) {
+		} else if (liveMoving && Number(plan.live_speed_km) > 0) {
+			setText('[data-tesla-plan-now-watts]', Math.round(Number(plan.live_speed_km)).toLocaleString() + ' km/h');
+		} else if (!isLiveDay && nowMode === 'drive' && nowSlot.drive_km != null) {
 			setText('[data-tesla-plan-now-watts]', Number(nowSlot.drive_km).toFixed(1) + ' km');
-		} else if (nowSlot.watts != null) {
+		} else if (!isLiveDay && nowSlot.watts != null) {
 			setText('[data-tesla-plan-now-watts]', Math.round(Number(nowSlot.watts)).toLocaleString() + ' W');
 		} else {
 			setText('[data-tesla-plan-now-watts]', '—');
