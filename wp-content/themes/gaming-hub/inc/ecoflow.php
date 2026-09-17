@@ -355,7 +355,10 @@ function gaming_hub_ecoflow_layout_demo_status() {
 }
 
 function gaming_hub_get_ecoflow_status( $force_refresh = false ) {
-	if ( gaming_hub_ecoflow_is_local_host() ) {
+	$demos_ok = function_exists( 'gaming_hub_layout_demos_allowed' ) && gaming_hub_layout_demos_allowed();
+
+	// Local layout fixture only when demos are allowed and the API is not configured.
+	if ( $demos_ok && ! gaming_hub_ecoflow_is_configured() ) {
 		return gaming_hub_ecoflow_layout_demo_status();
 	}
 
@@ -2959,7 +2962,9 @@ function gaming_hub_render_ecoflow_setup_instructions() {
  * latency does not block the rest of the page (e.g. articles below).
  */
 function gaming_hub_render_ecoflow_dashboard() {
-	if ( gaming_hub_ecoflow_is_local_host() ) {
+	$demos_ok = function_exists( 'gaming_hub_layout_demos_allowed' ) && gaming_hub_layout_demos_allowed();
+
+	if ( $demos_ok && ! gaming_hub_ecoflow_is_configured() ) {
 		get_template_part(
 			'template-parts/ecoflow',
 			'dashboard',
