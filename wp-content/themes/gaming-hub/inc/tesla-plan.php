@@ -514,13 +514,27 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 	}
 
 	if ( false === $at_home ) {
-		return array(
-			'type'     => 'away_ac',
-			'label'    => __('Away AC', 'gaming-hub'),
-			'watts'    => $charging ? max( $wall_w, $watts ) : 0,
-			'plugged'  => true,
-			'charging' => $charging,
+		$dist = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
+			? (int) $model3['geofence_distance_m']
+			: null;
+		$home_radius = function_exists( 'gaming_hub_tesla_home_geofence' )
+			? (float) ( gaming_hub_tesla_home_geofence()['radius_m'] ?? 400 )
+			: 400.0;
+		$far_away = null !== $dist && $dist > (int) max( 3000, 8 * $home_radius );
+		$prefer_home = ! $far_away && (
+			! empty( $model3['at_home_sticky'] )
+			|| ( function_exists( 'gaming_hub_tesla_home_plugged_recent' ) && gaming_hub_tesla_home_plugged_recent() )
 		);
+
+		if ( ! $prefer_home ) {
+			return array(
+				'type'     => 'away_ac',
+				'label'    => __('Away AC', 'gaming-hub'),
+				'watts'    => $charging ? max( $wall_w, $watts ) : 0,
+				'plugged'  => true,
+				'charging' => $charging,
+			);
+		}
 	}
 
 	return array(

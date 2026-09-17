@@ -2044,9 +2044,22 @@ function gaming_hub_tesla_at_home_resolve( array $geofence, $moving, $supercharg
 		// AC plugged + previously home: ignore a near-miss away fix (parked GPS lag).
 		$home     = gaming_hub_tesla_home_geofence();
 		$dist     = isset( $geofence['distance_m'] ) ? (int) $geofence['distance_m'] : null;
-		$near     = null !== $dist && $dist <= (int) max( 2000, 5 * (float) $home['radius_m'] );
-		$far_away = null !== $dist && $dist > (int) max( 1500, 3 * (float) $home['radius_m'] );
-		if ( $ac_plugged && ( ! $far_away && gaming_hub_tesla_at_home_sticky_active() || $near ) ) {
+		$near     = null !== $dist && $dist <= (int) max( 2500, 6 * (float) $home['radius_m'] );
+		$far_away = null !== $dist && $dist > (int) max( 3000, 8 * (float) $home['radius_m'] );
+
+		// Wall Connector / home AC: prefer home unless GPS is clearly far from the house.
+		if ( $ac_plugged && ! $far_away ) {
+			gaming_hub_tesla_at_home_sticky_mark();
+
+			return array(
+				'at_home'             => true,
+				'geofence_known'      => true,
+				'geofence_distance_m' => $dist,
+				'at_home_sticky'      => true,
+			);
+		}
+
+		if ( ! $ac_plugged && $near && gaming_hub_tesla_at_home_sticky_active() ) {
 			gaming_hub_tesla_at_home_sticky_mark();
 
 			return array(

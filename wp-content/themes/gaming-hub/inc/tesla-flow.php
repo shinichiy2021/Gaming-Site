@@ -251,11 +251,11 @@ function gaming_hub_tesla_date_span_label( $start_date, $end_date ) {
 function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simulated' ) {
 	$live = ( 'tesla' === $source ) || ! empty( $model3['live'] );
 
-	// Layout fixture only when there is no live Tesla slice — never mask real today_km / drive_kwh.
+	// Layout fixture only when demos are allowed and there is no live Tesla slice.
 	if (
 		! $live
-		&& function_exists( 'gaming_hub_tesla_is_local_host' )
-		&& gaming_hub_tesla_is_local_host()
+		&& function_exists( 'gaming_hub_layout_demos_allowed' )
+		&& gaming_hub_layout_demos_allowed()
 	) {
 		return gaming_hub_tesla_layout_demo_payload( $model3 );
 	}
@@ -545,7 +545,9 @@ function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simula
 		'vehicle_name'    => (string) ( $model3['vehicle_name'] ?? 'Model 3' ),
 		'supply_kind'     => $kind,
 		'supply_label'    => (string) ( $model3['supply_label'] ?? '' ),
-		'at_home'         => array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null,
+		'at_home'         => function_exists( 'gaming_hub_tesla_model3_input_at_home' )
+			? gaming_hub_tesla_model3_input_at_home( $model3 )
+			: ( array_key_exists( 'at_home', $model3 ) ? $model3['at_home'] : null ),
 		'input_type'      => (string) ( $input['type'] ?? 'none' ),
 		'input_label'     => (string) ( $input['label'] ?? '' ),
 		'input_watts'     => (int) ( $input['watts'] ?? 0 ),

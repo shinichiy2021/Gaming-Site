@@ -30,6 +30,7 @@ services:
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_HOME', '${WP_HOME:-https://shinichiy-gaming-hub.com}');
         define('WP_SITEURL', '${WP_SITEURL:-https://shinichiy-gaming-hub.com}');
+        define('WP_ENVIRONMENT_TYPE', 'production');
         if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           $$_SERVER['HTTPS'] = 'on';
         }
