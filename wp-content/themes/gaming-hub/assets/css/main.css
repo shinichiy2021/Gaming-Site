@@ -2121,10 +2121,13 @@ body.home .site-header.is-scrolled {
 }
 
 .tesla-flow-map.teslogic-map .teslogic-metric__value {
-	font-size: clamp(0.78rem, 1.15vw, 0.98rem);
+	font-size: clamp(0.72rem, 1.05vw, 0.92rem);
 	line-height: 1.25;
 	white-space: normal;
 	overflow-wrap: anywhere;
+	min-height: 2.6em;
+	display: flex;
+	align-items: flex-end;
 }
 
 .tesla-flow-map.teslogic-map .teslogic-metric__label {
