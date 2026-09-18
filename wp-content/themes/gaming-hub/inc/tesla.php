@@ -3105,13 +3105,16 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 		$saved['session_gps']        = function_exists( 'gaming_hub_tesla_charge_gps_capture' )
 			? gaming_hub_tesla_charge_gps_capture( $meta )
 			: null;
-		$last_added                  = null;
+		// Baseline the car counter — never ingest a leftover prior-session total
+		// as brand-new energy on the first poll of a flicker / reconnect.
+		$last_added = $added;
 	}
 
 	$delta_kwh = 0.0;
 	if ( null !== $added && ( $accumulate || $was_on ) ) {
 		// A counter that went backwards means the car began a new charge between
-		// polls, so everything it reports now is new energy.
+		// polls, so everything it reports now is new energy — but only when the
+		// absolute dump is still plausible for Wall Connector power.
 		if ( null !== $last_added && $added >= $last_added ) {
 			$delta_kwh = $added - $last_added;
 		} elseif ( null === $last_added && (float) ( $saved['session_wh'] ?? 0 ) > 0 ) {
@@ -3125,6 +3128,20 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 		$gap = $now - $last_ts;
 		if ( $gap > 0 && $gap <= $max_gap ) {
 			$delta_kwh = ( $last_w / 1000.0 ) * ( $gap / HOUR_IN_SECONDS );
+		}
+	}
+
+	// Cap a single tick to what ~15 kW AC could deliver over the gap (or 2 min).
+	if ( $delta_kwh > 0 ) {
+		$gap_for_cap = ( $last_ts > 0 && $last_ts < $now )
+			? max( 1, $now - $last_ts )
+			: ( 2 * MINUTE_IN_SECONDS );
+		$max_home_kw = defined( 'GAMING_HUB_TESLA_CHARGE_LOG_HOME_MAX_AVG_KW' )
+			? (float) GAMING_HUB_TESLA_CHARGE_LOG_HOME_MAX_AVG_KW
+			: 15.0;
+		$max_delta = $max_home_kw * ( $gap_for_cap / HOUR_IN_SECONDS );
+		if ( $delta_kwh > max( 0.75, $max_delta ) ) {
+			$delta_kwh = 0.0;
 		}
 	}
 
@@ -3167,6 +3184,8 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 	$saved['updated_at'] = $now;
 
 	if ( ! $accumulate ) {
+		$saved['session_wh']        = 0.0;
+		$saved['session_yen']       = 0.0;
 		$saved['session_start_ts']  = 0;
 		$saved['session_start_soc'] = null;
 		$saved['session_end_soc']   = null;
@@ -3232,7 +3251,8 @@ function gaming_hub_tesla_record_super_energy( $watts, $accumulate, $energy_adde
 		$saved['session_gps']       = function_exists( 'gaming_hub_tesla_charge_gps_capture' )
 			? gaming_hub_tesla_charge_gps_capture( $meta )
 			: null;
-		$last_added                 = null;
+		// Baseline car counter; do not dump a leftover prior-session total.
+		$last_added = $added;
 	}
 
 	$delta_kwh = 0.0;
@@ -3250,6 +3270,19 @@ function gaming_hub_tesla_record_super_energy( $watts, $accumulate, $energy_adde
 		$gap = $now - $last_ts;
 		if ( $gap > 0 && $gap <= $max_gap ) {
 			$delta_kwh = ( $last_w / 1000.0 ) * ( $gap / HOUR_IN_SECONDS );
+		}
+	}
+
+	if ( $delta_kwh > 0 ) {
+		$gap_for_cap = ( $last_ts > 0 && $last_ts < $now )
+			? max( 1, $now - $last_ts )
+			: ( 2 * MINUTE_IN_SECONDS );
+		$max_super_kw = defined( 'GAMING_HUB_TESLA_CHARGE_LOG_SUPER_MAX_AVG_KW' )
+			? (float) GAMING_HUB_TESLA_CHARGE_LOG_SUPER_MAX_AVG_KW
+			: 350.0;
+		$max_delta = $max_super_kw * ( $gap_for_cap / HOUR_IN_SECONDS );
+		if ( $delta_kwh > max( 2.0, $max_delta ) ) {
+			$delta_kwh = 0.0;
 		}
 	}
 
@@ -3287,6 +3320,8 @@ function gaming_hub_tesla_record_super_energy( $watts, $accumulate, $energy_adde
 	$saved['updated_at'] = $now;
 
 	if ( ! $accumulate ) {
+		$saved['session_wh']        = 0.0;
+		$saved['session_yen']       = 0.0;
 		$saved['session_start_ts']  = 0;
 		$saved['session_start_soc'] = null;
 		$saved['session_end_soc']   = null;
