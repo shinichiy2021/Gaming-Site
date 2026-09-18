@@ -9,43 +9,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.23.55' );
+define( 'GAMING_HUB_VERSION', '1.23.56' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
-
-/**
- * Whether layout fixture / demo payloads may be served.
- *
- * Never on production (WP_ENVIRONMENT_TYPE, WP_HOME, or public site host).
- * Local hosts only, and only as a layout fallback — not when live APIs are in use.
- */
-function gaming_hub_layout_demos_allowed() {
-	if ( function_exists( 'wp_get_environment_type' ) && 'production' === wp_get_environment_type() ) {
-		return false;
-	}
-
-	if ( defined( 'WP_HOME' ) && is_string( WP_HOME ) && '' !== WP_HOME ) {
-		$home_host = wp_parse_url( WP_HOME, PHP_URL_HOST );
-		if ( is_string( $home_host ) && '' !== $home_host ) {
-			$home_host = strtolower( $home_host );
-			if ( ! in_array( $home_host, array( 'localhost', '127.0.0.1', '::1' ), true )
-				&& ! preg_match( '/\.local$/', $home_host ) ) {
-				return false;
-			}
-		}
-	}
-
-	if ( function_exists( 'gaming_hub_tesla_is_local_host' ) ) {
-		return gaming_hub_tesla_is_local_host();
-	}
-
-	$parsed = wp_parse_url( home_url( '/' ), PHP_URL_HOST );
-	$host   = is_string( $parsed ) ? strtolower( $parsed ) : '';
-
-	return in_array( $host, array( 'localhost', '127.0.0.1', '::1' ), true )
-		|| (bool) preg_match( '/\.local$/', $host );
-}
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).
