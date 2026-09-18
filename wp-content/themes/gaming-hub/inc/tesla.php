@@ -37,6 +37,20 @@ define( 'GAMING_HUB_TESLA_STATUS_CACHE_KEY', 'gaming_hub_tesla_model3_status_v7'
 define( 'GAMING_HUB_TESLA_SKIP_KEY', 'gaming_hub_tesla_api_skip' );
 define( 'GAMING_HUB_TESLA_POLL_IDLE_TTL', 8 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_POLL_ACTIVE_TTL', 5 * MINUTE_IN_SECONDS );
+/** Phase 3: MQTT newer than this → treat HUD as live without Fleet REST. */
+define( 'GAMING_HUB_TESLA_TELEMETRY_FRESH_TTL', 5 * MINUTE_IN_SECONDS );
+/**
+ * Phase 3: even with fresh MQTT, pull vehicle_data this often for odometer /
+ * charge_energy_added (fields not on the telemetry stream).
+ */
+define( 'GAMING_HUB_TESLA_REST_ODO_TTL', 30 * MINUTE_IN_SECONDS );
+/** While Gear/Speed say moving, refresh odometer more often. */
+define( 'GAMING_HUB_TESLA_REST_ODO_DRIVING_TTL', 15 * MINUTE_IN_SECONDS );
+/**
+ * Phase 3: after MQTT goes quiet, keep skipping REST for this long (Soc is
+ * often 5 min) so brief gaps do not hammer Fleet.
+ */
+define( 'GAMING_HUB_TESLA_TELEMETRY_GRACE_TTL', 20 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_SLEEP_SKIP_TTL', 30 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_ERROR_SKIP_TTL', 8 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_TESLA_STATUS_KEEP_TTL', 6 * HOUR_IN_SECONDS );
@@ -774,8 +788,19 @@ function gaming_hub_tesla_has_charging_scope() {
 
 /**
  * Whether this poll should ask Tesla for location_data (drive_state + home geofence).
+ *
+ * Phase 3: skip GPS when LocatedAtHome is fresh from MQTT.
  */
 function gaming_hub_tesla_should_request_location_data() {
+	$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
+	if ( is_array( $cached )
+		&& function_exists( 'gaming_hub_tesla_telemetry_is_fresh' )
+		&& gaming_hub_tesla_telemetry_is_fresh( $cached )
+		&& array_key_exists( 'located_at_home', $cached )
+		&& is_bool( $cached['located_at_home'] ) ) {
+		return false;
+	}
+
 	if ( gaming_hub_tesla_has_location_scope() ) {
 		// Home vs away charging needs fresh GPS on every poll.
 		return true;
@@ -785,7 +810,6 @@ function gaming_hub_tesla_should_request_location_data() {
 		return false;
 	}
 
-	$cached = get_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY );
 	if ( is_array( $cached ) && ! empty( $cached['drive_ready'] ) ) {
 		return false;
 	}
@@ -1043,13 +1067,119 @@ function gaming_hub_tesla_clear_api_skip() {
  * @param array<string, mixed> $model3 Mapped Model 3 payload.
  */
 function gaming_hub_tesla_store_model3( array $model3 ) {
-	$model3['asleep']     = false;
-	$model3['fetched_at'] = time();
+	$model3['asleep'] = false;
+	$now                = time();
+	$from_telemetry     = ! empty( $model3['telemetry'] ) || 'telemetry' === (string) ( $model3['source'] ?? '' );
+
+	if ( $from_telemetry ) {
+		// MQTT merge: bump generic liveness, keep last Fleet REST timestamp.
+		$model3['fetched_at'] = $now;
+		if ( empty( $model3['fleet_at'] ) && ! empty( $model3['_preserve_fleet_at'] ) ) {
+			$model3['fleet_at'] = (int) $model3['_preserve_fleet_at'];
+		}
+		unset( $model3['_preserve_fleet_at'] );
+	} else {
+		$model3['fetched_at'] = $now;
+		$model3['fleet_at']   = $now;
+		$model3['source']     = (string) ( $model3['source'] ?? 'tesla' );
+	}
+
 	gaming_hub_tesla_remember_home_plugged( $model3 );
 	set_transient( GAMING_HUB_TESLA_STATUS_CACHE_KEY, $model3, GAMING_HUB_TESLA_STATUS_KEEP_TTL );
 	if ( function_exists( 'gaming_hub_tesla_sleep_soc_clear' ) ) {
 		gaming_hub_tesla_sleep_soc_clear();
 	}
+}
+
+/**
+ * Last successful Fleet vehicle_data time (not MQTT).
+ *
+ * @param array<string, mixed> $model3 Mapped Model 3 payload.
+ * @return int Unix timestamp or 0.
+ */
+function gaming_hub_tesla_fleet_at( array $model3 ) {
+	if ( isset( $model3['fleet_at'] ) && is_numeric( $model3['fleet_at'] ) ) {
+		return max( 0, (int) $model3['fleet_at'] );
+	}
+
+	// Legacy caches: fetched_at was shared until Phase 3; only trust it when
+	// the snapshot is not tagged as telemetry-only.
+	if ( ! empty( $model3['telemetry'] ) || 'telemetry' === (string) ( $model3['source'] ?? '' ) ) {
+		return 0;
+	}
+
+	return max( 0, (int) ( $model3['fetched_at'] ?? 0 ) );
+}
+
+/**
+ * Whether Fleet Telemetry refreshed the cache recently.
+ *
+ * @param array<string, mixed> $model3  Mapped Model 3 payload.
+ * @param int|null             $max_age Seconds (default TELEMETRY_FRESH_TTL).
+ * @return bool
+ */
+function gaming_hub_tesla_telemetry_is_fresh( array $model3, $max_age = null ) {
+	if ( empty( $model3['telemetry_at'] ) ) {
+		return false;
+	}
+
+	if ( null === $max_age ) {
+		$max_age = defined( 'GAMING_HUB_TESLA_TELEMETRY_FRESH_TTL' )
+			? (int) GAMING_HUB_TESLA_TELEMETRY_FRESH_TTL
+			: ( 5 * MINUTE_IN_SECONDS );
+	}
+
+	$age = time() - (int) $model3['telemetry_at'];
+
+	return $age >= 0 && $age <= (int) $max_age;
+}
+
+/**
+ * Phase 3: whether Fleet vehicle_data is still required despite MQTT.
+ *
+ * Odometer / charge_energy_added are REST-only, so we keep a slow cadence.
+ *
+ * @param array<string, mixed> $cached Cached Model 3 payload.
+ * @return bool True = call Fleet REST.
+ */
+function gaming_hub_tesla_rest_poll_needed( array $cached ) {
+	$fleet_at = gaming_hub_tesla_fleet_at( $cached );
+	$now      = time();
+	$moving   = function_exists( 'gaming_hub_tesla_snapshot_is_moving' )
+		&& gaming_hub_tesla_snapshot_is_moving( $cached );
+
+	$odo_ttl = $moving
+		? ( defined( 'GAMING_HUB_TESLA_REST_ODO_DRIVING_TTL' ) ? (int) GAMING_HUB_TESLA_REST_ODO_DRIVING_TTL : ( 15 * MINUTE_IN_SECONDS ) )
+		: ( defined( 'GAMING_HUB_TESLA_REST_ODO_TTL' ) ? (int) GAMING_HUB_TESLA_REST_ODO_TTL : ( 30 * MINUTE_IN_SECONDS ) );
+
+	if ( $fleet_at <= 0 || ( $now - $fleet_at ) >= $odo_ttl ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Phase 3: skip Fleet REST and serve cache when MQTT covers the HUD.
+ *
+ * @param array<string, mixed> $cached Cached Model 3 payload.
+ * @return bool
+ */
+function gaming_hub_tesla_should_skip_rest_for_telemetry( array $cached ) {
+	if ( gaming_hub_tesla_telemetry_is_fresh( $cached ) ) {
+		return ! gaming_hub_tesla_rest_poll_needed( $cached );
+	}
+
+	// Brief MQTT quiet (e.g. Soc at 5 min) — do not fall back to REST yet,
+	// unless odometer cadence is due.
+	$grace = defined( 'GAMING_HUB_TESLA_TELEMETRY_GRACE_TTL' )
+		? (int) GAMING_HUB_TESLA_TELEMETRY_GRACE_TTL
+		: ( 20 * MINUTE_IN_SECONDS );
+	if ( gaming_hub_tesla_telemetry_is_fresh( $cached, $grace ) ) {
+		return ! gaming_hub_tesla_rest_poll_needed( $cached );
+	}
+
+	return false;
 }
 
 /**
@@ -4043,6 +4173,8 @@ function gaming_hub_tesla_model3_from_vehicle_data( array $data ) {
  * Fetch live Model 3 status from Tesla Fleet API.
  *
  * Never wakes the vehicle. Sleep / errors skip further Fleet calls.
+ * Phase 3: fresh MQTT covers the HUD — Fleet REST only on odometer cadence
+ * (and when telemetry has gone quiet beyond the grace window).
  *
  * @return array<string, mixed>|WP_Error
  */
@@ -4070,11 +4202,21 @@ function gaming_hub_fetch_tesla_model3_status() {
 	}
 
 	if ( is_array( $cached ) ) {
-		$age = time() - gaming_hub_tesla_last_signal_at( $cached );
-		if ( $age >= 0 && $age < gaming_hub_tesla_snapshot_ttl( $cached ) ) {
+		// Phase 3: MQTT-fresh (or within grace) → skip Fleet except slow odo pulls.
+		if ( gaming_hub_tesla_should_skip_rest_for_telemetry( $cached ) ) {
 			$asleep = gaming_hub_tesla_should_display_asleep( $cached );
 
 			return gaming_hub_tesla_finish_cached_model3( $cached, $asleep );
+		}
+
+		// Telemetry quiet / odo not due: reuse any recent signal (Fleet or MQTT).
+		if ( ! gaming_hub_tesla_rest_poll_needed( $cached ) ) {
+			$age = time() - gaming_hub_tesla_last_signal_at( $cached );
+			if ( $age >= 0 && $age < gaming_hub_tesla_snapshot_ttl( $cached ) ) {
+				$asleep = gaming_hub_tesla_should_display_asleep( $cached );
+
+				return gaming_hub_tesla_finish_cached_model3( $cached, $asleep );
+			}
 		}
 	}
 
@@ -4134,6 +4276,20 @@ function gaming_hub_fetch_tesla_model3_status() {
 
 	gaming_hub_tesla_clear_api_skip();
 	$model3 = gaming_hub_tesla_model3_from_vehicle_data( $data );
+	// Preserve telemetry timestamps across a Fleet REST refresh.
+	if ( is_array( $cached ) ) {
+		if ( ! empty( $cached['telemetry_at'] ) ) {
+			$model3['telemetry_at'] = (int) $cached['telemetry_at'];
+		}
+		if ( ! empty( $cached['located_at_home'] ) || ( isset( $cached['located_at_home'] ) && is_bool( $cached['located_at_home'] ) ) ) {
+			$model3['located_at_home'] = $cached['located_at_home'];
+		}
+		if ( ! empty( $cached['telemetry'] ) ) {
+			$model3['telemetry'] = true;
+		}
+	}
+	$model3['source']   = 'tesla';
+	$model3['fleet_at'] = time();
 	gaming_hub_tesla_store_model3( $model3 );
 
 	return $model3;

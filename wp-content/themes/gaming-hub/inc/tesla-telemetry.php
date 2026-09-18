@@ -1,11 +1,12 @@
 <?php
 /**
- * Phase 2+4: Fleet Telemetry → WordPress one-way bridge.
+ * Phase 2+3+4: Fleet Telemetry → WordPress one-way bridge.
  *
  * POST /wp-json/gaming-hub/v1/tesla/telemetry (bridge token required)
  * merges SOC / charge fields into GAMING_HUB_TESLA_STATUS_CACHE_KEY,
  * drives CHARGE LOG / SOC log from telemetry events, and keeps AI PLAN
- * inputs cache-first. Commands stay on REST + wake budget.
+ * inputs cache-first. Phase 3 skips Fleet vehicle_data while MQTT is fresh
+ * (odometer still pulled on a slow REST cadence). Commands stay on REST + wake budget.
  * Location lat/lng is intentionally not subscribed (privacy). LocatedAtHome
  * (boolean, Tesla app home) is subscribed for accurate home/away charging.
  *
@@ -565,6 +566,10 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 	$cached['telemetry_at'] = $received > 0 ? $received : time();
 	$cached['live']         = true;
 	$cached['source']       = 'telemetry';
+	// Phase 3: do not let MQTT overwrites erase the last Fleet REST time.
+	$cached['_preserve_fleet_at'] = function_exists( 'gaming_hub_tesla_fleet_at' )
+		? gaming_hub_tesla_fleet_at( $cached )
+		: (int) ( $cached['fleet_at'] ?? 0 );
 
 	// Streaming telemetry means the car is online, but don't clear Fleet sleep backoff
 	// on empty heartbeats — that forces vehicle_data polls and keeps the car awake.

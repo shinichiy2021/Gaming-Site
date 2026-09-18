@@ -1696,6 +1696,10 @@ function gaming_hub_tesla_plan_build_day( $day, array $ctx, $start_soc ) {
  * @return bool
  */
 function gaming_hub_tesla_plan_telemetry_fresh( array $model3 ) {
+	if ( function_exists( 'gaming_hub_tesla_telemetry_is_fresh' ) ) {
+		return gaming_hub_tesla_telemetry_is_fresh( $model3 );
+	}
+
 	if ( empty( $model3['telemetry'] ) || empty( $model3['telemetry_at'] ) ) {
 		return false;
 	}
