@@ -23,6 +23,10 @@ define( 'GAMING_HUB_TESLA_SUPER_YEN_PER_KWH_FALLBACK', 45.0 );
  */
 define( 'GAMING_HUB_TESLA_CHARGE_LOG_MICRO_MAX_MIN', 5 );
 define( 'GAMING_HUB_TESLA_CHARGE_LOG_MICRO_MAX_KWH', 0.5 );
+/** Home AC / Wall Connector cannot sustain above this average (kW). */
+define( 'GAMING_HUB_TESLA_CHARGE_LOG_HOME_MAX_AVG_KW', 15.0 );
+/** Supercharger peak average ceiling for sanity (kW). */
+define( 'GAMING_HUB_TESLA_CHARGE_LOG_SUPER_MAX_AVG_KW', 350.0 );
 
 /**
  * Load stored charge sessions (newest first).
@@ -42,7 +46,7 @@ function gaming_hub_tesla_charge_log_sessions() {
 		}
 	}
 
-	return $out;
+	return gaming_hub_tesla_charge_log_purge_absurd( $out );
 }
 
 /**
@@ -205,6 +209,82 @@ function gaming_hub_tesla_charge_log_is_micro( array $shaped ) {
 }
 
 /**
+ * Physically impossible session (e.g. 17 kWh in 1 minute on 200V AC).
+ *
+ * @param array<string, mixed> $row Raw or shaped session.
+ * @return bool
+ */
+function gaming_hub_tesla_charge_log_is_absurd( array $row ) {
+	$kwh = max( 0, (float) ( $row['kwh'] ?? 0 ) );
+	if ( $kwh < 0.05 ) {
+		return false;
+	}
+
+	$start_ts = (int) ( $row['start_ts'] ?? 0 );
+	$end_ts   = (int) ( $row['end_ts'] ?? 0 );
+	$minutes  = ( $start_ts > 0 && $end_ts > $start_ts )
+		? max( 1, (int) round( ( $end_ts - $start_ts ) / MINUTE_IN_SECONDS ) )
+		: max( 1, (int) ( $row['duration_min'] ?? 0 ) );
+	if ( $minutes <= 0 ) {
+		$minutes = 1;
+	}
+
+	$hours  = $minutes / 60.0;
+	$avg_kw = $kwh / $hours;
+	$supply = (string) ( $row['supply'] ?? 'home' );
+	$max_kw = ( 'supercharger' === $supply )
+		? (float) GAMING_HUB_TESLA_CHARGE_LOG_SUPER_MAX_AVG_KW
+		: (float) GAMING_HUB_TESLA_CHARGE_LOG_HOME_MAX_AVG_KW;
+
+	if ( $avg_kw > $max_kw ) {
+		return true;
+	}
+
+	// Flat SOC with a large home AC total almost always means a leftover
+	// charge_energy_added dump onto a flicker session.
+	if ( 'supercharger' !== $supply && $kwh >= 1.0 ) {
+		$start_soc = isset( $row['start_soc'] ) && is_numeric( $row['start_soc'] )
+			? (int) round( (float) $row['start_soc'] )
+			: null;
+		$end_soc = isset( $row['end_soc'] ) && is_numeric( $row['end_soc'] )
+			? (int) round( (float) $row['end_soc'] )
+			: null;
+		if ( null !== $start_soc && null !== $end_soc && $start_soc === $end_soc ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Drop absurd rows from stored charge history (one-way cleanup).
+ *
+ * @param array<int, array<string, mixed>> $sessions Sessions.
+ * @return array<int, array<string, mixed>>
+ */
+function gaming_hub_tesla_charge_log_purge_absurd( array $sessions ) {
+	$kept = array();
+	$removed = 0;
+	foreach ( $sessions as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		if ( gaming_hub_tesla_charge_log_is_absurd( $row ) ) {
+			$removed++;
+			continue;
+		}
+		$kept[] = $row;
+	}
+
+	if ( $removed > 0 ) {
+		gaming_hub_tesla_charge_log_save( $kept );
+	}
+
+	return $kept;
+}
+
+/**
  * Archive a finished charge session from wall/super energy counters.
  *
  * @param array<string, mixed> $saved   Energy option row (pre-clear).
@@ -242,8 +322,21 @@ function gaming_hub_tesla_charge_log_archive_session( array $saved, array $meta 
 			? (int) round( (float) $saved['session_limit_soc'] )
 			: null );
 
-	$id_prefix = 'supercharger' === $supply ? 's' : 'c';
 	$session_gps = is_array( $saved['session_gps'] ?? null ) ? $saved['session_gps'] : null;
+	$candidate   = array(
+		'start_ts'  => $start_ts,
+		'end_ts'    => $end_ts,
+		'kwh'       => round( $kwh, 2 ),
+		'start_soc' => $start_soc,
+		'end_soc'   => $end_soc,
+		'supply'    => $supply,
+	);
+	// Reject charge_energy_added leftovers / watt-integration glitches.
+	if ( gaming_hub_tesla_charge_log_is_absurd( $candidate ) ) {
+		return;
+	}
+
+	$id_prefix = 'supercharger' === $supply ? 's' : 'c';
 	$session   = array(
 		'id'           => $id_prefix . $start_ts,
 		'start_ts'     => $start_ts,
