@@ -26,109 +26,6 @@ function gaming_hub_tesla_live_watt( $value ) {
 }
 
 /**
- * Localhost layout fixture so every Tesla flow card has Current + Today values.
- *
- * @param array<string, mixed> $model3 Optional Model 3 slice for the name.
- * @return array<string, mixed>
- */
-function gaming_hub_tesla_layout_demo_payload( array $model3 = array() ) {
-	$vehicle = (string) ( $model3['vehicle_name'] ?? 'Model 3' );
-	$yen_kwh = 38.0;
-	$gas     = array(
-		'today_km'   => 95.0,
-		'today_kwh'  => 14.25,
-		'ev_yen'     => 689,
-		'saved_yen'  => 405,
-		'gas_liters' => 6.33,
-		'gas_yen'    => 1094,
-	);
-
-	if ( function_exists( 'gaming_hub_tesla_gasoline_compare' ) ) {
-		$compared = gaming_hub_tesla_gasoline_compare(
-			array_merge(
-				$model3,
-				array(
-					'today_km'  => 95.0,
-					'today_kwh' => 14.25,
-				)
-			),
-			0,
-			0
-		);
-		if ( is_array( $compared ) ) {
-			$gas = array_merge( $gas, $compared );
-			$gas['today_km']  = 95.0;
-			$gas['today_kwh'] = 14.25;
-			$gas['ev_yen']    = isset( $compared['ev_yen'] ) ? (int) $compared['ev_yen'] : 689;
-			$gas['saved_yen'] = isset( $compared['saved_yen'] ) ? (int) $compared['saved_yen'] : 405;
-		}
-	}
-
-	return array(
-		'wall_w'              => 3200,
-		'super_w'             => 0,
-		'drive_w'             => 0,
-		'cabin_w'             => 1200,
-		'regen_w'             => 0,
-		'mode'                => 'wall',
-		'shift'               => 'P',
-		'speed_km'            => 0,
-		'climate_on'          => true,
-		'sentry'              => false,
-		'battery_percent'     => 76,
-		'is_charging'         => true,
-		'super_charging'      => false,
-		'charge_state'        => __('Charging', 'gaming-hub'),
-		'vehicle_name'        => $vehicle,
-		'supply_kind'         => 'home',
-		'supply_label'        => __('Home AC', 'gaming-hub'),
-		'at_home'             => true,
-		'input_type'          => 'home_ac',
-		'input_label'         => __('Home AC', 'gaming-hub'),
-		'input_watts'         => 3200,
-		'input_plugged'       => true,
-		'input_charging'      => true,
-		'fast_charger_present'=> false,
-		'plugged'             => true,
-		'range_label'         => '',
-		'live'                => true,
-		'simulated'           => true,
-		'drive_ready'         => false,
-		'asleep'              => false,
-		'gas'                 => $gas,
-		'efficiency'          => function_exists( 'gaming_hub_tesla_drive_efficiency_empty' )
-			? gaming_hub_tesla_drive_efficiency_empty()
-			: array(),
-		'cabin_today_kwh'     => 2.36,
-		'cabin_today_yen'     => 91,
-		'cabin_temp_c'        => 23.0,
-		'wall_yen_per_h'      => (int) round( 3.2 * $yen_kwh ),
-		'wall_today_kwh'      => 8.42,
-		'wall_today_yen'      => 312,
-		'wall_session_kwh'    => 4.10,
-		'wall_session_yen'    => 152,
-		'wall_span_days'      => false,
-		'wall_span_label'     => '',
-		'super_today_kwh'     => 18.02,
-		'super_today_yen'     => 656,
-		'super_today_yen_known' => true,
-		'super_today_yen_estimated' => false,
-		'super_session_kwh'   => 0,
-		'super_span_days'     => false,
-		'super_span_label'    => '',
-		'elec_yen_per_kwh'    => $yen_kwh,
-		'yen_per_kwh'         => $yen_kwh,
-		'capacity_wh'         => 60000,
-		'remain_capacity'     => 45600,
-		'eta_mode'            => 'charge',
-		'remain_time_label'   => __('Until full', 'gaming-hub'),
-		'remain_time_display' => function_exists( 'gaming_hub_format_duration_minutes' )
-			? gaming_hub_format_duration_minutes( 95 )
-			: '95',
-	);
-}
-
-/**
  * Pack kWh + remaining-time fields for the Tesla flow node (Delta Pro 3 style).
  *
  * @param array<string, mixed> $model3    Model 3 HUD slice.
@@ -250,15 +147,6 @@ function gaming_hub_tesla_date_span_label( $start_date, $end_date ) {
  */
 function gaming_hub_tesla_vehicle_flow_payload( array $model3, $source = 'simulated' ) {
 	$live = ( 'tesla' === $source ) || ! empty( $model3['live'] );
-
-	// Layout fixture only when demos are allowed and there is no live Tesla slice.
-	if (
-		! $live
-		&& function_exists( 'gaming_hub_layout_demos_allowed' )
-		&& gaming_hub_layout_demos_allowed()
-	) {
-		return gaming_hub_tesla_layout_demo_payload( $model3 );
-	}
 
 	$empty_gas = function_exists( 'gaming_hub_tesla_gasoline_compare' )
 		? gaming_hub_tesla_gasoline_compare( $model3, 0, 0 )
