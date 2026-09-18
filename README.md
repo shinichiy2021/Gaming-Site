@@ -261,7 +261,7 @@ curl -sI https://shinichiy-gaming-hub.com/.well-known/appspecific/com.tesla.3p.p
 
 車から SOC / 充電状態を受け取り、MQTT ブリッジ経由で WordPress の Model 3 キャッシュ・CHARGE LOG / SOC ログを更新する。
 AI PLAN の充電中／自宅判定はキャッシュ優先。コマンドは REST + wake 予算のまま。
-ポーリングは当面フォールバック（Phase 3 で縮減）。
+Phase 3: MQTT が新鮮なあいだは Fleet `vehicle_data` をほぼ止め、オドメーター用に約 30 分間隔だけ REST する。
 
 手順の詳細: [`tesla/README.md`](tesla/README.md)
 

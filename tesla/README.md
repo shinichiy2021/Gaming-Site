@@ -81,7 +81,8 @@ docker compose -f docker-compose.prod.yml exec -T wordpress \
 
 - Deploy (`scripts/deploy.sh`) preserves live `vehicle-config.json`, `config.json`, `certs/`, and `telemetry-data/` (rsync excludes). Re-run `tesla-telemetry-prepare.sh` + `tesla-telemetry-configure.php` after changing field intervals in the example.
 - Local `docker-compose.yml` does **not** include telemetry (cars cannot reach localhost).
-- Phase 2 updates `GAMING_HUB_TESLA_STATUS_CACHE_KEY` via `POST /wp-json/gaming-hub/v1/tesla/telemetry`. Polling still runs (Phase 3 will reduce it).
+- Phase 2 updates `GAMING_HUB_TESLA_STATUS_CACHE_KEY` via `POST /wp-json/gaming-hub/v1/tesla/telemetry`.
+- Phase 3: while MQTT is fresh (5 min) or within grace (20 min), Fleet `vehicle_data` is skipped. REST still runs about every 30 min (15 min while driving) for odometer / `charge_energy_added`. `LocatedAtHome` skips `location_data` on those rare REST pulls.
 - Phase 4: CHARGE LOG / SOC log start from telemetry charge/SOC events; AI PLAN `is_charging` / `at_home` prefer cache. `LocatedAtHome` (Tesla app home) overrides geofence/sticky when fresh; lat/lng Location is still not subscribed.
 - Cabin watts: no dedicated cabin-W field. Parked discharge is `PackVoltage × PackCurrent` (W). Re-run `tesla-telemetry-configure.php` after field list changes (including `LocatedAtHome`).
 - Commands (`charge_start` / `charge_stop`) stay on REST + wake budget.
