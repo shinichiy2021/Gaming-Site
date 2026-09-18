@@ -6,7 +6,8 @@
  * merges SOC / charge fields into GAMING_HUB_TESLA_STATUS_CACHE_KEY,
  * drives CHARGE LOG / SOC log from telemetry events, and keeps AI PLAN
  * inputs cache-first. Commands stay on REST + wake budget.
- * Location is intentionally not subscribed (privacy).
+ * Location lat/lng is intentionally not subscribed (privacy). LocatedAtHome
+ * (boolean, Tesla app home) is subscribed for accurate home/away charging.
  *
  * @package Gaming_Hub
  */
@@ -135,6 +136,52 @@ function gaming_hub_tesla_telemetry_num( array $fields, $key ) {
 	}
 
 	return (float) $fields[ $key ];
+}
+
+/**
+ * Boolean telemetry field (LocatedAtHome, FastChargerPresent, …).
+ *
+ * @param array<string, mixed> $fields Telemetry fields.
+ * @param string               $key    Field name.
+ * @return bool|null
+ */
+function gaming_hub_tesla_telemetry_bool( array $fields, $key ) {
+	if ( ! array_key_exists( $key, $fields ) || null === $fields[ $key ] || '' === $fields[ $key ] ) {
+		return null;
+	}
+
+	$raw = $fields[ $key ];
+	if ( is_array( $raw ) ) {
+		if ( array_key_exists( 'booleanValue', $raw ) ) {
+			$raw = $raw['booleanValue'];
+		} elseif ( array_key_exists( 'value', $raw ) ) {
+			$raw = $raw['value'];
+			if ( is_array( $raw ) && array_key_exists( 'booleanValue', $raw ) ) {
+				$raw = $raw['booleanValue'];
+			}
+		}
+	}
+
+	if ( is_bool( $raw ) ) {
+		return $raw;
+	}
+
+	$parsed = filter_var( $raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
+	if ( null !== $parsed ) {
+		return $parsed;
+	}
+
+	if ( is_string( $raw ) ) {
+		$lower = strtolower( trim( $raw ) );
+		if ( in_array( $lower, array( 'true', '1', 'yes' ), true ) ) {
+			return true;
+		}
+		if ( in_array( $lower, array( 'false', '0', 'no' ), true ) ) {
+			return false;
+		}
+	}
+
+	return null;
 }
 
 /**
@@ -342,6 +389,15 @@ function gaming_hub_tesla_apply_telemetry_payload( array $payload ) {
 	if ( null !== $fast ) {
 		$cached['fast_charger_present'] = (bool) $fast;
 		$updated[]                      = 'fast_charger_present';
+	}
+
+	$located = gaming_hub_tesla_telemetry_bool( $fields, 'LocatedAtHome' );
+	if ( null !== $located ) {
+		$cached['located_at_home'] = $located;
+		$updated[]                 = 'located_at_home';
+		if ( function_exists( 'gaming_hub_tesla_located_at_home_store' ) ) {
+			gaming_hub_tesla_located_at_home_store( $located );
+		}
 	}
 
 	if ( isset( $fields['Gear'] ) ) {

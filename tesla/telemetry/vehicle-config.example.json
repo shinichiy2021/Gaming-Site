@@ -20,6 +20,7 @@
     "PackCurrent": { "interval_seconds": 120 },
     "Gear": { "interval_seconds": 60 },
     "VehicleSpeed": { "interval_seconds": 60 },
-    "HvacPower": { "interval_seconds": 120 }
+    "HvacPower": { "interval_seconds": 120 },
+    "LocatedAtHome": { "interval_seconds": 120 }
   }
 }
