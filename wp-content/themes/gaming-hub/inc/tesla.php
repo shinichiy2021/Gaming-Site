@@ -2514,42 +2514,63 @@ function gaming_hub_tesla_model3_record_odometer( $odometer_km ) {
 
 	// Bill each leg at the rates in effect while it was driven. Reading the day's
 	// total against the current rate made the cost swing with the time of day.
-	$delta_km = ( null !== $last_km && $odometer_km > $last_km ) ? $odometer_km - $last_km : 0.0;
+	$delta_km        = ( null !== $last_km && $odometer_km > $last_km ) ? $odometer_km - $last_km : 0.0;
+	$last_ts         = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
+	$advance_last_ts = $new_day || $delta_km > 0 || $last_ts <= 0;
+	$candidate_km    = null;
+	$candidate_hits  = 0;
+
 	if ( $delta_km > 0 ) {
 		$wh_per_km = defined( 'GAMING_HUB_MODEL3_WH_PER_KM' ) ? (float) GAMING_HUB_MODEL3_WH_PER_KM : 150.0;
-		$last_ts   = isset( $saved['last_ts'] ) ? (int) $saved['last_ts'] : 0;
 		$from      = ( $last_ts > 0 && $last_ts < $now ) ? $last_ts : $now - MINUTE_IN_SECONDS;
 		$elapsed_h = max( 1.0 / 60.0, ( $now - $from ) / HOUR_IN_SECONDS );
-		// Ignore impossible odometer jumps between polls (stale cache / unit glitches).
-		$max_plausible = max( 5.0, 180.0 * $elapsed_h );
-		if ( $delta_km > $max_plausible && null !== $last_km ) {
-			$odometer_km = $last_km;
-			$today_km    = max( 0, round( $odometer_km - $start_km, 1 ) );
-			$delta_km    = 0.0;
+		// Ignore absurd jumps between polls (unit glitches). Offline driving after
+		// parked polls must still count — floor allows a normal errand, and a
+		// repeated candidate confirms a larger gap after sleep.
+		$max_plausible = max( 25.0, 180.0 * $elapsed_h );
+		$prev_candidate = isset( $saved['candidate_km'] ) && is_numeric( $saved['candidate_km'] )
+			? (float) $saved['candidate_km']
+			: null;
+		$prev_hits      = isset( $saved['candidate_hits'] ) ? (int) $saved['candidate_hits'] : 0;
+		$confirmed      = null !== $prev_candidate && abs( $prev_candidate - $odometer_km ) <= 1.0 && $prev_hits >= 1;
+
+		if ( $delta_km > $max_plausible && null !== $last_km && ! $confirmed ) {
+			// Hold the new reading as a candidate; keep last accepted odometer and
+			// last_ts so the next poll can confirm or grow the elapsed window.
+			$candidate_km    = $odometer_km;
+			$candidate_hits  = ( null !== $prev_candidate && abs( $prev_candidate - $odometer_km ) <= 1.0 )
+				? max( 1, $prev_hits ) + 1
+				: 1;
+			$odometer_km     = $last_km;
+			$today_km        = max( 0, round( $odometer_km - $start_km, 1 ) );
+			$delta_km        = 0.0;
+			$advance_last_ts = false;
+		} else {
+			$rate = function_exists( 'gaming_hub_looop_average_rate_between' )
+				? gaming_hub_looop_average_rate_between( $from, $now )
+				: 30.0;
+
+			$wh  += $delta_km * $wh_per_km;
+			$yen += ( $delta_km * $wh_per_km / 1000.0 ) * $rate;
 		}
-
-		$rate = function_exists( 'gaming_hub_looop_average_rate_between' )
-			? gaming_hub_looop_average_rate_between( $from, $now )
-			: 30.0;
-
-		$wh  += $delta_km * $wh_per_km;
-		$yen += ( $delta_km * $wh_per_km / 1000.0 ) * $rate;
 	}
 
-	update_option(
-		GAMING_HUB_MODEL3_ODO_OPTION,
-		array(
-			'date'           => $today,
-			'odometer_km'    => $odometer_km,
-			'today_start_km' => $start_km,
-			'today_km'       => $today_km,
-			'wh'             => $wh,
-			'yen'            => $yen,
-			'last_ts'        => $now,
-			'updated_at'     => $now,
-		),
-		false
+	$option = array(
+		'date'           => $today,
+		'odometer_km'    => $odometer_km,
+		'today_start_km' => $start_km,
+		'today_km'       => $today_km,
+		'wh'             => $wh,
+		'yen'            => $yen,
+		'last_ts'        => $advance_last_ts ? $now : ( $last_ts > 0 ? $last_ts : $now ),
+		'updated_at'     => $now,
 	);
+	if ( null !== $candidate_km ) {
+		$option['candidate_km']   = $candidate_km;
+		$option['candidate_hits'] = $candidate_hits;
+	}
+
+	update_option( GAMING_HUB_MODEL3_ODO_OPTION, $option, false );
 
 	if ( function_exists( 'gaming_hub_tesla_gas_log_record_today' ) ) {
 		gaming_hub_tesla_gas_log_record_today(
