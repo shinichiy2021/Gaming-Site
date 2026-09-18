@@ -219,8 +219,71 @@ function gaming_hub_tesla_gas_metrics_from_km( $km, $metered_yen = null ) {
  */
 function gaming_hub_tesla_gas_log_month_days( $ym ) {
 	$raw = get_option( gaming_hub_tesla_gas_log_key( $ym ), array() );
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
 
-	return is_array( $raw ) ? $raw : array();
+	return gaming_hub_tesla_gas_log_purge_absurd_days( $ym, $raw );
+}
+
+/**
+ * Whether a stored driving-log day looks like an odometer catch-up dump.
+ *
+ * @param array<string, mixed> $day Day row.
+ * @return bool
+ */
+function gaming_hub_tesla_gas_log_day_is_absurd( array $day ) {
+	$km = max( 0, (float) ( $day['km'] ?? 0 ) );
+	if ( $km >= 400.0 ) {
+		return true;
+	}
+
+	$hours    = isset( $day['hours'] ) && is_array( $day['hours'] ) ? $day['hours'] : array();
+	$max_hour = 0.0;
+	foreach ( $hours as $slot ) {
+		if ( is_array( $slot ) ) {
+			$max_hour = max( $max_hour, (float) ( $slot['km'] ?? 0 ) );
+		}
+	}
+
+	// One poll dumped a huge leg into a single hour (e.g. 133 km for a ~20 km day).
+	if ( $max_hour >= 80.0 ) {
+		return true;
+	}
+
+	if ( $km >= 100.0 && ( empty( $hours ) || $max_hour >= 0.75 * $km ) ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Drop absurd driving-log days from a month option.
+ *
+ * @param string                              $ym   Y-m.
+ * @param array<string, array<string, mixed>> $days Days map.
+ * @return array<string, array<string, mixed>>
+ */
+function gaming_hub_tesla_gas_log_purge_absurd_days( $ym, array $days ) {
+	$kept    = array();
+	$removed = 0;
+	foreach ( $days as $date => $day ) {
+		if ( ! is_array( $day ) ) {
+			continue;
+		}
+		if ( gaming_hub_tesla_gas_log_day_is_absurd( $day ) ) {
+			$removed++;
+			continue;
+		}
+		$kept[ $date ] = $day;
+	}
+
+	if ( $removed > 0 ) {
+		gaming_hub_tesla_gas_log_save_month( $ym, $kept );
+	}
+
+	return $kept;
 }
 
 /**
@@ -248,6 +311,15 @@ function gaming_hub_tesla_gas_log_record_today( $today_km, $metered_yen = null, 
 	$days     = gaming_hub_tesla_gas_log_month_days( $ym );
 	$prev     = isset( $days[ $today ] ) && is_array( $days[ $today ] ) ? $days[ $today ] : array();
 	$prev_km  = isset( $prev['km'] ) && is_numeric( $prev['km'] ) ? (float) $prev['km'] : null;
+
+	// Refuse a single-tick dump that would recreate the Sep 17 133 km glitch.
+	if ( null !== $prev_km && ( $today_km - $prev_km ) > 60.0 ) {
+		return;
+	}
+	if ( null === $prev_km && $today_km > 80.0 ) {
+		return;
+	}
+
 	$metrics  = gaming_hub_tesla_gas_metrics_from_km( $today_km, $metered_yen );
 	$hours    = isset( $prev['hours'] ) && is_array( $prev['hours'] ) ? $prev['hours'] : array();
 
