@@ -2247,13 +2247,11 @@ function gaming_hub_ecoflow_sync_device_activity( array $device ) {
 	}
 
 	$net_charge = $input - $out;
-	$charging   = ! empty( $device['is_charging'] )
-		|| $net_charge >= $thr
-		|| $solar >= $thr
-		|| ( $ac_in >= $thr && $net_charge >= -$thr )
-		|| ( $hv_in >= $thr && $net_charge >= -$thr );
 
-	if ( $charging ) {
+	// Net into the pack decides charge vs discharge. Port feed alone
+	// (Low Volt / AC in) while UPS load is higher is still discharging —
+	// do not force "charging" just because a feed port is live.
+	if ( $net_charge >= $thr ) {
 		$device['is_charging']      = true;
 		$device['is_discharging']   = false;
 		$device['charge_state_key'] = 'charging';
@@ -2265,6 +2263,42 @@ function gaming_hub_ecoflow_sync_device_activity( array $device ) {
 			$device['charge_state'] = __('High-volt charging', 'gaming-hub');
 		} elseif ( $solar >= 50 ) {
 			$device['charge_state'] = __('Low Volt charging', 'gaming-hub');
+		} else {
+			$device['charge_state'] = __('Charging', 'gaming-hub');
+		}
+
+		return $device;
+	}
+
+	if ( -$net_charge >= $thr ) {
+		$device['is_charging']      = false;
+		$device['is_discharging']   = true;
+		$device['charge_state_key'] = 'discharging';
+		$device['charge_state']     = __('Discharging', 'gaming-hub');
+
+		return $device;
+	}
+
+	// Balanced ports (UPS passthrough) or idle — pack is not moving energy.
+	if ( $input >= $thr && $out >= $thr ) {
+		$device['is_charging']      = false;
+		$device['is_discharging']   = false;
+		$device['charge_state_key'] = 'standby';
+		$device['charge_state']     = __('Standby', 'gaming-hub');
+
+		return $device;
+	}
+
+	if ( ! empty( $device['is_charging'] ) && $input >= $thr ) {
+		$device['is_discharging']   = false;
+		$device['charge_state_key'] = 'charging';
+		$device['input_total']      = max( (float) ( $device['input_total'] ?? 0 ), $input );
+		if ( $solar >= 50 ) {
+			$device['charge_state'] = __('Low Volt charging', 'gaming-hub');
+		} elseif ( $ac_in >= 50 ) {
+			$device['charge_state'] = __('Grid charging', 'gaming-hub');
+		} elseif ( $hv_in >= 50 ) {
+			$device['charge_state'] = __('High-volt charging', 'gaming-hub');
 		} else {
 			$device['charge_state'] = __('Charging', 'gaming-hub');
 		}
