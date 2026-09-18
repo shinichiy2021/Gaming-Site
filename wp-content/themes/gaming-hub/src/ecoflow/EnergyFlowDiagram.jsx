@@ -578,8 +578,15 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 			!! delta.is_discharging || ( ! deltaCharging && Math.max( deltaAcOut, deltaOutTotal, asWatts( upsWatts ) ) >= FLOW_THRESHOLD )
 		) )
 	);
-	const deltaInW = asWatts( deltaAcIn ) + asWatts( solarWatts );
-	const deltaOutW = asWatts( upsWatts );
+	const deltaInW = Math.max(
+		asWatts( delta.input_total ),
+		asWatts( deltaAcIn ) + asWatts( solarWatts )
+	);
+	const deltaOutW = Math.max(
+		asWatts( delta.output_total ),
+		asWatts( upsWatts ),
+		asWatts( deltaAcOut )
+	);
 	const deltaCurrentW = deltaCharging ? deltaInW : deltaOutW;
 	const deltaTodayKwh = deltaCharging
 		? whToKwh( liveBuy?.delta ) + whToKwh( liveSolar?.delta )
@@ -706,6 +713,9 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						charging={ unitCharging }
 						discharging={ unitDischarging }
 						unavailable={ deltaMissing }
+						showIo
+						inputW={ deltaInW }
+						outputW={ deltaOutW }
 						currentW={ deltaCurrentW }
 						totalKwh={ deltaTodayKwh }
 						stateLabel={ deltaMissing ? na : ( delta.charge_state || '—' ) }
