@@ -576,11 +576,18 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const deltaSocNum = parseSoc( delta.battery_percent );
 	const hasDeltaSoc = ! deltaMissing && deltaSocNum !== null;
 	const deltaAcOut = Number( delta.ac_out ) || 0;
-	const deltaGrossIn = Math.max(
-		asWatts( delta.input_total ),
-		asWatts( delta.input_watts ),
-		asWatts( deltaAcIn ) + asWatts( solarWatts )
-	);
+	// Prefer Low Volt + AC meters when present (incl. 0). Sticky powInSumW /
+	// input_total otherwise leaves a ghost Input and freezes net Output.
+	const deltaFeedIn = asWatts( deltaAcIn ) + asWatts( solarWatts );
+	const deltaHasFeedMeters = ( delta.solar_in !== null && delta.solar_in !== undefined )
+		|| ( delta.ac_in !== null && delta.ac_in !== undefined );
+	const deltaGrossIn = deltaHasFeedMeters
+		? deltaFeedIn
+		: Math.max(
+			asWatts( delta.input_total ),
+			asWatts( delta.input_watts ),
+			deltaFeedIn
+		);
 	const deltaGrossOut = Math.max(
 		asWatts( delta.output_total ),
 		asWatts( delta.output_watts ),

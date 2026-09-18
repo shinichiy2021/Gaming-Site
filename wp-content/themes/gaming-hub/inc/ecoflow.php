@@ -563,12 +563,13 @@ function gaming_hub_parse_ecoflow_quota( $quota, $device_sn, $device_name, $onli
 		if ( gaming_hub_ecoflow_delta1500_quota_has_solar( $quota ) ) {
 			$parsed['solar_in']        = max( 0, (int) round( (float) $lv_in ) );
 			$parsed['solar_in_source'] = 'mqtt';
-			$parsed['input_total']     = max( (float) ( $parsed['input_total'] ?? 0 ), (float) $parsed['solar_in'] );
-			$parsed                    = gaming_hub_ecoflow_sync_device_activity( $parsed );
 		} else {
 			$parsed['solar_in']        = null;
 			$parsed['solar_in_source'] = '';
 		}
+		$parsed = gaming_hub_ecoflow_sync_device_activity(
+			gaming_hub_ecoflow_reconcile_delta1500_input_total( $parsed )
+		);
 	} elseif ( null !== $capacity && $capacity >= 500 ) {
 		$parsed['capacity_wh']     = (int) round( $capacity );
 		$parsed['capacity_source'] = 'device';
@@ -1038,6 +1039,33 @@ function gaming_hub_ecoflow_delta1500_has_live_solar( array $delta ) {
 }
 
 /**
+ * Rebuild Delta 1500 input_total from attributed feed ports.
+ *
+ * powInSumW often stays sticky while Low Volt / AC meters already read 0,
+ * which falsely shrinks pack Output (grossOut - grossIn) to a fixed residual.
+ *
+ * @param array<string, mixed> $delta Secondary device status.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_reconcile_delta1500_input_total( array $delta ) {
+	$parts = array();
+
+	foreach ( array( 'solar_in', 'ac_in', 'hv_in' ) as $key ) {
+		if ( isset( $delta[ $key ] ) && is_numeric( $delta[ $key ] ) ) {
+			$parts[] = max( 0, (float) $delta[ $key ] );
+		}
+	}
+
+	if ( empty( $parts ) ) {
+		return $delta;
+	}
+
+	$delta['input_total'] = array_sum( $parts );
+
+	return $delta;
+}
+
+/**
  * Attach MQTT bridge quota to inferred secondary (Extra SOC, AC out).
  *
  * @param array<string, mixed> $delta Secondary device slice.
@@ -1084,6 +1112,8 @@ function gaming_hub_ecoflow_merge_bridge_quota( array $delta ) {
 	if ( null !== $ac_in && $ac_in >= 0 ) {
 		$delta['ac_in'] = (int) round( $ac_in );
 	}
+
+	$delta = gaming_hub_ecoflow_reconcile_delta1500_input_total( $delta );
 
 	return gaming_hub_ecoflow_attach_device_pack_eta( gaming_hub_ecoflow_sync_device_activity( $delta ) );
 }
@@ -2181,10 +2211,6 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 			$solar_watts                             = max( 0, (int) round( $solar ) );
 			$status['secondary']['solar_in']        = $solar_watts;
 			$status['secondary']['solar_in_source'] = 'mqtt';
-			$status['secondary']['input_total']     = max(
-				(float) ( $status['secondary']['input_total'] ?? 0 ),
-				(float) $solar_watts
-			);
 			$status['solar_in']                     = $solar_watts;
 			$status['solar_delta']                  = $solar_watts;
 			$status['solar_in_source']              = 'mqtt';
@@ -2212,7 +2238,9 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 	$status['secondary']['ac_in'] = null !== $ac_in ? (int) round( max( 0, (float) $ac_in ) ) : null;
 
 	$status['secondary'] = gaming_hub_ecoflow_attach_device_pack_eta(
-		gaming_hub_ecoflow_sync_device_activity( $status['secondary'] )
+		gaming_hub_ecoflow_sync_device_activity(
+			gaming_hub_ecoflow_reconcile_delta1500_input_total( $status['secondary'] )
+		)
 	);
 
 	return $status;
