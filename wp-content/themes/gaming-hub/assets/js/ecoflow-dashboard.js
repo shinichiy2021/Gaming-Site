@@ -942,8 +942,13 @@
 			deltaArea.setAttribute('points', stack.deltaArea);
 		}
 		const todayEl = dashboard.querySelector('[data-ecoflow-pv-today]');
-		if (todayEl && plan && plan.solar_today_kwh !== null && plan.solar_today_kwh !== undefined) {
-			todayEl.textContent = t('Today ') + Number(plan.solar_today_kwh).toFixed(1) + ' kWh';
+		if (todayEl && plan) {
+			const rem = plan.solar_hud_kwh != null
+				? plan.solar_hud_kwh
+				: (plan.solar_remaining_kwh != null ? plan.solar_remaining_kwh : plan.solar_today_kwh);
+			if (rem !== null && rem !== undefined) {
+				todayEl.textContent = t('Remaining %s kWh').replace('%s', Number(rem).toFixed(1));
+			}
 		}
 	}
 
@@ -1332,7 +1337,14 @@
 				.replace('%3$s', Number(plan.ac_start_w != null ? plan.ac_start_w : 300).toLocaleString())
 				.replace('%4$s', String(Math.round(Number(plan.ac_max_c != null ? plan.ac_max_c : 34))))
 		);
-		setField('plan_solar_today', formatKwh(plan.solar_today_kwh));
+		setField(
+			'plan_solar_today',
+			formatKwh(
+				plan.solar_hud_kwh != null
+					? plan.solar_hud_kwh
+					: (plan.solar_remaining_kwh != null ? plan.solar_remaining_kwh : plan.solar_today_kwh)
+			)
+		);
 		setField(
 			'plan_solar',
 			formatKwh(plan.solar_hud_kwh != null ? plan.solar_hud_kwh : plan.solar_remaining_kwh)

@@ -120,11 +120,19 @@ $solar_delta_area = $solar_stack['delta_area'];
 				<strong data-ecoflow-pv-now><?php echo esc_html( gaming_hub_format_ecoflow_watts( $solar_now ) ); ?></strong>
 				<small data-ecoflow-pv-today>
 					<?php
-					if ( isset( $plan['solar_today_kwh'] ) ) {
+					$pv_kwh = null;
+					if ( isset( $plan['solar_hud_kwh'] ) && is_numeric( $plan['solar_hud_kwh'] ) ) {
+						$pv_kwh = (float) $plan['solar_hud_kwh'];
+					} elseif ( isset( $plan['solar_remaining_kwh'] ) && is_numeric( $plan['solar_remaining_kwh'] ) ) {
+						$pv_kwh = (float) $plan['solar_remaining_kwh'];
+					} elseif ( isset( $plan['solar_today_kwh'] ) && is_numeric( $plan['solar_today_kwh'] ) ) {
+						$pv_kwh = (float) $plan['solar_today_kwh'];
+					}
+					if ( null !== $pv_kwh ) {
 						printf(
 							/* translators: %s: kWh */
-							esc_html__('Today %s kWh', 'gaming-hub'),
-							esc_html( number_format( (float) $plan['solar_today_kwh'], 1 ) )
+							esc_html__('Remaining %s kWh', 'gaming-hub'),
+							esc_html( number_format( $pv_kwh, 1 ) )
 						);
 					} else {
 						esc_html_e('Expected generation', 'gaming-hub');

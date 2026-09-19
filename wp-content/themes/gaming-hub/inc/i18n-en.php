@@ -584,6 +584,8 @@ return array(
 	'推奨充電ウィンドウ' => 'Suggested charge window',
 	'平均 %s 円/kWh' => 'Avg %s yen/kWh',
 	'残り予想発電' => 'Remaining expected generation',
+	'残り %s kWh' => 'Remaining %s kWh',
+	'いまから' => 'From now',
 	'今日の天気' => 'Today’s weather',
 	'残り予想使用（リビングエアコン他）' => 'Remaining expected Living AC & others use',
 	'今日 %1$s kWh（AC %2$s + その他 %3$s）' => 'Today %1$s kWh (AC %2$s + other %3$s)',

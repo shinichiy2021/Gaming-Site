@@ -705,6 +705,8 @@ return array(
 	'Remaining drive' => '残り走行',
 	'Remaining expected Living AC & others use' => '残り予想使用（リビングエアコン他）',
 	'Remaining expected generation' => '残り予想発電',
+	'Remaining %s kWh' => '残り %s kWh',
+	'From now' => 'いまから',
 	'Request failed' => '通信に失敗しました',
 	'Reverse' => 'リバース',
 	'Revoke access' => '連携を解除',
