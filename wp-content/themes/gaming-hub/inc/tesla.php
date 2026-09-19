@@ -3244,6 +3244,30 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 	$last_added = isset( $saved['added_kwh'] ) && is_numeric( $saved['added_kwh'] ) ? (float) $saved['added_kwh'] : null;
 	$max_gap    = defined( 'GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX' ) ? GAMING_HUB_TESLA_CABIN_INTEGRATE_MAX : ( 8 * MINUTE_IN_SECONDS );
 	$was_on     = ! empty( $saved['last_on'] );
+	$max_home_kw = defined( 'GAMING_HUB_TESLA_CHARGE_LOG_HOME_MAX_AVG_KW' )
+		? (float) GAMING_HUB_TESLA_CHARGE_LOG_HOME_MAX_AVG_KW
+		: 15.0;
+	// Brief charge-flag flickers (telemetry vs Fleet) used to archive/reset the
+	// session and baseline away charge_energy_added, freezing today's kWh/yen.
+	$session_grace = 5 * MINUTE_IN_SECONDS;
+
+	if ( $was_on && ! $accumulate ) {
+		$off_since = isset( $saved['off_since'] ) ? (int) $saved['off_since'] : $now;
+		$saved['off_since'] = $off_since > 0 ? $off_since : $now;
+		if ( ( $now - (int) $saved['off_since'] ) < $session_grace ) {
+			// Keep the open session; only stop integrating watts while the flag is off.
+			$saved['last_ts']    = $now;
+			$saved['last_w']     = 0;
+			$saved['last_on']    = true;
+			$saved['added_kwh']  = null !== $added ? $added : ( $saved['added_kwh'] ?? null );
+			$saved['updated_at'] = $now;
+			update_option( GAMING_HUB_TESLA_WALL_ENERGY_OPTION, $saved, false );
+
+			return gaming_hub_tesla_wall_energy_shape( $saved, $today, true );
+		}
+	} else {
+		unset( $saved['off_since'] );
+	}
 
 	if ( $accumulate && ! $was_on ) {
 		$saved['session_wh']         = 0.0;
@@ -3272,7 +3296,7 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 			$delta_kwh = $added - $last_added;
 		} elseif ( null === $last_added && (float) ( $saved['session_wh'] ?? 0 ) > 0 ) {
 			// Telemetry already watt-integrated this session — adopt the car
-			// counter without double-counting the session total.
+			// counter without double-counting via last_added diff (reconcile below).
 			$delta_kwh = 0.0;
 		} else {
 			$delta_kwh = $added;
@@ -3285,16 +3309,34 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 	}
 
 	// Cap a single tick to what ~15 kW AC could deliver over the gap (or 2 min).
+	// Cap — do not discard — so long poll gaps still credit energy.
 	if ( $delta_kwh > 0 ) {
 		$gap_for_cap = ( $last_ts > 0 && $last_ts < $now )
 			? max( 1, $now - $last_ts )
 			: ( 2 * MINUTE_IN_SECONDS );
-		$max_home_kw = defined( 'GAMING_HUB_TESLA_CHARGE_LOG_HOME_MAX_AVG_KW' )
-			? (float) GAMING_HUB_TESLA_CHARGE_LOG_HOME_MAX_AVG_KW
-			: 15.0;
 		$max_delta = $max_home_kw * ( $gap_for_cap / HOUR_IN_SECONDS );
-		if ( $delta_kwh > max( 0.75, $max_delta ) ) {
-			$delta_kwh = 0.0;
+		$cap       = max( 0.75, $max_delta );
+		if ( $delta_kwh > $cap ) {
+			$delta_kwh = $cap;
+		}
+	}
+
+	// Prefer the car's charge_energy_added as the session source of truth.
+	// Recovers under-counts from mid-charge baselines, discarded ticks, and
+	// telemetry-only windows that never saw the Fleet counter.
+	if ( $accumulate && null !== $added ) {
+		$session_kwh = ( (float) ( $saved['session_wh'] ?? 0 ) / 1000.0 ) + $delta_kwh;
+		if ( $added > $session_kwh + 0.02 ) {
+			$catchup = $added - $session_kwh;
+			if ( $catchup > 80.0 ) {
+				$catchup = 0.0;
+			} elseif ( $watts < 200 && $catchup > 1.0 ) {
+				// Don't adopt a large stale counter while the car is not drawing.
+				$catchup = 0.0;
+			}
+			if ( $catchup > 0 ) {
+				$delta_kwh += $catchup;
+			}
 		}
 	}
 
@@ -3303,13 +3345,26 @@ function gaming_hub_tesla_record_wall_energy( $watts, $accumulate, $energy_added
 		$rate  = function_exists( 'gaming_hub_looop_average_rate_between' )
 			? gaming_hub_looop_average_rate_between( $from, $now )
 			: 30.0;
-		$yen   = $delta_kwh * $rate;
 		$share = gaming_hub_tesla_today_share( $from, $now );
 
-		$saved['wh']               = (float) ( $saved['wh'] ?? 0 ) + ( $delta_kwh * 1000 * $share );
-		$saved['yen']              = (float) ( $saved['yen'] ?? 0 ) + ( $yen * $share );
-		$saved['session_wh']       = (float) ( $saved['session_wh'] ?? 0 ) + ( $delta_kwh * 1000 );
-		$saved['session_yen']      = (float) ( $saved['session_yen'] ?? 0 ) + $yen;
+		$session_credit = $delta_kwh;
+		$today_credit   = $delta_kwh * $share;
+		// After a session reset, today may still hold earlier ticks from the same
+		// charge. Clamp so today never exceeds the car counter on a same-day session.
+		if ( null !== $added && $share >= 0.999 ) {
+			$today_kwh = (float) ( $saved['wh'] ?? 0 ) / 1000.0;
+			if ( ( $today_kwh + $today_credit ) > ( $added + 0.02 ) ) {
+				$today_credit = max( 0.0, $added - $today_kwh );
+			}
+		}
+
+		$today_yen   = $today_credit * $rate;
+		$session_yen = $session_credit * $rate;
+
+		$saved['wh']               = (float) ( $saved['wh'] ?? 0 ) + ( $today_credit * 1000 );
+		$saved['yen']              = (float) ( $saved['yen'] ?? 0 ) + $today_yen;
+		$saved['session_wh']       = (float) ( $saved['session_wh'] ?? 0 ) + ( $session_credit * 1000 );
+		$saved['session_yen']      = (float) ( $saved['session_yen'] ?? 0 ) + $session_yen;
 		$saved['session_end_date'] = $today;
 	}
 
