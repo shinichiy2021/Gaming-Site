@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { batteryTone, isFlowActive, isRegenActive, isSuperchargerConnected, FLOW_THRESHOLD } from './constants';
+import { batteryTone, formatPack, isFlowActive, isRegenActive, isSuperchargerConnected, FLOW_THRESHOLD } from './constants';
 
 function formatYen( value ) {
 	if ( typeof window !== 'undefined' && typeof window.gamingHubYen === 'function' ) {
@@ -185,6 +185,7 @@ function BatteryCard( {
 	totalLabel,
 	vehicleName,
 	stateLabel,
+	packLabel,
 	tone,
 	asleep,
 } ) {
@@ -203,11 +204,12 @@ function BatteryCard( {
 			data-flow-id="tesla"
 			style={ hasSoc ? { '--battery-level': soc, '--batt-tone': tone.color } : undefined }
 		>
-			<div className="teslogic-battery__top">
+			<div className="teslogic-battery__top teslogic-battery__top--stack">
+				<BattIcon charging={ charging || regenOn } />
 				<strong className="teslogic-battery__soc">
 					{ hasSoc ? `${ Math.round( soc ) }%` : '—' }
 				</strong>
-				<BattIcon charging={ charging || regenOn } />
+				{ packLabel ? <small className="teslogic-battery__pack">{ packLabel }</small> : null }
 				{ Number.isFinite( tempC ) ? (
 					<span className="teslogic-battery__temp">{ `${ Math.round( tempC ) } °C` }</span>
 				) : null }
@@ -362,6 +364,13 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 	const asleep = !! status.asleep;
 	const soc = Number( status.battery_percent );
 	const hasSoc = status.live && Number.isFinite( soc );
+	const fullWh = Number( status.capacity_wh );
+	const remainWh = Number.isFinite( Number( status.remain_capacity ) )
+		? Number( status.remain_capacity )
+		: ( hasSoc && Number.isFinite( fullWh ) && fullWh > 0 ? fullWh * soc / 100 : null );
+	const packLabel = hasSoc && Number.isFinite( fullWh ) && fullWh > 0
+		? formatPack( remainWh, fullWh )
+		: '';
 	const tone = batteryTone( hasSoc ? soc : NaN );
 	const charging = ! asleep && !! status.live && !! status.is_charging;
 	const superConnected = ! asleep && isSuperchargerConnected( status );
@@ -451,6 +460,7 @@ export default function TeslaFlowDiagram( { initial, labels } ) {
 							totalValue={ formatTodayMetric( packTotalKwh, packTodayYen ) }
 							vehicleName={ status.vehicle_name || labels.tesla }
 							stateLabel={ teslaStateLabel( status, labels ) }
+							packLabel={ packLabel }
 							tone={ tone }
 							asleep={ asleep }
 						/>
