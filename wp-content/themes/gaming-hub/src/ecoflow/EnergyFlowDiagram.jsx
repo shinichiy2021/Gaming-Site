@@ -542,26 +542,23 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const proSoc = parseSoc( pro.battery_percent );
 	const hasProSoc = proSoc !== null;
 	const proAcOut = Number( pro.ac_out ) || 0;
-	// Pack card Input/Output = net into / out of the battery, not port totals.
-	// Port cards (Grid / HV / Home) keep the gross feed and load watts.
-	const proGrossIn = Math.max(
+	// Pack Input/Output = port totals (EcoFlow app style). Port cards keep the same meters.
+	const proInW = Math.max(
 		asWatts( pro.input_total ),
 		asWatts( pro.input_watts ),
 		asWatts( proGrid.watts ) + asWatts( hvWatts )
 	);
-	const proGrossOut = Math.max(
+	const proOutW = Math.max(
 		asWatts( pro.output_total ),
 		asWatts( pro.output_watts ),
 		asWatts( roomWatts ),
 		asWatts( proAcOut )
 	);
-	const proInW = Math.max( 0, proGrossIn - proGrossOut );
-	const proOutW = Math.max( 0, proGrossOut - proGrossIn );
 	const proCharging = pro.eta_mode === 'charge'
-		|| ( pro.eta_mode !== 'discharge' && ( !! pro.is_charging || proInW >= FLOW_THRESHOLD ) );
+		|| ( pro.eta_mode !== 'discharge' && !! pro.is_charging );
 	const proDischarging = pro.eta_mode === 'discharge'
 		|| ( pro.eta_mode !== 'charge' && ! proCharging && (
-			!! pro.is_discharging || proOutW >= FLOW_THRESHOLD
+			!! pro.is_discharging || Math.max( proOutW, roomWatts, proAcOut ) >= FLOW_THRESHOLD
 		) );
 	const proCurrentW = proCharging ? proInW : proOutW;
 	const proTodayKwh = proCharging
@@ -577,33 +574,32 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const hasDeltaSoc = ! deltaMissing && deltaSocNum !== null;
 	const deltaAcOut = Number( delta.ac_out ) || 0;
 	// Prefer Low Volt + AC meters when present (incl. 0). Sticky powInSumW /
-	// input_total otherwise leaves a ghost Input and freezes net Output.
+	// input_total otherwise leaves a ghost Input while feeds are idle.
 	const deltaFeedIn = asWatts( deltaAcIn ) + asWatts( solarWatts );
 	const deltaHasFeedMeters = ( delta.solar_in !== null && delta.solar_in !== undefined )
 		|| ( delta.ac_in !== null && delta.ac_in !== undefined );
-	const deltaGrossIn = deltaHasFeedMeters
+	const deltaInW = deltaHasFeedMeters
 		? deltaFeedIn
 		: Math.max(
 			asWatts( delta.input_total ),
 			asWatts( delta.input_watts ),
 			deltaFeedIn
 		);
-	const deltaGrossOut = Math.max(
+	const deltaOutW = Math.max(
 		asWatts( delta.output_total ),
 		asWatts( delta.output_watts ),
 		asWatts( upsWatts ),
 		asWatts( deltaAcOut )
 	);
-	const deltaInW = Math.max( 0, deltaGrossIn - deltaGrossOut );
-	const deltaOutW = Math.max( 0, deltaGrossOut - deltaGrossIn );
 	const deltaCharging = ! deltaMissing && (
 		delta.eta_mode === 'charge'
-		|| ( delta.eta_mode !== 'discharge' && ( !! delta.is_charging || deltaInW >= FLOW_THRESHOLD ) )
+		|| ( delta.eta_mode !== 'discharge' && !! delta.is_charging )
 	);
 	const deltaDischarging = ! deltaMissing && (
 		delta.eta_mode === 'discharge'
 		|| ( delta.eta_mode !== 'charge' && ! deltaCharging && (
-			!! delta.is_discharging || deltaOutW >= FLOW_THRESHOLD
+			!! delta.is_discharging
+			|| Math.max( deltaOutW, asWatts( upsWatts ), deltaAcOut ) >= FLOW_THRESHOLD
 		) )
 	);
 	const deltaCurrentW = deltaCharging ? deltaInW : deltaOutW;
