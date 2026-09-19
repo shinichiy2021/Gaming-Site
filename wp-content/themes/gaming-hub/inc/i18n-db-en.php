@@ -747,6 +747,8 @@ return array(
 	'残りの走行 %2$s km。平日の充電上限は %5$s%%、金曜夜〜土曜 %4$s 時までの最安時間（%3$s）にも充電します（200V 普通充電 %1$s kW）。この時間だけ自宅充電を自動で開始します。' => '%2$s km still to drive. Weekday charge limit is %5$s%%; cheapest hours from Friday night to Saturday %4$s:00 (%3$s) also charge (200V AC at %1$s kW). Home charging starts automatically in those hours only.',
 	'残り予想使用（リビングエアコン他）' => 'Remaining expected Living AC & others use',
 	'残り予想発電' => 'Remaining expected generation',
+	'残り %s kWh' => 'Remaining %s kWh',
+	'いまから' => 'From now',
 	'残り使用時間' => 'Runtime left',
 	'残り時間' => 'Time left',
 	'残り走行' => 'Remaining drive',

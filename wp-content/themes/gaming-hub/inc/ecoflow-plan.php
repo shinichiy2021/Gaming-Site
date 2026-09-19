@@ -1,8 +1,8 @@
 <?php
 /**
  * EcoFlow daily charge plan: in cheap hours, charge Pro toward
- * (100% − that day's Pro solar forecast), so solar can still fill the pack.
- * Example: 10% of pack from solar → cheap-grid target 90%.
+ * (100% − remaining Pro solar from now), so later PV can still fill the pack.
+ * Example: 10% of pack still expected from solar → cheap-grid target 90%.
  *
  * @package Gaming_Hub
  */
@@ -56,6 +56,34 @@ function gaming_hub_ecoflow_solar_panel_label() {
 		number_format_i18n( (int) GAMING_HUB_ECOFLOW_SOLAR_PRO_W ),
 		number_format_i18n( (int) GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W )
 	);
+}
+
+/**
+ * Sum kWh from an hourly watts series.
+ *
+ * @param array<int, mixed> $hours          Hourly watts 0–23.
+ * @param int               $from_hour      First hour to include (0–23).
+ * @param float             $hour_frac_left Fraction of $from_hour still ahead (0–1).
+ * @return float
+ */
+function gaming_hub_ecoflow_sum_hours_kwh( array $hours, $from_hour = 0, $hour_frac_left = 1.0 ) {
+	$from_hour = max( 0, min( 23, (int) $from_hour ) );
+	$frac      = max( 0.0, min( 1.0, (float) $hour_frac_left ) );
+	$sum       = 0.0;
+
+	for ( $h = 0; $h < 24; $h++ ) {
+		$kwh = max( 0.0, (float) ( $hours[ $h ] ?? 0 ) ) / 1000.0;
+		if ( $h < $from_hour ) {
+			continue;
+		}
+		if ( $h === $from_hour ) {
+			$sum += $kwh * $frac;
+			continue;
+		}
+		$sum += $kwh;
+	}
+
+	return $sum;
 }
 
 /**
@@ -634,7 +662,7 @@ function gaming_hub_ecoflow_get_charge_plan( array $status, $force = false ) {
 	$delta_key  = null !== ( $delta_pack['soc'] ?? null ) ? (int) floor( (float) $delta_pack['soc'] / 5 ) : 'x';
 	$dates      = gaming_hub_ecoflow_plan_dates();
 	$was_grid   = gaming_hub_ecoflow_plan_was_grid_charging() ? '1' : '0';
-	$key        = 'gaming_hub_ecoflow_plan_v36_' . $dates['today'] . '_' . $hour . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH;
+	$key        = 'gaming_hub_ecoflow_plan_v37_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH;
 
 	if ( ! $force ) {
 		$cached = get_transient( $key );
@@ -1054,6 +1082,10 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	$is_today  = $plan_date === $dates['today'];
 	$day_key   = $plan_date === $dates['yesterday'] ? 'yesterday' : ( $plan_date === $dates['tomorrow'] ? 'tomorrow' : 'today' );
 	$hour      = $is_today ? (int) wp_date( 'G' ) : 0;
+	$minute    = $is_today ? (int) wp_date( 'i' ) : 0;
+	// Remaining solar is from now (partial current hour), not the full calendar day —
+	// so cheap-hour targets can climb toward 100% as the day's PV runs out.
+	$hour_frac_left      = $is_today ? max( 0.0, 1.0 - ( $minute / 60.0 ) ) : 1.0;
 	$solar_remaining_kwh = 0.0;
 	$solar_today_kwh     = 0.0;
 	$solar_hours         = array();
@@ -1075,13 +1107,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		$temp_min         = isset( $profile['temp_min'] ) ? $profile['temp_min'] : null;
 	}
 
-	foreach ( $solar_hours as $h => $watts ) {
-		$kwh = max( 0, (float) $watts ) / 1000.0;
-		$solar_today_kwh += $kwh;
-		if ( (int) $h >= $hour ) {
-			$solar_remaining_kwh += $kwh;
-		}
-	}
+	$solar_today_kwh     = gaming_hub_ecoflow_sum_hours_kwh( $solar_hours, 0, 1.0 );
+	$solar_remaining_kwh = gaming_hub_ecoflow_sum_hours_kwh( $solar_hours, $hour, $hour_frac_left );
 
 	$room = gaming_hub_ecoflow_room_energy_from_temps( $hour, $temps );
 	if ( null === $room['temp_now'] && null !== $temp_now ) {
@@ -1089,9 +1116,9 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	}
 
 	$room_remaining_kwh    = (float) $room['room_remaining_kwh'];
-	$hours_left            = 24 - $hour;
+	$hours_left            = ( 24 - $hour - 1 ) + $hour_frac_left;
 	$dc1500_w              = (int) GAMING_HUB_ECOFLOW_DELTA1500_DC_W;
-	$dc1500_remaining_kwh  = ( $dc1500_w / 1000.0 ) * $hours_left;
+	$dc1500_remaining_kwh  = ( $dc1500_w / 1000.0 ) * max( 0.0, $hours_left );
 	$dc1500_today_kwh      = ( $dc1500_w / 1000.0 ) * 24;
 	$load_remaining_kwh    = $room_remaining_kwh + $dc1500_remaining_kwh;
 
@@ -1113,12 +1140,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	}
 	$usable_kwh = gaming_hub_ecoflow_plan_usable_kwh( $soc, $full_wh, $delta_soc, $delta_pack['full_wh'] ?? 0 );
 	$split_solar = gaming_hub_ecoflow_split_solar_hours( $solar_hours );
-	$pro_solar_remaining_kwh = 0.0;
-	foreach ( $split_solar['pro'] as $h => $watts ) {
-		if ( (int) $h >= $hour ) {
-			$pro_solar_remaining_kwh += max( 0, (float) $watts ) / 1000.0;
-		}
-	}
+	$pro_solar_remaining_kwh = gaming_hub_ecoflow_sum_hours_kwh( $split_solar['pro'], $hour, $hour_frac_left );
 	$headroom_soc  = gaming_hub_ecoflow_plan_solar_headroom_soc( $full_wh, $pro_solar_remaining_kwh );
 	$target_soc    = gaming_hub_ecoflow_plan_grid_target_soc( $full_wh, $pro_solar_remaining_kwh );
 	$projected_soc = gaming_hub_ecoflow_plan_projected_soc( $soc, $full_wh, $pro_solar_remaining_kwh, $room_remaining_kwh );
@@ -1396,10 +1418,10 @@ function gaming_hub_ecoflow_plan_projected_soc( $soc, $full_wh, $solar_kwh, $loa
 }
 
 /**
- * Remaining Pro solar as a percent of the Pro pack (0–100).
+ * Remaining Pro solar from now as a percent of the Pro pack (0–100).
  *
  * @param float $full_wh   Pro full Wh.
- * @param float $solar_kwh Remaining Pro solar kWh.
+ * @param float $solar_kwh Remaining Pro solar kWh from now.
  */
 function gaming_hub_ecoflow_plan_solar_headroom_soc( $full_wh, $solar_kwh ) {
 	$full_kwh = max( 0.5, (float) $full_wh / 1000.0 );
@@ -1409,10 +1431,11 @@ function gaming_hub_ecoflow_plan_solar_headroom_soc( $full_wh, $solar_kwh ) {
 }
 
 /**
- * Cheap-hour grid target: leave today's Pro solar forecast empty for PV.
+ * Cheap-hour grid target: leave remaining Pro solar (from now) empty for PV,
+ * so the pack can still fill toward 100% as the day progresses.
  *
  * @param float $full_wh   Pro full Wh.
- * @param float $solar_kwh Remaining Pro solar kWh.
+ * @param float $solar_kwh Remaining Pro solar kWh from now.
  */
 function gaming_hub_ecoflow_plan_grid_target_soc( $full_wh, $solar_kwh ) {
 	$headroom = gaming_hub_ecoflow_plan_solar_headroom_soc( $full_wh, $solar_kwh );

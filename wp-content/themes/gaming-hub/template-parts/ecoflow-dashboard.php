@@ -365,14 +365,14 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 						</small>
 					</div>
 					<div class="ecoflow-plan-card">
-						<span class="ecoflow-stat-label"><?php esc_html_e('Today’s expected generation', 'gaming-hub'); ?></span>
-						<strong data-ecoflow-field="plan_solar_today"><?php echo esc_html( isset( $plan['solar_today_kwh'] ) ? number_format_i18n( (float) $plan['solar_today_kwh'], 1 ) . ' kWh' : '—' ); ?></strong>
+						<span class="ecoflow-stat-label"><?php esc_html_e('Remaining expected generation', 'gaming-hub'); ?></span>
+						<strong data-ecoflow-field="plan_solar_today"><?php echo esc_html( isset( $plan['solar_hud_kwh'] ) ? number_format_i18n( (float) $plan['solar_hud_kwh'], 1 ) . ' kWh' : ( isset( $plan['solar_remaining_kwh'] ) ? number_format_i18n( (float) $plan['solar_remaining_kwh'], 1 ) . ' kWh' : '—' ) ); ?></strong>
 						<small>
 							<?php
 							$panel_note = function_exists( 'gaming_hub_ecoflow_solar_panel_label' )
 								? gaming_hub_ecoflow_solar_panel_label()
 								: __('Pro 800 W + 1500 500 W', 'gaming-hub');
-							echo esc_html( $panel_note . ' · ' . __('Tajimi', 'gaming-hub') );
+							echo esc_html( $panel_note . ' · ' . __('From now', 'gaming-hub') . ' · ' . __('Tajimi', 'gaming-hub') );
 							?>
 						</small>
 					</div>
