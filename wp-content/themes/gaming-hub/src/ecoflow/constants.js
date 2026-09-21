@@ -161,6 +161,39 @@ export function formatPack( remain, full ) {
 	return `${ formatWh( remain ) } / ${ formatWh( full ) }`;
 }
 
+/**
+ * Prefer SOC×capacity when cmsBattRemainEnergy is stale (remain≈full while SOC≈5%).
+ */
+export function reconcileRemainWh( remain, full, soc ) {
+	const capacity = Number( full );
+	const hasCap = Number.isFinite( capacity ) && capacity > 0;
+	const socNum = Number( soc );
+	const hasSoc = Number.isFinite( socNum ) && socNum >= 0 && socNum <= 100;
+	const fromSoc = hasCap && hasSoc ? Math.round( capacity * ( socNum / 100 ) ) : null;
+
+	if ( remain === null || remain === undefined || ! Number.isFinite( Number( remain ) ) || Number( remain ) < 0 ) {
+		return fromSoc;
+	}
+
+	const remainNum = Number( remain );
+	if ( ! hasCap ) {
+		return Math.round( remainNum );
+	}
+
+	if ( remainNum > capacity * 1.02 ) {
+		return fromSoc !== null ? fromSoc : Math.round( Math.min( remainNum, capacity ) );
+	}
+
+	if ( fromSoc !== null ) {
+		const tol = Math.max( 40, capacity * 0.08 );
+		if ( Math.abs( remainNum - fromSoc ) > tol ) {
+			return fromSoc;
+		}
+	}
+
+	return Math.round( Math.min( remainNum, capacity ) );
+}
+
 export function solarToDelta( status ) {
 	if ( ! status ) {
 		return null;

@@ -813,6 +813,53 @@ function gaming_hub_ecoflow_normalize_cap_to_wh( $value ) {
 }
 
 /**
+ * Reconcile remain Wh with SOC and capacity.
+ *
+ * cmsBattRemainEnergy is sometimes stale (e.g. remain ≈ full while SOC ≈ 5%).
+ *
+ * @param float|int|null $remain   Reported remain Wh.
+ * @param float|int|null $capacity Pack capacity Wh.
+ * @param float|int|null $soc      Pack SOC percent 0–100.
+ * @return int|null
+ */
+function gaming_hub_ecoflow_reconcile_remain_wh( $remain, $capacity, $soc ) {
+	$soc_remain = null;
+	if ( null !== $capacity && is_numeric( $capacity ) && (float) $capacity > 0
+		&& null !== $soc && is_numeric( $soc ) && (float) $soc >= 0 && (float) $soc <= 100 ) {
+		$soc_remain = (int) round( (float) $capacity * ( (float) $soc / 100.0 ) );
+	}
+
+	if ( null === $capacity || ! is_numeric( $capacity ) || (float) $capacity <= 0 ) {
+		return ( null !== $remain && is_numeric( $remain ) && (float) $remain >= 0 )
+			? (int) round( (float) $remain )
+			: $soc_remain;
+	}
+
+	$capacity = (float) $capacity;
+
+	if ( null === $remain || ! is_numeric( $remain ) || (float) $remain < 0 ) {
+		return $soc_remain;
+	}
+
+	$remain = (float) $remain;
+
+	// Remain above capacity (small tolerance) is invalid.
+	if ( $remain > $capacity * 1.02 ) {
+		return null !== $soc_remain ? $soc_remain : (int) round( min( $remain, $capacity ) );
+	}
+
+	// Large mismatch vs SOC → trust SOC × capacity.
+	if ( null !== $soc_remain ) {
+		$tol = max( 40.0, $capacity * 0.08 );
+		if ( abs( $remain - (float) $soc_remain ) > $tol ) {
+			return $soc_remain;
+		}
+	}
+
+	return (int) round( min( $remain, $capacity ) );
+}
+
+/**
  * Parse combined pack capacity from quota keys.
  *
  * @param array<string, mixed> $quota      Raw quota map.
@@ -976,7 +1023,7 @@ function gaming_hub_ecoflow_delta1500_energy_from_parsed( array $parsed, $quota 
 	$remain_wh = gaming_hub_ecoflow_quota_value( $quota, array( 'cmsBattRemainEnergy' ) );
 	if ( null === $remain_wh && isset( $parsed['remain_capacity'] ) && is_numeric( $parsed['remain_capacity'] ) ) {
 		$candidate = (float) $parsed['remain_capacity'];
-		if ( $candidate > 0 && ( $full_wh <= 0 || $candidate <= $full_wh * 1.05 ) ) {
+		if ( $candidate >= 0 ) {
 			$remain_wh = $candidate;
 		}
 	}
@@ -989,9 +1036,7 @@ function gaming_hub_ecoflow_delta1500_energy_from_parsed( array $parsed, $quota 
 		}
 	}
 
-	if ( null === $remain_wh && null !== $soc && $full_wh > 0 ) {
-		$remain_wh = $full_wh * ( $soc / 100.0 );
-	}
+	$remain_wh = gaming_hub_ecoflow_reconcile_remain_wh( $remain_wh, $full_wh, $soc );
 
 	if ( null !== $remain_wh && null === $soc && $full_wh > 0 ) {
 		$soc = (int) round( 100 * $remain_wh / $full_wh );
@@ -1342,7 +1387,7 @@ function gaming_hub_ecoflow_parse_main_pack( $quota, $parsed = array() ) {
 	$remain_wh = gaming_hub_ecoflow_quota_value( $quota, array( 'cmsBattRemainEnergy' ) );
 	if ( null === $remain_wh && isset( $parsed['remain_capacity'] ) && is_numeric( $parsed['remain_capacity'] ) ) {
 		$candidate = (float) $parsed['remain_capacity'];
-		if ( $candidate > 0 && $candidate <= $cap_wh * 1.05 ) {
+		if ( $candidate >= 0 ) {
 			$remain_wh = $candidate;
 		}
 	}
@@ -1355,9 +1400,7 @@ function gaming_hub_ecoflow_parse_main_pack( $quota, $parsed = array() ) {
 		}
 	}
 
-	if ( null === $remain_wh && null !== $soc && $cap_wh > 0 ) {
-		$remain_wh = $cap_wh * ( max( 0, min( 100, $soc ) ) / 100.0 );
-	}
+	$remain_wh = gaming_hub_ecoflow_reconcile_remain_wh( $remain_wh, $cap_wh, $soc );
 
 	if ( null !== $remain_wh && null === $soc && $cap_wh > 0 ) {
 		$soc = 100 * $remain_wh / $cap_wh;
