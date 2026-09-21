@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
+import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, reconcileRemainWh, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
 // Flow canvas lines disabled — keep BattIcon discharge arrow only.
 
 function isFlowActive( flowId, status ) {
@@ -126,9 +126,11 @@ function DeviceNode( { device, label, flowId, photo, compact, hero, prominent } 
 		: Number( device.battery_percent );
 	const hasBattery = Number.isFinite( batteryPercent );
 	const fullWh = Number( device.capacity_wh );
-	const remainWh = Number.isFinite( Number( device.remain_capacity ) )
-		? Number( device.remain_capacity )
-		: ( hasBattery && Number.isFinite( fullWh ) ? fullWh * batteryPercent / 100 : null );
+	const remainWh = reconcileRemainWh(
+		Number.isFinite( Number( device.remain_capacity ) ) ? Number( device.remain_capacity ) : null,
+		fullWh,
+		hasBattery ? batteryPercent : null
+	);
 	const mqttMissing = flowId === 'delta' && (
 		device.mqtt_live !== true || device.soc_source === 'unavailable'
 	);
@@ -565,9 +567,11 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 		? whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro )
 		: whToKwh( liveUsage?.room );
 	const proFullWh = Number( pro.capacity_wh );
-	const proRemainWh = Number.isFinite( Number( pro.remain_capacity ) )
-		? Number( pro.remain_capacity )
-		: ( hasProSoc && Number.isFinite( proFullWh ) ? proFullWh * proSoc / 100 : null );
+	const proRemainWh = reconcileRemainWh(
+		Number.isFinite( Number( pro.remain_capacity ) ) ? Number( pro.remain_capacity ) : null,
+		proFullWh,
+		hasProSoc ? proSoc : null
+	);
 	const proPackLabel = Number.isFinite( proFullWh ) && proFullWh > 0 ? formatPack( proRemainWh, proFullWh ) : '';
 
 	const deltaSocNum = parseSoc( delta.battery_percent );
@@ -610,15 +614,21 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 		? Number( delta.capacity_wh )
 		: 1500;
 	const unitFullWh = mainFullWh + ( extraMissing ? 0 : extraCap );
-	const mainRemainWh = Number.isFinite( Number( delta.remain_capacity ) )
-		? Number( delta.remain_capacity )
-		: ( hasDeltaSoc ? mainFullWh * deltaSocNum / 100 : null );
-	const extraRemainWh = ! extraMissing && Number.isFinite( Number( extra.remain_capacity ) )
-		? Number( extra.remain_capacity )
-		: ( ! extraMissing && extraSoc !== null ? extraCap * extraSoc / 100 : 0 );
+	const mainRemainWh = reconcileRemainWh(
+		Number.isFinite( Number( delta.remain_capacity ) ) ? Number( delta.remain_capacity ) : null,
+		mainFullWh,
+		hasDeltaSoc ? deltaSocNum : null
+	);
+	const extraRemainWh = extraMissing
+		? 0
+		: reconcileRemainWh(
+			Number.isFinite( Number( extra.remain_capacity ) ) ? Number( extra.remain_capacity ) : null,
+			extraCap,
+			extraSoc
+		);
 	const unitRemainWh = mainRemainWh === null
 		? null
-		: mainRemainWh + ( extraMissing ? 0 : extraRemainWh );
+		: mainRemainWh + ( extraMissing ? 0 : ( extraRemainWh || 0 ) );
 	const mainSoc = hasDeltaSoc ? deltaSocNum : null;
 	const hasMainSoc = hasDeltaSoc;
 	const unitSoc = ( unitRemainWh !== null && unitFullWh > 0 )
