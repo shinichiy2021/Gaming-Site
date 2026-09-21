@@ -513,6 +513,33 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 		);
 	}
 
+	// Tesla app LocatedAtHome is authoritative when present — do not let sticky /
+	// "recently plugged at home" heuristics relabel an away 200V session as home AC.
+	$located = null;
+	if ( array_key_exists( 'located_at_home', $model3 ) && is_bool( $model3['located_at_home'] ) ) {
+		$located = $model3['located_at_home'];
+	} elseif ( function_exists( 'gaming_hub_tesla_located_at_home_get' ) ) {
+		$located = gaming_hub_tesla_located_at_home_get();
+	}
+	if ( false === $located ) {
+		return array(
+			'type'     => 'away_ac',
+			'label'    => __('Away AC', 'gaming-hub'),
+			'watts'    => $charging ? max( $wall_w, $watts ) : 0,
+			'plugged'  => true,
+			'charging' => $charging,
+		);
+	}
+	if ( true === $located ) {
+		return array(
+			'type'     => 'home_ac',
+			'label'    => gaming_hub_tesla_plan_charge_label(),
+			'watts'    => $charging ? max( $wall_w, $watts ) : 0,
+			'plugged'  => true,
+			'charging' => $charging,
+		);
+	}
+
 	$dist = isset( $model3['geofence_distance_m'] ) && is_numeric( $model3['geofence_distance_m'] )
 		? (int) $model3['geofence_distance_m']
 		: null;
@@ -522,7 +549,7 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 	$absurd_far = null !== $dist && $dist > (int) max( 15000, 40 * $home_radius );
 
 	// Parked AC with leftover trip GPS (tens of km) must not show Away AC.
-	if ( true === $at_home || $absurd_far || ! empty( $model3['at_home_sticky'] ) ) {
+	if ( true === $at_home || $absurd_far ) {
 		return array(
 			'type'     => 'home_ac',
 			'label'    => gaming_hub_tesla_plan_charge_label(),
@@ -533,11 +560,12 @@ function gaming_hub_tesla_plan_input_state( $status = null ) {
 	}
 
 	if ( false === $at_home ) {
+		// Explicit away from geofence/resolve. Do not override with home_plugged_recent —
+		// that kept labeling outdoor 200V as 自宅 AC after a recent home plug.
 		$far_away = null !== $dist && $dist > (int) max( 3000, 8 * $home_radius );
-		$prefer_home = ! $far_away && (
-			! empty( $model3['at_home_sticky'] )
-			|| ( function_exists( 'gaming_hub_tesla_home_plugged_recent' ) && gaming_hub_tesla_home_plugged_recent() )
-		);
+		$prefer_home = ! $far_away
+			&& ! empty( $model3['at_home_sticky'] )
+			&& null === $dist;
 
 		if ( ! $prefer_home ) {
 			return array(
