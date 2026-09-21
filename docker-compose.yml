@@ -44,6 +44,7 @@ services:
       TESLA_REDIRECT_URI: ${TESLA_REDIRECT_URI:-}
       TESLA_COMMAND_PROXY_URL: ${TESLA_COMMAND_PROXY_URL:-}
       GAMING_HUB_ENERGY_ORIGIN: ${GAMING_HUB_ENERGY_ORIGIN:-https://shinichiy-gaming-hub.com}
+      CRYPTO_APP_URL: ${CRYPTO_APP_URL:-http://localhost:3002}
     volumes:
       - wp_data:/var/www/html
       - ./wp-content/themes/gaming-hub:/var/www/html/wp-content/themes/gaming-hub
@@ -76,6 +77,17 @@ services:
       - ./wp-content/ecoflow-cache:/cache
     tty: true
     command: sh -c "npm install --omit=dev && node scripts/ecoflow-bridge-daemon.mjs"
+    networks:
+      - gaming-network
+
+  crypto:
+    build: ./crypto-app
+    container_name: gaming-site-crypto
+    restart: unless-stopped
+    ports:
+      - "${CRYPTO_PORT:-3002}:3000"
+    environment:
+      NODE_ENV: production
     networks:
       - gaming-network
 
