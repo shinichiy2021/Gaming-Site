@@ -28,10 +28,18 @@ function wallAcContext( status, asleep, charging ) {
 
 	const plugged = !! status.plugged || charging || !! status.input_plugged;
 	const inputType = String( status.input_type || 'none' );
-	const atHome = plugged && ( inputType === 'home_ac' || ( inputType === 'none' && status.at_home === true ) );
-	const away = plugged && ( inputType === 'away_ac' || ( inputType === 'none' && status.at_home === false ) );
+	// Prefer live at_home when known — input_type alone used to stick on home_ac after a recent home plug.
+	const atHome = plugged && status.at_home !== false && (
+		inputType === 'home_ac'
+		|| ( inputType === 'none' && status.at_home === true )
+	);
+	const away = plugged && (
+		status.at_home === false
+		|| inputType === 'away_ac'
+		|| ( inputType === 'none' && status.at_home === false )
+	);
 
-	return { plugged, atHome, away };
+	return { plugged, atHome, away: away && ! atHome };
 }
 
 function asWatts( value ) {
