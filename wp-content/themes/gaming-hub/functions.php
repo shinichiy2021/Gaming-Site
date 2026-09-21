@@ -88,6 +88,8 @@ require get_template_directory() . '/inc/ecoflow.php';
 require get_template_directory() . '/inc/affiliate.php';
 require get_template_directory() . '/inc/hub-switcher.php';
 require get_template_directory() . '/inc/hub-spa.php';
+require get_template_directory() . '/inc/crypto.php';
+require get_template_directory() . '/inc/stock.php';
 require get_template_directory() . '/inc/rank-math-setup.php';
 require get_template_directory() . '/inc/seed-posts.php';
 require get_template_directory() . '/inc/switchbot.php';
@@ -902,6 +904,14 @@ function gaming_hub_hide_nav_categories( $items ) {
 				$url   = strtolower( (string) ( $item->url ?? '' ) );
 
 				if ( 'looop' === $title || false !== strpos( $url, '/tag/looop' ) ) {
+					return false;
+				}
+
+				if ( 'crypto' === $title || false !== strpos( $url, '/tag/crypto' ) ) {
+					return false;
+				}
+
+				if ( 'stock' === $title || false !== strpos( $url, '/tag/stock' ) ) {
 					return false;
 				}
 
