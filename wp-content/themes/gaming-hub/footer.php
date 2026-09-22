@@ -30,7 +30,7 @@
 			</div>
 		</div>
 
-		<div class="footer-lancers-bar" aria-label="<?php esc_attr_e('Lancers web & API packages (¥30k–¥150k)', 'gaming-hub'); ?>">
+		<div class="footer-lancers-bar" aria-label="<?php esc_attr_e('Lancers web & API packages (¥15k–¥80k)', 'gaming-hub'); ?>">
 			<?php
 			if ( function_exists( 'gaming_hub_render_lancers_promo' ) ) {
 				gaming_hub_render_lancers_promo( 'footer' );

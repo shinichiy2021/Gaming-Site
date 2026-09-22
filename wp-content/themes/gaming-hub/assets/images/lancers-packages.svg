@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
   <title id="title">ランサーズ Web制作・API実装パッケージ</title>
-  <desc id="desc">ベーシック3万円、スタンダード8万円、プレミアム15万円の3プラン</desc>
+  <desc id="desc">ベーシック1.5万円、スタンダード4.5万円、プレミアム8万円の3プラン</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#120e08"/>
@@ -26,16 +26,17 @@
 
   <text x="72" y="92" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700" letter-spacing="4">LANCERS PACKAGE</text>
   <text x="72" y="142" fill="#f4f1ea" font-family="ui-sans-serif, system-ui, sans-serif" font-size="42" font-weight="800">Web制作・API実装</text>
-  <text x="72" y="186" fill="#a89f8f" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22">ダッシュボード / Fleet API / 紹介サイト</text>
+  <text x="72" y="186" fill="#a89f8f" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22">WordPress 改修 / コーディング / ACF</text>
 
   <!-- Basic -->
   <g transform="translate(72,230)">
     <rect width="320" height="250" rx="20" fill="url(#cardA)" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
     <rect x="0" y="0" width="320" height="8" rx="4" fill="#6a6a74"/>
     <text x="28" y="58" fill="#cfc7b8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">ベーシック</text>
-    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥30,000</text>
+    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥15,000</text>
     <text x="28" y="160" fill="#8a8478" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">税込目安</text>
-    <text x="28" y="210" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">軽微修正・1ページ</text>
+    <text x="28" y="204" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17">テキスト・画像差し替え</text>
+    <text x="28" y="230" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17">CSS崩れ修正（1〜2箇所）</text>
   </g>
 
   <!-- Standard -->
@@ -43,9 +44,10 @@
     <rect width="320" height="250" rx="20" fill="url(#cardA)" stroke="#ffcb05" stroke-width="3"/>
     <rect x="0" y="0" width="320" height="8" rx="4" fill="url(#gold)"/>
     <text x="28" y="58" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">スタンダード</text>
-    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥80,000</text>
+    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥45,000</text>
     <text x="28" y="160" fill="#8a8478" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">税込目安・おすすめ</text>
-    <text x="28" y="210" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">LP 1枚・要件整理込み</text>
+    <text x="28" y="204" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17">新規1ページ（PC/SP）</text>
+    <text x="28" y="230" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17">または ACF投稿1種</text>
   </g>
 
   <!-- Premium -->
@@ -53,8 +55,9 @@
     <rect width="320" height="250" rx="20" fill="url(#cardA)" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
     <rect x="0" y="0" width="320" height="8" rx="4" fill="#e31937"/>
     <text x="28" y="58" fill="#ff8a80" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" font-weight="700">プレミアム</text>
-    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥150,000</text>
+    <text x="28" y="118" fill="#ffcb05" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40" font-weight="800">¥80,000</text>
     <text x="28" y="160" fill="#8a8478" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">税込目安</text>
-    <text x="28" y="210" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18">紹介サイト 3〜5ページ</text>
+    <text x="28" y="204" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17">3〜4ページ改修</text>
+    <text x="28" y="230" fill="#ddd6c8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="17">UI・ACF・フォーム含む</text>
   </g>
 </svg>
