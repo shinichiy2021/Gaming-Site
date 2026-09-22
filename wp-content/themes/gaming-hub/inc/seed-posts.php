@@ -291,7 +291,7 @@ function gaming_hub_api_diagram_hero_alt( $post_id = null ) {
  * @return string
  */
 function gaming_hub_lancers_url() {
-	return 'https://www.lancers.jp/menu/detail/1338805';
+	return 'https://www.lancers.jp/menu/detail/1344682';
 }
 
 /**
@@ -322,7 +322,7 @@ function gaming_hub_render_lancers_promo( $context = '' ) {
 		<a class="lancers-promo-media" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener noreferrer">
 			<img
 				src="<?php echo esc_url( $img ); ?>"
-				alt="<?php esc_attr_e('Lancers web & API packages (¥30k–¥150k)', 'gaming-hub'); ?>"
+				alt="<?php esc_attr_e('Lancers web & API packages (¥15k–¥80k)', 'gaming-hub'); ?>"
 				width="1200"
 				height="560"
 				loading="lazy"
@@ -333,7 +333,7 @@ function gaming_hub_render_lancers_promo( $context = '' ) {
 			<p class="lancers-promo-eyebrow"><?php esc_html_e( 'LANCERS', 'gaming-hub' ); ?></p>
 			<h3 class="lancers-promo-title"><?php esc_html_e('Web & API implementation inquiries', 'gaming-hub'); ?></h3>
 			<p class="lancers-promo-lead">
-				<?php esc_html_e('Basic ¥30k / Standard ¥80k / Premium ¥150k. Inquiries via Lancers only.', 'gaming-hub'); ?>
+				<?php esc_html_e('Basic ¥15k / Standard ¥45k / Premium ¥80k. Inquiries via Lancers only.', 'gaming-hub'); ?>
 			</p>
 			<a class="btn btn-primary lancers-promo-cta" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener noreferrer">
 				<?php esc_html_e('Details & inquiry on Lancers', 'gaming-hub'); ?>
@@ -358,7 +358,7 @@ function gaming_hub_article_lancers_section() {
 <p>この記事と同様の <strong>Web アプリ・API 連携・ダッシュボード</strong> のご相談は、<a href="{$url}" target="_blank" rel="noopener noreferrer">ランサーズ</a> からお問い合わせください。取引はランサーズ経由のみ対応しています。</p>
 <figure class="article-figure article-figure--diagram lancers-promo-figure">
 <a href="{$url}" target="_blank" rel="noopener noreferrer">
-<img src="{$img}" alt="ランサーズ Web制作・API実装パッケージ（ベーシック3万円 / スタンダード8万円 / プレミアム15万円）" width="1200" height="560" loading="lazy" decoding="async" />
+<img src="{$img}" alt="ランサーズ Web制作・API実装パッケージ（ベーシック1.5万円 / スタンダード4.5万円 / プレミアム8万円）" width="1200" height="560" loading="lazy" decoding="async" />
 </a>
 <figcaption>料金プランの目安。画像タップでランサーズのパッケージ詳細へ。</figcaption>
 </figure>
@@ -367,9 +367,9 @@ function gaming_hub_article_lancers_section() {
 <tr><th>プラン</th><th>料金（税込目安）</th><th>内容</th></tr>
 </thead>
 <tbody>
-<tr><td>ベーシック</td><td>30,000円</td><td>既存サイトの軽微な修正、1ページ HTML/CSS コーディング</td></tr>
-<tr><td>スタンダード</td><td>80,000円</td><td>プロモーション LP 1枚（要件整理込み）</td></tr>
-<tr><td>プレミアム</td><td>150,000円</td><td>紹介サイト 3〜5ページ（レスポンシブ）</td></tr>
+<tr><td>ベーシック</td><td>15,000円</td><td>既存ページのテキスト・画像差し替え、CSSによる表示崩れ修正（1〜2箇所）</td></tr>
+<tr><td>スタンダード</td><td>45,000円</td><td>新規1ページのコーディング・組み込み（PC/SP対応）、またはACFによるカスタム投稿1種（一覧・詳細）の設計</td></tr>
+<tr><td>プレミアム</td><td>80,000円</td><td>複数ページ（3〜4ページ程度）の改修・コーディング（スライダー、タブ切り替え、ACF入力画面設計、問い合わせフォーム調整を含む）</td></tr>
 </tbody>
 </table>
 <p class="article-lancers-link"><a href="{$url}" target="_blank" rel="noopener noreferrer">ランサーズのパッケージ詳細・相談はこちら →</a></p>
@@ -1616,6 +1616,48 @@ function gaming_hub_refresh_lancers_visual_v1() {
 	update_option( 'gaming_hub_lancers_visual_v1', 1 );
 }
 add_action( 'init', 'gaming_hub_refresh_lancers_visual_v1', 34 );
+
+/**
+ * Refresh API articles with updated Lancers package pricing (¥15k / ¥45k / ¥80k).
+ */
+function gaming_hub_refresh_lancers_packages_v2() {
+	if ( get_option( 'gaming_hub_lancers_packages_v2' ) ) {
+		return;
+	}
+
+	$map = array(
+		gaming_hub_delta_pro3_api_post_slug() => 'gaming_hub_seed_delta_pro3_api_content',
+		gaming_hub_tesla_api_post_slug()      => 'gaming_hub_seed_tesla_api_content',
+	);
+
+	foreach ( $map as $slug => $content_fn ) {
+		if ( ! function_exists( $content_fn ) ) {
+			continue;
+		}
+		$posts = get_posts(
+			array(
+				'name'           => $slug,
+				'post_type'      => 'post',
+				'post_status'    => array( 'publish', 'draft', 'pending', 'private' ),
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+			)
+		);
+		if ( empty( $posts ) ) {
+			continue;
+		}
+
+		wp_update_post(
+			array(
+				'ID'           => (int) $posts[0],
+				'post_content' => call_user_func( $content_fn ),
+			)
+		);
+	}
+
+	update_option( 'gaming_hub_lancers_packages_v2', 1 );
+}
+add_action( 'init', 'gaming_hub_refresh_lancers_packages_v2', 35 );
 
 /**
  * Refresh seeded review posts with inline figures + featured images.
