@@ -355,6 +355,12 @@ export default function StockDashboard() {
             >
               Crypto →
             </Link>
+            <Link
+              href="/bot"
+              className="text-[0.7rem] tracking-wider text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
+            >
+              Paper Bot →
+            </Link>
           </div>
         </div>
 

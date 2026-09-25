@@ -285,7 +285,7 @@ function PortfolioPanels({
 }
 
 export default function CryptoDashboard() {
-  const [currency, setCurrency] = useState<'JPY' | 'USD'>('JPY');
+  const [currency, setCurrency] = useState<'JPY' | 'USD'>('USD');
   const {
     portfolio,
     hasSources,
@@ -329,6 +329,12 @@ export default function CryptoDashboard() {
             >
               国内株式 →
             </Link>
+            <Link
+              href="/bot"
+              className="text-[0.7rem] tracking-wider text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
+            >
+              Paper Bot →
+            </Link>
           </div>
         </div>
         <div className="flex flex-col items-end gap-3">
@@ -352,6 +358,16 @@ export default function CryptoDashboard() {
         </div>
       </header>
 
+      <p className="max-w-xl text-[0.95rem] text-[var(--color-muted)]">{subtitle}</p>
+
+      {error ? <p className="text-sm text-[var(--color-down)]">{error}</p> : null}
+
+      {loading ? <LoadingPanel /> : null}
+      {!loading && !hasSources ? <IdlePanel /> : null}
+      {!loading && hasSources ? (
+        <PortfolioPanels portfolio={portfolio} currency={currency} refreshing={refreshing} />
+      ) : null}
+
       <PortfolioInsight
         portfolio={portfolio}
         hasSources={hasSources}
@@ -363,8 +379,6 @@ export default function CryptoDashboard() {
         refreshing={refreshing}
         onRefresh={refetch}
       />
-
-      <p className="max-w-xl text-[0.95rem] text-[var(--color-muted)]">{subtitle}</p>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <WatchAddressBar
@@ -404,14 +418,6 @@ export default function CryptoDashboard() {
           onClear={suiWatch.clear}
         />
       </div>
-
-      {error ? <p className="text-sm text-[var(--color-down)]">{error}</p> : null}
-
-      {loading ? <LoadingPanel /> : null}
-      {!loading && !hasSources ? <IdlePanel /> : null}
-      {!loading && hasSources ? (
-        <PortfolioPanels portfolio={portfolio} currency={currency} refreshing={refreshing} />
-      ) : null}
     </div>
   );
 }
