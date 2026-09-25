@@ -72,57 +72,83 @@ export function useWalletPortfolio() {
       const usdJpy = usdJpyFromPrices(prices);
       const seeds: AssetSeed[] = [];
 
+      const seedErrors: string[] = [];
+
       if (address) {
-        const [mainnet, arb] = await Promise.all([
-          readEvmChainSeeds(publicClient, address, prices, ETH_META, TRACKED_TOKENS),
-          readEvmChainSeeds(arbitrumClient, address, prices, ETH_ARB_META, ARBITRUM_TOKENS),
-        ]);
-        seeds.push(...mainnet, ...arb);
+        try {
+          const [mainnet, arb] = await Promise.all([
+            readEvmChainSeeds(publicClient, address, prices, ETH_META, TRACKED_TOKENS),
+            readEvmChainSeeds(arbitrumClient, address, prices, ETH_ARB_META, ARBITRUM_TOKENS),
+          ]);
+          seeds.push(...mainnet, ...arb);
+        } catch (err) {
+          console.warn('[portfolio] EVM balance failed', err);
+          seedErrors.push('EVM');
+        }
       }
 
       if (btcWatch.address) {
-        const bal = await fetchNativeSegwitBalance(btcWatch.address);
-        seeds.push(
-          assetSeed(BTC_META.symbol, BTC_META.name, bal.btc, prices, BTC_META.color, BTC_META.coingeckoId)
-        );
+        try {
+          const bal = await fetchNativeSegwitBalance(btcWatch.address);
+          seeds.push(
+            assetSeed(BTC_META.symbol, BTC_META.name, bal.btc, prices, BTC_META.color, BTC_META.coingeckoId)
+          );
+        } catch (err) {
+          console.warn('[portfolio] BTC balance failed', err);
+          seedErrors.push('BTC');
+        }
       }
 
       if (solWatch.address) {
-        const bal = await fetchSolanaBalance(solWatch.address);
-        seeds.push(
-          assetSeed(SOL_META.symbol, SOL_META.name, bal.sol, prices, SOL_META.color, SOL_META.coingeckoId)
-        );
-        for (const token of SOL_TRACKED_TOKENS) {
+        try {
+          const bal = await fetchSolanaBalance(solWatch.address);
           seeds.push(
-            assetSeed(
-              token.symbol,
-              token.name,
-              bal.tokens[token.key] || 0,
-              prices,
-              token.color,
-              token.coingeckoId
-            )
+            assetSeed(SOL_META.symbol, SOL_META.name, bal.sol, prices, SOL_META.color, SOL_META.coingeckoId)
           );
+          for (const token of SOL_TRACKED_TOKENS) {
+            seeds.push(
+              assetSeed(
+                token.symbol,
+                token.name,
+                bal.tokens[token.key] || 0,
+                prices,
+                token.color,
+                token.coingeckoId
+              )
+            );
+          }
+        } catch (err) {
+          console.warn('[portfolio] SOL balance failed', err);
+          seedErrors.push('SOL');
         }
       }
 
       if (suiWatch.address) {
-        const bal = await fetchSuiBalance(suiWatch.address);
-        seeds.push(
-          assetSeed(SUI_META.symbol, SUI_META.name, bal.sui, prices, SUI_META.color, SUI_META.coingeckoId)
-        );
-        for (const coin of SUI_TRACKED_COINS) {
+        try {
+          const bal = await fetchSuiBalance(suiWatch.address);
           seeds.push(
-            assetSeed(
-              coin.symbol,
-              coin.name,
-              bal.tokens[coin.key] || 0,
-              prices,
-              coin.color,
-              coin.coingeckoId
-            )
+            assetSeed(SUI_META.symbol, SUI_META.name, bal.sui, prices, SUI_META.color, SUI_META.coingeckoId)
           );
+          for (const coin of SUI_TRACKED_COINS) {
+            seeds.push(
+              assetSeed(
+                coin.symbol,
+                coin.name,
+                bal.tokens[coin.key] || 0,
+                prices,
+                coin.color,
+                coin.coingeckoId
+              )
+            );
+          }
+        } catch (err) {
+          console.warn('[portfolio] SUI balance failed', err);
+          seedErrors.push('SUI');
         }
+      }
+
+      if (!seeds.some((s) => s.amount > 0) && seedErrors.length) {
+        throw new Error(`${seedErrors.join(' / ')} 残高の取得に失敗しました`);
       }
 
       return buildPortfolio(seeds, usdJpy);

@@ -10,7 +10,7 @@ WordPress + Docker local dev. Custom theme: `wp-content/themes/gaming-hub/`.
 | Production | https://shinichiy-gaming-hub.com |
 
 Dashboards live on tag pages: `/tag/ecoflow/`, `/tag/tesla/`, `/tag/pokemon-go/`.
-Crypto / stock live in a Next.js app (`crypto-app/`); `/tag/crypto/` → `/`, `/tag/stock/` → `/stock`. Neither is linked in nav.
+Crypto / stock / paper-bot live in a Next.js app (`crypto-app/`); `/tag/crypto/` → `/`, `/tag/stock/` → `/stock`, `/tag/bot/` → `/bot`. None are linked in nav.
 
 ## Key paths
 

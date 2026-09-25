@@ -90,6 +90,7 @@ require get_template_directory() . '/inc/hub-switcher.php';
 require get_template_directory() . '/inc/hub-spa.php';
 require get_template_directory() . '/inc/crypto.php';
 require get_template_directory() . '/inc/stock.php';
+require get_template_directory() . '/inc/bot.php';
 require get_template_directory() . '/inc/rank-math-setup.php';
 require get_template_directory() . '/inc/seed-posts.php';
 require get_template_directory() . '/inc/switchbot.php';
@@ -912,6 +913,10 @@ function gaming_hub_hide_nav_categories( $items ) {
 				}
 
 				if ( 'stock' === $title || false !== strpos( $url, '/tag/stock' ) ) {
+					return false;
+				}
+
+				if ( 'bot' === $title || false !== strpos( $url, '/tag/bot' ) ) {
 					return false;
 				}
 
