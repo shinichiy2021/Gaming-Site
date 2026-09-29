@@ -1915,6 +1915,8 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 
 	$delta_slice = gaming_hub_ecoflow_device_flow_slice( $delta );
 
+	$plan = is_array( $status['charge_plan'] ?? null ) ? $status['charge_plan'] : array();
+
 	$payload = array(
 		'dual'                => true,
 		'independent'         => true,
@@ -1966,6 +1968,11 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 			: ( function_exists( 'gaming_hub_ecoflow_energy_today_buy' )
 				? gaming_hub_ecoflow_energy_today_buy( $status )
 				: array() ),
+		'weather_code'        => isset( $plan['weather_code'] ) && is_numeric( $plan['weather_code'] )
+			? (int) $plan['weather_code']
+			: null,
+		'weather'             => (string) ( $plan['weather'] ?? '' ),
+		'weather_location'    => (string) ( $plan['weather_location'] ?? '' ),
 	);
 
 	return $payload;

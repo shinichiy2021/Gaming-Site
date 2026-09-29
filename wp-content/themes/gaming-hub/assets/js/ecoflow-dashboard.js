@@ -273,10 +273,37 @@
 		};
 	}
 
+	let lastWeather = (function () {
+		const root = document.getElementById('ecoflow-energy-flow-root');
+		try {
+			const initial = root && root.dataset.initial ? JSON.parse(root.dataset.initial) : {};
+			return {
+				code: initial.weather_code === null || initial.weather_code === undefined ? null : Number(initial.weather_code),
+				label: initial.weather || '',
+				location: initial.weather_location || '',
+			};
+		} catch (e) {
+			return { code: null, label: '', location: '' };
+		}
+	}());
+
 	function dispatchFlowUpdate(data) {
+		const plan = data.charge_plan && typeof data.charge_plan === 'object' ? data.charge_plan : null;
+		if (plan && plan.weather_code !== null && plan.weather_code !== undefined) {
+			lastWeather = {
+				code: Number(plan.weather_code),
+				label: plan.weather || '',
+				location: plan.weather_location || '',
+			};
+		}
+		const detail = buildFlowPayload(data);
+		detail.weather_code = lastWeather.code;
+		detail.weather = lastWeather.label;
+		detail.weather_location = lastWeather.location;
+
 		document.dispatchEvent(
 			new CustomEvent('gamingHubEcoflowStatus', {
-				detail: buildFlowPayload(data),
+				detail: detail,
 			})
 		);
 	}

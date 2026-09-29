@@ -1090,6 +1090,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	$solar_today_kwh     = 0.0;
 	$solar_hours         = array();
 	$weather             = '';
+	$weather_code        = null;
 	$weather_location    = '';
 	$temps               = array();
 	$temp_now            = null;
@@ -1100,6 +1101,9 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		$profile          = gaming_hub_powerwall_solar_hourly_profile( false, $plan_date );
 		$solar_hours      = gaming_hub_ecoflow_scale_solar_hours( $profile['hours'] ?? array() );
 		$weather          = (string) ( $profile['weather'] ?? '' );
+		$weather_code     = isset( $profile['weather_code'] ) && is_numeric( $profile['weather_code'] )
+			? (int) $profile['weather_code']
+			: null;
 		$weather_location = (string) ( $profile['location'] ?? '' );
 		$temps            = is_array( $profile['temps'] ?? null ) ? $profile['temps'] : array();
 		$temp_now         = isset( $profile['temp_now'] ) ? $profile['temp_now'] : null;
@@ -1315,6 +1319,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'solar_headroom_soc'   => (int) round( $headroom_soc ),
 		'projected_soc'        => round( $projected_soc, 1 ),
 		'weather'              => $weather,
+		'weather_code'         => $weather_code,
 		'weather_location'     => $weather_location,
 		'temp_now'             => null === $room['temp_now'] ? $temp_now : $room['temp_now'],
 		'temp_max'             => $temp_max,

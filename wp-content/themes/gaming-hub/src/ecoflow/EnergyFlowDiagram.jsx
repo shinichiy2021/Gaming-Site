@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, reconcileRemainWh, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput } from './constants';
+import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, reconcileRemainWh, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput, weatherIcon } from './constants';
 // Flow canvas lines disabled — keep BattIcon discharge arrow only.
 
 function isFlowActive( flowId, status ) {
@@ -347,6 +347,7 @@ function FlowCard( {
 	flowId,
 	label,
 	icon,
+	iconTitle,
 	active,
 	unavailable,
 	className,
@@ -369,7 +370,7 @@ function FlowCard( {
 	return (
 		<div className={ classes } data-flow-id={ flowId }>
 			<div className="teslogic-card__head">
-				{ icon ? <span className="teslogic-card__icon" aria-hidden="true">{ icon }</span> : null }
+				{ icon ? <span className="teslogic-card__icon" aria-hidden="true" title={ iconTitle || undefined }>{ icon }</span> : null }
 				<span className="teslogic-card__label">{ label }</span>
 			</div>
 			{ note ? <small className="teslogic-card__note">{ note }</small> : null }
@@ -647,6 +648,11 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const unitCharging = deltaCharging || extraCharging;
 	const unitDischarging = ! unitCharging && ( deltaDischarging || extraDischarging );
 
+	const todayWeatherIcon = weatherIcon( status.weather_code );
+	const todayWeatherTitle = status.weather
+		? [ status.weather, status.weather_location ].filter( Boolean ).join( ' · ' )
+		: '';
+
 	return (
 		<div className="ecoflow-dual-layout is-independent teslogic-dual">
 			<section className="teslogic-system ecoflow-teslogic-system" aria-label={ labels.pro }>
@@ -695,7 +701,8 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						flowId="hv"
 						className={ `teslogic-card--hv teslogic-card--icon-lg${ isFlowActive( 'hv', status ) ? ' is-inputting' : '' }` }
 						label={ labels.hv || 'ハイボルト' }
-						icon={ isFlowActive( 'hv', status ) ? '☀️' : '🔆' }
+						icon={ todayWeatherIcon || ( isFlowActive( 'hv', status ) ? '☀️' : '🔆' ) }
+						iconTitle={ todayWeatherTitle }
 						active={ isFlowActive( 'hv', status ) }
 						currentLabel="Current"
 						currentValue={ formatWattsExact( hvWatts ) }
@@ -795,7 +802,8 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						flowId="solar"
 						className={ `teslogic-card--hv teslogic-card--icon-lg${ ! deltaMissing && isFlowActive( 'solar', status ) ? ' is-inputting' : '' }` }
 						label={ labels.solar }
-						icon={ ! deltaMissing && isFlowActive( 'solar', status ) ? '☀️' : '🔆' }
+						icon={ todayWeatherIcon || ( ! deltaMissing && isFlowActive( 'solar', status ) ? '☀️' : '🔆' ) }
+						iconTitle={ todayWeatherTitle }
 						active={ ! deltaMissing && isFlowActive( 'solar', status ) }
 						unavailable={ solarWatts === null || solarWatts === undefined || deltaMissing }
 						currentLabel="Current"

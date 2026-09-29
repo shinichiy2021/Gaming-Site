@@ -1,5 +1,40 @@
 export const FLOW_THRESHOLD = 8;
 
+/**
+ * Icon for Tajimi's daily WMO weather code (Open-Meteo), or null when unknown.
+ */
+export function weatherIcon( code ) {
+	if ( code === null || code === undefined || code === '' ) {
+		return null;
+	}
+	const c = Number( code );
+	if ( ! Number.isFinite( c ) ) {
+		return null;
+	}
+	if ( c <= 1 ) {
+		return '☀️';
+	}
+	if ( c === 2 ) {
+		return '⛅';
+	}
+	if ( c === 3 ) {
+		return '☁️';
+	}
+	if ( c === 45 || c === 48 ) {
+		return '🌫️';
+	}
+	if ( ( c >= 71 && c <= 77 ) || c === 85 || c === 86 ) {
+		return '🌨️';
+	}
+	if ( c >= 95 ) {
+		return '⛈️';
+	}
+	if ( ( c >= 51 && c <= 67 ) || ( c >= 80 && c <= 82 ) ) {
+		return '🌧️';
+	}
+	return null;
+}
+
 /** Independent Teslogic-style layout: inputs flanking pack, load below. */
 export const FLOW_CONNECTIONS_DUAL = [
 	{
