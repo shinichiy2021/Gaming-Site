@@ -1092,6 +1092,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	$weather             = '';
 	$weather_summary     = '';
 	$weather_code        = null;
+	$precip_max          = null;
+	$precip_now          = null;
 	$weather_location    = '';
 	$temps               = array();
 	$temp_now            = null;
@@ -1108,6 +1110,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		if ( function_exists( 'gaming_hub_tajimi_weather_summary' ) && is_array( $profile['weather_codes'] ?? null ) ) {
 			$weather_summary = gaming_hub_tajimi_weather_summary( $profile['weather_codes'] );
 		}
+		$precip_max = isset( $profile['precip_max'] ) && is_numeric( $profile['precip_max'] ) ? (int) $profile['precip_max'] : null;
+		$precip_now = isset( $profile['precip_now'] ) && is_numeric( $profile['precip_now'] ) ? (int) $profile['precip_now'] : null;
 		$weather_location = (string) ( $profile['location'] ?? '' );
 		$temps            = is_array( $profile['temps'] ?? null ) ? $profile['temps'] : array();
 		$temp_now         = isset( $profile['temp_now'] ) ? $profile['temp_now'] : null;
@@ -1325,6 +1329,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'weather'              => $weather,
 		'weather_code'         => $weather_code,
 		'weather_summary'      => $weather_summary,
+		'precip_max'           => $precip_max,
+		'precip_now'           => $precip_now,
 		'weather_location'     => $weather_location,
 		'temp_now'             => null === $room['temp_now'] ? $temp_now : $room['temp_now'],
 		'temp_max'             => $temp_max,

@@ -16,6 +16,7 @@ return array(
 	'%1$sのち%2$s' => '%1$s, then %2$s',
 	'%1$s時々%2$s' => '%1$s, occasionally %2$s',
 	'%1$s一時%2$s' => '%1$s, briefly %2$s',
+	'降水確率 %s%%' => 'Rain chance %s%%',
 	'AC 100V で Pro 3 に接続している 2 台目' => 'Second unit on AC 100V with Pro 3',
 	'Googleログインの場合は Google アカウントのメールアドレス。MQTT 用にアプリで別途「ログインパスワード」を設定してください。' => 'For Google login, use the Google account email. Set a separate app login password for MQTT.',
 	'EcoFlow アプリで設定したログインパスワード（Googleログインのみの場合は未設定のままでは使えません）' => 'Login password set in the EcoFlow app (required even for Google-only accounts)',

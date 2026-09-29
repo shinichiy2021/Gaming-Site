@@ -1973,6 +1973,7 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 			: null,
 		'weather'             => (string) ( $plan['weather'] ?? '' ),
 		'weather_summary'     => (string) ( $plan['weather_summary'] ?? '' ),
+		'precip_max'          => isset( $plan['precip_max'] ) && is_numeric( $plan['precip_max'] ) ? (int) $plan['precip_max'] : null,
 		'weather_location'    => (string) ( $plan['weather_location'] ?? '' ),
 	);
 

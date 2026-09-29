@@ -281,10 +281,11 @@
 				code: initial.weather_code === null || initial.weather_code === undefined ? null : Number(initial.weather_code),
 				label: initial.weather || '',
 				summary: initial.weather_summary || '',
+				precipMax: initial.precip_max === null || initial.precip_max === undefined ? null : Number(initial.precip_max),
 				location: initial.weather_location || '',
 			};
 		} catch (e) {
-			return { code: null, label: '', summary: '', location: '' };
+			return { code: null, label: '', summary: '', precipMax: null, location: '' };
 		}
 	}());
 
@@ -295,6 +296,7 @@
 				code: Number(plan.weather_code),
 				label: plan.weather || '',
 				summary: plan.weather_summary || '',
+				precipMax: plan.precip_max === null || plan.precip_max === undefined ? null : Number(plan.precip_max),
 				location: plan.weather_location || '',
 			};
 		}
@@ -302,6 +304,7 @@
 		detail.weather_code = lastWeather.code;
 		detail.weather = lastWeather.label;
 		detail.weather_summary = lastWeather.summary;
+		detail.precip_max = lastWeather.precipMax;
 		detail.weather_location = lastWeather.location;
 
 		document.dispatchEvent(
@@ -1345,7 +1348,15 @@
 			setField('plan_provider', ' · ' + plan.price_provider);
 		}
 		setField('plan_weather', plan.weather_summary || plan.weather || '—');
-		setField('plan_weather_meta', plan.weather_location || '');
+		setField(
+			'plan_weather_meta',
+			[
+				plan.precip_max === null || plan.precip_max === undefined
+					? ''
+					: t('Rain chance %s%%').replace('%s', Number(plan.precip_max)).replace('%%', '%'),
+				plan.weather_location || '',
+			].filter(Boolean).join(' · ')
+		);
 		if (plan.temp_now !== null && plan.temp_now !== undefined) {
 			setField('plan_temp', Number(plan.temp_now).toFixed(1) + ' ℃');
 		}

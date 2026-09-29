@@ -682,6 +682,7 @@ return array(
 	'Raid start' => 'レイド開始',
 	'Raids' => 'レイド',
 	'Rain' => '雨',
+	'Rain chance %s%%' => '降水確率 %s%%',
 	'Range ~' => '航続距離 約 ',
 	'Range ~%s km' => '航続距離 約 %s km',
 	'Rare' => 'まれ',

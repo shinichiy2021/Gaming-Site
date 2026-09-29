@@ -330,15 +330,15 @@ function gaming_hub_tajimi_fetch_open_meteo() {
 			'past_days'      => 1,
 			'forecast_days'  => 2,
 			'current'        => 'cloud_cover,is_day,weather_code,global_tilted_irradiance,temperature_2m',
-			'hourly'         => 'global_tilted_irradiance,cloud_cover,is_day,weather_code,temperature_2m',
-			'daily'          => 'weather_code',
+			'hourly'         => 'global_tilted_irradiance,cloud_cover,is_day,weather_code,temperature_2m,precipitation_probability',
+			'daily'          => 'weather_code,precipitation_probability_max',
 			'tilt'           => 30,
 			'azimuth'        => 0,
 		),
 		'https://api.open-meteo.com/v1/forecast'
 	);
 
-	$cache_key = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'om_v3_' . wp_date( 'Y-m-d-H' );
+	$cache_key = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'om_v4_' . wp_date( 'Y-m-d-H' );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
 		return $cached;
@@ -553,7 +553,7 @@ function gaming_hub_powerwall_get_solar_generation( $force_refresh = false ) {
 function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $date = null ) {
 	$date       = $date ? (string) $date : wp_date( 'Y-m-d' );
 	$is_today   = $date === wp_date( 'Y-m-d' );
-	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv5_' . $date;
+	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv6_' . $date;
 	$capacity_w = gaming_hub_powerwall_solar_capacity_w();
 	$month      = (int) substr( $date, 5, 2 );
 
@@ -568,9 +568,11 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $dat
 	$temps         = array_fill( 0, 24, null );
 	$clouds        = array_fill( 0, 24, null );
 	$weather_codes = array_fill( 0, 24, null );
+	$precip_probs  = array_fill( 0, 24, null );
 	$payload       = gaming_hub_tajimi_fetch_open_meteo();
 	$source        = 'tajimi-normal';
 	$weather_code  = null;
+	$precip_max    = null;
 
 	if ( ! is_wp_error( $payload ) ) {
 		$source  = 'open-meteo';
@@ -582,6 +584,9 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $dat
 		$d_index = array_search( $date, $d_times, true );
 		if ( false !== $d_index && isset( $d_codes[ $d_index ] ) ) {
 			$weather_code = (int) $d_codes[ $d_index ];
+		}
+		if ( false !== $d_index && isset( $daily['precipitation_probability_max'][ $d_index ] ) && is_numeric( $daily['precipitation_probability_max'][ $d_index ] ) ) {
+			$precip_max = (int) $daily['precipitation_probability_max'][ $d_index ];
 		}
 
 		foreach ( $times as $index => $time ) {
@@ -604,6 +609,9 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $dat
 			$clouds[ $hour ] = $cloud;
 			if ( isset( $hourly['weather_code'][ $index ] ) ) {
 				$weather_codes[ $hour ] = (int) $hourly['weather_code'][ $index ];
+			}
+			if ( isset( $hourly['precipitation_probability'][ $index ] ) && is_numeric( $hourly['precipitation_probability'][ $index ] ) ) {
+				$precip_probs[ $hour ] = (int) $hourly['precipitation_probability'][ $index ];
 			}
 
 			if ( ! $is_day ) {
@@ -645,12 +653,25 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $dat
 		$temp_now = (float) $payload['current']['temperature_2m'];
 	}
 
+	$numeric_precip = array_values( array_filter( $precip_probs, 'is_int' ) );
+	if ( null === $precip_max && $numeric_precip ) {
+		$precip_max = max( $numeric_precip );
+	}
+	$precip_now = null;
+	if ( $is_today ) {
+		$now_h      = (int) wp_date( 'G' );
+		$precip_now = $precip_probs[ $now_h ] ?? null;
+	}
+
 	$result = array(
 		'hours'         => $profile,
 		'temps'         => $temps,
 		'clouds'        => $clouds,
 		'weather_codes' => $weather_codes,
 		'weather_code'  => $weather_code,
+		'precip_probs'  => $precip_probs,
+		'precip_max'    => $precip_max,
+		'precip_now'    => $precip_now,
 		'temp_now'      => $temp_now,
 		'temp_max'      => $temp_max,
 		'temp_min'      => $temp_min,

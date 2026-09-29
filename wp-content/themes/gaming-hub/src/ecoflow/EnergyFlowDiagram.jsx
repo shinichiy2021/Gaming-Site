@@ -649,7 +649,14 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const unitDischarging = ! unitCharging && ( deltaDischarging || extraDischarging );
 
 	const todayWeatherIcon = weatherIcon( status.weather_code );
-	const todayWeatherText = status.weather_summary || status.weather || '';
+	const precipMax = status.precip_max === null || status.precip_max === undefined || status.precip_max === ''
+		? null
+		: Number( status.precip_max );
+	const precipText = Number.isFinite( precipMax )
+		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'Rain chance %s%%' ) : 'Rain chance %s%%' )
+			.replace( '%s', precipMax ).replace( '%%', '%' )
+		: '';
+	const todayWeatherText = [ status.weather_summary || status.weather || '', precipText ].filter( Boolean ).join( ' · ' );
 	const todayWeatherTitle = todayWeatherText
 		? [ todayWeatherText, status.weather_location ].filter( Boolean ).join( ' · ' )
 		: '';

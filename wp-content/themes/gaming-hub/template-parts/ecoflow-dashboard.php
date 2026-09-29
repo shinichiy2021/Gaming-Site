@@ -394,7 +394,18 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 					<div class="ecoflow-plan-card">
 						<span class="ecoflow-stat-label"><?php esc_html_e('Today’s weather', 'gaming-hub'); ?></span>
 						<strong data-ecoflow-field="plan_weather"><?php echo esc_html( ( $plan['weather_summary'] ?? '' ) ?: ( $plan['weather'] ?? '—' ) ); ?></strong>
-						<small data-ecoflow-field="plan_weather_meta"><?php echo esc_html( $plan['weather_location'] ?? '' ); ?></small>
+						<small data-ecoflow-field="plan_weather_meta">
+							<?php
+							$weather_meta = array_filter( array(
+								isset( $plan['precip_max'] ) && is_numeric( $plan['precip_max'] )
+									/* translators: %s: max precipitation probability percent */
+									? sprintf( __('Rain chance %s%%', 'gaming-hub'), (int) $plan['precip_max'] )
+									: '',
+								(string) ( $plan['weather_location'] ?? '' ),
+							) );
+							echo esc_html( implode( ' · ', $weather_meta ) );
+							?>
+						</small>
 					</div>
 					<div class="ecoflow-plan-card">
 						<span class="ecoflow-stat-label"><?php esc_html_e('Remaining expected Living AC & others use', 'gaming-hub'); ?></span>

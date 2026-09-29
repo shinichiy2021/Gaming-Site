@@ -43,6 +43,7 @@ return array(
 	'%1$sのち%2$s' => '%1$s, then %2$s',
 	'%1$s一時%2$s' => '%1$s, briefly %2$s',
 	'%1$s時々%2$s' => '%1$s, occasionally %2$s',
+	'降水確率 %s%%' => 'Rain chance %s%%',
 	'%1$sのガソリン比較節約 %2$s円 · 走行 %3$s km。このサイトで動かしている Tesla です。' => '%1$s gasoline-vs-EV savings: ¥%2$s · distance %3$s km. The Tesla powering this site’s logs.',
 	'%1$sの節約 %2$s円 · 発電 %3$s kWh。このサイトで動かしている機材です。' => '%1$s savings: ¥%2$s · generation %3$s kWh. Gear running this site’s dashboards.',
 	'%1$s年%2$s月' => '%1$s-%2$s',
