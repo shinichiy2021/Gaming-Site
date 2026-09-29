@@ -1972,6 +1972,7 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 			? (int) $plan['weather_code']
 			: null,
 		'weather'             => (string) ( $plan['weather'] ?? '' ),
+		'weather_summary'     => (string) ( $plan['weather_summary'] ?? '' ),
 		'weather_location'    => (string) ( $plan['weather_location'] ?? '' ),
 	);
 

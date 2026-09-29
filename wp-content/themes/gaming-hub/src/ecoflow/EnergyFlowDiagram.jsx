@@ -649,8 +649,9 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const unitDischarging = ! unitCharging && ( deltaDischarging || extraDischarging );
 
 	const todayWeatherIcon = weatherIcon( status.weather_code );
-	const todayWeatherTitle = status.weather
-		? [ status.weather, status.weather_location ].filter( Boolean ).join( ' · ' )
+	const todayWeatherText = status.weather_summary || status.weather || '';
+	const todayWeatherTitle = todayWeatherText
+		? [ todayWeatherText, status.weather_location ].filter( Boolean ).join( ' · ' )
 		: '';
 
 	return (
@@ -703,6 +704,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						label={ labels.hv || 'ハイボルト' }
 						icon={ todayWeatherIcon || ( isFlowActive( 'hv', status ) ? '☀️' : '🔆' ) }
 						iconTitle={ todayWeatherTitle }
+						note={ todayWeatherText || null }
 						active={ isFlowActive( 'hv', status ) }
 						currentLabel="Current"
 						currentValue={ formatWattsExact( hvWatts ) }
@@ -804,6 +806,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						label={ labels.solar }
 						icon={ todayWeatherIcon || ( ! deltaMissing && isFlowActive( 'solar', status ) ? '☀️' : '🔆' ) }
 						iconTitle={ todayWeatherTitle }
+						note={ todayWeatherText || null }
 						active={ ! deltaMissing && isFlowActive( 'solar', status ) }
 						unavailable={ solarWatts === null || solarWatts === undefined || deltaMissing }
 						currentLabel="Current"

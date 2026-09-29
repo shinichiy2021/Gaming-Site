@@ -393,7 +393,7 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 					</div>
 					<div class="ecoflow-plan-card">
 						<span class="ecoflow-stat-label"><?php esc_html_e('Today’s weather', 'gaming-hub'); ?></span>
-						<strong data-ecoflow-field="plan_weather"><?php echo esc_html( $plan['weather'] ?? '—' ); ?></strong>
+						<strong data-ecoflow-field="plan_weather"><?php echo esc_html( ( $plan['weather_summary'] ?? '' ) ?: ( $plan['weather'] ?? '—' ) ); ?></strong>
 						<small data-ecoflow-field="plan_weather_meta"><?php echo esc_html( $plan['weather_location'] ?? '' ); ?></small>
 					</div>
 					<div class="ecoflow-plan-card">

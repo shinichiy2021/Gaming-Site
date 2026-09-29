@@ -105,6 +105,156 @@ function gaming_hub_tajimi_weather_label( $code ) {
 }
 
 /**
+ * Forecast-style category for a WMO code: sunny, cloudy, rain, snow, thunder.
+ *
+ * @param int|null $code WMO weather code.
+ * @return string|null
+ */
+function gaming_hub_tajimi_weather_category( $code ) {
+	if ( null === $code || ! is_numeric( $code ) ) {
+		return null;
+	}
+
+	$code = (int) $code;
+	if ( $code <= 2 ) {
+		return 'sunny';
+	}
+	if ( 3 === $code || 45 === $code || 48 === $code ) {
+		return 'cloudy';
+	}
+	if ( $code >= 95 ) {
+		return 'thunder';
+	}
+	if ( ( $code >= 71 && $code <= 77 ) || 85 === $code || 86 === $code ) {
+		return 'snow';
+	}
+	if ( ( $code >= 51 && $code <= 67 ) || ( $code >= 80 && $code <= 82 ) ) {
+		return 'rain';
+	}
+
+	return null;
+}
+
+/**
+ * Label for a forecast category.
+ *
+ * @param string $category Category from gaming_hub_tajimi_weather_category().
+ */
+function gaming_hub_tajimi_weather_category_label( $category ) {
+	$labels = array(
+		'sunny'   => __('Sunny', 'gaming-hub'),
+		'cloudy'  => __('Cloudy', 'gaming-hub'),
+		'rain'    => __('Rain', 'gaming-hub'),
+		'snow'    => __('Snow', 'gaming-hub'),
+		'thunder' => __('Thunderstorm', 'gaming-hub'),
+	);
+
+	return $labels[ $category ] ?? '';
+}
+
+/**
+ * Most frequent category in a list (ties go to the one seen first).
+ *
+ * @param array<int, string> $categories Categories in hour order.
+ * @return array{0: string|null, 1: int}
+ */
+function gaming_hub_tajimi_dominant_category( array $categories ) {
+	$counts = array();
+	foreach ( $categories as $category ) {
+		$counts[ $category ] = ( $counts[ $category ] ?? 0 ) + 1;
+	}
+	if ( ! $counts ) {
+		return array( null, 0 );
+	}
+
+	$best = null;
+	foreach ( $counts as $category => $count ) {
+		if ( null === $best || $count > $counts[ $best ] ) {
+			$best = $category;
+		}
+	}
+
+	return array( $best, $counts[ $best ] );
+}
+
+/**
+ * Japanese-forecast style daytime summary: "晴れのち曇り", "曇り時々雨", "晴れ一時雨".
+ *
+ * のち   = first half and second half are each mostly a different category.
+ * 時々   = a second category covers 1/4 or more of the daytime hours.
+ * 一時   = a second category appears briefly (2+ hours, or any precipitation hour).
+ *
+ * @param array<int, int|null> $hourly_codes WMO codes indexed by hour 0–23.
+ * @param int                  $from         First daytime hour.
+ * @param int                  $to           Last daytime hour.
+ * @return string Empty when there is no hourly data.
+ */
+function gaming_hub_tajimi_weather_summary( array $hourly_codes, $from = 6, $to = 18 ) {
+	$first  = array();
+	$second = array();
+	$mid    = (int) floor( ( $from + $to + 1 ) / 2 );
+
+	for ( $hour = $from; $hour <= $to; $hour++ ) {
+		$category = gaming_hub_tajimi_weather_category( $hourly_codes[ $hour ] ?? null );
+		if ( null === $category ) {
+			continue;
+		}
+		if ( $hour < $mid ) {
+			$first[] = $category;
+		} else {
+			$second[] = $category;
+		}
+	}
+
+	$all = array_merge( $first, $second );
+	if ( ! $all ) {
+		return '';
+	}
+
+	list( $first_dom, $first_n )   = gaming_hub_tajimi_dominant_category( $first );
+	list( $second_dom, $second_n ) = gaming_hub_tajimi_dominant_category( $second );
+	if (
+		null !== $first_dom
+		&& null !== $second_dom
+		&& $first_dom !== $second_dom
+		&& $first_n * 2 >= count( $first )
+		&& $second_n * 2 >= count( $second )
+	) {
+		/* translators: 1: morning weather, 2: later weather (e.g. Sunny, then Cloudy) */
+		return sprintf(
+			__('%1$s, then %2$s', 'gaming-hub'),
+			gaming_hub_tajimi_weather_category_label( $first_dom ),
+			gaming_hub_tajimi_weather_category_label( $second_dom )
+		);
+	}
+
+	list( $main ) = gaming_hub_tajimi_dominant_category( $all );
+	$others       = array_values( array_filter( $all, static function ( $category ) use ( $main ) {
+		return $category !== $main;
+	} ) );
+	list( $sub, $sub_n ) = gaming_hub_tajimi_dominant_category( $others );
+
+	$main_label = gaming_hub_tajimi_weather_category_label( $main );
+	if ( null === $sub ) {
+		return $main_label;
+	}
+
+	$sub_label = gaming_hub_tajimi_weather_category_label( $sub );
+	if ( $sub_n * 4 >= count( $all ) ) {
+		/* translators: 1: main weather, 2: intermittent weather (e.g. Cloudy, occasionally Rain) */
+		return sprintf( __('%1$s, occasionally %2$s', 'gaming-hub'), $main_label, $sub_label );
+	}
+
+	$precip = in_array( $sub, array( 'rain', 'snow', 'thunder' ), true );
+	if ( $sub_n >= 2 || $precip ) {
+		/* translators: 1: main weather, 2: brief weather (e.g. Sunny, briefly Rain) */
+		return sprintf( __('%1$s, briefly %2$s', 'gaming-hub'), $main_label, $sub_label );
+	}
+
+	return $main_label;
+}
+
+/**
  * Daily weather label from an Open-Meteo payload for a Y-m-d date.
  *
  * @param array<string, mixed> $payload Open-Meteo JSON.
