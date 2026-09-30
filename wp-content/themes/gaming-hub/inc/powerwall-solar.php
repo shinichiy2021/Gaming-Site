@@ -255,6 +255,63 @@ function gaming_hub_tajimi_weather_summary( array $hourly_codes, $from = 6, $to 
 }
 
 /**
+ * WMO code for the day's weather icon, taken from the same daytime hours as the summary.
+ *
+ * Open-Meteo's daily weather_code is the worst hour of the whole day, so a sunny day
+ * with drizzle at 1 AM reports rain. This uses the daytime main category instead
+ * (for "A のち B", A before midday and B after), then its most frequent hourly code.
+ *
+ * @param array<int, int|null> $hourly_codes WMO codes indexed by hour 0–23.
+ * @param int|null             $now_hour     Current hour when the date is today.
+ * @param int                  $from         First daytime hour.
+ * @param int                  $to           Last daytime hour.
+ * @return int|null
+ */
+function gaming_hub_tajimi_daytime_icon_code( array $hourly_codes, $now_hour = null, $from = 6, $to = 18 ) {
+	$mid    = (int) floor( ( $from + $to + 1 ) / 2 );
+	$first  = array();
+	$second = array();
+	$codes  = array();
+
+	for ( $hour = $from; $hour <= $to; $hour++ ) {
+		$code     = $hourly_codes[ $hour ] ?? null;
+		$category = gaming_hub_tajimi_weather_category( $code );
+		if ( null === $category ) {
+			continue;
+		}
+		$codes[ $category ][] = (string) (int) $code;
+		if ( $hour < $mid ) {
+			$first[] = $category;
+		} else {
+			$second[] = $category;
+		}
+	}
+
+	$all = array_merge( $first, $second );
+	if ( ! $all ) {
+		return null;
+	}
+
+	list( $first_dom, $first_n )   = gaming_hub_tajimi_dominant_category( $first );
+	list( $second_dom, $second_n ) = gaming_hub_tajimi_dominant_category( $second );
+	if (
+		null !== $first_dom
+		&& null !== $second_dom
+		&& $first_dom !== $second_dom
+		&& $first_n * 2 >= count( $first )
+		&& $second_n * 2 >= count( $second )
+	) {
+		$category = ( null !== $now_hour && (int) $now_hour >= $mid ) ? $second_dom : $first_dom;
+	} else {
+		list( $category ) = gaming_hub_tajimi_dominant_category( $all );
+	}
+
+	list( $code ) = gaming_hub_tajimi_dominant_category( $codes[ $category ] );
+
+	return null === $code ? null : (int) $code;
+}
+
+/**
  * Daily weather label from an Open-Meteo payload for a Y-m-d date.
  *
  * @param array<string, mixed> $payload Open-Meteo JSON.
@@ -553,7 +610,7 @@ function gaming_hub_powerwall_get_solar_generation( $force_refresh = false ) {
 function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $date = null ) {
 	$date       = $date ? (string) $date : wp_date( 'Y-m-d' );
 	$is_today   = $date === wp_date( 'Y-m-d' );
-	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv6_' . $date;
+	$cache_key  = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'dayv7_' . $date;
 	$capacity_w = gaming_hub_powerwall_solar_capacity_w();
 	$month      = (int) substr( $date, 5, 2 );
 
@@ -653,15 +710,25 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $dat
 		$temp_now = (float) $payload['current']['temperature_2m'];
 	}
 
-	$numeric_precip = array_values( array_filter( $precip_probs, 'is_int' ) );
-	if ( null === $precip_max && $numeric_precip ) {
-		$precip_max = max( $numeric_precip );
+	// Daily precipitation_probability_max includes the small hours; show the chance
+	// for the rest of the daytime (6–18, from now on today) instead.
+	$now_h      = $is_today ? (int) wp_date( 'G' ) : null;
+	$win_from   = null === $now_h ? 6 : max( 6, $now_h );
+	$win_to     = 18;
+	if ( $win_from > $win_to ) {
+		$win_to = 23;
 	}
-	$precip_now = null;
-	if ( $is_today ) {
-		$now_h      = (int) wp_date( 'G' );
-		$precip_now = $precip_probs[ $now_h ] ?? null;
+	$window_precip = array();
+	for ( $hour = $win_from; $hour <= $win_to; $hour++ ) {
+		if ( is_int( $precip_probs[ $hour ] ?? null ) ) {
+			$window_precip[] = $precip_probs[ $hour ];
+		}
 	}
+	if ( $window_precip ) {
+		$precip_max = max( $window_precip );
+	}
+	$precip_now = null === $now_h ? null : ( $precip_probs[ $now_h ] ?? null );
+	$icon_code  = gaming_hub_tajimi_daytime_icon_code( $weather_codes, $now_h );
 
 	$result = array(
 		'hours'         => $profile,
@@ -669,6 +736,7 @@ function gaming_hub_powerwall_solar_hourly_profile( $force_refresh = false, $dat
 		'clouds'        => $clouds,
 		'weather_codes' => $weather_codes,
 		'weather_code'  => $weather_code,
+		'icon_code'     => $icon_code,
 		'precip_probs'  => $precip_probs,
 		'precip_max'    => $precip_max,
 		'precip_now'    => $precip_now,

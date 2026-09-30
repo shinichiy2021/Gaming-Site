@@ -1104,9 +1104,9 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		$profile          = gaming_hub_powerwall_solar_hourly_profile( false, $plan_date );
 		$solar_hours      = gaming_hub_ecoflow_scale_solar_hours( $profile['hours'] ?? array() );
 		$weather          = (string) ( $profile['weather'] ?? '' );
-		$weather_code     = isset( $profile['weather_code'] ) && is_numeric( $profile['weather_code'] )
-			? (int) $profile['weather_code']
-			: null;
+		$weather_code     = isset( $profile['icon_code'] ) && is_numeric( $profile['icon_code'] )
+			? (int) $profile['icon_code']
+			: ( isset( $profile['weather_code'] ) && is_numeric( $profile['weather_code'] ) ? (int) $profile['weather_code'] : null );
 		if ( function_exists( 'gaming_hub_tajimi_weather_summary' ) && is_array( $profile['weather_codes'] ?? null ) ) {
 			$weather_summary = gaming_hub_tajimi_weather_summary( $profile['weather_codes'] );
 		}
