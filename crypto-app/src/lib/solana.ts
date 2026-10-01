@@ -1,3 +1,5 @@
+import { withBase } from '@/lib/basePath';
+
 export const SOL_META = {
   symbol: 'SOL',
   name: 'Solana (native)',
@@ -61,7 +63,7 @@ export async function fetchSolanaBalance(address: string): Promise<SolanaBalance
     throw new Error('Solana アドレスを入力してください');
   }
 
-  const res = await fetch(`/api/sol/balance?address=${encodeURIComponent(addr)}`);
+  const res = await fetch(withBase(`/api/sol/balance?address=${encodeURIComponent(addr)}`));
   const json = (await res.json()) as {
     sol?: number;
     tokens?: Record<string, number>;

@@ -321,15 +321,15 @@ function buildConcreteIdeas(
   // 4) Coverage gaps (setup)
   ideas.push(...setupIdeas(opts));
 
-  // Always keep one cross-asset idea
+  // Always keep one cross-asset idea → /all
   ideas.push({
     id: 'cross-stock',
     priority: 'watch',
     title: '株式との合算比率を記録',
     detail:
-      `いまのクリプト合計 ${fmtUsd(total)}。株式ダッシュボードの評価額と足し、` +
-      `「リスク資産に占めるクリプト％」をメモすると、今月の増減判断がしやすい。`,
-    trigger: `合計 ${fmtUsd(total)}`,
+      `いまのクリプト合計 ${fmtUsd(total)}。全体資産（/all）で株式評価額と足し、` +
+      `「リスク資産に占めるクリプト％」を記録すると、今月の増減判断がしやすい。`,
+    trigger: `合計 ${fmtUsd(total)} · /all`,
   });
 
   // Prefer now > watch > setup, keep unique ids, limit

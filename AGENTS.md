@@ -10,7 +10,7 @@ WordPress + Docker local dev. Custom theme: `wp-content/themes/gaming-hub/`.
 | Production | https://shinichiy-gaming-hub.com |
 
 Dashboards live on tag pages: `/tag/ecoflow/`, `/tag/tesla/`, `/tag/pokemon-go/`.
-Crypto / stock / paper-bot live in a Next.js app (`crypto-app/`); `/tag/crypto/` → `/`, `/tag/stock/` → `/stock`, `/tag/bot/` → `/bot`. None are linked in nav.
+Crypto / stock / paper-bot / all-assets live in a Next.js app (`crypto-app/`); `/tag/crypto/` → `/`, `/tag/stock/` → `/stock`, `/tag/bot/` → `/bot`, `/tag/all/` → `/all`. None are linked in nav. In production the app is served at `/portfolio` behind Basic auth (`CRYPTO_BASIC_AUTH_USER` / `CRYPTO_BASIC_AUTH_PASSWORD` in the server `.env`; it returns 503 until both are set). The server is too small to build it: ship it with `DEPLOY_USER=ubuntu ./scripts/deploy-crypto.sh` (also uploads the git-ignored SBI data in `crypto-app/public/data/`).
 
 ## Key paths
 

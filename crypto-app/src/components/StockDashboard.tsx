@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import StockPortfolioInsight from '@/components/StockPortfolioInsight';
+import { withBase } from '@/lib/basePath';
 import { mergePortfolios, type ForeignPortfolioRaw } from '@/lib/mergeStockPortfolio';
 import { decodeCsvFile, parseSbiPortfolioCsv } from '@/lib/sbiCsv';
 import {
@@ -210,7 +211,7 @@ export default function StockDashboard() {
   const [accountFilter, setAccountFilter] = useState<AccountFilter>('all');
 
   const loadForeign = useCallback(async (): Promise<ForeignPortfolioRaw> => {
-    const res = await fetch('/data/sbi-foreign.json', { cache: 'no-store' });
+    const res = await fetch(withBase('/data/sbi-foreign.json'), { cache: 'no-store' });
     if (!res.ok) throw new Error('foreign missing');
     return (await res.json()) as ForeignPortfolioRaw;
   }, []);
@@ -220,7 +221,7 @@ export default function StockDashboard() {
       const [domesticText, foreign] = await Promise.all([
         csvText
           ? Promise.resolve(csvText)
-          : fetch('/data/sbi-portfolio.csv', { cache: 'no-store' }).then(async (r) => {
+          : fetch(withBase('/data/sbi-portfolio.csv'), { cache: 'no-store' }).then(async (r) => {
               if (!r.ok) throw new Error('domestic missing');
               return r.text();
             }),
@@ -349,6 +350,12 @@ export default function StockDashboard() {
                 {portfolio.source === 'upload' ? labels.sourceUpload : labels.sourceSeed}
               </span>
             ) : null}
+            <Link
+              href="/all"
+              className="text-[0.7rem] tracking-wider text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
+            >
+              全体資産 →
+            </Link>
             <Link
               href="/"
               className="text-[0.7rem] tracking-wider text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"

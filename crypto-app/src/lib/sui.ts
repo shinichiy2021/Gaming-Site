@@ -1,3 +1,5 @@
+import { withBase } from '@/lib/basePath';
+
 export const SUI_META = {
   symbol: 'SUI',
   name: 'Sui (native)',
@@ -65,7 +67,7 @@ export async function fetchSuiBalance(address: string): Promise<SuiBalance> {
     throw new Error('Sui アドレス（0x…）を入力してください');
   }
 
-  const res = await fetch(`/api/sui/balance?address=${encodeURIComponent(normalized)}`);
+  const res = await fetch(withBase(`/api/sui/balance?address=${encodeURIComponent(normalized)}`));
   const json = (await res.json()) as {
     sui?: number;
     tokens?: Record<string, number>;

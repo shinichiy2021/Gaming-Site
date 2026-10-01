@@ -324,6 +324,12 @@ export default function CryptoDashboard() {
               {sourceBadge(sourceLabel, loading, refreshing)}
             </span>
             <Link
+              href="/all"
+              className="text-[0.7rem] tracking-wider text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
+            >
+              全体資産 →
+            </Link>
+            <Link
               href="/stock"
               className="text-[0.7rem] tracking-wider text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
             >

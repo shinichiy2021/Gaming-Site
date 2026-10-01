@@ -59,6 +59,8 @@ echo "==> Syncing to ${REMOTE}:${DEPLOY_PATH} ..."
   --exclude '.vscode/' \
   --exclude 'node_modules/' \
   --exclude 'wp-content/themes/gaming-hub/node_modules/' \
+  --exclude 'crypto-app/.next/' \
+  --exclude 'crypto-app/public/data/' \
   --exclude 'wp-content/ecoflow-cache/bridge-config.json' \
   --exclude 'wp-content/ecoflow-cache/*.json' \
   --exclude 'private-key.pem' \

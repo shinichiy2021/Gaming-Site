@@ -6,6 +6,9 @@ wp-content/ecoflow-cache/bridge-config.json
 wp-content/ecoflow-cache/*.json
 !wp-content/ecoflow-cache/bridge-status.json
 
+# Personal brokerage holdings (SBI) — copy to the server by hand, never commit
+crypto-app/public/data/
+
 # WordPress uploads (managed by Docker volume)
 # wp-content/uploads/
 

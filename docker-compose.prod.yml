@@ -54,6 +54,7 @@ services:
       TESLA_COMMAND_PROXY_URL: ${TESLA_COMMAND_PROXY_URL:-https://tesla-http-proxy:4443}
       TESLA_TELEMETRY_BRIDGE_TOKEN: ${TESLA_TELEMETRY_BRIDGE_TOKEN:-}
       GAMING_HUB_ENERGY_ORIGIN: ${GAMING_HUB_ENERGY_ORIGIN:-}
+      CRYPTO_APP_URL: ${CRYPTO_APP_URL:-https://shinichiy-gaming-hub.com/portfolio}
     volumes:
       - wp_data:/var/www/html
       - ./wp-content/themes/gaming-hub:/var/www/html/wp-content/themes/gaming-hub
@@ -158,6 +159,30 @@ services:
       - bridge_node_modules:/app/node_modules
       - ./tesla/telemetry-data:/data
     command: sh -c "npm install --omit=dev && node scripts/tesla-telemetry-bridge.mjs"
+    networks:
+      - gaming-network
+
+  # Crypto / stock / paper-bot / all-assets (Next.js). nginx proxies /portfolio → here.
+  # Basic auth is mandatory: the container answers 503 until both credentials are set.
+  # The server is too small to run `next build`; the image is built locally and
+  # loaded by scripts/deploy-crypto.sh, so the regular deploy leaves it alone.
+  crypto:
+    image: gaming-hub-crypto:latest
+    pull_policy: never
+    profiles:
+      - portfolio
+    container_name: gaming-site-crypto
+    restart: unless-stopped
+    mem_limit: 256m
+    ports:
+      - "127.0.0.1:3002:3000"
+    environment:
+      NODE_ENV: production
+      CRYPTO_AUTH_REQUIRED: "1"
+      CRYPTO_BASIC_AUTH_USER: ${CRYPTO_BASIC_AUTH_USER:-}
+      CRYPTO_BASIC_AUTH_PASSWORD: ${CRYPTO_BASIC_AUTH_PASSWORD:-}
+    volumes:
+      - ./crypto-app/public/data:/app/public/data:ro
     networks:
       - gaming-network
 

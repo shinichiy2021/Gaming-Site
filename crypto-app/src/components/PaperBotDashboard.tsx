@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AllocationBars from '@/components/bot/AllocationBars';
 import EquityCurve from '@/components/bot/EquityCurve';
 import OrderBookLadder, { type BookPayload } from '@/components/bot/OrderBookLadder';
+import { withBase } from '@/lib/basePath';
 import { fetchUsdPrices, type PriceMap } from '@/lib/prices';
 import {
   PAPER_STARTING_CASH,
@@ -104,7 +105,7 @@ export default function PaperBotDashboard() {
 
   const refreshBook = useCallback(async () => {
     try {
-      const res = await fetch('/api/phoenix/book', { cache: 'no-store' });
+      const res = await fetch(withBase('/api/phoenix/book'), { cache: 'no-store' });
       const json = (await res.json()) as BookPayload & { error?: string };
       if (!res.ok) {
         setBookError(json.error || '板の取得に失敗');
@@ -263,6 +264,12 @@ export default function PaperBotDashboard() {
               className="text-[0.7rem] tracking-wider text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
             >
               Stock →
+            </Link>
+            <Link
+              href="/all"
+              className="text-[0.7rem] tracking-wider text-[var(--color-muted)] underline-offset-2 hover:text-[var(--color-ink)] hover:underline"
+            >
+              全体資産 →
             </Link>
           </div>
         </div>

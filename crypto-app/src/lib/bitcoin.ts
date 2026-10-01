@@ -1,4 +1,5 @@
 /** Bitcoin Native SegWit (P2WPKH) watch-only helpers. */
+import { withBase } from '@/lib/basePath';
 
 export const BTC_META = {
   symbol: 'BTC',
@@ -38,7 +39,7 @@ export async function fetchNativeSegwitBalance(address: string): Promise<BtcAddr
     throw new Error('Native SegWit アドレス（bc1q…）を入力してください');
   }
 
-  const res = await fetch(`/api/btc/balance?address=${encodeURIComponent(addr)}`);
+  const res = await fetch(withBase(`/api/btc/balance?address=${encodeURIComponent(addr)}`));
   const json = (await res.json()) as { sats?: number; error?: string };
   if (!res.ok) {
     throw new Error(json.error || 'BTC 残高の取得に失敗しました');
