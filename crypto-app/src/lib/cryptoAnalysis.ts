@@ -87,20 +87,60 @@ function roundUsd(n: number) {
   return Math.round(n);
 }
 
-function contributionUsd(h: Holding) {
-  const denom = 1 + h.change_24h / 100;
+type MoveWindow = {
+  label: string;
+  of: (h: Holding) => number;
+  pct: number;
+  usd: number;
+  dip: number;
+  trim: number;
+  tone: number;
+  mover: number;
+  flat: number;
+};
+
+/** Ideas look at the last 7 days; fall back to 24h when weekly data is missing. */
+function moveWindow(portfolio: Portfolio): MoveWindow {
+  if (portfolio.has_7d) {
+    return {
+      label: '7日',
+      of: (h) => h.change_7d ?? 0,
+      pct: portfolio.change_7d_pct,
+      usd: portfolio.change_7d_usd,
+      dip: -8,
+      trim: 12,
+      tone: 4,
+      mover: 3,
+      flat: 1,
+    };
+  }
+  return {
+    label: '24h',
+    of: (h) => h.change_24h,
+    pct: portfolio.change_24h_pct,
+    usd: portfolio.change_24h_usd,
+    dip: -3,
+    trim: 4,
+    tone: 1.5,
+    mover: 1,
+    flat: 0.4,
+  };
+}
+
+function contributionUsd(h: Holding, w: MoveWindow) {
+  const denom = 1 + w.of(h) / 100;
   if (denom === 0) return 0;
   const prev = h.value_usd / denom;
   return h.value_usd - prev;
 }
 
-function marketToneFrom(portfolio: Portfolio, holdings: Holding[]): PortfolioInsight['marketTone'] {
-  const pct = portfolio.change_24h_pct;
-  const up = holdings.filter((h) => !isStable(h.symbol) && h.change_24h >= 1).length;
-  const down = holdings.filter((h) => !isStable(h.symbol) && h.change_24h <= -1).length;
-  if (pct >= 1.5 || (up >= 3 && down === 0)) return 'risk-on';
-  if (pct <= -1.5 || (down >= 3 && up === 0)) return 'risk-off';
-  if (Math.abs(pct) < 0.4 && up <= 1 && down <= 1) return 'flat';
+function marketToneFrom(holdings: Holding[], w: MoveWindow): PortfolioInsight['marketTone'] {
+  const pct = w.pct;
+  const up = holdings.filter((h) => !isStable(h.symbol) && w.of(h) >= w.mover).length;
+  const down = holdings.filter((h) => !isStable(h.symbol) && w.of(h) <= -w.mover).length;
+  if (pct >= w.tone || (up >= 3 && down === 0)) return 'risk-on';
+  if (pct <= -w.tone || (down >= 3 && up === 0)) return 'risk-off';
+  if (Math.abs(pct) < w.flat && up <= 1 && down <= 1) return 'flat';
   return 'mixed';
 }
 
@@ -153,6 +193,7 @@ function buildConcreteIdeas(
 ): IdeaItem[] {
   const ideas: IdeaItem[] = [];
   const total = portfolio.total_usd;
+  const w = moveWindow(portfolio);
   const stableBucket = buckets.find((b) => b.key === 'stables');
   const majorBucket = buckets.find((b) => b.key === 'majors');
   const altBucket = buckets.find((b) => b.key === 'alts');
@@ -163,9 +204,9 @@ function buildConcreteIdeas(
 
   const risky = holdings.filter((h) => !isStable(h.symbol));
   const byWeight = [...holdings].sort((a, b) => b.weight - a.weight);
-  const byMove = [...risky].sort((a, b) => b.change_24h - a.change_24h);
+  const byMove = [...risky].sort((a, b) => w.of(b) - w.of(a));
   const byImpact = [...risky]
-    .map((h) => ({ h, impact: contributionUsd(h) }))
+    .map((h) => ({ h, impact: contributionUsd(h, w) }))
     .sort((a, b) => a.impact - b.impact);
 
   const top = byWeight[0];
@@ -173,23 +214,23 @@ function buildConcreteIdeas(
   const worst = byMove[byMove.length - 1];
   const drag = byImpact[0];
   const lift = byImpact[byImpact.length - 1];
-  const tone = marketToneFrom(portfolio, holdings);
+  const tone = marketToneFrom(holdings, w);
 
   // 1) Price-move driven (highest priority)
-  if (worst && worst.change_24h <= -3) {
-    const buy = roundUsd(Math.min(stableUsd * 0.25, total * 0.03, Math.max(25, Math.abs(contributionUsd(worst)) * 1.5)));
+  if (worst && w.of(worst) <= w.dip) {
+    const buy = roundUsd(Math.min(stableUsd * 0.25, total * 0.03, Math.max(25, Math.abs(contributionUsd(worst, w)) * 1.5)));
     if (stableUsd >= 25 && buy >= 20) {
       ideas.push({
-        id: `dip-${worst.symbol}-${worst.change_24h.toFixed(2)}`,
+        id: `dip-${worst.symbol}-${w.of(worst).toFixed(2)}`,
         priority: 'now',
         title: `${worst.symbol} の押し目を拾う`,
         detail:
-          `現在値 ${fmtPrice(worst.price_usd)}（24h ${fmtPct(worst.change_24h)}、寄与 ${fmtUsd(contributionUsd(worst))}）。` +
+          `現在値 ${fmtPrice(worst.price_usd)}（${w.label} ${fmtPct(w.of(worst))}、寄与 ${fmtUsd(contributionUsd(worst, w))}）。` +
           `ステーブル ${fmtUsd(stableUsd)} のうち約 ${fmtUsd(buy)}（全体の ${(
             (buy / total) *
             100
           ).toFixed(1)}%）を ${worst.symbol} に振る案。残り余力は ${fmtUsd(stableUsd - buy)}。`,
-        trigger: `24h ${fmtPct(worst.change_24h)}`,
+        trigger: `${w.label} ${fmtPct(w.of(worst))}`,
       });
     } else {
       ideas.push({
@@ -197,28 +238,28 @@ function buildConcreteIdeas(
         priority: 'watch',
         title: `${worst.symbol} 下落を監視（買い余力不足）`,
         detail:
-          `${worst.symbol} は ${fmtPct(worst.change_24h)}（${fmtPrice(worst.price_usd)}）。` +
+          `${worst.symbol} は ${w.label} ${fmtPct(w.of(worst))}（${fmtPrice(worst.price_usd)}）。` +
           `ステーブルが ${fmtUsd(stableUsd)}（${stableW}%）しかないため、追加購入より先に USDC を ${(
             total * 0.1
           ).toFixed(0)} USD相当まで厚くする。`,
-        trigger: `24h ${fmtPct(worst.change_24h)}`,
+        trigger: `${w.label} ${fmtPct(w.of(worst))}`,
       });
     }
   }
 
-  if (best && best.change_24h >= 4 && best.weight >= 8) {
+  if (best && w.of(best) >= w.trim && best.weight >= 8) {
     const trim = roundUsd(Math.min(best.value_usd * 0.15, total * 0.04));
     const targetW = Math.max(8, Math.round(best.weight * 0.85 * 10) / 10);
     ideas.push({
-      id: `trim-${best.symbol}-${best.change_24h.toFixed(2)}`,
+      id: `trim-${best.symbol}-${w.of(best).toFixed(2)}`,
       priority: 'now',
       title: `${best.symbol} の一部利確`,
       detail:
-        `${best.symbol} は ${fmtPrice(best.price_usd)}（24h ${fmtPct(best.change_24h)}、比率 ${best.weight}%）。` +
+        `${best.symbol} は ${fmtPrice(best.price_usd)}（${w.label} ${fmtPct(w.of(best))}、比率 ${best.weight}%）。` +
         `約 ${fmtUsd(trim)} 分を USDC 化し、比率をおおむね ${targetW}% 付近へ。利確後のステーブル目安 ${(
           stableUsd + trim
         ).toFixed(0)} USD。`,
-      trigger: `24h ${fmtPct(best.change_24h)} · 比率 ${best.weight}%`,
+      trigger: `${w.label} ${fmtPct(w.of(best))} · 比率 ${best.weight}%`,
     });
   }
 
@@ -228,9 +269,9 @@ function buildConcreteIdeas(
       priority: tone === 'risk-off' ? 'now' : 'watch',
       title: `寄与の入れ替え（${drag.h.symbol} → 守備）`,
       detail:
-        `押し下げ最大は ${drag.h.symbol}（寄与 ${fmtUsd(drag.impact)}、${fmtPct(drag.h.change_24h)}）。` +
+        `${w.label}の押し下げ最大は ${drag.h.symbol}（寄与 ${fmtUsd(drag.impact)}、${fmtPct(w.of(drag.h))}）。` +
         `押し上げ最大は ${lift.h.symbol}（寄与 ${fmtUsd(lift.impact)}）。` +
-        `全体 ${fmtPct(portfolio.change_24h_pct)}（${fmtUsd(portfolio.change_24h_usd)}）なので、` +
+        `全体 ${w.label} ${fmtPct(w.pct)}（${fmtUsd(w.usd)}）なので、` +
         `${drag.h.symbol} を追加せず、まずは ${lift.h.symbol} の含み益の一部をステーブルに退避する。`,
       trigger: `寄与差 ${fmtUsd(lift.impact - drag.impact)}`,
     });
@@ -259,7 +300,7 @@ function buildConcreteIdeas(
       title: 'ステーブルを 12% まで厚くする',
       detail:
         `いま ${fmtUsd(stableUsd)}（${stableW}%）。目標 12% まであと約 ${fmtUsd(Math.max(need, 0))}。` +
-        `24hで伸びた銘柄から順に利確し、急落時の弾薬にする。`,
+        `${w.label}で伸びた銘柄から順に利確し、急落時の弾薬にする。`,
       trigger: `ステーブル ${stableW}%`,
     });
   } else if (stableW > 35 && tone !== 'risk-off') {
@@ -274,7 +315,7 @@ function buildConcreteIdeas(
       detail:
         `ステーブル ${stableW}%（${fmtUsd(stableUsd)}）と高め。` +
         `今週の枠として約 ${fmtUsd(deploy)} を ${target} に分割買い（例: 2〜3回に分ける）。` +
-        `全体が ${fmtPct(portfolio.change_24h_pct)} の局面なので、一括より分割が無難。`,
+        `全体が ${w.label} ${fmtPct(w.pct)} の局面なので、一括より分割が無難。`,
       trigger: `ステーブル ${stableW}% · 相場 ${tone}`,
     });
   }
@@ -288,7 +329,7 @@ function buildConcreteIdeas(
       detail:
         `アルト ${altW}% / メジャー ${majorW}%。コア（BTC+ETH）45% を目指すなら、` +
         `アルト側から約 ${fmtUsd(shift)} 分を BTC か ETH にローテーション。` +
-        `24hで弱いアルトから順に減らす。`,
+        `${w.label}で弱いアルトから順に減らす。`,
       trigger: `アルト ${altW}%`,
     });
   }
@@ -300,7 +341,7 @@ function buildConcreteIdeas(
       priority: 'now',
       title: 'リスクオフ局面の守り',
       detail:
-        `全体 ${fmtPct(portfolio.change_24h_pct)}（${fmtUsd(portfolio.change_24h_usd)}）。` +
+        `全体 ${w.label} ${fmtPct(w.pct)}（${fmtUsd(w.usd)}）。` +
         `新規のアルト買いは止め、下落寄与の大きい銘柄のナンピンは見送り。` +
         `ステーブル比率 ${stableW}% を維持し、回復は BTC/ETH から。`,
       trigger: '相場トーン risk-off',
@@ -312,7 +353,7 @@ function buildConcreteIdeas(
       priority: 'watch',
       title: 'リスクオンの少額フォロー',
       detail:
-        `全体 ${fmtPct(portfolio.change_24h_pct)}。勢いのある銘柄への追加は ` +
+        `全体 ${w.label} ${fmtPct(w.pct)}。勢いのある銘柄への追加は ` +
         `ステーブルの約 ${fmtUsd(probe)}（全体 ${(probe / total) * 100 > 0 ? ((probe / total) * 100).toFixed(1) : '0'}%）までに限定し、追撃買いの上限を先に決める。`,
       trigger: '相場トーン risk-on',
     });
@@ -320,17 +361,6 @@ function buildConcreteIdeas(
 
   // 4) Coverage gaps (setup)
   ideas.push(...setupIdeas(opts));
-
-  // Always keep one cross-asset idea → /all
-  ideas.push({
-    id: 'cross-stock',
-    priority: 'watch',
-    title: '株式との合算比率を記録',
-    detail:
-      `いまのクリプト合計 ${fmtUsd(total)}。全体資産（/all）で株式評価額と足し、` +
-      `「リスク資産に占めるクリプト％」を記録すると、今月の増減判断がしやすい。`,
-    trigger: `合計 ${fmtUsd(total)} · /all`,
-  });
 
   // Prefer now > watch > setup, keep unique ids, limit
   const rank = { now: 0, watch: 1, setup: 2 };
@@ -361,7 +391,7 @@ export function analyzePortfolio(portfolio: Portfolio, opts: Opts): PortfolioIns
       worstMover: null,
       analysis: [
         'ウォレット未接続のため、価格連動の具体案はまだ出せません。',
-        '接続・アドレス登録後、「再取得」のたびに 24h 値動きからアイデアを更新します。',
+        '接続・アドレス登録後、「再取得」のたびに直近7日の値動きからアイデアを更新します。',
       ],
       ideas: (
         [
@@ -432,10 +462,11 @@ export function analyzePortfolio(portfolio: Portfolio, opts: Opts): PortfolioIns
     .filter((b) => b.valueUsd > 0);
 
   const risky = holdings.filter((h) => !isStable(h.symbol));
-  const movers = [...risky].sort((a, b) => b.change_24h - a.change_24h);
+  const w = moveWindow(portfolio);
+  const movers = [...risky].sort((a, b) => w.of(b) - w.of(a));
   const bestMover = movers[0] ?? null;
   const worstMover = movers[movers.length - 1] ?? null;
-  const tone = marketToneFrom(portfolio, holdings);
+  const tone = marketToneFrom(holdings, w);
 
   const analysis: string[] = [];
   if (top) {
@@ -456,10 +487,11 @@ export function analyzePortfolio(portfolio: Portfolio, opts: Opts): PortfolioIns
   );
 
   analysis.push(
-    `24h 全体 ${fmtPct(portfolio.change_24h_pct)}（${fmtUsd(portfolio.change_24h_usd)}）、トーンは ${tone}` +
+    `${w.label} 全体 ${fmtPct(w.pct)}（${fmtUsd(w.usd)}）、トーンは ${tone}` +
       (bestMover && worstMover
-        ? `。強い ${bestMover.symbol} ${fmtPct(bestMover.change_24h)} / 弱い ${worstMover.symbol} ${fmtPct(worstMover.change_24h)}。`
-        : '。'),
+        ? `。強い ${bestMover.symbol} ${fmtPct(w.of(bestMover))} / 弱い ${worstMover.symbol} ${fmtPct(w.of(worstMover))}。`
+        : '。') +
+      (portfolio.has_7d ? '' : '（7日データ取得失敗のため24h基準）'),
   );
 
   return {

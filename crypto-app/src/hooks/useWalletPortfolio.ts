@@ -35,6 +35,7 @@ function assetSeed(
     amount,
     price_usd: quote?.usd ?? 0,
     change_24h: quote?.change_24h ?? 0,
+    change_7d: quote?.change_7d ?? null,
     color,
   };
 }

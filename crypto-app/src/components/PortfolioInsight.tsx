@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo } from 'react';
 import { analyzePortfolio, type IdeaItem } from '@/lib/cryptoAnalysis';
 import type { Portfolio } from '@/lib/portfolio';
@@ -168,7 +167,7 @@ export default function PortfolioInsight({
         </div>
 
         <p className="mb-4 text-xs text-[var(--color-muted)]">
-          24hの価格・寄与額から自動生成。再取得のたびに金額・％を更新します
+          直近7日の価格・寄与額から自動生成。再取得のたびに金額・％を更新します
           {insight.generatedAt ? ` · ${formatUpdatedAt(insight.generatedAt)}` : ''}
         </p>
 
@@ -196,16 +195,6 @@ export default function PortfolioInsight({
                   </span>
                 </div>
                 <p className="text-[0.9rem] leading-relaxed text-[var(--color-ink)]/90">{idea.detail}</p>
-                {idea.id === 'cross-stock' ? (
-                  <p className="mt-2">
-                    <Link
-                      href="/all"
-                      className="font-[family-name:var(--font-display)] text-[0.75rem] tracking-wider text-[var(--color-up)] underline-offset-2 hover:underline"
-                    >
-                      全体資産で合算比率を見る →
-                    </Link>
-                  </p>
-                ) : null}
                 <p className="mt-1 text-[0.7rem] tabular-nums text-[var(--color-muted)]">根拠: {idea.trigger}</p>
               </div>
             </li>

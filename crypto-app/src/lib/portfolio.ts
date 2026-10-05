@@ -4,6 +4,7 @@ export type Holding = {
   amount: number;
   price_usd: number;
   change_24h: number;
+  change_7d: number | null;
   color: string;
   value_usd: number;
   value_jpy: number;
@@ -18,6 +19,10 @@ export type Portfolio = {
   change_24h_usd: number;
   change_24h_jpy: number;
   change_24h_pct: number;
+  /** True when every non-zero holding has a 7d change */
+  has_7d: boolean;
+  change_7d_usd: number;
+  change_7d_pct: number;
   updated_at: string;
   holdings: Holding[];
 };
@@ -31,6 +36,9 @@ export function emptyPortfolio(): Portfolio {
     change_24h_usd: 0,
     change_24h_jpy: 0,
     change_24h_pct: 0,
+    has_7d: false,
+    change_7d_usd: 0,
+    change_7d_pct: 0,
     updated_at: new Date().toISOString(),
     holdings: [],
   };

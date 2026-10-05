@@ -2,24 +2,46 @@ export type PriceQuote = {
   usd: number;
   jpy: number;
   change_24h: number;
+  /** null when CoinGecko markets data was unavailable */
+  change_7d: number | null;
 };
 
 export type PriceMap = Record<string, PriceQuote>;
 
 const FALLBACK: PriceMap = {
-  ethereum: { usd: 3420, jpy: 508000, change_24h: 0 },
-  tether: { usd: 1, jpy: 148.5, change_24h: 0 },
-  'usd-coin': { usd: 1, jpy: 148.5, change_24h: 0 },
-  dai: { usd: 1, jpy: 148.5, change_24h: 0 },
-  bitcoin: { usd: 97500, jpy: 14_480_000, change_24h: 0 },
-  solana: { usd: 178, jpy: 26400, change_24h: 0 },
-  chainlink: { usd: 18, jpy: 2670, change_24h: 0 },
-  'render-token': { usd: 7, jpy: 1040, change_24h: 0 },
-  sui: { usd: 3.5, jpy: 520, change_24h: 0 },
+  ethereum: { usd: 3420, jpy: 508000, change_24h: 0, change_7d: null },
+  tether: { usd: 1, jpy: 148.5, change_24h: 0, change_7d: null },
+  'usd-coin': { usd: 1, jpy: 148.5, change_24h: 0, change_7d: null },
+  dai: { usd: 1, jpy: 148.5, change_24h: 0, change_7d: null },
+  bitcoin: { usd: 97500, jpy: 14_480_000, change_24h: 0, change_7d: null },
+  solana: { usd: 178, jpy: 26400, change_24h: 0, change_7d: null },
+  chainlink: { usd: 18, jpy: 2670, change_24h: 0, change_7d: null },
+  'render-token': { usd: 7, jpy: 1040, change_24h: 0, change_7d: null },
+  sui: { usd: 3.5, jpy: 520, change_24h: 0, change_7d: null },
 };
 
+async function fetch7dChanges(ids: string[]): Promise<Record<string, number>> {
+  const url =
+    `https://api.coingecko.com/api/v3/coins/markets` +
+    `?vs_currency=usd&ids=${encodeURIComponent(ids.join(','))}` +
+    `&price_change_percentage=7d&per_page=250`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return {};
+    const rows = (await res.json()) as { id: string; price_change_percentage_7d_in_currency?: number | null }[];
+    const out: Record<string, number> = {};
+    for (const row of rows) {
+      const v = row.price_change_percentage_7d_in_currency;
+      if (typeof v === 'number' && Number.isFinite(v)) out[row.id] = v;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 /**
- * Spot + 24h change from CoinGecko (no API key for basic usage).
+ * Spot + 24h / 7d change from CoinGecko (no API key for basic usage).
  */
 export async function fetchUsdPrices(ids: string[]): Promise<PriceMap> {
   const unique = [...new Set(ids)];
@@ -29,7 +51,7 @@ export async function fetchUsdPrices(ids: string[]): Promise<PriceMap> {
     `&vs_currencies=usd,jpy&include_24hr_change=true`;
 
   try {
-    const res = await fetch(url);
+    const [res, weekly] = await Promise.all([fetch(url), fetch7dChanges(unique)]);
     if (!res.ok) {
       return FALLBACK;
     }
@@ -46,6 +68,7 @@ export async function fetchUsdPrices(ids: string[]): Promise<PriceMap> {
         usd: Number(row.usd) || FALLBACK[id]?.usd || 0,
         jpy: Number(row.jpy) || FALLBACK[id]?.jpy || 0,
         change_24h: Number(row.usd_24h_change) || 0,
+        change_7d: id in weekly ? weekly[id] : null,
       };
     }
     return out;

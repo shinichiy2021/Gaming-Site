@@ -150,6 +150,7 @@ export async function readEvmChainSeeds(
       amount: Number(formatUnits(ethWei, 18)),
       price_usd: ethPrice?.usd ?? 0,
       change_24h: ethPrice?.change_24h ?? 0,
+      change_7d: ethPrice?.change_7d ?? null,
       color: native.color,
     },
     ...tokens.map((token, i) => {
@@ -161,6 +162,7 @@ export async function readEvmChainSeeds(
         amount: Number(formatUnits(raw, token.decimals)),
         price_usd: quote?.usd ?? 0,
         change_24h: quote?.change_24h ?? 0,
+        change_7d: quote?.change_7d ?? null,
         color: token.color,
       };
     }),
