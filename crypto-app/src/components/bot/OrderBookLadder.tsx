@@ -31,7 +31,7 @@ export default function OrderBookLadder({
 }: Props) {
   if (error) {
     return (
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+      <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 sm:p-5">
         <h2 className="mb-2 font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
           Phoenix SOL/USDC L2
         </h2>
@@ -45,7 +45,7 @@ export default function OrderBookLadder({
 
   if (!book || loading) {
     return (
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+      <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 sm:p-5">
         <div className="mb-4 h-4 w-40 animate-pulse rounded bg-white/10" />
         <div className="space-y-2">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -66,7 +66,7 @@ export default function OrderBookLadder({
   const bids = book.bids.slice(0, 8);
 
   return (
-    <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+    <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="mb-1 font-[family-name:var(--font-display)] text-[0.68rem] tracking-[0.14em] text-[var(--color-up)] uppercase">
@@ -84,7 +84,7 @@ export default function OrderBookLadder({
         </div>
       </div>
 
-      <div className="mb-3 grid grid-cols-[1fr_auto_1fr] gap-2 text-[0.65rem] tracking-wider text-[var(--color-muted)] uppercase">
+      <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-2 text-[0.65rem] tracking-wider text-[var(--color-muted)] uppercase">
         <span className="text-right">Size</span>
         <span className="text-center">Price</span>
         <span>Size</span>
@@ -98,7 +98,7 @@ export default function OrderBookLadder({
           return (
             <div
               key={`a-${level.price}`}
-              className={`relative grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded px-1 py-0.5 text-sm ${
+              className={`relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded px-1 py-0.5 text-sm ${
                 isQuote ? 'ring-1 ring-[var(--color-down)]/50' : ''
               }`}
             >
@@ -108,7 +108,7 @@ export default function OrderBookLadder({
                   style={{ width: `${w}%` }}
                 />
               </div>
-              <span className="min-w-[4.5rem] text-center font-[family-name:var(--font-display)] tabular-nums text-[var(--color-down)]">
+              <span className="min-w-[4rem] text-center font-[family-name:var(--font-display)] tabular-nums text-[var(--color-down)] sm:min-w-[4.5rem]">
                 {level.price.toFixed(3)}
               </span>
               <span className="tabular-nums text-[var(--color-muted)]">{level.quantity.toFixed(2)}</span>
@@ -116,14 +116,14 @@ export default function OrderBookLadder({
           );
         })}
 
-        <div className="my-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-y border-white/10 py-2">
-          <div className="text-right text-xs text-[var(--color-muted)]">
+        <div className="my-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-y border-white/10 py-2">
+          <div className="text-right text-[0.65rem] break-words text-[var(--color-muted)] sm:text-xs">
             {quoteBid != null ? `paper bid ${quoteBid.toFixed(3)}` : ''}
           </div>
           <div className="rounded-full bg-[rgba(61,214,140,0.15)] px-3 py-1 text-center font-[family-name:var(--font-display)] text-sm font-bold tabular-nums">
             {book.mid?.toFixed(3)}
           </div>
-          <div className="text-xs text-[var(--color-muted)]">
+          <div className="text-[0.65rem] break-words text-[var(--color-muted)] sm:text-xs">
             {quoteAsk != null ? `paper ask ${quoteAsk.toFixed(3)}` : ''}
           </div>
         </div>
@@ -135,12 +135,12 @@ export default function OrderBookLadder({
           return (
             <div
               key={`b-${level.price}`}
-              className={`relative grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded px-1 py-0.5 text-sm ${
+              className={`relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded px-1 py-0.5 text-sm ${
                 isQuote ? 'ring-1 ring-[var(--color-up)]/50' : ''
               }`}
             >
               <span className="text-right tabular-nums text-[var(--color-muted)]">{level.quantity.toFixed(2)}</span>
-              <span className="min-w-[4.5rem] text-center font-[family-name:var(--font-display)] tabular-nums text-[var(--color-up)]">
+              <span className="min-w-[4rem] text-center font-[family-name:var(--font-display)] tabular-nums text-[var(--color-up)] sm:min-w-[4.5rem]">
                 {level.price.toFixed(3)}
               </span>
               <div className="relative h-5 overflow-hidden rounded">

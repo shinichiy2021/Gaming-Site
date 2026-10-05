@@ -181,6 +181,8 @@ services:
       CRYPTO_AUTH_REQUIRED: "1"
       CRYPTO_BASIC_AUTH_USER: ${CRYPTO_BASIC_AUTH_USER:-}
       CRYPTO_BASIC_AUTH_PASSWORD: ${CRYPTO_BASIC_AUTH_PASSWORD:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
     volumes:
       - ./crypto-app/public/data:/app/public/data:ro
     networks:

@@ -34,7 +34,7 @@ export default function EquityCurve({ history, startingCash }: Props) {
   const baselineY = pad + (1 - (startingCash - min) / span) * (h - pad * 2);
 
   return (
-    <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+    <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
       <div className="mb-3 flex items-end justify-between gap-2">
         <div>
           <p className="mb-1 font-[family-name:var(--font-display)] text-[0.68rem] tracking-[0.14em] text-[var(--color-up)] uppercase">
@@ -46,7 +46,7 @@ export default function EquityCurve({ history, startingCash }: Props) {
           {points.length} pts
         </p>
       </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-44 w-full" role="img" aria-label="Equity curve">
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-auto w-full lg:h-44" role="img" aria-label="Equity curve">
         <defs>
           <linearGradient id="eqFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={up ? '#3dd68c' : '#ff6b6b'} stopOpacity="0.35" />

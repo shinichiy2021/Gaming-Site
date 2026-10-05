@@ -33,7 +33,7 @@ export default function AllocationBars({ holdings, cashUsd, equityUsd }: Props) 
   ].sort((a, b) => b.weight - a.weight);
 
   return (
-    <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+    <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
       <p className="mb-1 font-[family-name:var(--font-display)] text-[0.68rem] tracking-[0.14em] text-[var(--color-up)] uppercase">
         Allocation
       </p>

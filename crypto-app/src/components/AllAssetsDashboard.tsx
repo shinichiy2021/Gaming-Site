@@ -182,7 +182,7 @@ export default function AllAssetsDashboard() {
   const money = (usd: number, jpy: number) => (currency === 'USD' ? fmtUsd(usd) : fmtYen(jpy));
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-8 px-5 py-10 sm:px-8">
+    <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-3 py-6 sm:gap-8 sm:px-8 sm:py-10">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="mb-1.5 font-[family-name:var(--font-display)] text-xs tracking-[0.16em] text-[var(--color-up)] uppercase">
@@ -269,7 +269,7 @@ export default function AllAssetsDashboard() {
 
       {snap ? (
         <>
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {[
               { label: 'リスク資産合計', value: money(snap.riskUsd, snap.riskJpy), sub: 'Crypto + Stock' },
               {
@@ -292,11 +292,11 @@ export default function AllAssetsDashboard() {
             ].map((card) => (
               <div
                 key={card.label}
-                className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md"
+                className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5"
               >
                 <p className="mb-2 text-[0.7rem] tracking-wider text-[var(--color-muted)] uppercase">{card.label}</p>
                 <p
-                  className={`font-[family-name:var(--font-display)] text-[clamp(1.3rem,2.8vw,1.75rem)] font-bold tabular-nums ${card.accent ?? ''}`}
+                  className={`font-[family-name:var(--font-display)] text-[clamp(1.05rem,2.8vw,1.75rem)] font-bold tabular-nums break-all ${card.accent ?? ''}`}
                 >
                   {card.value}
                 </p>
@@ -305,7 +305,7 @@ export default function AllAssetsDashboard() {
             ))}
           </section>
 
-          <section className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+          <section className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
             <div className="mb-1 flex flex-wrap items-end justify-between gap-2">
               <h2 className="font-[family-name:var(--font-display)] text-lg font-bold">配分</h2>
               <p className="text-xs text-[var(--color-muted)]">
@@ -322,8 +322,8 @@ export default function AllAssetsDashboard() {
             <RatioBar cryptoPct={snap.cryptoPct} stockPct={snap.stockPct} />
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
               <h2 className="mb-3 font-[family-name:var(--font-display)] text-lg font-bold">記録履歴</h2>
               <HistorySpark history={history} />
               {history.length ? (
@@ -331,7 +331,7 @@ export default function AllAssetsDashboard() {
                   {[...history].reverse().slice(0, 12).map((h) => (
                     <li
                       key={h.t}
-                      className="grid grid-cols-[7rem_1fr_auto] gap-2 border-b border-white/5 py-2 text-[var(--color-muted)]"
+                      className="grid grid-cols-[5.5rem_minmax(0,1fr)_auto] gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_auto] border-b border-white/5 py-2 text-[var(--color-muted)]"
                     >
                       <span className="tabular-nums">{formatDay(h.t)}</span>
                       <span className="tabular-nums text-[var(--color-ink)]">
@@ -344,7 +344,7 @@ export default function AllAssetsDashboard() {
               ) : null}
             </div>
 
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+            <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
               <h2 className="mb-3 font-[family-name:var(--font-display)] text-lg font-bold">メモ</h2>
               <ul className="flex flex-col gap-2.5 text-[0.92rem] leading-relaxed text-[var(--color-ink)]/90">
                 <li>

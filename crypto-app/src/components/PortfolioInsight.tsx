@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
+import IdeaChat from '@/components/IdeaChat';
 import { analyzePortfolio, type IdeaItem } from '@/lib/cryptoAnalysis';
+import { buildIdeaChatContext } from '@/lib/ideaChatContext';
 import type { Portfolio } from '@/lib/portfolio';
 
 type Props = {
@@ -72,14 +74,16 @@ export default function PortfolioInsight({
     [portfolio, hasSources, hasMm, hasBtc, hasSol, hasSui],
   );
 
+  const chatContext = useMemo(() => buildIdeaChatContext(portfolio, insight), [portfolio, insight]);
+
   const busy = loading || Boolean(refreshing);
 
   return (
     <section
-      className={`grid gap-4 lg:grid-cols-2 ${busy ? 'opacity-80' : ''}`}
+      className={`grid grid-cols-1 gap-4 lg:grid-cols-2 ${busy ? 'opacity-80' : ''}`}
       aria-labelledby="crypto-insight-title"
     >
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+      <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
         <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="mb-1 font-[family-name:var(--font-display)] text-[0.68rem] tracking-[0.14em] text-[var(--color-up)] uppercase">
@@ -121,7 +125,7 @@ export default function PortfolioInsight({
         {insight.buckets.length > 0 ? (
           <ul className="mb-4 flex flex-col gap-2">
             {insight.buckets.map((b) => (
-              <li key={b.key} className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-2 text-sm">
+              <li key={b.key} className="grid grid-cols-[4.5rem_1fr_auto] items-center sm:grid-cols-[5.5rem_1fr_auto] gap-2 text-sm">
                 <span className="text-[var(--color-muted)]">{b.label}</span>
                 <span className="block h-1.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
                   <span
@@ -144,7 +148,7 @@ export default function PortfolioInsight({
         </ul>
       </div>
 
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+      <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
         <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="mb-1 font-[family-name:var(--font-display)] text-[0.68rem] tracking-[0.14em] text-[var(--color-up)] uppercase">
@@ -177,7 +181,7 @@ export default function PortfolioInsight({
               <span className="font-[family-name:var(--font-display)] text-sm text-[var(--color-up)]">
                 {String(i + 1).padStart(2, '0')}
               </span>
-              <div>
+              <div className="min-w-0">
                 <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <strong className="font-[family-name:var(--font-display)] text-sm text-[var(--color-ink)]">
                     {idea.title}
@@ -201,6 +205,12 @@ export default function PortfolioInsight({
           ))}
         </ol>
       </div>
+
+      {insight.hasHoldings ? (
+        <div className="min-w-0 lg:col-span-2">
+          <IdeaChat context={chatContext} disabled={busy} />
+        </div>
+      ) : null}
     </section>
   );
 }

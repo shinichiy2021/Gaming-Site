@@ -62,7 +62,7 @@ function formatPct(pct: number) {
 }
 
 function AllocationRing({ holdings }: { holdings: Holding[] }) {
-  const size = 180;
+  const size = 160;
   const stroke = 22;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
@@ -99,7 +99,7 @@ function AllocationRing({ holdings }: { holdings: Holding[] }) {
 function LoadingPanel() {
   return (
     <div
-      className="grid gap-4 lg:grid-cols-[1.2fr_1fr]"
+      className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -115,7 +115,7 @@ function LoadingPanel() {
       <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
         <div className="mb-4 h-4 w-20 animate-pulse rounded bg-white/10" />
         <div className="flex items-center gap-5">
-          <div className="h-[180px] w-[180px] animate-pulse rounded-full bg-white/10" />
+          <div className="h-[160px] w-[160px] shrink-0 animate-pulse rounded-full bg-white/10" />
           <div className="flex flex-1 flex-col gap-2">
             <div className="h-4 w-24 animate-pulse rounded bg-white/10" />
             <div className="h-4 w-20 animate-pulse rounded bg-white/10" />
@@ -174,9 +174,9 @@ function PortfolioPanels({
   }, [portfolio.updated_at]);
 
   return (
-    <div className={`grid gap-4 lg:grid-cols-[1.2fr_1fr] ${refreshing ? 'opacity-80' : ''}`}>
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
-        <strong className="mb-3 block font-[family-name:var(--font-display)] text-[clamp(2rem,5vw,2.85rem)] font-black tracking-tight">
+    <div className={`grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr] ${refreshing ? 'opacity-80' : ''}`}>
+      <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
+        <strong className="mb-3 block font-[family-name:var(--font-display)] text-[clamp(1.75rem,8vw,2.85rem)] font-black tracking-tight break-all">
           {formatMoney(total, currency)}
         </strong>
         <div className={`flex flex-wrap items-baseline gap-x-3 gap-y-1 font-[family-name:var(--font-display)] ${up ? 'text-[var(--color-up)]' : 'text-[var(--color-down)]'}`}>
@@ -192,7 +192,7 @@ function PortfolioPanels({
         ) : null}
       </div>
 
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+      <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
         <h2 className="mb-4 font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
           {labels.allocation}
         </h2>
@@ -214,21 +214,30 @@ function PortfolioPanels({
         )}
       </div>
 
-      <section className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md lg:col-span-2" aria-labelledby="holdings-title">
+      <section className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5 lg:col-span-2" aria-labelledby="holdings-title">
         <h2 id="holdings-title" className="mb-4 font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
           {labels.holdings}
         </h2>
         {holdings.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[0.92rem]">
+          <div className="-mx-1 overflow-x-auto">
+            <table className="w-full border-collapse text-[0.85rem] sm:text-[0.92rem]">
               <thead>
                 <tr>
                   {[labels.asset, labels.amount, labels.value, labels.change24h, labels.weight].map((label) => (
                     <th
                       key={label}
-                      className="border-b border-white/10 px-2.5 pb-3 text-left font-[family-name:var(--font-display)] text-[0.68rem] tracking-wider whitespace-nowrap text-[var(--color-muted)] uppercase"
+                      className={`border-b border-white/10 px-1.5 pb-3 text-left font-[family-name:var(--font-display)] text-[0.68rem] tracking-wider whitespace-nowrap text-[var(--color-muted)] uppercase sm:px-2.5 ${
+                        label === labels.amount ? 'max-md:hidden' : ''
+                      }`}
                     >
-                      {label}
+                      {label === labels.change24h ? (
+                        <>
+                          <span className="sm:hidden">24h</span>
+                          <span className="max-sm:hidden">{label}</span>
+                        </>
+                      ) : (
+                        label
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -239,31 +248,31 @@ function PortfolioPanels({
                   const ch = h.change_24h;
                   return (
                     <tr key={h.symbol} className="transition hover:bg-[rgba(61,214,140,0.05)]">
-                      <td className="border-b border-white/5 px-2.5 py-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
+                      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 whitespace-nowrap">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           <span
-                            className="grid h-8 w-8 shrink-0 place-items-center rounded-full font-[family-name:var(--font-display)] text-sm font-bold text-[#0a0f0d]"
+                            className="grid h-7 w-7 shrink-0 sm:h-8 sm:w-8 place-items-center rounded-full font-[family-name:var(--font-display)] text-sm font-bold text-[#0a0f0d]"
                             style={{ background: h.color }}
                           >
                             {h.symbol.slice(0, 1)}
                           </span>
                           <span>
                             <strong className="block font-[family-name:var(--font-display)] text-sm leading-tight">{h.symbol}</strong>
-                            <small className="text-xs text-[var(--color-muted)]">{h.name}</small>
+                            <small className="text-xs text-[var(--color-muted)] max-sm:hidden">{h.name}</small>
                           </span>
                         </div>
                       </td>
-                      <td className="border-b border-white/5 px-2.5 py-3.5 tabular-nums whitespace-nowrap max-md:hidden">
+                      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 tabular-nums whitespace-nowrap max-md:hidden">
                         {formatAmount(h.amount, h.symbol)}
                       </td>
-                      <td className="border-b border-white/5 px-2.5 py-3.5 tabular-nums whitespace-nowrap">
+                      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 tabular-nums whitespace-nowrap">
                         {formatMoney(value, currency)}
                       </td>
-                      <td className={`border-b border-white/5 px-2.5 py-3.5 tabular-nums whitespace-nowrap ${ch >= 0 ? 'text-[var(--color-up)]' : 'text-[var(--color-down)]'}`}>
+                      <td className={`border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 tabular-nums whitespace-nowrap ${ch >= 0 ? 'text-[var(--color-up)]' : 'text-[var(--color-down)]'}`}>
                         {formatPct(ch)}
                       </td>
-                      <td className="border-b border-white/5 px-2.5 py-3.5 whitespace-nowrap">
-                        <div className="flex min-w-[4.5rem] flex-col gap-1.5">
+                      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 whitespace-nowrap">
+                        <div className="flex min-w-[3.5rem] flex-col gap-1.5 sm:min-w-[4.5rem]">
                           <span className="tabular-nums">{h.weight}%</span>
                           <span className="block h-1 overflow-hidden rounded-full bg-white/10" aria-hidden>
                             <span className="block h-full rounded-full" style={{ width: `${Math.min(100, h.weight)}%`, background: h.color }} />
@@ -310,8 +319,8 @@ export default function CryptoDashboard() {
       : labels.subtitleIdle;
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-8 sm:px-6 lg:py-10">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-5 px-3 py-6 sm:px-6 sm:py-8 lg:py-10">
+      <header className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
           <p className="mb-1.5 font-[family-name:var(--font-display)] text-xs tracking-[0.16em] text-[var(--color-up)] uppercase">
             {labels.title}
@@ -343,7 +352,7 @@ export default function CryptoDashboard() {
             </Link>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-3">
+        <div className="flex flex-wrap items-center gap-3 sm:flex-col sm:items-end">
           <WalletBar loading={loading || refreshing} onRefresh={refetch} />
           <div className="inline-flex rounded-full border border-[var(--color-line)] bg-black/35 p-0.5" role="group" aria-label="Currency">
             {(['JPY', 'USD'] as const).map((code) => (
@@ -386,7 +395,7 @@ export default function CryptoDashboard() {
         onRefresh={refetch}
       />
 
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <WatchAddressBar
           title="Bitcoin · Native SegWit"
           hint="ウォッチ用の bc1q… アドレス（秘密鍵不要）"

@@ -26,7 +26,7 @@ export default function WatchAddressBar({
   const registered = Boolean(address);
 
   return (
-    <div className="w-full rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md">
+    <div className="w-full min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
           {title}
@@ -61,7 +61,7 @@ export default function WatchAddressBar({
             placeholder={placeholder}
             spellCheck={false}
             autoComplete="off"
-            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-[var(--color-ink)] outline-none placeholder:text-[var(--color-muted)]/60 focus:border-[var(--color-line)]"
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-base text-[var(--color-ink)] outline-none sm:text-sm placeholder:text-[var(--color-muted)]/60 focus:border-[var(--color-line)]"
           />
           <button
             type="button"

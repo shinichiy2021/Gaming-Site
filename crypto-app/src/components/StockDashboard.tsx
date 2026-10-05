@@ -131,16 +131,16 @@ function HoldingRow({ h }: { h: StockHolding }) {
   const foreign = h.market === 'foreign';
   return (
     <tr className="transition hover:bg-[rgba(61,214,140,0.05)]">
-      <td className="border-b border-white/5 px-2.5 py-3.5 whitespace-nowrap">
-        <div className="flex items-center gap-3">
+      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 sm:whitespace-nowrap">
+        <div className="flex min-w-[9rem] items-center gap-2 sm:gap-3">
           <span
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full font-[family-name:var(--font-display)] text-[0.65rem] font-bold text-[#0a0f0d]"
+            className="grid h-7 w-7 shrink-0 sm:h-8 sm:w-8 place-items-center rounded-full font-[family-name:var(--font-display)] text-[0.65rem] font-bold text-[#0a0f0d]"
             style={{ background: h.color }}
           >
             {h.code ? h.code.slice(0, 2) : h.name.slice(0, 1)}
           </span>
           <span>
-            <strong className="block font-[family-name:var(--font-display)] text-sm leading-tight">
+            <strong className="block font-[family-name:var(--font-display)] text-sm leading-tight max-sm:line-clamp-2">
               {h.code ? `${h.code} ${h.name}` : h.name}
             </strong>
             <small className="text-xs text-[var(--color-muted)]">
@@ -151,21 +151,21 @@ function HoldingRow({ h }: { h: StockHolding }) {
           </span>
         </div>
       </td>
-      <td className="border-b border-white/5 px-2.5 py-3.5 tabular-nums whitespace-nowrap max-md:hidden">
+      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 tabular-nums whitespace-nowrap max-md:hidden">
         {h.isCash
           ? formatUsd(h.quantity)
           : h.quantity.toLocaleString('ja-JP')}
       </td>
-      <td className="border-b border-white/5 px-2.5 py-3.5 tabular-nums whitespace-nowrap max-md:hidden">
+      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 tabular-nums whitespace-nowrap max-md:hidden">
         {foreign ? formatUsd(h.currentPrice) : formatYen(h.currentPrice)}
       </td>
-      <td className="border-b border-white/5 px-2.5 py-3.5 tabular-nums whitespace-nowrap">
+      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 tabular-nums whitespace-nowrap">
         <div>{formatYen(h.value)}</div>
         {h.valueUsd != null ? (
           <div className="text-xs text-[var(--color-muted)]">{formatUsd(h.valueUsd)}</div>
         ) : null}
       </td>
-      <td className={`border-b border-white/5 px-2.5 py-3.5 tabular-nums whitespace-nowrap ${toneClass(h.pnlJpy)}`}>
+      <td className={`border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 tabular-nums whitespace-nowrap ${toneClass(h.pnlJpy)}`}>
         {h.isCash ? (
           <span className="text-[var(--color-muted)]">—</span>
         ) : (
@@ -181,15 +181,15 @@ function HoldingRow({ h }: { h: StockHolding }) {
           </>
         )}
       </td>
-      <td className={`border-b border-white/5 px-2.5 py-3.5 tabular-nums whitespace-nowrap max-sm:hidden ${toneClass(h.dayChangePct)}`}>
+      <td className={`border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 tabular-nums whitespace-nowrap max-sm:hidden ${toneClass(h.dayChangePct)}`}>
         {foreign || h.isCash ? (
           <span className="text-[var(--color-muted)]">—</span>
         ) : (
           formatPct(h.dayChangePct)
         )}
       </td>
-      <td className="border-b border-white/5 px-2.5 py-3.5 whitespace-nowrap">
-        <div className="flex min-w-[4.5rem] flex-col gap-1.5">
+      <td className="border-b border-white/5 px-1.5 py-3 sm:px-2.5 sm:py-3.5 whitespace-nowrap">
+        <div className="flex min-w-[3.5rem] flex-col gap-1.5 sm:min-w-[4.5rem]">
           <span className="tabular-nums">{h.weight}%</span>
           <span className="block h-1 overflow-hidden rounded-full bg-white/10" aria-hidden>
             <span className="block h-full rounded-full" style={{ width: `${Math.min(100, h.weight)}%`, background: h.color }} />
@@ -335,7 +335,7 @@ export default function StockDashboard() {
     : null;
 
   return (
-    <div className="mx-auto flex max-w-[1080px] flex-col gap-5 px-4 py-8 sm:px-6 lg:py-10">
+    <div className="mx-auto flex max-w-[1080px] flex-col gap-5 px-3 py-6 sm:px-6 sm:py-8 lg:py-10">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="mb-1.5 font-[family-name:var(--font-display)] text-xs tracking-[0.16em] text-[var(--color-up)] uppercase">
@@ -445,8 +445,8 @@ export default function StockDashboard() {
             ))}
           </div>
 
-          <div className={`grid gap-4 lg:grid-cols-4 ${loading ? 'opacity-70' : ''}`}>
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md lg:col-span-1">
+          <div className={`grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 ${loading ? 'opacity-70' : ''}`}>
+            <div className="col-span-2 min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5 lg:col-span-1">
               <p className="mb-2 font-[family-name:var(--font-display)] text-xs tracking-[0.12em] text-[var(--color-muted)] uppercase">
                 {labels.total}
               </p>
@@ -459,7 +459,7 @@ export default function StockDashboard() {
                 </p>
               ) : null}
             </div>
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+            <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
               <p className="mb-2 font-[family-name:var(--font-display)] text-xs tracking-[0.12em] text-[var(--color-muted)] uppercase">
                 {labels.pnl}
               </p>
@@ -473,7 +473,7 @@ export default function StockDashboard() {
                 </p>
               ) : null}
             </div>
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+            <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
               <p className="mb-2 font-[family-name:var(--font-display)] text-xs tracking-[0.12em] text-[var(--color-muted)] uppercase">
                 {labels.day}
               </p>
@@ -482,7 +482,7 @@ export default function StockDashboard() {
                 <div className="mt-1 text-base font-semibold">{formatPct(portfolio.dayChangePct)}</div>
               </div>
             </div>
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+            <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
               <p className="mb-2 font-[family-name:var(--font-display)] text-xs tracking-[0.12em] text-[var(--color-muted)] uppercase">
                 {labels.fx}
               </p>
@@ -502,8 +502,8 @@ export default function StockDashboard() {
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.2fr]">
+            <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
               <h2 className="mb-4 font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
                 {labels.byMarket}
               </h2>
@@ -515,7 +515,7 @@ export default function StockDashboard() {
                     color: m.color,
                   }))}
                 />
-                <ul className="flex min-w-[10rem] flex-1 flex-col gap-3">
+                <ul className="flex min-w-0 flex-1 basis-[12rem] flex-col gap-3">
                   {portfolio.markets.map((m) => (
                     <li key={m.market}>
                       <button
@@ -549,7 +549,7 @@ export default function StockDashboard() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md">
+            <div className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5">
               <h2 className="mb-3 font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
                 {labels.byAccount}
               </h2>
@@ -614,7 +614,7 @@ export default function StockDashboard() {
             </div>
           </div>
 
-          <section className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md" aria-labelledby="stock-holdings-title">
+          <section className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5" aria-labelledby="stock-holdings-title">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 id="stock-holdings-title" className="font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
                 {labels.holdings}
@@ -638,14 +638,20 @@ export default function StockDashboard() {
             </div>
             {visible.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-[0.92rem]">
+                <table className="w-full border-collapse text-[0.85rem] sm:text-[0.92rem]">
                   <thead>
                     <tr>
                       {[labels.code, labels.qty, labels.price, labels.value, labels.pnlCol, labels.dayCol, labels.weight].map(
                         (label) => (
                           <th
                             key={label}
-                            className="border-b border-white/10 px-2.5 pb-3 text-left font-[family-name:var(--font-display)] text-[0.68rem] tracking-wider whitespace-nowrap text-[var(--color-muted)] uppercase"
+                            className={`border-b border-white/10 px-1.5 pb-3 text-left font-[family-name:var(--font-display)] text-[0.68rem] tracking-wider whitespace-nowrap text-[var(--color-muted)] uppercase sm:px-2.5 ${
+                              label === labels.qty || label === labels.price
+                                ? 'max-md:hidden'
+                                : label === labels.dayCol
+                                  ? 'max-sm:hidden'
+                                  : ''
+                            }`}
                           >
                             {label}
                           </th>

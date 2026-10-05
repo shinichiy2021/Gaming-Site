@@ -24,7 +24,7 @@ export default function WalletBar({
   const isConnected = Boolean(address);
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
       {isConnected && address ? (
         <>
           {chainId !== undefined ? (
@@ -62,7 +62,7 @@ export default function WalletBar({
         </button>
       )}
 
-      {error ? <p className="w-full text-right text-xs text-[var(--color-down)]">{error}</p> : null}
+      {error ? <p className="w-full text-xs sm:text-right text-[var(--color-down)]">{error}</p> : null}
     </div>
   );
 }

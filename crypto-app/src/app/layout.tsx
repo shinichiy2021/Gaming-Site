@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Manrope, Orbitron } from 'next/font/google';
 import Providers from '@/components/Providers';
 import './globals.css';
@@ -19,6 +19,12 @@ export const metadata: Metadata = {
   title: 'Crypto Portfolio · Gaming Hub',
   description: 'Cryptocurrency portfolio balances',
   robots: { index: false, follow: false },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#070b09',
 };
 
 export default function RootLayout({

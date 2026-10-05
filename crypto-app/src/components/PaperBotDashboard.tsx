@@ -240,7 +240,7 @@ export default function PaperBotDashboard() {
     snapshot && snapshot.equityUsd > 0 ? (state!.cashUsd / snapshot.equityUsd) * 100 : 100;
 
   return (
-    <div className="mx-auto flex max-w-[1180px] flex-col gap-5 px-4 py-8 sm:px-6 lg:py-10">
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-5 px-3 py-6 sm:px-6 sm:py-8 lg:py-10">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="mb-1.5 font-[family-name:var(--font-display)] text-xs tracking-[0.16em] text-[var(--color-up)] uppercase">
@@ -328,7 +328,7 @@ export default function PaperBotDashboard() {
       </p>
 
       {auto ? (
-        <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-[var(--color-line)] bg-[rgba(61,214,140,0.1)] px-5 py-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-[var(--color-line)] bg-[rgba(61,214,140,0.1)] px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
           <span className="relative flex h-3 w-3">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-up)] opacity-60" />
             <span className="relative inline-flex h-3 w-3 rounded-full bg-[var(--color-up)]" />
@@ -362,7 +362,7 @@ export default function PaperBotDashboard() {
       {snapshot && state ? (
         <>
           {/* Hero metrics */}
-          <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-4 ${busy ? 'opacity-80' : ''}`}>
+          <div className={`grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 ${busy ? 'opacity-80' : ''}`}>
             {[
               {
                 label: '評価額',
@@ -390,11 +390,11 @@ export default function PaperBotDashboard() {
             ].map((card) => (
               <div
                 key={card.label}
-                className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 backdrop-blur-md"
+                className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 backdrop-blur-md sm:p-5"
               >
                 <p className="mb-2 text-xs tracking-[0.12em] text-[var(--color-muted)] uppercase">{card.label}</p>
                 <strong
-                  className={`block font-[family-name:var(--font-display)] text-[clamp(1.35rem,2.8vw,1.9rem)] font-black tabular-nums ${card.className ?? ''}`}
+                  className={`block font-[family-name:var(--font-display)] text-[clamp(1.15rem,2.8vw,1.9rem)] font-black tabular-nums break-all ${card.className ?? ''}`}
                 >
                   {card.value}
                 </strong>
@@ -404,7 +404,7 @@ export default function PaperBotDashboard() {
           </div>
 
           {/* Spread control */}
-          <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+          <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 sm:p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
                 Maker spread（板オーバーレイ）
@@ -438,8 +438,8 @@ export default function PaperBotDashboard() {
           </div>
 
           {/* Main graphic row */}
-          <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="flex min-w-0 flex-col gap-4">
               <EquityCurve history={state.equityHistory ?? []} startingCash={state.startingCash} />
               <AllocationBars
                 holdings={snapshot.holdings}
@@ -457,7 +457,7 @@ export default function PaperBotDashboard() {
           </div>
 
           {notes.length ? (
-            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+            <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 sm:p-5">
               <h2 className="mb-3 font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
                 直近の判断
               </h2>
@@ -471,8 +471,8 @@ export default function PaperBotDashboard() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <section className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <section className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 sm:p-5">
               <h2 className="mb-4 font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
                 保有ポジション
               </h2>
@@ -524,7 +524,7 @@ export default function PaperBotDashboard() {
               )}
             </section>
 
-            <section className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5">
+            <section className="min-w-0 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 sm:p-5">
               <h2 className="mb-4 font-[family-name:var(--font-display)] text-sm tracking-[0.1em] text-[var(--color-muted)] uppercase">
                 約定テープ
               </h2>
@@ -533,7 +533,7 @@ export default function PaperBotDashboard() {
                   {state.trades.slice(0, 24).map((t) => (
                     <li
                       key={t.id}
-                      className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-sm"
+                      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-white/5 bg-black/20 px-2.5 py-2 text-sm sm:gap-3 sm:px-3"
                     >
                       <span
                         className={`rounded px-2 py-0.5 font-[family-name:var(--font-display)] text-[0.65rem] tracking-wider ${
@@ -547,7 +547,7 @@ export default function PaperBotDashboard() {
                       <span>
                         <strong className="font-[family-name:var(--font-display)]">{t.symbol}</strong>
                         <span className="ml-2 tabular-nums text-[var(--color-muted)]">{fmtUsd(t.notionalUsd)}</span>
-                        <p className="mt-0.5 text-xs text-[var(--color-muted)]">{t.reason}</p>
+                        <p className="mt-0.5 text-xs break-words text-[var(--color-muted)]">{t.reason}</p>
                       </span>
                       <span className="text-xs text-[var(--color-muted)]">{formatTime(t.at)}</span>
                     </li>
