@@ -192,6 +192,23 @@ EN_ONLY_JA: dict[str, str] = {
     "Unknown Tesla charge command.": "不明な Tesla 充電コマンドです",
     "WINDOW": "時間帯",
     "Language": "言語",
+    "Running": "運転中",
+    "Cooling": "冷房",
+    "Heating": "暖房",
+    "Power off": "電源オフ",
+    "Not connected": "未接続",
+    "A/C stopped": "停止中",
+    "Set temp": "設定温度",
+    "Turn on": "運転",
+    "Turn off": "停止",
+    "Fan: Auto": "風量: 自動",
+    "Could not send to the A/C": "エアコンに送信できませんでした",
+    "SwitchBot A/C plug not found. Name it with \"A/C\" or set its device ID.": "エアコン用 SwitchBot Plug が見つかりません。名前に「A/C」を含めるか、デバイス ID を設定してください。",
+    "Room A/C Plug device ID (optional)": "部屋のエアコン Plug デバイス ID（任意）",
+    "Leave blank to use the plug whose name contains \"A/C\".": "空欄の場合、名前に「A/C」を含む Plug を使います。",
+    "No air conditioner remote found on the SwitchBot Hub. Add it in the SwitchBot app or set its ID.": "SwitchBot Hub にエアコンのリモコンが見つかりません。SwitchBot アプリで追加するか ID を設定してください。",
+    "Room A/C IR remote ID (optional)": "部屋のエアコン IR リモコン ID（任意）",
+    "Leave blank to use the first air conditioner remote on the Hub Mini.": "空欄の場合、Hub Mini の最初のエアコンリモコンを使います。",
 }
 
 JS_MSGID_REPLACEMENTS: dict[str, str] = {

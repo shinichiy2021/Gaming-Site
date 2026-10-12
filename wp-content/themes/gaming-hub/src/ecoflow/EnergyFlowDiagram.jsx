@@ -248,12 +248,13 @@ function useLiveTodaySolar( todaySolar ) {
 
 function liveTodayUsage( todayUsage ) {
 	if ( ! todayUsage || typeof todayUsage !== 'object' ) {
-		return { room: null, ups: null };
+		return { room: null, ups: null, ac: null };
 	}
 
 	return {
 		room: Number( todayUsage.room_wh ),
 		ups: Number( todayUsage.ups_wh ),
+		ac: todayUsage.ac_wh === undefined ? null : Number( todayUsage.ac_wh ),
 	};
 }
 
@@ -360,6 +361,7 @@ function FlowCard( {
 	showBars,
 	note,
 	extra,
+	children,
 } ) {
 	const classes = [
 		'teslogic-card',
@@ -384,6 +386,149 @@ function FlowCard( {
 				showBars={ showBars }
 			/>
 			{ extra }
+			{ children }
+		</div>
+	);
+}
+
+// After a button press, hold the pressed state until the plug watts agree (A/C start-up can be slow).
+const AIRCON_OVERRIDE_MS = 90000;
+const AIRCON_TEMP_DEBOUNCE_MS = 700;
+
+function airconConfig() {
+	const cfg = typeof window !== 'undefined' && window.gamingHubEcoflowFlow ? window.gamingHubEcoflowFlow.aircon : null;
+	return cfg && typeof cfg === 'object' ? cfg : { canControl: false, tempMin: 16, tempMax: 30 };
+}
+
+function AirconControls( { plug, labels } ) {
+	const cfg = airconConfig();
+	const [ override, setOverride ] = useState( null );
+	const [ sending, setSending ] = useState( false );
+	const [ error, setError ] = useState( '' );
+	const timer = useRef( null );
+
+	useEffect( () => () => clearTimeout( timer.current ), [] );
+
+	const serverPower = plug.running ? 'on' : 'off';
+	const fresh = override && Date.now() - override.at < AIRCON_OVERRIDE_MS;
+	const power = fresh ? override.power : serverPower;
+	const temp = fresh ? override.temp : Number( plug.target_temp ) || 26;
+
+	useEffect( () => {
+		if ( override && override.power === serverPower && ! sending && Number( plug.target_temp ) === override.temp ) {
+			setOverride( null );
+		}
+	}, [ override, serverPower, sending, plug.target_temp ] );
+	const isOn = power === 'on';
+
+	const send = async ( next ) => {
+		setSending( true );
+		setError( '' );
+		try {
+			const res = await fetch( cfg.url, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+				body: JSON.stringify( { power: next.power, temp: next.temp } ),
+			} );
+			const json = await res.json();
+			if ( ! res.ok || ! json.success ) {
+				throw new Error( json.message || res.statusText );
+			}
+		} catch ( e ) {
+			setError( labels.airconFailed || 'エアコンに送信できませんでした' );
+			setOverride( null );
+		} finally {
+			setSending( false );
+		}
+	};
+
+	const update = ( next, debounce ) => {
+		setOverride( { ...next, at: Date.now() } );
+		clearTimeout( timer.current );
+		if ( debounce ) {
+			timer.current = setTimeout( () => send( next ), AIRCON_TEMP_DEBOUNCE_MS );
+		} else {
+			send( next );
+		}
+	};
+
+	const stepTemp = ( delta ) => {
+		const nextTemp = Math.min( cfg.tempMax, Math.max( cfg.tempMin, temp + delta ) );
+		if ( nextTemp !== temp ) {
+			update( { power, temp: nextTemp }, true );
+		}
+	};
+
+	return (
+		<div className="teslogic-aircon__controls">
+			<button
+				type="button"
+				className={ `teslogic-aircon__power${ isOn ? ' is-on' : '' }` }
+				onClick={ () => update( { power: isOn ? 'off' : 'on', temp }, false ) }
+				disabled={ sending }
+				aria-pressed={ isOn }
+			>
+				<span aria-hidden="true">⏻</span>
+				{ isOn ? ( labels.airconTurnOff || '停止' ) : ( labels.airconTurnOn || '運転' ) }
+			</button>
+			<div className="teslogic-aircon__temp" role="group" aria-label={ labels.airconTarget || '設定温度' }>
+				<button type="button" onClick={ () => stepTemp( -1 ) } disabled={ temp <= cfg.tempMin } aria-label="-1°C">−</button>
+				<span className="teslogic-aircon__temp-value">
+					<small>{ labels.airconTarget || '設定温度' }</small>
+					<strong>{ `${ temp }°C` }</strong>
+				</span>
+				<button type="button" onClick={ () => stepTemp( 1 ) } disabled={ temp >= cfg.tempMax } aria-label="+1°C">＋</button>
+			</div>
+			<small className="teslogic-aircon__hint">
+				{ error || ( sending ? ( labels.airconSending || '送信中…' ) : ( labels.airconFanAuto || '風量: 自動' ) ) }
+			</small>
+		</div>
+	);
+}
+
+function AirconCell( { plug, todayWh, othersWatts, labels } ) {
+	const online = plug && ! plug.stale && plug.watts !== null && plug.watts !== undefined;
+	let state = labels.airconOffline || '未接続';
+	let tone = 'is-unavailable';
+	if ( online && plug.power === 'off' ) {
+		state = labels.airconOff || '電源オフ';
+		tone = 'is-off';
+	} else if ( online && plug.running ) {
+		state = labels.airconRunning || '運転中';
+		tone = 'is-running';
+	} else if ( online ) {
+		state = labels.airconStopped || '停止中';
+		tone = 'is-idle';
+	}
+
+	const heating = plug?.mode === 'heat';
+	const modeLabel = heating ? ( labels.airconHeat || '暖房' ) : ( labels.airconCool || '冷房' );
+	const showMode = online && plug.running;
+
+	return (
+		<div className="teslogic-pack-unit teslogic-pack-unit--single">
+			<div className={ `teslogic-pack-cell teslogic-aircon ${ tone } ${ heating ? 'is-heat' : 'is-cool' }` } data-flow-id="aircon">
+				<div className="teslogic-pack-cell__head">
+					<span className="teslogic-aircon__title">
+						<span className="teslogic-aircon__icon" role="img" aria-label={ modeLabel } title={ modeLabel }>
+							{ heating ? '🔥' : '❄️' }
+						</span>
+						<span className="teslogic-pack-cell__label">{ labels.aircon || 'shinichiy room A/C' }</span>
+					</span>
+					<span className="teslogic-aircon__state">{ showMode ? `${ modeLabel } · ${ state }` : state }</span>
+				</div>
+				<div className="teslogic-aircon__metrics">
+					<span><small>Current</small><strong>{ online ? formatWattsExact( plug.watts ) : '—' }</strong></span>
+					<span><small>Today</small><strong>{ Number.isFinite( todayWh ) ? formatTodayKw( todayWh ) : '—' }</strong></span>
+				</div>
+				{ online && othersWatts !== null ? (
+					<small className="teslogic-pack-cell__cap">
+						{ `${ labels.upsOthers || 'その他' } ${ formatWattsExact( othersWatts ) }` }
+					</small>
+				) : null }
+				{ airconConfig().canControl ? <AirconControls plug={ plug } labels={ labels } /> : null }
+			</div>
 		</div>
 	);
 }
@@ -840,7 +985,18 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 								] }
 							/>
 						) : null }
-					/>
+					>
+						{ status.ac_plug ? (
+							<AirconCell
+								plug={ status.ac_plug }
+								todayWh={ liveUsage?.ac }
+								othersWatts={ upsLive && Number.isFinite( Number( status.ac_plug.watts ) )
+									? Math.max( 0, asWatts( upsWatts ) - Number( status.ac_plug.watts ) )
+									: null }
+								labels={ labels }
+							/>
+						) : null }
+					</FlowCard>
 				</div>
 			</section>
 		</div>

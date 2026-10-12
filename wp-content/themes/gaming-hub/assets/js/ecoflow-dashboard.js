@@ -264,6 +264,7 @@
 			ups_source: data.ups_plug && data.ups_plug.source
 				? data.ups_plug.source
 				: (data.secondary && data.secondary.ac_out !== null && data.secondary.ac_out !== undefined ? 'ecoflow' : 'unavailable'),
+			ac_plug: data.ac_plug || null,
 			solar_in_source: (data.secondary && data.secondary.solar_in_source) || data.solar_in_source || 'unavailable',
 			extra: extraBatterySlice(delta.extra || (data.secondary && data.secondary.extra)),
 			today_yen: data.today_yen || (data.energy && data.energy.today_yen) || null,

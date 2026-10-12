@@ -233,9 +233,16 @@ function gaming_hub_ecoflow_savings_flow_watts( array $status ) {
 		$ups_out = max( 0, (float) gaming_hub_ecoflow_ups_watts( $status, 0 ) );
 	}
 
+	$ac_out = 0.0;
+	if ( isset( $status['ac_plug'] ) && is_array( $status['ac_plug'] ) && empty( $status['ac_plug']['stale'] ) && empty( $status['ac_plug']['sample'] )
+		&& isset( $status['ac_plug']['watts'] ) && is_numeric( $status['ac_plug']['watts'] ) ) {
+		$ac_out = max( 0, (float) $status['ac_plug']['watts'] );
+	}
+
 	return array(
 		'room_out'    => $room_out,
 		'ups_out'     => $ups_out,
+		'ac_out'      => $ac_out,
 		'delta_ac_in' => $delta_ac_in,
 		'pro_ac_in'   => max( 0, $pro_ac ),
 	);
@@ -268,6 +275,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 	$ac_in_w  = $site['ac_in'];
 	$room_w   = $savings['room_out'];
 	$ups_w    = (float) ( $savings['ups_out'] ?? 0 );
+	$aircon_w = (float) ( $savings['ac_out'] ?? 0 );
 	$d_ac_w   = $savings['delta_ac_in'];
 	$p_ac_w   = (float) ( $savings['pro_ac_in'] ?? 0 );
 	$soc      = isset( $status['battery_percent'] ) && null !== $status['battery_percent']
@@ -292,6 +300,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 		'ac_in_wh'       => 0.0,
 		'room_out_wh'    => 0.0,
 		'ups_out_wh'     => 0.0,
+		'ac_out_wh'      => 0.0,
 		'delta_ac_in_wh' => 0.0,
 		'pro_ac_in_wh'   => 0.0,
 		'hv_wh'          => 0.0,
@@ -307,6 +316,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 		$add['ac_in_wh']    = ( ( (float) ( $state['ac_in_w'] ?? $ac_in_w ) + $ac_in_w ) / 2 ) * $hours;
 		$add['room_out_wh']  = ( ( (float) ( $state['room_out_w'] ?? $room_w ) + $room_w ) / 2 ) * $hours;
 		$add['ups_out_wh']   = ( ( (float) ( $state['ups_out_w'] ?? $ups_w ) + $ups_w ) / 2 ) * $hours;
+		$add['ac_out_wh']    = ( ( (float) ( $state['ac_out_w'] ?? $aircon_w ) + $aircon_w ) / 2 ) * $hours;
 		$add['pro_ac_in_wh'] = ( ( (float) ( $state['pro_ac_in_w'] ?? $p_ac_w ) + $p_ac_w ) / 2 ) * $hours;
 
 		$last_d_ac = array_key_exists( 'delta_ac_in_w', $state ) ? $state['delta_ac_in_w'] : null;
@@ -341,6 +351,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 			'ac_in_w'       => $ac_in_w,
 			'room_out_w'    => $room_w,
 			'ups_out_w'     => $ups_w,
+			'ac_out_w'      => $aircon_w,
 			'delta_ac_in_w' => $d_ac_w,
 			'pro_ac_in_w'   => $p_ac_w,
 			'soc'           => $soc,
@@ -377,6 +388,7 @@ function gaming_hub_ecoflow_energy_add( $date, $hour, array $add ) {
 			'ac_in_wh'       => 0.0,
 			'room_out_wh'    => 0.0,
 			'ups_out_wh'     => 0.0,
+			'ac_out_wh'      => 0.0,
 			'delta_ac_in_wh' => 0.0,
 			'pro_ac_in_wh'   => 0.0,
 			'hv_wh'          => 0.0,
@@ -387,7 +399,7 @@ function gaming_hub_ecoflow_energy_add( $date, $hour, array $add ) {
 		);
 	}
 
-	foreach ( array( 'input_wh', 'output_wh', 'solar_wh', 'ac_in_wh', 'room_out_wh', 'ups_out_wh', 'delta_ac_in_wh', 'pro_ac_in_wh', 'hv_wh', 'lv_wh' ) as $field ) {
+	foreach ( array( 'input_wh', 'output_wh', 'solar_wh', 'ac_in_wh', 'room_out_wh', 'ups_out_wh', 'ac_out_wh', 'delta_ac_in_wh', 'pro_ac_in_wh', 'hv_wh', 'lv_wh' ) as $field ) {
 		$delta                        = max( 0, (float) ( $add[ $field ] ?? 0 ) );
 		$day['hours'][ $h ][ $field ] = (float) ( $day['hours'][ $h ][ $field ] ?? 0 ) + $delta;
 		$day[ $field ]                = (float) ( $day[ $field ] ?? 0 ) + $delta;
@@ -576,6 +588,7 @@ function gaming_hub_ecoflow_energy_empty_day() {
 		'ac_in_wh'       => 0.0,
 		'room_out_wh'    => 0.0,
 		'ups_out_wh'     => 0.0,
+		'ac_out_wh'      => 0.0,
 		'delta_ac_in_wh' => 0.0,
 		'pro_ac_in_wh'   => 0.0,
 		'hv_wh'          => 0.0,
@@ -874,9 +887,11 @@ function gaming_hub_ecoflow_energy_compute_today_usage( $status = null ) {
 
 	$logged_room = max( 0.0, (float) ( $day['room_out_wh'] ?? 0 ) );
 	$logged_ups  = max( 0.0, (float) ( $day['ups_out_wh'] ?? 0 ) );
+	$logged_ac   = max( 0.0, (float) ( $day['ac_out_wh'] ?? 0 ) );
 
 	$room_w    = 0.0;
 	$ups_w     = 0.0;
+	$ac_w      = 0.0;
 	$sample_ts = time();
 	$state     = get_transient( GAMING_HUB_ECOFLOW_ENERGY_STATE );
 	$state     = is_array( $state ) ? $state : array();
@@ -885,9 +900,11 @@ function gaming_hub_ecoflow_energy_compute_today_usage( $status = null ) {
 		$flow   = gaming_hub_ecoflow_savings_flow_watts( $status );
 		$room_w = max( 0.0, (float) ( $flow['room_out'] ?? 0 ) );
 		$ups_w  = max( 0.0, (float) ( $flow['ups_out'] ?? 0 ) );
+		$ac_w   = max( 0.0, (float) ( $flow['ac_out'] ?? 0 ) );
 	} else {
 		$room_w = max( 0.0, (float) ( $state['room_out_w'] ?? 0 ) );
 		$ups_w  = max( 0.0, (float) ( $state['ups_out_w'] ?? 0 ) );
+		$ac_w   = max( 0.0, (float) ( $state['ac_out_w'] ?? 0 ) );
 	}
 
 	if ( ! empty( $state['ts'] ) ) {
@@ -898,14 +915,20 @@ function gaming_hub_ecoflow_energy_compute_today_usage( $status = null ) {
 	$hours     = $dt / 3600.0;
 	$room_total = $logged_room + ( $room_w * $hours );
 	$ups_total  = $logged_ups + ( $ups_w * $hours );
+	$ac_total   = function_exists( 'gaming_hub_switchbot_ac_sample_enabled' ) && gaming_hub_switchbot_ac_sample_enabled()
+		? gaming_hub_switchbot_ac_sample_today_wh()
+		: $logged_ac + ( $ac_w * $hours );
 
 	return array(
 		'room_wh'        => (int) round( $room_total ),
 		'ups_wh'         => (int) round( $ups_total ),
+		'ac_wh'          => (int) round( $ac_total ),
 		'logged_room_wh' => round( $logged_room, 4 ),
 		'logged_ups_wh'  => round( $logged_ups, 4 ),
+		'logged_ac_wh'   => round( $logged_ac, 4 ),
 		'room_w'         => $room_w,
 		'ups_w'          => $ups_w,
+		'ac_w'           => $ac_w,
 		'sample_ts'      => $sample_ts,
 	);
 }
@@ -923,7 +946,7 @@ function gaming_hub_ecoflow_energy_today_usage( $status = null ) {
 	return gaming_hub_ecoflow_energy_apply_origin_display(
 		$local,
 		is_array( $remote ) ? ( $remote['usage'] ?? null ) : null,
-		array( 'room_wh', 'ups_wh' )
+		array( 'room_wh', 'ups_wh', 'ac_wh' )
 	);
 }
 
@@ -1344,6 +1367,7 @@ function gaming_hub_rest_ecoflow_today() {
 			'usage'   => array(
 				'room_wh' => (int) ( $usage['room_wh'] ?? 0 ),
 				'ups_wh'  => (int) ( $usage['ups_wh'] ?? 0 ),
+				'ac_wh'   => (int) ( $usage['ac_wh'] ?? 0 ),
 			),
 			'buy'     => array(
 				'pro_wh'   => (int) ( $buy['pro_wh'] ?? 0 ),

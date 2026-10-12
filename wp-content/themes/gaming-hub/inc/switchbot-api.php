@@ -57,33 +57,72 @@ class Gaming_Hub_Switchbot_Api {
 	}
 
 	/**
-	 * Signed GET/POST against SwitchBot Open API.
+	 * List virtual IR remotes learned on a Hub.
 	 *
-	 * @param string $method   HTTP method.
-	 * @param string $endpoint Path starting with /.
+	 * @return array<int, array<string, mixed>>|WP_Error
+	 */
+	public function get_ir_remotes() {
+		$body = $this->request( 'GET', '/devices' );
+		if ( is_wp_error( $body ) ) {
+			return $body;
+		}
+
+		return isset( $body['infraredRemoteList'] ) && is_array( $body['infraredRemoteList'] )
+			? $body['infraredRemoteList']
+			: array();
+	}
+
+	/**
+	 * Send a control command to a device or IR remote.
+	 *
+	 * @param string $device_id Device ID.
+	 * @param string $command   Command name (e.g. setAll).
+	 * @param string $parameter Command parameter.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	private function request( $method, $endpoint ) {
+	public function send_command( $device_id, $command, $parameter = 'default' ) {
+		return $this->request(
+			'POST',
+			'/devices/' . rawurlencode( $device_id ) . '/commands',
+			array(
+				'command'     => $command,
+				'parameter'   => $parameter,
+				'commandType' => 'command',
+			)
+		);
+	}
+
+	/**
+	 * Signed GET/POST against SwitchBot Open API.
+	 *
+	 * @param string                    $method   HTTP method.
+	 * @param string                    $endpoint Path starting with /.
+	 * @param array<string, mixed>|null $payload  JSON body for POST.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	private function request( $method, $endpoint, $payload = null ) {
 		$t     = (string) round( microtime( true ) * 1000 );
 		$nonce = wp_generate_uuid4();
 		$sign  = base64_encode(
 			hash_hmac( 'sha256', $this->token . $t . $nonce, $this->secret, true )
 		);
 
-		$response = wp_remote_request(
-			self::BASE_URL . $endpoint,
-			array(
-				'method'  => $method,
-				'timeout' => 12,
-				'headers' => array(
-					'Authorization' => $this->token,
-					'sign'          => $sign,
-					't'             => $t,
-					'nonce'         => $nonce,
-					'Content-Type'  => 'application/json; charset=utf-8',
-				),
-			)
+		$args = array(
+			'method'  => $method,
+			'timeout' => 12,
+			'headers' => array(
+				'Authorization' => $this->token,
+				'sign'          => $sign,
+				't'             => $t,
+				'nonce'         => $nonce,
+				'Content-Type'  => 'application/json; charset=utf-8',
+			),
 		);
+		if ( null !== $payload ) {
+			$args['body'] = wp_json_encode( $payload );
+		}
+
+		$response = wp_remote_request( self::BASE_URL . $endpoint, $args );
 
 		if ( is_wp_error( $response ) ) {
 			return new WP_Error( 'switchbot_request_failed', $response->get_error_message() );

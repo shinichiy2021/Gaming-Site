@@ -193,6 +193,82 @@ function gaming_hub_ecoflow_status_stub() {
 }
 
 /**
+ * Whether to render fake EcoFlow data (local preview without API keys).
+ */
+function gaming_hub_ecoflow_sample_enabled() {
+	return ! gaming_hub_ecoflow_is_configured() && filter_var( getenv( 'ECOFLOW_SAMPLE' ), FILTER_VALIDATE_BOOLEAN );
+}
+
+/**
+ * Fake Pro 3 + Delta 1500 status for local layout previews. Never logged to energy.
+ *
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_sample_status() {
+	$status = gaming_hub_ecoflow_status_stub();
+	$now    = gaming_hub_format_date( null, 'datetime' );
+	$ac_w   = function_exists( 'gaming_hub_switchbot_ac_sample_status' )
+		? (float) gaming_hub_switchbot_ac_sample_status()['watts']
+		: 0.0;
+	$ups_w  = (int) round( $ac_w + 140 );
+
+	$status = array_merge(
+		$status,
+		array(
+			'online'          => true,
+			'hv_in'           => 1850,
+			'ac_in'           => 0,
+			'ac_out'          => 620,
+			'input_total'     => 1850,
+			'output_total'    => 640,
+			'battery_percent' => 72,
+			'is_charging'     => true,
+			'charge_state'    => __( 'Charging', 'gaming-hub' ),
+			'updated_at'      => $now,
+			'ups_plug'        => array(
+				'watts'      => $ups_w,
+				'source'     => 'ecoflow',
+				'online'     => true,
+				'updated_at' => $now,
+			),
+		)
+	);
+
+	$status['secondary'] = array_merge(
+		$status['secondary'],
+		array(
+			'online'          => true,
+			'mqtt_live'       => true,
+			'soc_source'      => 'mqtt',
+			'solar_in_source' => 'mqtt',
+			'battery_percent' => 64,
+			'solar_in'        => 380,
+			'input_total'     => 380,
+			'output_total'    => $ups_w,
+			'ac_in'           => 0,
+			'ac_out'          => $ups_w,
+			'is_discharging'  => $ups_w > 380,
+			'charge_state'    => $ups_w > 380 ? __( 'Discharging', 'gaming-hub' ) : __( 'Charging', 'gaming-hub' ),
+			'updated_at'      => $now,
+		)
+	);
+	$status['solar_delta'] = 380;
+	$status['solar_in']    = 380;
+
+	if ( function_exists( 'gaming_hub_switchbot_attach_ac' ) ) {
+		$status = gaming_hub_switchbot_attach_ac( $status );
+	}
+	if ( function_exists( 'gaming_hub_ecoflow_energy_compute_today_usage' ) ) {
+		$usage                 = gaming_hub_ecoflow_energy_compute_today_usage( $status );
+		$usage['ups_wh']       = (int) $usage['ac_wh'] + (int) round( (int) $usage['ac_wh'] * 140 / 380 );
+		$usage['room_wh']      = (int) round( (int) $usage['ac_wh'] * 1.4 );
+		$status['today_usage'] = $usage;
+	}
+
+	return $status;
+}
+
+/**
  * Get EcoFlow tag archive URL.
  *
  * @param array<string, mixed> $query Optional query args.
@@ -219,6 +295,10 @@ function gaming_hub_energy_url( $query = array() ) {
  * @return array<string, mixed>|WP_Error
  */
 function gaming_hub_get_ecoflow_status( $force_refresh = false ) {
+	if ( gaming_hub_ecoflow_sample_enabled() ) {
+		return gaming_hub_ecoflow_sample_status();
+	}
+
 	if ( ! gaming_hub_ecoflow_is_configured() ) {
 		return new WP_Error(
 			'ecoflow_not_configured',
@@ -294,6 +374,10 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 
 	if ( function_exists( 'gaming_hub_switchbot_attach_ups' ) && function_exists( 'gaming_hub_switchbot_is_enabled' ) && gaming_hub_switchbot_is_enabled() ) {
 		$status = gaming_hub_switchbot_attach_ups( $status );
+	}
+
+	if ( function_exists( 'gaming_hub_switchbot_attach_ac' ) ) {
+		$status = gaming_hub_switchbot_attach_ac( $status );
 	}
 
 	$status = gaming_hub_ecoflow_apply_theoretical_lv( $status );
@@ -1944,6 +2028,9 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 			? gaming_hub_ecoflow_ups_watts( $status, 0 )
 			: null,
 		'ups_source'          => gaming_hub_ecoflow_ups_source( $status ),
+		'ac_plug'             => isset( $status['ac_plug'] ) && is_array( $status['ac_plug'] )
+			? array_intersect_key( $status['ac_plug'], array_flip( array( 'device_name', 'power', 'watts', 'running', 'stale', 'mode', 'outdoor_temp', 'set_power', 'target_temp' ) ) )
+			: null,
 		'solar_in_source'     => $status['solar_in_source'] ?? '',
 		'extra'               => isset( $delta_slice['extra'] ) && is_array( $delta_slice['extra'] )
 			? $delta_slice['extra']
@@ -2933,7 +3020,7 @@ function gaming_hub_render_ecoflow_setup_instructions() {
  * latency does not block the rest of the page (e.g. articles below).
  */
 function gaming_hub_render_ecoflow_dashboard() {
-	if ( ! gaming_hub_ecoflow_is_configured() ) {
+	if ( ! gaming_hub_ecoflow_is_configured() && ! gaming_hub_ecoflow_sample_enabled() ) {
 		get_template_part(
 			'template-parts/ecoflow',
 			'dashboard',
@@ -3243,6 +3330,21 @@ function gaming_hub_ecoflow_scripts() {
 					'acOut'       => __('AC out', 'gaming-hub'),
 					'acOutMeasured' => __('Live · MQTT', 'gaming-hub'),
 					'upsPlug'     => __( 'SwitchBot Plug', 'gaming-hub' ),
+					'aircon'        => 'shinichiy room A/C',
+					'airconCool'    => __('Cooling', 'gaming-hub'),
+					'airconHeat'    => __('Heating', 'gaming-hub'),
+					'airconRunning' => __('Running', 'gaming-hub'),
+					'airconIdle'    => __('Standby', 'gaming-hub'),
+					'airconOff'     => __('Power off', 'gaming-hub'),
+					'airconOffline' => __('Not connected', 'gaming-hub'),
+					'upsOthers'     => __('Others', 'gaming-hub'),
+					'airconStopped' => __('A/C stopped', 'gaming-hub'),
+					'airconTarget'  => __('Set temp', 'gaming-hub'),
+					'airconTurnOn'  => __('Turn on', 'gaming-hub'),
+					'airconTurnOff' => __('Turn off', 'gaming-hub'),
+					'airconFanAuto' => __('Fan: Auto', 'gaming-hub'),
+					'airconSending' => __('Sending…', 'gaming-hub'),
+					'airconFailed'  => __('Could not send to the A/C', 'gaming-hub'),
 					'lvMeasured'  => __('Live · MQTT', 'gaming-hub'),
 					'flow'        => __('Energy flow', 'gaming-hub'),
 					'inputTotal'  => __('Total in', 'gaming-hub'),
@@ -3261,6 +3363,13 @@ function gaming_hub_ecoflow_scripts() {
 					'room'  => gaming_hub_ecoflow_image_url( 'ecoflow-living-aircon-gaming.jpg' ),
 					'ups'   => gaming_hub_ecoflow_image_url( 'ecoflow-ups-gaming.jpg' ),
 					'grid'  => gaming_hub_ecoflow_image_url( 'ecoflow-grid-pole.jpg' ),
+				),
+				'aircon' => array(
+					'url'        => rest_url( 'gaming-hub/v1/aircon' ),
+					'nonce'      => wp_create_nonce( 'wp_rest' ),
+					'canControl' => function_exists( 'gaming_hub_aircon_can_control' ) && gaming_hub_aircon_can_control(),
+					'tempMin'    => defined( 'GAMING_HUB_AIRCON_TEMP_MIN' ) ? GAMING_HUB_AIRCON_TEMP_MIN : 16,
+					'tempMax'    => defined( 'GAMING_HUB_AIRCON_TEMP_MAX' ) ? GAMING_HUB_AIRCON_TEMP_MAX : 30,
 				),
 			)
 		);
