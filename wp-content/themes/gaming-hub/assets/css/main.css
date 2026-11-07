@@ -2435,6 +2435,22 @@ body.home .site-header.is-scrolled {
 	color: #ff8a4c;
 }
 
+.teslogic-aircon.is-running.is-dry {
+	border-color: rgba(94, 224, 192, 0.45);
+}
+
+.teslogic-aircon.is-running.is-dry .teslogic-aircon__state {
+	color: #5ee0c0;
+}
+
+.teslogic-aircon.is-standby {
+	border-color: rgba(245, 196, 81, 0.4);
+}
+
+.teslogic-aircon.is-standby .teslogic-aircon__state {
+	color: #f5c451;
+}
+
 .teslogic-aircon.is-unavailable {
 	opacity: 0.6;
 }
@@ -2497,6 +2513,51 @@ body.home .site-header.is-scrolled {
 	border-color: rgba(255, 138, 76, 0.6);
 	background: rgba(255, 138, 76, 0.16);
 	color: #ffb48c;
+}
+
+.is-dry .teslogic-aircon__power.is-on {
+	border-color: rgba(94, 224, 192, 0.6);
+	background: rgba(94, 224, 192, 0.16);
+	color: #9ff0da;
+}
+
+.teslogic-aircon__modes {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 6px;
+}
+
+.teslogic-aircon__controls .teslogic-aircon__mode {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 40px;
+	padding: 0 8px;
+	border-radius: 999px;
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: rgba(244, 241, 234, 0.65);
+}
+
+.teslogic-aircon__controls .teslogic-aircon__mode.is-active {
+	color: #f4f1ea;
+}
+
+.teslogic-aircon__controls .teslogic-aircon__mode.is-cool.is-active {
+	border-color: rgba(96, 200, 255, 0.6);
+	background: rgba(96, 200, 255, 0.16);
+}
+
+.teslogic-aircon__controls .teslogic-aircon__mode.is-heat.is-active {
+	border-color: rgba(255, 138, 76, 0.6);
+	background: rgba(255, 138, 76, 0.16);
+}
+
+.teslogic-aircon__controls .teslogic-aircon__mode.is-dry.is-active {
+	border-color: rgba(94, 224, 192, 0.6);
+	background: rgba(94, 224, 192, 0.16);
 }
 
 .teslogic-aircon__temp {

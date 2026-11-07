@@ -24,14 +24,22 @@ define( 'GAMING_HUB_AIRCON_TEMP_MAX', 30 );
 function gaming_hub_aircon_mode_codes() {
 	return array(
 		'cool' => 2,
+		'dry'  => 3,
 		'heat' => 5,
 	);
 }
 
 /**
+ * @return array<int, string> cool|dry|heat.
+ */
+function gaming_hub_aircon_modes() {
+	return array_keys( gaming_hub_aircon_mode_codes() );
+}
+
+/**
  * Default target temperature per mode.
  *
- * @param string $mode cool|heat.
+ * @param string $mode cool|dry|heat.
  */
 function gaming_hub_aircon_default_temp( $mode ) {
 	return 'heat' === $mode ? 22 : 26;
@@ -59,7 +67,7 @@ function gaming_hub_aircon_saved_state() {
 		return null;
 	}
 
-	$mode = in_array( $state['mode'] ?? '', array( 'cool', 'heat' ), true ) ? $state['mode'] : 'cool';
+	$mode = in_array( $state['mode'] ?? '', gaming_hub_aircon_modes(), true ) ? $state['mode'] : 'cool';
 
 	return array(
 		'power'      => 'on' === ( $state['power'] ?? '' ) ? 'on' : 'off',
@@ -97,10 +105,27 @@ function gaming_hub_aircon_ir_id( Gaming_Hub_Switchbot_Api $api ) {
 		set_transient( GAMING_HUB_AIRCON_IR_CACHE, $remotes, GAMING_HUB_SWITCHBOT_DEVICES_TTL );
 	}
 
-	foreach ( $remotes as $remote ) {
-		if ( is_array( $remote ) && false !== stripos( (string) ( $remote['remoteType'] ?? '' ), 'Air Conditioner' ) ) {
+	$aircons = array_values( array_filter( $remotes, static function ( $remote ) {
+		return is_array( $remote ) && false !== stripos( (string) ( $remote['remoteType'] ?? '' ), 'Air Conditioner' );
+	} ) );
+
+	// Several A/C remotes can share one Hub (e.g. living room); prefer the room one.
+	foreach ( $aircons as $remote ) {
+		$name = (string) ( $remote['deviceName'] ?? '' );
+		if ( false !== stripos( $name, 'room' ) || false !== mb_stripos( $name, '部屋' ) ) {
 			return (string) ( $remote['deviceId'] ?? '' );
 		}
+	}
+
+	if ( 1 === count( $aircons ) ) {
+		return (string) ( $aircons[0]['deviceId'] ?? '' );
+	}
+
+	if ( count( $aircons ) > 1 ) {
+		return new WP_Error(
+			'switchbot_ambiguous_ac_remote',
+			__('Several air conditioner remotes found on the SwitchBot Hub. Set the room A/C IR remote ID in the Customizer.', 'gaming-hub')
+		);
 	}
 
 	return new WP_Error(
@@ -119,7 +144,7 @@ function gaming_hub_aircon_ir_id( Gaming_Hub_Switchbot_Api $api ) {
  */
 function gaming_hub_aircon_apply( $power, $temp = null, $mode = null ) {
 	$prev = gaming_hub_aircon_saved_state();
-	if ( null === $mode || ! in_array( $mode, array( 'cool', 'heat' ), true ) ) {
+	if ( null === $mode || ! in_array( $mode, gaming_hub_aircon_modes(), true ) ) {
 		$mode = $prev ? $prev['mode'] : gaming_hub_switchbot_ac_mode()['mode'];
 	}
 	if ( null === $temp ) {
@@ -186,7 +211,7 @@ function gaming_hub_register_aircon_rest_route() {
 				),
 				'mode'  => array(
 					'type' => 'string',
-					'enum' => array( 'cool', 'heat' ),
+					'enum' => gaming_hub_aircon_modes(),
 				),
 			),
 		)

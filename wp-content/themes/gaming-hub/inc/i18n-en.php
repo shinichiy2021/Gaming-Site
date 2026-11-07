@@ -270,6 +270,8 @@ return array(
 	'SwitchBot Plug Mini が見つかりません。' => 'SwitchBot Plug Mini not found.',
 	'運転中' => 'Running',
 	'冷房' => 'Cooling',
+	'除湿' => 'Dehumidify',
+	'運転モード' => 'A/C mode',
 	'暖房' => 'Heating',
 	'電源オフ' => 'Power off',
 	'エアコン用 SwitchBot Plug が見つかりません。名前に「A/C」を含めるか、デバイス ID を設定してください。' => 'SwitchBot A/C plug not found. Name it with "A/C" or set its device ID.',

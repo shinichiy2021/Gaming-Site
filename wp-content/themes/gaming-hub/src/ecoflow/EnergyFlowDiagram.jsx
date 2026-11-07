@@ -395,12 +395,30 @@ function FlowCard( {
 const AIRCON_OVERRIDE_MS = 90000;
 const AIRCON_TEMP_DEBOUNCE_MS = 700;
 
+const AIRCON_MODES = [ 'cool', 'heat', 'dry' ];
+const AIRCON_DEFAULT_TEMP = { cool: 26, heat: 22, dry: 26 };
+const AIRCON_ICONS = { cool: '❄️', heat: '🔥', dry: '💧' };
+
+function airconModeLabel( mode, labels ) {
+	if ( 'heat' === mode ) {
+		return labels.airconHeat || '暖房';
+	}
+	if ( 'dry' === mode ) {
+		return labels.airconDry || '除湿';
+	}
+	return labels.airconCool || '冷房';
+}
+
+function airconMode( plug ) {
+	return AIRCON_MODES.includes( plug?.mode ) ? plug.mode : 'cool';
+}
+
 function airconConfig() {
 	const cfg = typeof window !== 'undefined' && window.gamingHubEcoflowFlow ? window.gamingHubEcoflowFlow.aircon : null;
 	return cfg && typeof cfg === 'object' ? cfg : { canControl: false, tempMin: 16, tempMax: 30 };
 }
 
-function AirconControls( { plug, labels } ) {
+function AirconControls( { plug, labels, onPowerChange } ) {
 	const cfg = airconConfig();
 	const [ override, setOverride ] = useState( null );
 	const [ sending, setSending ] = useState( false );
@@ -409,17 +427,31 @@ function AirconControls( { plug, labels } ) {
 
 	useEffect( () => () => clearTimeout( timer.current ), [] );
 
-	const serverPower = plug.running ? 'on' : 'off';
+	const serverPower = ( plug.set_power === 'on' || plug.running ) ? 'on' : 'off';
+	const serverMode = airconMode( plug );
 	const fresh = override && Date.now() - override.at < AIRCON_OVERRIDE_MS;
 	const power = fresh ? override.power : serverPower;
-	const temp = fresh ? override.temp : Number( plug.target_temp ) || 26;
+	const mode = fresh ? override.mode : serverMode;
+	const temp = fresh ? override.temp : Number( plug.target_temp ) || AIRCON_DEFAULT_TEMP[ mode ];
 
 	useEffect( () => {
-		if ( override && override.power === serverPower && ! sending && Number( plug.target_temp ) === override.temp ) {
+		if (
+			override
+			&& override.power === serverPower
+			&& override.mode === serverMode
+			&& ! sending
+			&& Number( plug.target_temp ) === override.temp
+		) {
 			setOverride( null );
 		}
-	}, [ override, serverPower, sending, plug.target_temp ] );
+	}, [ override, serverPower, serverMode, sending, plug.target_temp ] );
 	const isOn = power === 'on';
+
+	useEffect( () => {
+		if ( onPowerChange ) {
+			onPowerChange( power );
+		}
+	}, [ power, onPowerChange ] );
 
 	const send = async ( next ) => {
 		setSending( true );
@@ -429,7 +461,7 @@ function AirconControls( { plug, labels } ) {
 				method: 'POST',
 				credentials: 'same-origin',
 				headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
-				body: JSON.stringify( { power: next.power, temp: next.temp } ),
+				body: JSON.stringify( { power: next.power, temp: next.temp, mode: next.mode } ),
 			} );
 			const json = await res.json();
 			if ( ! res.ok || ! json.success ) {
@@ -456,16 +488,37 @@ function AirconControls( { plug, labels } ) {
 	const stepTemp = ( delta ) => {
 		const nextTemp = Math.min( cfg.tempMax, Math.max( cfg.tempMin, temp + delta ) );
 		if ( nextTemp !== temp ) {
-			update( { power, temp: nextTemp }, true );
+			update( { power, mode, temp: nextTemp }, true );
+		}
+	};
+
+	const pickMode = ( nextMode ) => {
+		if ( nextMode !== mode ) {
+			update( { power, mode: nextMode, temp: AIRCON_DEFAULT_TEMP[ nextMode ] }, false );
 		}
 	};
 
 	return (
 		<div className="teslogic-aircon__controls">
+			<div className="teslogic-aircon__modes" role="group" aria-label={ labels.airconMode || '運転モード' }>
+				{ AIRCON_MODES.map( ( m ) => (
+					<button
+						key={ m }
+						type="button"
+						className={ `teslogic-aircon__mode is-${ m }${ m === mode ? ' is-active' : '' }` }
+						onClick={ () => pickMode( m ) }
+						disabled={ sending }
+						aria-pressed={ m === mode }
+					>
+						<span aria-hidden="true">{ AIRCON_ICONS[ m ] }</span>
+						{ airconModeLabel( m, labels ) }
+					</button>
+				) ) }
+			</div>
 			<button
 				type="button"
 				className={ `teslogic-aircon__power${ isOn ? ' is-on' : '' }` }
-				onClick={ () => update( { power: isOn ? 'off' : 'on', temp }, false ) }
+				onClick={ () => update( { power: isOn ? 'off' : 'on', mode, temp }, false ) }
 				disabled={ sending }
 				aria-pressed={ isOn }
 			>
@@ -488,7 +541,9 @@ function AirconControls( { plug, labels } ) {
 }
 
 function AirconCell( { plug, todayWh, othersWatts, labels } ) {
+	const [ controlPower, setControlPower ] = useState( null );
 	const online = plug && ! plug.stale && plug.watts !== null && plug.watts !== undefined;
+	const commandedOn = ( controlPower ?? plug?.set_power ) === 'on';
 	let state = labels.airconOffline || '未接続';
 	let tone = 'is-unavailable';
 	if ( online && plug.power === 'off' ) {
@@ -497,22 +552,25 @@ function AirconCell( { plug, todayWh, othersWatts, labels } ) {
 	} else if ( online && plug.running ) {
 		state = labels.airconRunning || '運転中';
 		tone = 'is-running';
+	} else if ( online && commandedOn ) {
+		state = labels.airconStandby || '待機中';
+		tone = 'is-standby';
 	} else if ( online ) {
 		state = labels.airconStopped || '停止中';
 		tone = 'is-idle';
 	}
 
-	const heating = plug?.mode === 'heat';
-	const modeLabel = heating ? ( labels.airconHeat || '暖房' ) : ( labels.airconCool || '冷房' );
-	const showMode = online && plug.running;
+	const mode = airconMode( plug );
+	const modeLabel = airconModeLabel( mode, labels );
+	const showMode = online && ( plug.running || commandedOn ) && plug.power !== 'off';
 
 	return (
 		<div className="teslogic-pack-unit teslogic-pack-unit--single">
-			<div className={ `teslogic-pack-cell teslogic-aircon ${ tone } ${ heating ? 'is-heat' : 'is-cool' }` } data-flow-id="aircon">
+			<div className={ `teslogic-pack-cell teslogic-aircon ${ tone } is-${ mode }` } data-flow-id="aircon">
 				<div className="teslogic-pack-cell__head">
 					<span className="teslogic-aircon__title">
 						<span className="teslogic-aircon__icon" role="img" aria-label={ modeLabel } title={ modeLabel }>
-							{ heating ? '🔥' : '❄️' }
+							{ AIRCON_ICONS[ mode ] }
 						</span>
 						<span className="teslogic-pack-cell__label">{ labels.aircon || 'shinichiy room A/C' }</span>
 					</span>
@@ -527,7 +585,7 @@ function AirconCell( { plug, todayWh, othersWatts, labels } ) {
 						{ `${ labels.upsOthers || 'その他' } ${ formatWattsExact( othersWatts ) }` }
 					</small>
 				) : null }
-				{ airconConfig().canControl ? <AirconControls plug={ plug } labels={ labels } /> : null }
+				{ airconConfig().canControl ? <AirconControls plug={ plug } labels={ labels } onPowerChange={ setControlPower } /> : null }
 			</div>
 		</div>
 	);

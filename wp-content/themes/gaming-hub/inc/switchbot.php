@@ -373,7 +373,7 @@ function gaming_hub_switchbot_ac_mode() {
 	}
 
 	$forced = strtolower( (string) getenv( 'SWITCHBOT_AC_MODE' ) );
-	if ( in_array( $forced, array( 'cool', 'heat' ), true ) ) {
+	if ( in_array( $forced, array( 'cool', 'dry', 'heat' ), true ) ) {
 		return array(
 			'mode'         => $forced,
 			'mode_source'  => 'manual',
@@ -415,6 +415,13 @@ function gaming_hub_switchbot_attach_ac( array $status ) {
 	}
 
 	$plug = gaming_hub_switchbot_ac_status();
+	if ( is_wp_error( $plug ) ) {
+		$status['ac_plug_error'] = array(
+			'code'    => $plug->get_error_code(),
+			'message' => $plug->get_error_message(),
+		);
+		return $status;
+	}
 	if ( is_array( $plug ) ) {
 		$mode  = gaming_hub_switchbot_ac_mode();
 		$saved = gaming_hub_aircon_saved_state();
@@ -434,7 +441,7 @@ function gaming_hub_switchbot_attach_ac( array $status ) {
 /**
  * Cached Plug Mini status for the room A/C (on the Delta 1500 UPS output).
  *
- * @return array<string, mixed>|null
+ * @return array<string, mixed>|WP_Error|null
  */
 function gaming_hub_switchbot_ac_status() {
 	if ( gaming_hub_switchbot_ac_sample_enabled() ) {
@@ -464,7 +471,7 @@ function gaming_hub_switchbot_ac_status() {
 		return $cached;
 	}
 
-	return null;
+	return is_wp_error( $fresh ) ? $fresh : null;
 }
 
 /**
