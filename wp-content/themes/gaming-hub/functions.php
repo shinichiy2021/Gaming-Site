@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.23.80' );
+define( 'GAMING_HUB_VERSION', '1.23.88' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
@@ -863,10 +863,13 @@ function gaming_hub_fallback_menu() {
 		array( 'url' => gaming_hub_pokemon_go_url(), 'label' => __( 'Pokémon GO', 'gaming-hub' ), 'current' => is_tag( 'pokemon-go' ) ),
 	);
 
-	echo '<ul class="nav-menu">';
+	echo '<ul class="nav-menu nav-menu--hub-tags">';
 	foreach ( $items as $item ) {
-		$li = $item['current'] ? ' class="current-menu-item"' : '';
-		echo '<li' . $li . '><a href="' . esc_url( $item['url'] ) . '">' . esc_html( $item['label'] ) . '</a></li>';
+		$classes = array( 'menu-item-hub-tag' );
+		if ( ! empty( $item['current'] ) ) {
+			$classes[] = 'current-menu-item';
+		}
+		echo '<li class="' . esc_attr( implode( ' ', $classes ) ) . '"><a href="' . esc_url( $item['url'] ) . '">' . esc_html( $item['label'] ) . '</a></li>';
 	}
 	echo '</ul>';
 }
@@ -1015,13 +1018,45 @@ add_filter( 'wp_nav_menu_objects', 'gaming_hub_nav_hub_section_urls' );
  * @return array<int, string>
  */
 function gaming_hub_nav_current_tag_class( $classes, $item ) {
-	$url = (string) ( $item->url ?? '' );
+	$url     = (string) ( $item->url ?? '' );
+	$title   = strtolower( trim( (string) ( $item->title ?? '' ) ) );
+	$section = function_exists( 'gaming_hub_url_hub_section' )
+		? gaming_hub_url_hub_section( $url )
+		: '';
+
 	if ( ( is_tag( 'ecoflow' ) && false !== strpos( $url, '/tag/ecoflow' ) )
 		|| ( is_tag( 'tesla' ) && false !== strpos( $url, '/tag/tesla' ) )
 		|| ( is_tag( 'pokemon-go' ) && false !== strpos( $url, '/tag/pokemon-go' ) ) ) {
 		$classes[] = 'current-menu-item';
 	}
 
+	if ( in_array( $section, array( 'ecoflow', 'tesla', 'powerwall', 'pokemon-go' ), true )
+		|| in_array( $title, array( 'ecoflow', 'tesla', 'pokemon go', 'pokémon go', 'pokemon-go' ), true )
+		|| false !== stripos( (string) ( $item->title ?? '' ), 'powerwall' )
+		|| false !== stripos( (string) ( $item->title ?? '' ), 'pokemon' ) ) {
+		$classes[] = 'menu-item-hub-tag';
+	}
+
 	return $classes;
 }
 add_filter( 'nav_menu_css_class', 'gaming_hub_nav_current_tag_class', 10, 2 );
+
+/**
+ * Add a class on the primary menu UL for top-only tag chrome.
+ *
+ * @param array<string, mixed> $args wp_nav_menu args.
+ * @return array<string, mixed>
+ */
+function gaming_hub_nav_menu_args_hub_tags( $args ) {
+	if ( ( $args['theme_location'] ?? '' ) !== 'primary' ) {
+		return $args;
+	}
+
+	$menu_class = trim( (string) ( $args['menu_class'] ?? 'nav-menu' ) );
+	if ( false === strpos( $menu_class, 'nav-menu--hub-tags' ) ) {
+		$args['menu_class'] = $menu_class . ' nav-menu--hub-tags';
+	}
+
+	return $args;
+}
+add_filter( 'wp_nav_menu_args', 'gaming_hub_nav_menu_args_hub_tags' );

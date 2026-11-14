@@ -362,38 +362,7 @@ export async function pollQuota( deviceSn, loginData, cert, clientIdOverride = '
 		};
 
 		const publishAcCharge = ( watts ) => {
-			const chgWatts = Math.max( 0, Math.round( Number( watts ) || 0 ) );
-			const id = Date.now() % 1000000;
-			const payloads = [
-				{
-					id,
-					version: '1.0',
-					sn: deviceSn,
-					moduleType: 5,
-					operateType: 'acChgCfg',
-					from: 'Android',
-					params: {
-						chgWatts,
-						chgPauseFlag: 255,
-					},
-				},
-				{
-					id: id + 1,
-					version: '1.0',
-					sn: deviceSn,
-					moduleType: 5,
-					operateType: 'TCP',
-					from: 'Android',
-					params: {
-						cmdSet: 32,
-						id: 69,
-						chgWatts,
-						chgPauseFlag: 255,
-					},
-				},
-			];
-
-			payloads.forEach( ( payload ) => {
+			buildDelta1500AcChargePayloads( deviceSn, watts ).forEach( ( payload ) => {
 				client.publish( topicSet, JSON.stringify( payload ), { qos: 1 } );
 			} );
 		};
@@ -639,29 +608,40 @@ function mqttPublishLatestQuotas( client, userId, deviceSn ) {
 	client.publish( topicGet, message, { qos: 1 } );
 }
 
-function mqttPublishAcCharge( client, userId, deviceSn, watts ) {
-	if ( ! mqttCanPublish( client ) ) {
-		return;
-	}
-
-	const topicSet = `/app/${ userId }/${ deviceSn }/thing/property/set`;
+/**
+ * Delta 3 1500 AC charge payloads.
+ *
+ * Setting cfgChgWatts alone only updates the cap. D361 ignores chgPauseFlag.
+ * To actually start/stop grid charging we also set:
+ * - bypassBan.banBypassEn 0=allow AC charge, 1=standalone (no charge)
+ * - watthConfig.bpPowerSoc 100=force grid charge (like Pro backup 100%), 5=idle floor
+ *
+ * @param {string} deviceSn
+ * @param {number} watts
+ * @param {number} [idBase]
+ * @returns {object[]}
+ */
+function buildDelta1500AcChargePayloads( deviceSn, watts, idBase = Date.now() % 1000000 ) {
 	const chgWatts = Math.max( 0, Math.round( Number( watts ) || 0 ) );
-	const id = Date.now() % 1000000;
-	const payloads = [
+	const charging = chgWatts > 0;
+	const limitW = charging ? Math.max( 200, chgWatts ) : Math.max( 200, chgWatts || 200 );
+	const reserve = charging ? 100 : 5;
+
+	return [
 		{
-			id,
+			id: idBase,
 			version: '1.0',
 			sn: deviceSn,
 			moduleType: 5,
 			operateType: 'acChgCfg',
 			from: 'Android',
 			params: {
-				chgWatts,
+				chgWatts: limitW,
 				chgPauseFlag: 255,
 			},
 		},
 		{
-			id: id + 1,
+			id: idBase + 1,
 			version: '1.0',
 			sn: deviceSn,
 			moduleType: 5,
@@ -670,13 +650,45 @@ function mqttPublishAcCharge( client, userId, deviceSn, watts ) {
 			params: {
 				cmdSet: 32,
 				id: 69,
-				chgWatts,
+				chgWatts: limitW,
 				chgPauseFlag: 255,
 			},
 		},
+		{
+			id: idBase + 2,
+			version: '1.0',
+			sn: deviceSn,
+			moduleType: 1,
+			operateType: 'bypassBan',
+			from: 'Android',
+			params: {
+				banBypassEn: charging ? 0 : 1,
+			},
+		},
+		{
+			id: idBase + 3,
+			version: '1.0',
+			sn: deviceSn,
+			moduleType: 1,
+			operateType: 'watthConfig',
+			from: 'Android',
+			params: {
+				isConfig: 1,
+				bpPowerSoc: reserve,
+				minDsgSoc: 0,
+				minChgSoc: 0,
+			},
+		},
 	];
+}
 
-	payloads.forEach( ( payload ) => {
+function mqttPublishAcCharge( client, userId, deviceSn, watts ) {
+	if ( ! mqttCanPublish( client ) ) {
+		return;
+	}
+
+	const topicSet = `/app/${ userId }/${ deviceSn }/thing/property/set`;
+	buildDelta1500AcChargePayloads( deviceSn, watts ).forEach( ( payload ) => {
 		client.publish( topicSet, JSON.stringify( payload ), { qos: 1 } );
 	} );
 }

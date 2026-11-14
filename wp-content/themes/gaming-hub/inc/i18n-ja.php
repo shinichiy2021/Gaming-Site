@@ -599,6 +599,7 @@ return array(
 	'Nothing Found' => '見つかりませんでした',
 	'Now ' => 'いま ',
 	'Now %1$s W · %3$s W from %2$s°C / 1 kW at %4$s°C+' => 'いま %1$s W · %2$s℃で %3$s W開始 / %4$s℃以上で 1 kW',
+	'Now %1$s W · cool %3$s W@%2$s°C→1 kW@%4$s°C+ · heat %3$s W@%5$s°C→1 kW@%6$s°C−' => 'いま %1$s W · 冷房 %2$s℃で %3$s W〜%4$s℃で 1 kW · 暖房 %5$s℃で %3$s W〜%6$s℃で 1 kW',
 	'Now %1$s W · setpoint %2$s°C' => 'いま %1$s W · 設定 %2$s℃',
 	'Now %s W · weekdays on above 28°C' => 'いま %s W · 平日は 28℃超でオン',
 	'Odometer' => 'オドメーター',

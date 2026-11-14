@@ -153,6 +153,7 @@ function gaming_hub_ecoflow_status_stub() {
 		'ac_out'             => null,
 		'dc_out'             => null,
 		'solar_in'           => null,
+		'solar_pro'          => null,
 		'solar_delta'        => null,
 		'solar_in_source'    => 'unavailable',
 		'input_total'        => null,
@@ -252,8 +253,10 @@ function gaming_hub_ecoflow_sample_status() {
 			'updated_at'      => $now,
 		)
 	);
+	$status['solar_pro']   = 210;
 	$status['solar_delta'] = 380;
 	$status['solar_in']    = 380;
+	$status['input_total'] = 1850 + 210;
 
 	if ( function_exists( 'gaming_hub_switchbot_attach_ac' ) ) {
 		$status = gaming_hub_switchbot_attach_ac( $status );
@@ -342,9 +345,14 @@ function gaming_hub_get_ecoflow_status( $force_refresh = false ) {
 
 	$status              = $primary;
 	$status['secondary'] = $secondary;
-	$delta_solar         = max( 0, (int) ( $secondary['solar_in'] ?? 0 ) );
+	$pro_solar           = isset( $primary['solar_in'] ) && is_numeric( $primary['solar_in'] )
+		? max( 0, (int) round( (float) $primary['solar_in'] ) )
+		: null;
+	$delta_solar           = max( 0, (int) ( $secondary['solar_in'] ?? 0 ) );
+	$status['solar_pro']   = $pro_solar;
 	$status['solar_delta'] = $delta_solar;
 	$status['hv_in']       = max( 0, (int) ( $primary['hv_in'] ?? 0 ) );
+	// Site-level solar_in stays Delta LV for legacy callers; Pro LV is solar_pro.
 	$status['solar_in']    = $delta_solar;
 
 	set_transient(
@@ -383,10 +391,6 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 	$status = gaming_hub_ecoflow_apply_theoretical_lv( $status );
 	$status = gaming_hub_ecoflow_apply_delta1500_soc_model( $status );
 
-	if ( function_exists( 'gaming_hub_ecoflow_apply_delta1500_grid_rescue' ) ) {
-		$status = gaming_hub_ecoflow_apply_delta1500_grid_rescue( $status );
-	}
-
 	$status['charge_plan'] = gaming_hub_ecoflow_get_charge_plan(
 		$status,
 		! empty( $GLOBALS['gaming_hub_ecoflow_force_plan_refresh'] )
@@ -415,6 +419,11 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 
 	if ( ! empty( $status['charge_plan'] ) && is_array( $status['charge_plan'] ) && function_exists( 'gaming_hub_ecoflow_attach_schedule_state' ) ) {
 		$status['charge_plan'] = gaming_hub_ecoflow_attach_schedule_state( $status['charge_plan'] );
+	}
+
+	// Delta 1500: plan hours + low-SOC rescue (after schedule so slots are current).
+	if ( function_exists( 'gaming_hub_ecoflow_apply_delta1500_grid_rescue' ) ) {
+		$status = gaming_hub_ecoflow_apply_delta1500_grid_rescue( $status );
 	}
 
 	$plan = ! empty( $status['charge_plan'] ) && is_array( $status['charge_plan'] )
@@ -1992,6 +2001,9 @@ function gaming_hub_ecoflow_image_url( $file ) {
  */
 function gaming_hub_ecoflow_flow_payload( array $status ) {
 	$pro = gaming_hub_ecoflow_device_flow_slice( $status );
+	if ( array_key_exists( 'solar_pro', $status ) ) {
+		$pro['solar_in'] = gaming_hub_ecoflow_nullable_watts( $status['solar_pro'] );
+	}
 
 	$delta = ! empty( $status['secondary'] ) && is_array( $status['secondary'] )
 		? $status['secondary']
@@ -2005,11 +2017,15 @@ function gaming_hub_ecoflow_flow_payload( array $status ) {
 		'dual'                => true,
 		'independent'         => true,
 		'solar_in'            => $delta_slice['solar_in'],
+		'solar_pro'           => $pro['solar_in'],
 		'hv_in'               => (int) ( $status['hv_in'] ?? $pro['hv_in'] ?? 0 ),
 		'grid_in'             => $pro['ac_in'],
 		'ac_in'               => $pro['ac_in'],
 		'pro_grid_charge'     => isset( $status['pro_grid_charge'] ) && is_array( $status['pro_grid_charge'] )
 			? $status['pro_grid_charge']
+			: array(),
+		'delta_grid_charge'   => isset( $status['delta_grid_charge'] ) && is_array( $status['delta_grid_charge'] )
+			? $status['delta_grid_charge']
 			: array(),
 		'pro'                 => $pro,
 		'battery_percent'     => $pro['battery_percent'],
@@ -3312,6 +3328,7 @@ function gaming_hub_ecoflow_scripts() {
 			array(
 				'labels' => array(
 					'solar'       => __( 'Low Volt', 'gaming-hub' ),
+					'proLv'       => __( 'Low Volt', 'gaming-hub' ),
 					'hv'          => __('High volt', 'gaming-hub'),
 					'grid'        => __('Grid', 'gaming-hub'),
 					'gridCharge'  => __('Grid top-up', 'gaming-hub'),
@@ -3343,6 +3360,7 @@ function gaming_hub_ecoflow_scripts() {
 					'airconStopped' => __('A/C stopped', 'gaming-hub'),
 					'airconStandby' => __('A/C standby', 'gaming-hub'),
 					'airconTarget'  => __('Set temp', 'gaming-hub'),
+					'airconOutdoor' => __('Outdoor temp (Tajimi)', 'gaming-hub'),
 					'airconTurnOn'  => __('Turn on', 'gaming-hub'),
 					'airconTurnOff' => __('Turn off', 'gaming-hub'),
 					'airconFanAuto' => __('Fan: Auto', 'gaming-hub'),

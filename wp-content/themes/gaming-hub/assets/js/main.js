@@ -92,76 +92,99 @@
 
 	const headerBar = document.querySelector('.site-header .header-inner');
 	const hubSwitcher = document.querySelector('.hub-switcher');
-	const scrollHideTargets = [headerBar, hubSwitcher].filter(Boolean);
-	if (scrollHideTargets.length) {
-		const HIDE_AFTER_Y = 72;
-		const DELTA_HIDE = 14;
-		const DELTA_SHOW = 14;
-		const MIN_SCROLLABLE = 160;
-		const LOCK_MS = 340;
-		let lastY = window.pageYOffset || 0;
-		let ticking = false;
-		let lockedUntil = 0;
+	const hubTagNav = document.querySelector('.nav-menu--hub-tags');
+	const HIDE_AFTER_Y = 72;
+	const DELTA_HIDE = 14;
+	const DELTA_SHOW = 14;
+	const MIN_SCROLLABLE = 160;
+	const LOCK_MS = 340;
+	let lastY = window.pageYOffset || 0;
+	let ticking = false;
+	let lockedUntil = 0;
 
-		function scrollableRoom() {
-			return Math.max(
-				0,
-				(document.documentElement.scrollHeight || 0) - (window.innerHeight || 0)
-			);
+	function scrollableRoom() {
+		return Math.max(
+			0,
+			(document.documentElement.scrollHeight || 0) - (window.innerHeight || 0)
+		);
+	}
+
+	// Hub tags as a whole (EcoFlow / Tesla / Pokémon GO + mobile switcher): top only.
+	function setHubTagsAtTop(atTop) {
+		if (hubSwitcher) {
+			hubSwitcher.classList.toggle('is-scroll-hidden', !atTop);
+			hubSwitcher.setAttribute('aria-hidden', atTop ? 'false' : 'true');
 		}
-
-		function setScrollChromeHidden(hidden) {
-			let changed = false;
-			scrollHideTargets.forEach(function (el) {
-				const wasHidden = el.classList.contains('is-scroll-hidden');
-				el.classList.toggle('is-scroll-hidden', hidden);
-				if (wasHidden !== hidden) {
-					changed = true;
-				}
-			});
-			if (header) {
-				header.classList.toggle('is-chrome-hidden', hidden);
-			}
-			if (!changed) {
-				return;
-			}
-			lockedUntil = performance.now() + LOCK_MS;
-			window.requestAnimationFrame(function () {
-				lastY = window.pageYOffset || 0;
-			});
+		if (hubTagNav) {
+			hubTagNav.classList.toggle('is-scroll-hidden', !atTop);
+			hubTagNav.setAttribute('aria-hidden', atTop ? 'false' : 'true');
 		}
+		document.body.classList.toggle('is-hub-tags-away', !atTop);
+		if (header) {
+			header.classList.toggle('is-hub-tags-away', !atTop);
+		}
+	}
 
-		function updateScrollChromeVisibility() {
-			const y = window.pageYOffset || 0;
-			const now = performance.now();
+	function setScrollChromeHidden(hidden) {
+		if (!headerBar) {
+			return;
+		}
+		const wasHidden = headerBar.classList.contains('is-scroll-hidden');
+		headerBar.classList.toggle('is-scroll-hidden', hidden);
+		if (header) {
+			header.classList.toggle('is-chrome-hidden', hidden);
+		}
+		if (wasHidden === hidden) {
+			return;
+		}
+		lockedUntil = performance.now() + LOCK_MS;
+		window.requestAnimationFrame(function () {
+			lastY = window.pageYOffset || 0;
+		});
+	}
 
-			// Short pages: collapsing the bar shifts scrollY and flickers.
-			if (scrollableRoom() < MIN_SCROLLABLE) {
-				setScrollChromeHidden(false);
-				lastY = y;
-				ticking = false;
-				return;
-			}
+	function updateScrollChromeVisibility() {
+		const y = window.pageYOffset || 0;
+		const now = performance.now();
+		const shortPage = scrollableRoom() < MIN_SCROLLABLE;
 
-			if (now < lockedUntil) {
-				lastY = y;
-				ticking = false;
-				return;
-			}
+		setHubTagsAtTop(shortPage || y <= HIDE_AFTER_Y);
 
-			const delta = y - lastY;
-			if (y <= HIDE_AFTER_Y) {
-				setScrollChromeHidden(false);
-			} else if (delta > DELTA_HIDE) {
-				setScrollChromeHidden(true);
-			} else if (delta < -DELTA_SHOW) {
-				setScrollChromeHidden(false);
-			}
-
+		if (!headerBar) {
 			lastY = y;
 			ticking = false;
+			return;
 		}
 
+		// Short pages: collapsing the bar shifts scrollY and flickers.
+		if (shortPage) {
+			setScrollChromeHidden(false);
+			lastY = y;
+			ticking = false;
+			return;
+		}
+
+		if (now < lockedUntil) {
+			lastY = y;
+			ticking = false;
+			return;
+		}
+
+		const delta = y - lastY;
+		if (y <= HIDE_AFTER_Y) {
+			setScrollChromeHidden(false);
+		} else if (delta > DELTA_HIDE) {
+			setScrollChromeHidden(true);
+		} else if (delta < -DELTA_SHOW) {
+			setScrollChromeHidden(false);
+		}
+
+		lastY = y;
+		ticking = false;
+	}
+
+	if (headerBar || hubSwitcher || hubTagNav) {
+		updateScrollChromeVisibility();
 		window.addEventListener(
 			'scroll',
 			function () {

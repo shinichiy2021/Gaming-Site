@@ -354,12 +354,14 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 						<small data-ecoflow-field="plan_ac_meta">
 							<?php
 							printf(
-								/* translators: 1: watts now, 2: start C, 3: start watts, 4: max C */
-								esc_html__('Now %1$s W · %3$s W from %2$s°C / 1 kW at %4$s°C+', 'gaming-hub'),
+								/* translators: 1: watts now, 2: cool start C, 3: start watts, 4: cool max C, 5: heat start C, 6: heat min C */
+								esc_html__('Now %1$s W · cool %3$s W@%2$s°C→1 kW@%4$s°C+ · heat %3$s W@%5$s°C→1 kW@%6$s°C−', 'gaming-hub'),
 								esc_html( number_format_i18n( (int) ( $plan['ac_now_w'] ?? 0 ) ) ),
 								esc_html( number_format_i18n( (float) ( $plan['ac_start_c'] ?? ( defined( 'GAMING_HUB_ECOFLOW_AC_START_C' ) ? GAMING_HUB_ECOFLOW_AC_START_C : 27 ) ), 0 ) ),
 								esc_html( number_format_i18n( (int) ( $plan['ac_start_w'] ?? 300 ) ) ),
-								esc_html( number_format_i18n( (float) ( $plan['ac_max_c'] ?? ( function_exists( 'gaming_hub_ecoflow_ac_max_c' ) ? gaming_hub_ecoflow_ac_max_c() : 34 ) ), 0 ) )
+								esc_html( number_format_i18n( (float) ( $plan['ac_max_c'] ?? ( function_exists( 'gaming_hub_ecoflow_ac_max_c' ) ? gaming_hub_ecoflow_ac_max_c() : 34 ) ), 0 ) ),
+								esc_html( number_format_i18n( (float) ( $plan['ac_heat_start_c'] ?? ( defined( 'GAMING_HUB_ECOFLOW_AC_HEAT_START_C' ) ? GAMING_HUB_ECOFLOW_AC_HEAT_START_C : 10 ) ), 0 ) ),
+								esc_html( number_format_i18n( (float) ( $plan['ac_heat_min_c'] ?? ( function_exists( 'gaming_hub_ecoflow_ac_heat_min_c' ) ? gaming_hub_ecoflow_ac_heat_min_c() : 3 ) ), 0 ) )
 							);
 							?>
 						</small>

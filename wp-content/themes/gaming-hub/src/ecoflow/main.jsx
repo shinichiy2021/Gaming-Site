@@ -7,6 +7,7 @@ if ( mountNode ) {
 	const initial = mountNode.dataset.initial ? JSON.parse( mountNode.dataset.initial ) : {};
 	const labels = window.gamingHubEcoflowFlow?.labels || {
 		solar: 'Low Volt',
+		proLv: 'Low Volt',
 		hv: 'ハイボルト',
 		grid: 'グリッド',
 		gridCharge: 'グリッド補充電',

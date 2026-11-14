@@ -155,24 +155,25 @@ function gaming_hub_ecoflow_energy_option_key( $ym ) {
 /**
  * Site-level watts: Pro 3 + Delta 1500 combined.
  *
- * Generation = Pro HV + 1500 LV.
+ * Generation = Pro HV + Pro LV + 1500 LV.
  * Input     = Pro powInSumW + 1500 input (LV when MQTT is empty).
  * Output    = Pro powOutSumW + UPS / 1500 AC out.
  *
  * @param array<string, mixed> $status Normalized device status.
- * @return array{input: float, output: float, solar: float, ac_in: float, hv: float, lv: float}
+ * @return array{input: float, output: float, solar: float, ac_in: float, hv: float, pro_lv: float, lv: float}
  */
 function gaming_hub_ecoflow_combined_site_watts( array $status ) {
 	$pro_in  = max( 0, (float) ( $status['input_total'] ?? 0 ) );
 	$pro_out = max( 0, (float) ( $status['output_total'] ?? 0 ) );
 	$pro_ac  = max( 0, (float) ( $status['ac_in'] ?? 0 ) );
 	$hv      = max( 0, (float) ( $status['hv_in'] ?? 0 ) );
+	$pro_lv  = max( 0, (float) ( $status['solar_pro'] ?? 0 ) );
 
 	$secondary = ( isset( $status['secondary'] ) && is_array( $status['secondary'] ) )
 		? $status['secondary']
 		: array();
 
-	$lv = max( 0, (float) ( $secondary['solar_in'] ?? $status['solar_in'] ?? 0 ) );
+	$lv = max( 0, (float) ( $secondary['solar_in'] ?? $status['solar_delta'] ?? $status['solar_in'] ?? 0 ) );
 	$d_ac = max( 0, (float) ( $secondary['ac_in'] ?? 0 ) );
 
 	$d_in = max( 0, (float) ( $secondary['input_total'] ?? 0 ) );
@@ -192,9 +193,10 @@ function gaming_hub_ecoflow_combined_site_watts( array $status ) {
 	return array(
 		'input'  => $pro_in + $d_in,
 		'output' => $pro_out + $d_out,
-		'solar'  => $hv + $lv,
+		'solar'  => $hv + $pro_lv + $lv,
 		'ac_in'  => $pro_ac + $d_ac,
 		'hv'     => $hv,
+		'pro_lv' => $pro_lv,
 		'lv'     => $lv,
 	);
 }
@@ -271,6 +273,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 	$output_w = $site['output'];
 	$solar_w  = $site['solar'];
 	$hv_w     = $site['hv'];
+	$pro_lv_w = $site['pro_lv'];
 	$lv_w     = $site['lv'];
 	$ac_in_w  = $site['ac_in'];
 	$room_w   = $savings['room_out'];
@@ -304,6 +307,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 		'delta_ac_in_wh' => 0.0,
 		'pro_ac_in_wh'   => 0.0,
 		'hv_wh'          => 0.0,
+		'pro_lv_wh'      => 0.0,
 		'lv_wh'          => 0.0,
 	);
 	if ( $dt > 0 ) {
@@ -312,6 +316,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 		$add['output_wh']   = ( ( (float) ( $state['output_w'] ?? $output_w ) + $output_w ) / 2 ) * $hours;
 		$add['solar_wh']    = ( ( (float) ( $state['solar_w'] ?? $solar_w ) + $solar_w ) / 2 ) * $hours;
 		$add['hv_wh']       = ( ( (float) ( $state['hv_w'] ?? $hv_w ) + $hv_w ) / 2 ) * $hours;
+		$add['pro_lv_wh']   = ( ( (float) ( $state['pro_lv_w'] ?? $pro_lv_w ) + $pro_lv_w ) / 2 ) * $hours;
 		$add['lv_wh']       = ( ( (float) ( $state['lv_w'] ?? $lv_w ) + $lv_w ) / 2 ) * $hours;
 		$add['ac_in_wh']    = ( ( (float) ( $state['ac_in_w'] ?? $ac_in_w ) + $ac_in_w ) / 2 ) * $hours;
 		$add['room_out_wh']  = ( ( (float) ( $state['room_out_w'] ?? $room_w ) + $room_w ) / 2 ) * $hours;
@@ -347,6 +352,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 			'output_w'      => $output_w,
 			'solar_w'       => $solar_w,
 			'hv_w'          => $hv_w,
+			'pro_lv_w'      => $pro_lv_w,
 			'lv_w'          => $lv_w,
 			'ac_in_w'       => $ac_in_w,
 			'room_out_w'    => $room_w,
@@ -392,6 +398,7 @@ function gaming_hub_ecoflow_energy_add( $date, $hour, array $add ) {
 			'delta_ac_in_wh' => 0.0,
 			'pro_ac_in_wh'   => 0.0,
 			'hv_wh'          => 0.0,
+			'pro_lv_wh'      => 0.0,
 			'lv_wh'          => 0.0,
 			'soc'            => null,
 			'delta_soc'      => null,
@@ -399,7 +406,7 @@ function gaming_hub_ecoflow_energy_add( $date, $hour, array $add ) {
 		);
 	}
 
-	foreach ( array( 'input_wh', 'output_wh', 'solar_wh', 'ac_in_wh', 'room_out_wh', 'ups_out_wh', 'ac_out_wh', 'delta_ac_in_wh', 'pro_ac_in_wh', 'hv_wh', 'lv_wh' ) as $field ) {
+	foreach ( array( 'input_wh', 'output_wh', 'solar_wh', 'ac_in_wh', 'room_out_wh', 'ups_out_wh', 'ac_out_wh', 'delta_ac_in_wh', 'pro_ac_in_wh', 'hv_wh', 'pro_lv_wh', 'lv_wh' ) as $field ) {
 		$delta                        = max( 0, (float) ( $add[ $field ] ?? 0 ) );
 		$day['hours'][ $h ][ $field ] = (float) ( $day['hours'][ $h ][ $field ] ?? 0 ) + $delta;
 		$day[ $field ]                = (float) ( $day[ $field ] ?? 0 ) + $delta;
@@ -545,10 +552,13 @@ function gaming_hub_ecoflow_energy_split_solar_hours_for_date( $date = null ) {
 			continue;
 		}
 		$row = $hours[ $h ];
-		$has_hv = array_key_exists( 'hv_wh', $row ) && is_numeric( $row['hv_wh'] );
-		$has_lv = array_key_exists( 'lv_wh', $row ) && is_numeric( $row['lv_wh'] );
-		if ( $has_hv || $has_lv ) {
-			$pro[ $h ]   = $has_hv ? (int) round( max( 0, (float) $row['hv_wh'] ) ) : 0;
+		$has_hv     = array_key_exists( 'hv_wh', $row ) && is_numeric( $row['hv_wh'] );
+		$has_pro_lv = array_key_exists( 'pro_lv_wh', $row ) && is_numeric( $row['pro_lv_wh'] );
+		$has_lv     = array_key_exists( 'lv_wh', $row ) && is_numeric( $row['lv_wh'] );
+		if ( $has_hv || $has_pro_lv || $has_lv ) {
+			$pro_hv      = $has_hv ? max( 0, (float) $row['hv_wh'] ) : 0.0;
+			$pro_lv      = $has_pro_lv ? max( 0, (float) $row['pro_lv_wh'] ) : 0.0;
+			$pro[ $h ]   = (int) round( $pro_hv + $pro_lv );
 			$delta[ $h ] = $has_lv ? (int) round( max( 0, (float) $row['lv_wh'] ) ) : 0;
 			continue;
 		}
@@ -592,6 +602,7 @@ function gaming_hub_ecoflow_energy_empty_day() {
 		'delta_ac_in_wh' => 0.0,
 		'pro_ac_in_wh'   => 0.0,
 		'hv_wh'          => 0.0,
+		'pro_lv_wh'      => 0.0,
 		'lv_wh'          => 0.0,
 		'saved_yen'      => 0.0,
 		'samples'   => 0,
@@ -797,7 +808,7 @@ function gaming_hub_ecoflow_energy_today_yen( $status = null ) {
 }
 
 /**
- * Today's Pro HV and 1500 LV generation (Wh), including live remainder.
+ * Today's Pro HV, Pro LV, and 1500 LV generation (Wh), including live remainder.
  *
  * @param array<string, mixed>|null $status Live status, if available.
  * @return array<string, mixed>
@@ -809,10 +820,11 @@ function gaming_hub_ecoflow_energy_compute_today_solar( $status = null ) {
 		? $log[ $date ]
 		: gaming_hub_ecoflow_energy_empty_day();
 
-	$logged_pro   = max( 0.0, (float) ( $day['hv_wh'] ?? 0 ) );
-	$logged_delta = max( 0.0, (float) ( $day['lv_wh'] ?? 0 ) );
-	$logged_all   = max( 0.0, (float) ( $day['solar_wh'] ?? 0 ) );
-	if ( $logged_pro <= 0 && $logged_delta <= 0 && $logged_all > 0 ) {
+	$logged_pro    = max( 0.0, (float) ( $day['hv_wh'] ?? 0 ) );
+	$logged_pro_lv = max( 0.0, (float) ( $day['pro_lv_wh'] ?? 0 ) );
+	$logged_delta  = max( 0.0, (float) ( $day['lv_wh'] ?? 0 ) );
+	$logged_all    = max( 0.0, (float) ( $day['solar_wh'] ?? 0 ) );
+	if ( $logged_pro <= 0 && $logged_pro_lv <= 0 && $logged_delta <= 0 && $logged_all > 0 ) {
 		$pro_cap = defined( 'GAMING_HUB_ECOFLOW_SOLAR_PRO_W' ) ? (int) GAMING_HUB_ECOFLOW_SOLAR_PRO_W : 800;
 		$d_cap   = defined( 'GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W' ) ? (int) GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W : 500;
 		$total   = max( 1, $pro_cap + $d_cap );
@@ -821,42 +833,49 @@ function gaming_hub_ecoflow_energy_compute_today_solar( $status = null ) {
 	}
 
 	$pro_w     = 0.0;
+	$pro_lv_w  = 0.0;
 	$delta_w   = 0.0;
 	$sample_ts = time();
 	$state     = get_transient( GAMING_HUB_ECOFLOW_ENERGY_STATE );
 	$state     = is_array( $state ) ? $state : array();
 
 	if ( is_array( $status ) && function_exists( 'gaming_hub_ecoflow_combined_site_watts' ) ) {
-		$site    = gaming_hub_ecoflow_combined_site_watts( $status );
-		$pro_w   = max( 0.0, (float) ( $site['hv'] ?? 0 ) );
-		$delta_w = max( 0.0, (float) ( $site['lv'] ?? 0 ) );
+		$site     = gaming_hub_ecoflow_combined_site_watts( $status );
+		$pro_w    = max( 0.0, (float) ( $site['hv'] ?? 0 ) );
+		$pro_lv_w = max( 0.0, (float) ( $site['pro_lv'] ?? 0 ) );
+		$delta_w  = max( 0.0, (float) ( $site['lv'] ?? 0 ) );
 	} else {
-		$pro_w   = max( 0.0, (float) ( $state['hv_w'] ?? 0 ) );
-		$delta_w = max( 0.0, (float) ( $state['lv_w'] ?? 0 ) );
+		$pro_w    = max( 0.0, (float) ( $state['hv_w'] ?? 0 ) );
+		$pro_lv_w = max( 0.0, (float) ( $state['pro_lv_w'] ?? 0 ) );
+		$delta_w  = max( 0.0, (float) ( $state['lv_w'] ?? 0 ) );
 	}
 
 	if ( ! empty( $state['ts'] ) ) {
 		$sample_ts = (int) $state['ts'];
 	}
 
-	$dt         = min( GAMING_HUB_ECOFLOW_ENERGY_MAX_DT, max( 0, time() - $sample_ts ) );
-	$hours      = $dt / 3600.0;
-	$pro_total  = $logged_pro + ( $pro_w * $hours );
+	$dt          = min( GAMING_HUB_ECOFLOW_ENERGY_MAX_DT, max( 0, time() - $sample_ts ) );
+	$hours       = $dt / 3600.0;
+	$pro_total   = $logged_pro + ( $pro_w * $hours );
+	$pro_lv_total = $logged_pro_lv + ( $pro_lv_w * $hours );
 	$delta_total = $logged_delta + ( $delta_w * $hours );
 
 	return array(
-		'pro_wh'         => (int) round( $pro_total ),
-		'delta_wh'       => (int) round( $delta_total ),
-		'logged_pro_wh'  => round( $logged_pro, 4 ),
-		'logged_delta_wh'=> round( $logged_delta, 4 ),
-		'pro_w'          => $pro_w,
-		'delta_w'        => $delta_w,
-		'sample_ts'      => $sample_ts,
+		'pro_wh'           => (int) round( $pro_total ),
+		'pro_lv_wh'        => (int) round( $pro_lv_total ),
+		'delta_wh'         => (int) round( $delta_total ),
+		'logged_pro_wh'    => round( $logged_pro, 4 ),
+		'logged_pro_lv_wh' => round( $logged_pro_lv, 4 ),
+		'logged_delta_wh'  => round( $logged_delta, 4 ),
+		'pro_w'            => $pro_w,
+		'pro_lv_w'         => $pro_lv_w,
+		'delta_w'          => $delta_w,
+		'sample_ts'        => $sample_ts,
 	);
 }
 
 /**
- * Today's Pro HV and 1500 LV generation for display (canonical on production).
+ * Today's Pro HV / Pro LV / 1500 LV generation for display (canonical on production).
  *
  * @param array<string, mixed>|null $status Live status, if available.
  * @return array<string, mixed>
@@ -868,7 +887,7 @@ function gaming_hub_ecoflow_energy_today_solar( $status = null ) {
 	return gaming_hub_ecoflow_energy_apply_origin_display(
 		$local,
 		is_array( $remote ) ? ( $remote['solar'] ?? null ) : null,
-		array( 'pro_wh', 'delta_wh' )
+		array( 'pro_wh', 'pro_lv_wh', 'delta_wh' )
 	);
 }
 
@@ -1361,8 +1380,9 @@ function gaming_hub_rest_ecoflow_today() {
 				'net_yen'      => (int) ( $yen['net_yen'] ?? 0 ),
 			),
 			'solar'   => array(
-				'pro_wh'   => (int) ( $solar['pro_wh'] ?? 0 ),
-				'delta_wh' => (int) ( $solar['delta_wh'] ?? 0 ),
+				'pro_wh'    => (int) ( $solar['pro_wh'] ?? 0 ),
+				'pro_lv_wh' => (int) ( $solar['pro_lv_wh'] ?? 0 ),
+				'delta_wh'  => (int) ( $solar['delta_wh'] ?? 0 ),
 			),
 			'usage'   => array(
 				'room_wh' => (int) ( $usage['room_wh'] ?? 0 ),

@@ -244,6 +244,21 @@ export function solarToDelta( status ) {
 	return Number( watts ) || 0;
 }
 
+export function proLowVolt( status ) {
+	if ( ! status ) {
+		return null;
+	}
+
+	const watts = status.pro && Object.prototype.hasOwnProperty.call( status.pro, 'solar_in' )
+		? status.pro.solar_in
+		: status.solar_pro;
+	if ( watts === null || watts === undefined || watts === '' ) {
+		return null;
+	}
+
+	return Number( watts ) || 0;
+}
+
 export function proGridCharge( status ) {
 	if ( ! status ) {
 		return { active: false, watts: 0, message: '' };
@@ -269,7 +284,8 @@ function liveProGridWatts( status ) {
 
 	const input = Number( status.pro?.input_total ?? status.input_total ) || 0;
 	const hv = Number( status.pro?.hv_in ?? status.hv_in ) || 0;
-	return Math.max( 0, input - hv );
+	const lv = Number( status.pro?.solar_in ?? status.solar_pro ) || 0;
+	return Math.max( 0, input - hv - lv );
 }
 
 export function deltaGridAc( status ) {

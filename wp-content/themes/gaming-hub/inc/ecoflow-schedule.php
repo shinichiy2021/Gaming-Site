@@ -395,6 +395,10 @@ function gaming_hub_ecoflow_cancel_schedule() {
 		return $backup;
 	}
 
+	if ( function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
+		gaming_hub_ecoflow_queue_delta1500_ac_charge( (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W );
+	}
+
 	$status = gaming_hub_get_ecoflow_status( true );
 	if ( is_wp_error( $status ) ) {
 		return $status;

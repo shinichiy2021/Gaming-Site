@@ -16,6 +16,7 @@ define( 'GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W', 500 );
 define( 'GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W', GAMING_HUB_ECOFLOW_SOLAR_PRO_W + GAMING_HUB_ECOFLOW_SOLAR_DELTA1500_W );
 define( 'GAMING_HUB_ECOFLOW_ROOM_BASE_DAILY_KWH', 0 );
 define( 'GAMING_HUB_ECOFLOW_AC_START_C', 27.0 );
+define( 'GAMING_HUB_ECOFLOW_AC_HEAT_START_C', 10.0 );
 define( 'GAMING_HUB_ECOFLOW_AC_START_W', 300 );
 define( 'GAMING_HUB_ECOFLOW_AC_W_PER_C', 100 );
 define( 'GAMING_HUB_ECOFLOW_AC_MAX_W', 1000 );
@@ -379,7 +380,8 @@ function gaming_hub_ecoflow_room_hourly_weights() {
 /**
  * Electrical watts for リビングエアコン他 from outdoor temperature.
  *
- * Off below 27°C. At 27°C starts at 300 W, then +100 W per °C, cap 1 kW (34°C+).
+ * Cooling: off below 27°C; at 27°C starts at 300 W, then +100 W/°C, cap 1 kW (34°C+).
+ * Heating: off above 10°C; at 10°C starts at 300 W, then +100 W per °C colder, cap 1 kW (3°C−).
  *
  * @param float|null $celsius Outdoor °C.
  */
@@ -388,19 +390,30 @@ function gaming_hub_ecoflow_ac_watts_for_temp( $celsius ) {
 		return 0;
 	}
 
-	$start_c = (float) GAMING_HUB_ECOFLOW_AC_START_C;
-	$delta   = (float) $celsius - $start_c;
-	if ( $delta < 0 ) {
-		return 0;
+	$temp     = (float) $celsius;
+	$cool_c   = (float) GAMING_HUB_ECOFLOW_AC_START_C;
+	$heat_c   = (float) GAMING_HUB_ECOFLOW_AC_HEAT_START_C;
+	$start_w  = (int) GAMING_HUB_ECOFLOW_AC_START_W;
+	$per_c    = (int) GAMING_HUB_ECOFLOW_AC_W_PER_C;
+	$max_w    = (int) GAMING_HUB_ECOFLOW_AC_MAX_W;
+
+	if ( $temp >= $cool_c ) {
+		$delta = $temp - $cool_c;
+		$watts = $start_w + (int) round( $delta * $per_c );
+		return (int) min( $max_w, max( 0, $watts ) );
 	}
 
-	$watts = (int) GAMING_HUB_ECOFLOW_AC_START_W + (int) round( $delta * (int) GAMING_HUB_ECOFLOW_AC_W_PER_C );
+	if ( $temp <= $heat_c ) {
+		$delta = $heat_c - $temp;
+		$watts = $start_w + (int) round( $delta * $per_c );
+		return (int) min( $max_w, max( 0, $watts ) );
+	}
 
-	return (int) min( (int) GAMING_HUB_ECOFLOW_AC_MAX_W, max( 0, $watts ) );
+	return 0;
 }
 
 /**
- * Outdoor °C at which the AC model hits the 1 kW cap.
+ * Outdoor °C at which the cooling model hits the 1 kW cap.
  */
 function gaming_hub_ecoflow_ac_max_c() {
 	$per = (int) GAMING_HUB_ECOFLOW_AC_W_PER_C;
@@ -411,6 +424,20 @@ function gaming_hub_ecoflow_ac_max_c() {
 	$delta_w = (int) GAMING_HUB_ECOFLOW_AC_MAX_W - (int) GAMING_HUB_ECOFLOW_AC_START_W;
 
 	return (float) GAMING_HUB_ECOFLOW_AC_START_C + ( $delta_w / $per );
+}
+
+/**
+ * Outdoor °C at which the heating model hits the 1 kW cap.
+ */
+function gaming_hub_ecoflow_ac_heat_min_c() {
+	$per = (int) GAMING_HUB_ECOFLOW_AC_W_PER_C;
+	if ( $per < 1 ) {
+		return (float) GAMING_HUB_ECOFLOW_AC_HEAT_START_C;
+	}
+
+	$delta_w = (int) GAMING_HUB_ECOFLOW_AC_MAX_W - (int) GAMING_HUB_ECOFLOW_AC_START_W;
+
+	return (float) GAMING_HUB_ECOFLOW_AC_HEAT_START_C - ( $delta_w / $per );
 }
 
 /**
@@ -485,9 +512,11 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 		'ac_watts'           => $ac_watts,
 		'ac_on'              => $ac_now_w > 0 || $ac_today_kwh > 0,
 		'ac_start_c'         => (float) GAMING_HUB_ECOFLOW_AC_START_C,
+		'ac_heat_start_c'    => (float) GAMING_HUB_ECOFLOW_AC_HEAT_START_C,
 		'ac_start_w'         => (int) GAMING_HUB_ECOFLOW_AC_START_W,
 		'ac_max_w'           => (int) GAMING_HUB_ECOFLOW_AC_MAX_W,
 		'ac_max_c'           => gaming_hub_ecoflow_ac_max_c(),
+		'ac_heat_min_c'      => gaming_hub_ecoflow_ac_heat_min_c(),
 		'temp_now'           => $now_temp,
 	);
 }
@@ -662,7 +691,7 @@ function gaming_hub_ecoflow_get_charge_plan( array $status, $force = false ) {
 	$delta_key  = null !== ( $delta_pack['soc'] ?? null ) ? (int) floor( (float) $delta_pack['soc'] / 5 ) : 'x';
 	$dates      = gaming_hub_ecoflow_plan_dates();
 	$was_grid   = gaming_hub_ecoflow_plan_was_grid_charging() ? '1' : '0';
-	$key        = 'gaming_hub_ecoflow_plan_v37_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH;
+	$key        = 'gaming_hub_ecoflow_plan_v38_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_HEAT_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH;
 
 	if ( ! $force ) {
 		$cached = get_transient( $key );
@@ -1340,9 +1369,11 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'ac_now_w'             => $room['ac_now_w'],
 		'ac_on'                => ! empty( $room['ac_on'] ),
 		'ac_start_c'           => $room['ac_start_c'] ?? GAMING_HUB_ECOFLOW_AC_START_C,
+		'ac_heat_start_c'      => $room['ac_heat_start_c'] ?? GAMING_HUB_ECOFLOW_AC_HEAT_START_C,
 		'ac_start_w'           => $room['ac_start_w'] ?? GAMING_HUB_ECOFLOW_AC_START_W,
 		'ac_max_w'             => $room['ac_max_w'] ?? GAMING_HUB_ECOFLOW_AC_MAX_W,
 		'ac_max_c'             => $room['ac_max_c'] ?? gaming_hub_ecoflow_ac_max_c(),
+		'ac_heat_min_c'        => $room['ac_heat_min_c'] ?? gaming_hub_ecoflow_ac_heat_min_c(),
 		'ac_chart'             => $ac_watts,
 		'ac_chart_cap'         => max(
 			(int) ( $room['ac_max_w'] ?? GAMING_HUB_ECOFLOW_AC_MAX_W ),

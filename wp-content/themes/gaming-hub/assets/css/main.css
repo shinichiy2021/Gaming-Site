@@ -133,6 +133,25 @@ a:hover {
 	top: 0;
 }
 
+/* Hub tags as a whole: visible only at page top */
+.nav-menu--hub-tags {
+	overflow: hidden;
+	max-height: 24rem;
+	opacity: 1;
+	transition:
+		max-height 0.28s ease,
+		opacity 0.2s ease,
+		margin 0.28s ease;
+}
+
+.nav-menu--hub-tags.is-scroll-hidden {
+	max-height: 0 !important;
+	opacity: 0;
+	margin: 0;
+	pointer-events: none;
+	visibility: hidden;
+}
+
 .site-title,
 .footer-logo {
 	font-family: var(--font-display);
@@ -2590,6 +2609,15 @@ body.home .site-header.is-scrolled {
 .teslogic-aircon__temp-value strong {
 	font-size: 1.5rem;
 	font-variant-numeric: tabular-nums;
+}
+
+.teslogic-aircon__outdoor {
+	margin-top: 2px;
+	font-style: normal;
+	font-size: 0.68rem;
+	font-variant-numeric: tabular-nums;
+	color: rgba(244, 241, 234, 0.55);
+	white-space: nowrap;
 }
 
 .teslogic-aircon__hint {
@@ -5748,6 +5776,24 @@ body.home .site-header.is-scrolled {
 	max-width: min(720px, 100%);
 	margin: 0 auto;
 	width: 100%;
+}
+
+.ecoflow-dual-layout.teslogic-dual .teslogic-top--quad {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	max-width: none;
+	width: 100%;
+}
+
+@media (max-width: 900px) {
+	.ecoflow-dual-layout.teslogic-dual .teslogic-top--quad {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 520px) {
+	.ecoflow-dual-layout.teslogic-dual .teslogic-top--quad {
+		grid-template-columns: 1fr;
+	}
 }
 
 .ecoflow-dual-layout.teslogic-dual .teslogic-bottom--triple {

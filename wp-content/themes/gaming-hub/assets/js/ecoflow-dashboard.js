@@ -224,6 +224,12 @@
 
 	function buildFlowPayload(data) {
 		const pro = deviceFlowSlice(data);
+		// Site solar_in is Delta LV; Pro LV lives on solar_pro.
+		if (Object.prototype.hasOwnProperty.call(data, 'solar_pro')) {
+			pro.solar_in = data.solar_pro === null || data.solar_pro === undefined || data.solar_pro === ''
+				? null
+				: Number(data.solar_pro) || 0;
+		}
 		const delta = data.secondary && typeof data.secondary === 'object'
 			? deviceFlowSlice(data.secondary)
 			: independentDelta();
@@ -234,11 +240,15 @@
 			solar_in: delta.solar_in === null || delta.solar_in === undefined
 				? null
 				: Number(delta.solar_in) || 0,
+			solar_pro: pro.solar_in,
 			hv_in: Number(pro.hv_in) || Number(data.hv_in) || 0,
 			grid_in: pro.ac_in,
 			ac_in: pro.ac_in,
 			pro_grid_charge: data.pro_grid_charge && typeof data.pro_grid_charge === 'object'
 				? data.pro_grid_charge
+				: { active: false, watts: 0, message: '' },
+			delta_grid_charge: data.delta_grid_charge && typeof data.delta_grid_charge === 'object'
+				? data.delta_grid_charge
 				: { active: false, watts: 0, message: '' },
 			pro: pro,
 			battery_percent: pro.battery_percent,
@@ -1373,11 +1383,13 @@
 		setField('plan_ac', formatKwh(plan.ac_today_kwh));
 		setField(
 			'plan_ac_meta',
-			t('Now %1$s W · %3$s W from %2$s°C / 1 kW at %4$s°C+')
+			t('Now %1$s W · cool %3$s W@%2$s°C→1 kW@%4$s°C+ · heat %3$s W@%5$s°C→1 kW@%6$s°C−')
 				.replace('%1$s', Number(plan.ac_now_w || 0).toLocaleString())
 				.replace('%2$s', String(Math.round(Number(plan.ac_start_c != null ? plan.ac_start_c : 27))))
 				.replace('%3$s', Number(plan.ac_start_w != null ? plan.ac_start_w : 300).toLocaleString())
 				.replace('%4$s', String(Math.round(Number(plan.ac_max_c != null ? plan.ac_max_c : 34))))
+				.replace('%5$s', String(Math.round(Number(plan.ac_heat_start_c != null ? plan.ac_heat_start_c : 10))))
+				.replace('%6$s', String(Math.round(Number(plan.ac_heat_min_c != null ? plan.ac_heat_min_c : 3))))
 		);
 		setField(
 			'plan_solar_today',

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, reconcileRemainWh, deltaGridAc, hvInput, proGridCharge, solarToDelta, upsOutput, weatherIcon } from './constants';
+import { FLOW_THRESHOLD, formatPack, formatSoc, formatWatts, parseSoc, reconcileRemainWh, deltaGridAc, hvInput, proGridCharge, proLowVolt, solarToDelta, upsOutput, weatherIcon } from './constants';
 // Flow canvas lines disabled — keep BattIcon discharge arrow only.
 
 function isFlowActive( flowId, status ) {
@@ -9,6 +9,11 @@ function isFlowActive( flowId, status ) {
 
 	if ( flowId === 'solar' ) {
 		const watts = solarToDelta( status );
+		return watts !== null && watts !== undefined && Number( watts ) >= FLOW_THRESHOLD;
+	}
+
+	if ( flowId === 'proLv' ) {
+		const watts = proLowVolt( status );
 		return watts !== null && watts !== undefined && Number( watts ) >= FLOW_THRESHOLD;
 	}
 
@@ -233,11 +238,12 @@ function useLiveTodayYen( todayYen ) {
 
 function liveTodaySolar( todaySolar ) {
 	if ( ! todaySolar || typeof todaySolar !== 'object' ) {
-		return { pro: null, delta: null };
+		return { pro: null, proLv: null, delta: null };
 	}
 
 	return {
 		pro: Number( todaySolar.pro_wh ),
+		proLv: todaySolar.pro_lv_wh === undefined ? null : Number( todaySolar.pro_lv_wh ),
 		delta: Number( todaySolar.delta_wh ),
 	};
 }
@@ -530,6 +536,12 @@ function AirconControls( { plug, labels, onPowerChange } ) {
 				<span className="teslogic-aircon__temp-value">
 					<small>{ labels.airconTarget || '設定温度' }</small>
 					<strong>{ `${ temp }°C` }</strong>
+					{ Number.isFinite( Number( plug.outdoor_temp ) ) ? (
+						<em className="teslogic-aircon__outdoor">
+							{ labels.airconOutdoor || '外気温（多治見）' }
+							{ ` ${ Math.round( Number( plug.outdoor_temp ) ) }°C` }
+						</em>
+					) : null }
 				</span>
 				<button type="button" onClick={ () => stepTemp( 1 ) } disabled={ temp >= cfg.tempMax } aria-label="+1°C">＋</button>
 			</div>
@@ -727,6 +739,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const delta = status.delta || {};
 	const solarWatts = solarToDelta( status );
 	const hvWatts = hvInput( status );
+	const proLvWatts = proLowVolt( status );
 	const proGrid = proGridCharge( status );
 	const roomWatts = Number( status.home_out ) || Number( pro.ac_out ) || 0;
 	const upsWatts = upsOutput( status );
@@ -752,7 +765,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const proInW = Math.max(
 		asWatts( pro.input_total ),
 		asWatts( pro.input_watts ),
-		asWatts( proGrid.watts ) + asWatts( hvWatts )
+		asWatts( proGrid.watts ) + asWatts( hvWatts ) + asWatts( proLvWatts )
 	);
 	const proOutW = Math.max(
 		asWatts( pro.output_total ),
@@ -768,7 +781,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 		) );
 	const proCurrentW = proCharging ? proInW : proOutW;
 	const proTodayKwh = proCharging
-		? whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro )
+		? whToKwh( liveBuy?.pro ) + whToKwh( liveSolar?.pro ) + whToKwh( liveSolar?.proLv )
 		: whToKwh( liveUsage?.room );
 	const proFullWh = Number( pro.capacity_wh );
 	const proRemainWh = reconcileRemainWh(
@@ -869,7 +882,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 			<section className="teslogic-system ecoflow-teslogic-system" aria-label={ labels.pro }>
 				<p className="teslogic-title">{ labels.pro }</p>
 
-				<div className="teslogic-top">
+				<div className="teslogic-top teslogic-top--quad">
 					<FlowCard
 						flowId="grid"
 						className={ `teslogic-card--grid teslogic-card--icon-lg${ isFlowActive( 'grid', status ) ? ' is-inputting' : '' }` }
@@ -920,6 +933,21 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						currentValue={ formatWattsExact( hvWatts ) }
 						totalLabel="Today"
 						totalValue={ formatTodayKw( liveSolar?.pro ) }
+					/>
+
+					<FlowCard
+						flowId="proLv"
+						className={ `teslogic-card--hv teslogic-card--icon-lg${ isFlowActive( 'proLv', status ) ? ' is-inputting' : '' }` }
+						label={ labels.proLv || labels.solar || 'Low Volt' }
+						icon={ todayWeatherIcon || ( isFlowActive( 'proLv', status ) ? '☀️' : '🔆' ) }
+						iconTitle={ todayWeatherTitle }
+						note={ todayWeatherText || null }
+						active={ isFlowActive( 'proLv', status ) }
+						unavailable={ proLvWatts === null || proLvWatts === undefined }
+						currentLabel="Current"
+						currentValue={ ( proLvWatts === null || proLvWatts === undefined ) ? na : formatWattsExact( proLvWatts ) }
+						totalLabel="Today"
+						totalValue={ ( proLvWatts === null || proLvWatts === undefined ) ? na : formatTodayKw( liveSolar?.proLv ) }
 					/>
 				</div>
 
@@ -995,7 +1023,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 					<FlowCard
 						flowId="deltaGrid"
 						className={ `teslogic-card--grid teslogic-card--icon-lg${ ! deltaMissing && isFlowActive( 'deltaGrid', status ) ? ' is-inputting' : '' }` }
-						label={ labels.deltaGrid || 'グリッド AC 入力' }
+						label={ labels.gridCharge || labels.deltaGrid || 'グリッド補充電' }
 						icon="⚡"
 						active={ ! deltaMissing && isFlowActive( 'deltaGrid', status ) }
 						unavailable={ deltaMissing }
@@ -1005,7 +1033,12 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						totalValue={ deltaMissing ? na : formatTodayKw( liveBuy?.delta ) }
 						extra={ deltaMissing ? null : (
 							<ExtraLines
-								lines={ [ formatYenInt( liveYen?.grid ) ] }
+								lines={ [
+									formatYenInt( liveYen?.grid ),
+									( status.delta_grid_charge && status.delta_grid_charge.message )
+										|| ( delta.grid_rescue && delta.grid_rescue.message )
+										|| null,
+								].filter( Boolean ) }
 							/>
 						) }
 					/>
