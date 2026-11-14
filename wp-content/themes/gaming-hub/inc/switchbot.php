@@ -357,18 +357,38 @@ function gaming_hub_switchbot_ac_is_enabled() {
 }
 
 /**
- * A/C mode (cool / heat). The plug cannot report it, so use SWITCHBOT_AC_MODE
+ * Current outdoor temperature in Tajimi (°C), or null when unavailable.
+ *
+ * @return float|null
+ */
+function gaming_hub_switchbot_outdoor_temp() {
+	if ( ! function_exists( 'gaming_hub_tajimi_fetch_open_meteo' ) ) {
+		return null;
+	}
+
+	$payload = gaming_hub_tajimi_fetch_open_meteo();
+	if ( is_array( $payload ) && isset( $payload['current']['temperature_2m'] ) && is_numeric( $payload['current']['temperature_2m'] ) ) {
+		return (float) $payload['current']['temperature_2m'];
+	}
+
+	return null;
+}
+
+/**
+ * A/C mode (cool / heat / dry). The plug cannot report it, so use SWITCHBOT_AC_MODE
  * when set, else infer from Tajimi outdoor temperature.
  *
  * @return array{mode: string, mode_source: string, outdoor_temp: float|null}
  */
 function gaming_hub_switchbot_ac_mode() {
+	$temp = gaming_hub_switchbot_outdoor_temp();
+
 	$saved = function_exists( 'gaming_hub_aircon_saved_state' ) ? gaming_hub_aircon_saved_state() : null;
 	if ( $saved ) {
 		return array(
 			'mode'         => $saved['mode'],
 			'mode_source'  => 'remote',
-			'outdoor_temp' => null,
+			'outdoor_temp' => $temp,
 		);
 	}
 
@@ -377,16 +397,8 @@ function gaming_hub_switchbot_ac_mode() {
 		return array(
 			'mode'         => $forced,
 			'mode_source'  => 'manual',
-			'outdoor_temp' => null,
+			'outdoor_temp' => $temp,
 		);
-	}
-
-	$temp = null;
-	if ( function_exists( 'gaming_hub_tajimi_fetch_open_meteo' ) ) {
-		$payload = gaming_hub_tajimi_fetch_open_meteo();
-		if ( is_array( $payload ) && isset( $payload['current']['temperature_2m'] ) && is_numeric( $payload['current']['temperature_2m'] ) ) {
-			$temp = (float) $payload['current']['temperature_2m'];
-		}
 	}
 
 	if ( null === $temp ) {

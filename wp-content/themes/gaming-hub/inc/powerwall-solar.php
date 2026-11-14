@@ -372,6 +372,19 @@ function gaming_hub_tajimi_clear_sky_hour_factor( $hour, $month ) {
 }
 
 /**
+ * Open-Meteo forecast endpoints. Production often cannot reach api.open-meteo.com
+ * (IPv4 timeout); previous-runs-api is reachable and serves the same /v1/forecast.
+ *
+ * @return array<int, string>
+ */
+function gaming_hub_tajimi_open_meteo_forecast_urls() {
+	return array(
+		'https://api.open-meteo.com/v1/forecast',
+		'https://previous-runs-api.open-meteo.com/v1/forecast',
+	);
+}
+
+/**
  * Fetch Open-Meteo forecast for Tajimi (current clock hour).
  *
  * @return array<string, mixed>|WP_Error
@@ -379,48 +392,68 @@ function gaming_hub_tajimi_clear_sky_hour_factor( $hour, $month ) {
 function gaming_hub_tajimi_fetch_open_meteo() {
 	$loc = gaming_hub_tajimi_solar_location();
 
-	$url = add_query_arg(
-		array(
-			'latitude'       => $loc['lat'],
-			'longitude'      => $loc['lon'],
-			'timezone'       => 'Asia/Tokyo',
-			'past_days'      => 1,
-			'forecast_days'  => 2,
-			'current'        => 'cloud_cover,is_day,weather_code,global_tilted_irradiance,temperature_2m',
-			'hourly'         => 'global_tilted_irradiance,cloud_cover,is_day,weather_code,temperature_2m,precipitation_probability',
-			'daily'          => 'weather_code,precipitation_probability_max',
-			'tilt'           => 30,
-			'azimuth'        => 0,
-		),
-		'https://api.open-meteo.com/v1/forecast'
+	$query = array(
+		'latitude'      => $loc['lat'],
+		'longitude'     => $loc['lon'],
+		'timezone'      => 'Asia/Tokyo',
+		'past_days'     => 1,
+		'forecast_days' => 2,
+		'current'       => 'cloud_cover,is_day,weather_code,global_tilted_irradiance,temperature_2m',
+		'hourly'        => 'global_tilted_irradiance,cloud_cover,is_day,weather_code,temperature_2m,precipitation_probability',
+		'daily'         => 'weather_code,precipitation_probability_max',
+		'tilt'          => 30,
+		'azimuth'       => 0,
 	);
 
-	$cache_key = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'om_v4_' . wp_date( 'Y-m-d-H' );
+	$cache_key = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'om_v5_' . wp_date( 'Y-m-d-H' );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
 
-	$response = wp_remote_get(
-		$url,
-		array(
-			'timeout' => 12,
-		)
-	);
+	$last_error = null;
+	foreach ( gaming_hub_tajimi_open_meteo_forecast_urls() as $base ) {
+		$url      = add_query_arg( $query, $base );
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout' => 6,
+			)
+		);
 
-	if ( is_wp_error( $response ) ) {
-		return $response;
+		if ( is_wp_error( $response ) ) {
+			$last_error = $response;
+			continue;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( $code < 200 || $code >= 300 ) {
+			$last_error = new WP_Error(
+				'open_meteo_http',
+				sprintf(
+					/* translators: 1: HTTP status, 2: host */
+					__( 'Open-Meteo HTTP %1$s from %2$s.', 'gaming-hub' ),
+					(string) $code,
+					(string) wp_parse_url( $base, PHP_URL_HOST )
+				)
+			);
+			continue;
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $body ) || ! empty( $body['error'] ) ) {
+			$last_error = new WP_Error( 'open_meteo_invalid', __( 'Open-Meteo response invalid.', 'gaming-hub' ) );
+			continue;
+		}
+
+		set_transient( $cache_key, $body, GAMING_HUB_TAJIMI_SOLAR_CACHE_TTL );
+
+		return $body;
 	}
 
-	$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-	if ( ! is_array( $body ) ) {
-		return new WP_Error( 'open_meteo_invalid', __( 'Open-Meteo response invalid.', 'gaming-hub' ) );
-	}
-
-	set_transient( $cache_key, $body, GAMING_HUB_TAJIMI_SOLAR_CACHE_TTL );
-
-	return $body;
+	return $last_error instanceof WP_Error
+		? $last_error
+		: new WP_Error( 'open_meteo_unreachable', __( 'Open-Meteo unreachable.', 'gaming-hub' ) );
 }
 
 /**

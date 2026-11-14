@@ -34,8 +34,9 @@ elif [[ -n "${DEPLOY_SSH_KEY_FILE:-}" ]]; then
   SSH_EXTRA=(-i "$DEPLOY_SSH_KEY_FILE")
 fi
 
-SSH=(ssh "${SSH_EXTRA[@]}" -o StrictHostKeyChecking=accept-new "$REMOTE")
-RSYNC=(rsync -avz --delete -e "ssh ${SSH_EXTRA[*]} -o StrictHostKeyChecking=accept-new")
+SSH=(ssh ${SSH_EXTRA[@]+"${SSH_EXTRA[@]}"} -o StrictHostKeyChecking=accept-new "$REMOTE")
+RSYNC_SSH="ssh ${SSH_EXTRA[*]+${SSH_EXTRA[*]}} -o StrictHostKeyChecking=accept-new"
+RSYNC=(rsync -avz --delete -e "$RSYNC_SSH")
 
 echo "==> Preparing ${DEPLOY_PATH} on server..."
 "${SSH[@]}" "sudo mkdir -p ${DEPLOY_PATH} && sudo chown -R \$(whoami):\$(whoami) ${DEPLOY_PATH}"
