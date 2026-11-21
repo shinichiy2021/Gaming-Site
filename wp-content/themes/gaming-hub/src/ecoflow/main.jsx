@@ -9,6 +9,7 @@ if ( mountNode ) {
 		solar: 'Low Volt',
 		proLv: 'Low Volt',
 		hv: 'ハイボルト',
+		proSolar: 'ハイボルト + Low Volt',
 		grid: 'グリッド',
 		gridCharge: 'グリッド補充電',
 		deltaGrid: 'グリッド AC 入力',

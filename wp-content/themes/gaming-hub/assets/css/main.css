@@ -5796,6 +5796,7 @@ body.home .site-header.is-scrolled {
 	}
 }
 
+.ecoflow-dual-layout.teslogic-dual .teslogic-top--triple,
 .ecoflow-dual-layout.teslogic-dual .teslogic-bottom--triple {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	max-width: none;
@@ -5804,6 +5805,7 @@ body.home .site-header.is-scrolled {
 }
 
 @media (max-width: 720px) {
+	.ecoflow-dual-layout.teslogic-dual .teslogic-top--triple,
 	.ecoflow-dual-layout.teslogic-dual .teslogic-bottom--triple {
 		grid-template-columns: 1fr;
 	}

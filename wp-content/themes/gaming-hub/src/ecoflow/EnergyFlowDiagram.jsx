@@ -25,6 +25,10 @@ function isFlowActive( flowId, status ) {
 		return proGridCharge( status ).active && proGridCharge( status ).watts >= FLOW_THRESHOLD;
 	}
 
+	if ( flowId === 'proSolar' ) {
+		return isFlowActive( 'hv', status ) || isFlowActive( 'proLv', status );
+	}
+
 	if ( flowId === 'hv' ) {
 		return hvInput( status ) >= FLOW_THRESHOLD;
 	}
@@ -846,8 +850,6 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const unitRemainWh = mainRemainWh === null
 		? null
 		: mainRemainWh + ( extraMissing ? 0 : ( extraRemainWh || 0 ) );
-	const mainSoc = hasDeltaSoc ? deltaSocNum : null;
-	const hasMainSoc = hasDeltaSoc;
 	const unitSoc = ( unitRemainWh !== null && unitFullWh > 0 )
 		? Math.max( 0, Math.min( 100, ( unitRemainWh / unitFullWh ) * 100 ) )
 		: deltaSocNum;
@@ -855,12 +857,6 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 	const deltaPackLabel = deltaMissing
 		? ( typeof window !== 'undefined' && window.gamingHubT ? window.gamingHubT( 'n/a' ) : 'n/a' )
 		: ( unitFullWh > 0 ? formatPack( unitRemainWh, unitFullWh ) : '' );
-	const mainCapLabel = deltaMissing
-		? na
-		: formatPack( mainRemainWh, mainFullWh );
-	const extraCapLabel = ( extraMissing || deltaMissing )
-		? na
-		: formatPack( extraRemainWh, extraCap );
 	const unitCharging = deltaCharging || extraCharging;
 	const unitDischarging = ! unitCharging && ( deltaDischarging || extraDischarging );
 
@@ -922,36 +918,32 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 					/>
 
 					<FlowCard
-						flowId="hv"
-						className={ `teslogic-card--hv teslogic-card--icon-lg${ isFlowActive( 'hv', status ) ? ' is-inputting' : '' }` }
-						label={ labels.hv || 'ハイボルト' }
-						icon={ todayWeatherIcon || ( isFlowActive( 'hv', status ) ? '☀️' : '🔆' ) }
+						flowId="proSolar"
+						className={ `teslogic-card--hv teslogic-card--icon-lg${ isFlowActive( 'proSolar', status ) ? ' is-inputting' : '' }` }
+						label={ labels.proSolar || `${ labels.hv || 'High volt' } + ${ labels.proLv || labels.solar || 'Low Volt' }` }
+						icon={ todayWeatherIcon || ( isFlowActive( 'proSolar', status ) ? '☀️' : '🔆' ) }
 						iconTitle={ todayWeatherTitle }
 						note={ todayWeatherText || null }
-						active={ isFlowActive( 'hv', status ) }
+						active={ isFlowActive( 'proSolar', status ) }
 						currentLabel="Current"
-						currentValue={ formatWattsExact( hvWatts ) }
+						currentValue={ formatWattsExact(
+							asWatts( hvWatts ) + ( proLvWatts === null || proLvWatts === undefined ? 0 : asWatts( proLvWatts ) )
+						) }
 						totalLabel="Today"
-						totalValue={ formatTodayKw( liveSolar?.pro ) }
+						totalValue={ formatTodayKw(
+							asWatts( liveSolar?.pro ) + ( liveSolar?.proLv == null ? 0 : asWatts( liveSolar.proLv ) )
+						) }
+						extra={ (
+							<ExtraLines
+								lines={ [
+									`${ labels.hv || 'HV' } ${ formatWattsExact( hvWatts ) } · ${ labels.proLv || labels.solar || 'LV' } ${
+										( proLvWatts === null || proLvWatts === undefined ) ? na : formatWattsExact( proLvWatts )
+									}`,
+								] }
+							/>
+						) }
 					/>
 
-					<FlowCard
-						flowId="proLv"
-						className={ `teslogic-card--hv teslogic-card--icon-lg${ isFlowActive( 'proLv', status ) ? ' is-inputting' : '' }` }
-						label={ labels.proLv || labels.solar || 'Low Volt' }
-						icon={ todayWeatherIcon || ( isFlowActive( 'proLv', status ) ? '☀️' : '🔆' ) }
-						iconTitle={ todayWeatherTitle }
-						note={ todayWeatherText || null }
-						active={ isFlowActive( 'proLv', status ) }
-						unavailable={ proLvWatts === null || proLvWatts === undefined }
-						currentLabel="Current"
-						currentValue={ ( proLvWatts === null || proLvWatts === undefined ) ? na : formatWattsExact( proLvWatts ) }
-						totalLabel="Today"
-						totalValue={ ( proLvWatts === null || proLvWatts === undefined ) ? na : formatTodayKw( liveSolar?.proLv ) }
-					/>
-				</div>
-
-				<div className="teslogic-bottom teslogic-bottom--single">
 					<FlowCard
 						flowId="home"
 						className={ `teslogic-card--home teslogic-card--icon-lg${ isFlowActive( 'proToHome', status ) ? ' is-outputting' : '' }` }
@@ -976,50 +968,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 			<section className="teslogic-system ecoflow-teslogic-system ecoflow-teslogic-system--delta" aria-label={ labels.delta }>
 				<p className="teslogic-title">{ labels.delta }</p>
 
-				<div className="teslogic-top teslogic-top--single">
-					<PackBatteryCard
-						flowId="delta"
-						label=""
-						soc={ unitSoc }
-						hasSoc={ hasUnitSoc }
-						charging={ unitCharging }
-						discharging={ unitDischarging }
-						unavailable={ deltaMissing }
-						showIo
-						inputW={ deltaInW }
-						outputW={ deltaOutW }
-						currentW={ deltaCurrentW }
-						totalKwh={ deltaTodayKwh }
-						stateLabel={ deltaMissing ? na : ( delta.charge_state || '—' ) }
-						packLabel={ deltaPackLabel }
-						eta={ deltaMissing ? null : <PackEta device={ delta } /> }
-					>
-						<div className="teslogic-pack-unit" aria-label={ labels.delta }>
-							<PackCell
-								flowId="delta-main"
-								label={ labels.mainPack || 'Main pack' }
-								soc={ mainSoc }
-								hasSoc={ hasMainSoc }
-								capLabel={ mainCapLabel }
-								charging={ deltaCharging }
-								discharging={ deltaDischarging && ! deltaCharging }
-								unavailable={ deltaMissing }
-							/>
-							<PackCell
-								flowId="extra"
-								label={ labels.extra || 'Extra Battery 1kW' }
-								soc={ extraSoc }
-								hasSoc={ ! extraMissing && ! deltaMissing }
-								capLabel={ extraCapLabel }
-								charging={ extraCharging }
-								discharging={ extraDischarging }
-								unavailable={ extraMissing || deltaMissing }
-							/>
-						</div>
-					</PackBatteryCard>
-				</div>
-
-				<div className="teslogic-bottom teslogic-bottom--triple">
+				<div className="teslogic-top teslogic-top--triple">
 					<FlowCard
 						flowId="deltaGrid"
 						className={ `teslogic-card--grid teslogic-card--icon-lg${ ! deltaMissing && isFlowActive( 'deltaGrid', status ) ? ' is-inputting' : '' }` }
@@ -1043,19 +992,22 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 						) }
 					/>
 
-					<FlowCard
-						flowId="solar"
-						className={ `teslogic-card--hv teslogic-card--icon-lg${ ! deltaMissing && isFlowActive( 'solar', status ) ? ' is-inputting' : '' }` }
-						label={ labels.solar }
-						icon={ todayWeatherIcon || ( ! deltaMissing && isFlowActive( 'solar', status ) ? '☀️' : '🔆' ) }
-						iconTitle={ todayWeatherTitle }
-						note={ todayWeatherText || null }
-						active={ ! deltaMissing && isFlowActive( 'solar', status ) }
-						unavailable={ solarWatts === null || solarWatts === undefined || deltaMissing }
-						currentLabel="Current"
-						currentValue={ ( solarWatts === null || solarWatts === undefined || deltaMissing ) ? na : formatWattsExact( solarWatts ) }
-						totalLabel="Today"
-						totalValue={ ( solarWatts === null || solarWatts === undefined || deltaMissing ) ? na : formatTodayKw( liveSolar?.delta ) }
+					<PackBatteryCard
+						flowId="delta"
+						label={ labels.delta }
+						soc={ unitSoc }
+						hasSoc={ hasUnitSoc }
+						charging={ unitCharging }
+						discharging={ unitDischarging }
+						unavailable={ deltaMissing }
+						showIo
+						inputW={ deltaInW }
+						outputW={ deltaOutW }
+						currentW={ deltaCurrentW }
+						totalKwh={ deltaTodayKwh }
+						stateLabel={ deltaMissing ? na : ( delta.charge_state || '—' ) }
+						packLabel={ deltaPackLabel }
+						eta={ deltaMissing ? null : <PackEta device={ delta } /> }
 					/>
 
 					<FlowCard
@@ -1076,18 +1028,7 @@ function DualFlowDiagram( { status, labels, liveYen, liveSolar, liveUsage, liveB
 								] }
 							/>
 						) : null }
-					>
-						{ status.ac_plug ? (
-							<AirconCell
-								plug={ status.ac_plug }
-								todayWh={ liveUsage?.ac }
-								othersWatts={ upsLive && Number.isFinite( Number( status.ac_plug.watts ) )
-									? Math.max( 0, asWatts( upsWatts ) - Number( status.ac_plug.watts ) )
-									: null }
-								labels={ labels }
-							/>
-						) : null }
-					</FlowCard>
+					/>
 				</div>
 			</section>
 		</div>
