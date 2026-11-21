@@ -25,9 +25,11 @@ define( 'GAMING_HUB_ECOFLOW_PLAN_MIN_SOC', 100 - GAMING_HUB_ECOFLOW_PLAN_USABLE_
 /** Solar may still fill the pack; cheap-grid target is 100% minus forecast solar. */
 define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC', 100 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX', 100 );
+/** Delta 1500 has no solar headroom in the AI Plan — cheap-grid target is full. */
+define( 'GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC', 100 );
 /** Only schedule grid charge within this 円/kWh of the cheapest look-ahead hour. */
 define( 'GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM', 8.0 );
-define( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC', false );
+define( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC', true );
 define( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W', 1000 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W', 0 );
 define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON', 100 );
@@ -691,7 +693,7 @@ function gaming_hub_ecoflow_get_charge_plan( array $status, $force = false ) {
 	$delta_key  = null !== ( $delta_pack['soc'] ?? null ) ? (int) floor( (float) $delta_pack['soc'] / 5 ) : 'x';
 	$dates      = gaming_hub_ecoflow_plan_dates();
 	$was_grid   = gaming_hub_ecoflow_plan_was_grid_charging() ? '1' : '0';
-	$key        = 'gaming_hub_ecoflow_plan_v39_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_HEAT_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH;
+	$key        = 'gaming_hub_ecoflow_plan_v42_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_HEAT_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH . '_d' . ( GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC ? '1' : '0' );
 
 	if ( ! $force ) {
 		$cached = get_transient( $key );
@@ -898,16 +900,21 @@ function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status, $l
 			$pro_wh,
 			$delta_wh
 		);
-		$pro_pct = $soc_series[ $h ] ?? null;
-		$has_pro = null !== $pro_pct && is_numeric( $pro_pct );
-		if ( defined( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC' ) && ! GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC ) {
-			$bar_pro[ $h ]   = $has_pro ? round( max( 0.0, min( 100.0, (float) $pro_pct ) ), 1 ) : 0.0;
-			$bar_delta[ $h ] = 0.0;
-			$combined[ $h ]  = $has_pro ? round( (float) $pro_pct, 1 ) : null;
+		$pro_pct   = $soc_series[ $h ] ?? null;
+		$delta_pct = $delta_series[ $h ] ?? null;
+		$has_pro   = null !== $pro_pct && is_numeric( $pro_pct );
+		$has_delta = null !== $delta_pct && is_numeric( $delta_pct );
+		// Side-by-side bars: each height is that unit's own SOC % (not combined Wh share).
+		$bar_pro[ $h ]   = $has_pro ? round( max( 0.0, min( 100.0, (float) $pro_pct ) ), 1 ) : 0.0;
+		$bar_delta[ $h ] = ( defined( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC' ) && GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC && $has_delta )
+			? round( max( 0.0, min( 100.0, (float) $delta_pct ) ), 1 )
+			: 0.0;
+		if ( $has_pro ) {
+			$combined[ $h ] = round( (float) $pro_pct, 1 );
+		} elseif ( $has_delta ) {
+			$combined[ $h ] = round( (float) $delta_pct, 1 );
 		} else {
-			$bar_pro[ $h ]   = $stack['pro'];
-			$bar_delta[ $h ] = $stack['delta'];
-			$combined[ $h ]  = $stack['combined'];
+			$combined[ $h ] = null;
 		}
 		$w_pro[ $h ]     = $stack['pro_w'];
 		$w_delta[ $h ]   = $stack['delta_w'];
@@ -1044,6 +1051,9 @@ function gaming_hub_ecoflow_charge_plan_note_text( array $plan ) {
 	$target   = isset( $plan['target_soc'] ) && is_numeric( $plan['target_soc'] )
 		? (float) $plan['target_soc']
 		: (float) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC;
+	$delta_target = isset( $plan['target_soc_delta'] ) && is_numeric( $plan['target_soc_delta'] )
+		? (float) $plan['target_soc_delta']
+		: (float) GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC;
 	$headroom = isset( $plan['solar_headroom_soc'] ) && is_numeric( $plan['solar_headroom_soc'] )
 		? (int) $plan['solar_headroom_soc']
 		: 0;
@@ -1054,6 +1064,8 @@ function gaming_hub_ecoflow_charge_plan_note_text( array $plan ) {
 		? (int) $plan['charge_w']
 		: (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W;
 	$needs_grid = ! empty( $plan['needs_grid'] );
+	$pro_skip   = empty( $plan['needs_grid_pro'] );
+	$delta_skip = empty( $plan['needs_grid_delta'] );
 
 	if ( 'yesterday' === $day_key ) {
 		return __( 'Yesterday’s measured data. Yellow/orange bars are SOC; gold bands are logged grid charge. Approve today’s plan only.', 'gaming-hub' );
@@ -1085,15 +1097,28 @@ function gaming_hub_ecoflow_charge_plan_note_text( array $plan ) {
 		);
 	}
 
+	if ( $pro_skip && ! $delta_skip ) {
+		return sprintf(
+			/* translators: 1: charge kWh, 2: charge watts, 3: Delta target SOC */
+			'tomorrow' === $day_key
+				? __( 'About %1$s kWh at %2$s W in the cheapest hours to bring Delta 1500 to %3$s%%. Pro already meets its solar-aware target.', 'gaming-hub' )
+				: __( 'About %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Delta 1500 to %3$s%%. Pro already meets its solar-aware target.', 'gaming-hub' ),
+			number_format_i18n( $deficit, 1 ),
+			number_format_i18n( $charge_w ),
+			number_format_i18n( $delta_target )
+		);
+	}
+
 	return sprintf(
-		/* translators: 1: charge kWh, 2: charge watts, 3: target SOC, 4: solar headroom percent */
+		/* translators: 1: charge kWh, 2: charge watts, 3: Pro target SOC, 4: solar headroom percent, 5: Delta target SOC */
 		'tomorrow' === $day_key
-			? __( 'Leaving about %4$s%% for tomorrow’s solar, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%%.', 'gaming-hub' )
-			: __( 'Leaving about %4$s%% for solar, about %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Pro near %3$s%%.', 'gaming-hub' ),
+			? __( 'Leaving about %4$s%% for tomorrow’s solar, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%% and Delta 1500 to %5$s%%.', 'gaming-hub' )
+			: __( 'Leaving about %4$s%% for solar, about %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Pro near %3$s%% and Delta 1500 to %5$s%%.', 'gaming-hub' ),
 		number_format_i18n( $deficit, 1 ),
 		number_format_i18n( $charge_w ),
 		number_format_i18n( $target ),
-		number_format_i18n( $headroom )
+		number_format_i18n( $headroom ),
+		number_format_i18n( $delta_target )
 	);
 }
 
@@ -1184,10 +1209,19 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	$pro_solar_remaining_kwh = gaming_hub_ecoflow_sum_hours_kwh( $split_solar['pro'], $hour, $hour_frac_left );
 	$headroom_soc  = gaming_hub_ecoflow_plan_solar_headroom_soc( $full_wh, $pro_solar_remaining_kwh );
 	$target_soc    = gaming_hub_ecoflow_plan_grid_target_soc( $full_wh, $pro_solar_remaining_kwh );
+	$delta_target_soc = (int) GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC;
 	$projected_soc = gaming_hub_ecoflow_plan_projected_soc( $soc, $full_wh, $pro_solar_remaining_kwh, $room_remaining_kwh );
 	$deficit_kwh   = gaming_hub_ecoflow_plan_charge_to_target_kwh( $soc, $full_wh, $target_soc );
+	$delta_full_wh = (float) ( $delta_pack['full_wh'] ?? 0 );
+	$delta_deficit_kwh = ( null !== $delta_soc && $delta_full_wh > 0 )
+		? gaming_hub_ecoflow_plan_charge_to_target_kwh( $delta_soc, $delta_full_wh, $delta_target_soc )
+		: 0.0;
 	$was_charging  = ( 'yesterday' !== $day_key ) && gaming_hub_ecoflow_plan_was_grid_charging();
-	$needed        = gaming_hub_ecoflow_plan_deficit_skips_grid( $deficit_kwh, $was_charging );
+	// Pro uses start/stop hysteresis; Delta fills to 100% once above the stop floor.
+	$pro_skip      = gaming_hub_ecoflow_plan_deficit_skips_grid( $deficit_kwh, $was_charging );
+	$delta_skip    = null === $delta_soc || $delta_full_wh <= 0
+		|| gaming_hub_ecoflow_plan_deficit_skips_grid( $delta_deficit_kwh, true );
+	$needed        = $pro_skip && $delta_skip;
 
 	$windows = array();
 	$avg_yen = null;
@@ -1198,6 +1232,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'picked'  => array(),
 	);
 	$logged_keys = 'yesterday' === $day_key ? gaming_hub_ecoflow_logged_charge_keys( $plan_date ) : array();
+	$ac_watts_plan = is_array( $room['ac_watts'] ?? null ) ? $room['ac_watts'] : array();
+	$delta_load    = array_fill( 0, 24, $dc1500_w );
 
 	if ( 'yesterday' === $day_key && $logged_keys ) {
 		$grid_wh = 0.0;
@@ -1250,18 +1286,36 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 				)
 				: __('Yesterday looks like no grid charge was needed.', 'gaming-hub') );
 	} else {
-		$picked = gaming_hub_ecoflow_pick_cheap_hours( $hour, $deficit_kwh, $solar_hours, $plan_date );
-		$picked = gaming_hub_ecoflow_trim_picked_to_target_soc(
-			$hour,
-			$soc,
-			$full_wh,
-			$picked['picked'],
-			$solar_hours,
-			$split_solar['pro'],
-			is_array( $room['ac_watts'] ?? null ) ? $room['ac_watts'] : array(),
-			$plan_date,
-			$target_soc
+		$pick_kwh = max(
+			$pro_skip ? 0.0 : (float) $deficit_kwh,
+			$delta_skip ? 0.0 : (float) $delta_deficit_kwh
 		);
+		$picked = gaming_hub_ecoflow_pick_cheap_hours( $hour, $pick_kwh, $solar_hours, $plan_date );
+		if ( ! $pro_skip ) {
+			$picked = gaming_hub_ecoflow_trim_picked_to_target_soc(
+				$hour,
+				$soc,
+				$full_wh,
+				$picked['picked'],
+				$solar_hours,
+				$split_solar['pro'],
+				$ac_watts_plan,
+				$plan_date,
+				$target_soc
+			);
+		}
+		if ( ! $delta_skip && null !== $delta_soc && $delta_full_wh > 0 ) {
+			$picked = gaming_hub_ecoflow_ensure_delta_target_hours(
+				$hour,
+				$delta_soc,
+				$delta_full_wh,
+				$picked,
+				$solar_hours,
+				$delta_load,
+				$plan_date,
+				$delta_target_soc
+			);
+		}
 		$windows = $picked['windows'];
 		$avg_yen = $picked['avg_yen'];
 		if ( empty( $picked['picked'] ) ) {
@@ -1274,21 +1328,36 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 			);
 		} else {
 			$deficit_kwh = round( count( $picked['picked'] ) * ( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W / 1000.0 ), 2 );
-			$note        = sprintf(
-				/* translators: 1: charge kWh, 2: charge watts, 3: target SOC, 4: solar headroom percent */
-				'tomorrow' === $day_key
-					? __('Leaving about %4$s%% for tomorrow’s solar, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%%.', 'gaming-hub')
-					: __('Leaving about %4$s%% for solar, about %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Pro near %3$s%%.', 'gaming-hub'),
-				number_format_i18n( $deficit_kwh, 1 ),
-				number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W ),
-				number_format_i18n( $target_soc ),
-				number_format_i18n( (int) round( $headroom_soc ) )
-			);
+			if ( $pro_skip && ! $delta_skip ) {
+				$note = sprintf(
+					/* translators: 1: charge kWh, 2: charge watts, 3: Delta target SOC */
+					'tomorrow' === $day_key
+						? __('About %1$s kWh at %2$s W in the cheapest hours to bring Delta 1500 to %3$s%%. Pro already meets its solar-aware target.', 'gaming-hub')
+						: __('About %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Delta 1500 to %3$s%%. Pro already meets its solar-aware target.', 'gaming-hub'),
+					number_format_i18n( $deficit_kwh, 1 ),
+					number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W ),
+					number_format_i18n( $delta_target_soc )
+				);
+			} else {
+				$note = sprintf(
+					/* translators: 1: charge kWh, 2: charge watts, 3: Pro target SOC, 4: solar headroom percent, 5: Delta target SOC */
+					'tomorrow' === $day_key
+						? __('Leaving about %4$s%% for tomorrow’s solar, about %1$s kWh at %2$s W in the cheapest hours to bring Pro near %3$s%% and Delta 1500 to %5$s%%.', 'gaming-hub')
+						: __('Leaving about %4$s%% for solar, about %1$s kWh at %2$s W in Smart Time ONE’s cheapest hours to bring Pro near %3$s%% and Delta 1500 to %5$s%%.', 'gaming-hub'),
+					number_format_i18n( $deficit_kwh, 1 ),
+					number_format_i18n( GAMING_HUB_ECOFLOW_PLAN_CHARGE_W ),
+					number_format_i18n( $target_soc ),
+					number_format_i18n( (int) round( $headroom_soc ) ),
+					number_format_i18n( $delta_target_soc )
+				);
+			}
 		}
 	}
 
 	if ( 'today' === $day_key ) {
-		$stuck = gaming_hub_ecoflow_stick_current_charge_pick( $picked, $hour, $soc, $target_soc, $plan_date );
+		$stick_target = $pro_skip ? $delta_target_soc : $target_soc;
+		$stick_soc    = $pro_skip && null !== $delta_soc ? (int) round( (float) $delta_soc ) : (int) $soc;
+		$stuck = gaming_hub_ecoflow_stick_current_charge_pick( $picked, $hour, $stick_soc, $stick_target, $plan_date );
 		if ( $stuck['stuck'] ) {
 			$picked       = $stuck['picked'];
 			$windows      = $picked['windows'];
@@ -1299,7 +1368,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	}
 
 	$slots    = gaming_hub_ecoflow_build_day_slots( $hour, $solar_hours, $picked['picked'], $plan_date, $logged_keys );
-	$ac_watts = is_array( $room['ac_watts'] ?? null ) ? $room['ac_watts'] : array();
+	$ac_watts = $ac_watts_plan;
 	$soc_series_pro = gaming_hub_ecoflow_soc_series(
 		$hour,
 		$soc,
@@ -1309,17 +1378,16 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		$split_solar['pro'],
 		true
 	);
-	$delta_load = array_fill( 0, 24, $dc1500_w );
 	if ( null !== $delta_soc && ( $delta_pack['full_wh'] ?? 0 ) > 0 ) {
-		// Delta AI Plan ignores LV solar forecast — plan grid/load only (no PV credit).
+		// Delta AI Plan: same cheap-hour grid windows as Pro, but no LV solar credit.
 		$soc_series_delta = gaming_hub_ecoflow_soc_series(
 			$hour,
 			$delta_soc,
 			$delta_pack['full_wh'],
-			array(),
+			$slots,
 			$delta_load,
 			array(),
-			false
+			true
 		);
 	} else {
 		$soc_series_delta = array_fill( 0, 24, null );
@@ -1342,6 +1410,10 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'solar_hud_label'      => $day_labels['solar_hud_label'],
 		'deficit_hud_label'    => $day_labels['deficit_hud_label'],
 		'deficit_kwh'          => round( $deficit_kwh, 2 ),
+		'deficit_kwh_pro'      => round( gaming_hub_ecoflow_plan_charge_to_target_kwh( $soc, $full_wh, $target_soc ), 2 ),
+		'deficit_kwh_delta'    => round( $delta_deficit_kwh, 2 ),
+		'needs_grid_pro'       => ! $pro_skip,
+		'needs_grid_delta'     => ! $delta_skip,
 		'needs_grid'           => ! $needed,
 		'window_label'         => $windows ? implode( '、', $windows ) : __('No grid charge needed', 'gaming-hub'),
 		'window_avg_yen'       => $avg_yen,
@@ -1354,6 +1426,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'solar_today_kwh'      => round( $solar_today_kwh, 2 ),
 		'usable_battery_kwh'   => round( $usable_kwh, 2 ),
 		'target_soc'           => (int) $target_soc,
+		'target_soc_delta'     => (int) $delta_target_soc,
 		'solar_headroom_soc'   => (int) round( $headroom_soc ),
 		'projected_soc'        => round( $projected_soc, 1 ),
 		'weather'              => $weather,
@@ -1666,6 +1739,87 @@ function gaming_hub_ecoflow_trim_picked_to_target_soc( $from_hour, $soc, $full_w
 		'windows' => gaming_hub_ecoflow_group_hour_windows( $picked ),
 		'avg_yen' => round( $avg, 1 ),
 		'picked'  => $picked,
+	);
+}
+
+/**
+ * Add cheap hours until simulated Delta SOC reaches the target (default 100%).
+ *
+ * @param int                                      $from_hour Current hour.
+ * @param float                                    $delta_soc Current Delta SOC.
+ * @param float                                    $delta_wh  Delta full Wh.
+ * @param array{windows?: array<int, string>, avg_yen?: float|null, picked?: array<int, array{hour: int, index: int, yen: float}>} $picked Current pick.
+ * @param array<int, mixed>                        $solar_hours Combined solar (slot modes).
+ * @param array<int, mixed>                        $delta_load  Delta hourly load watts.
+ * @param string                                   $plan_date   Y-m-d.
+ * @param int|float                                $target      Delta target SOC %.
+ * @return array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array{hour: int, index: int, yen: float}>}
+ */
+function gaming_hub_ecoflow_ensure_delta_target_hours( $from_hour, $delta_soc, $delta_wh, array $picked, array $solar_hours, array $delta_load, $plan_date, $target = 100 ) {
+	$rows = array_values( is_array( $picked['picked'] ?? null ) ? $picked['picked'] : array() );
+	$pool = gaming_hub_ecoflow_pick_cheap_hours( $from_hour, 50.0, $solar_hours, $plan_date );
+	$pool_rows = is_array( $pool['picked'] ?? null ) ? $pool['picked'] : array();
+	$target    = max( 0.0, min( 100.0, (float) $target ) );
+
+	$used = array();
+	foreach ( $rows as $row ) {
+		$used[ (int) ( $row['index'] ?? -1 ) ] = true;
+	}
+
+	$guard = 0;
+	while ( $guard < 24 ) {
+		$guard++;
+		$slots  = gaming_hub_ecoflow_build_day_slots( $from_hour, $solar_hours, $rows, $plan_date, array() );
+		$series = gaming_hub_ecoflow_soc_series( $from_hour, $delta_soc, $delta_wh, $slots, $delta_load, array(), true );
+		$peak   = 0.0;
+		$found  = false;
+		foreach ( $series as $pct ) {
+			if ( ! is_numeric( $pct ) ) {
+				continue;
+			}
+			$found = true;
+			$peak  = max( $peak, (float) $pct );
+		}
+		if ( $found && $peak >= $target - 0.5 ) {
+			break;
+		}
+
+		$added = false;
+		foreach ( $pool_rows as $cand ) {
+			$idx = (int) ( $cand['index'] ?? -1 );
+			if ( isset( $used[ $idx ] ) ) {
+				continue;
+			}
+			$rows[]        = $cand;
+			$used[ $idx ]  = true;
+			$added         = true;
+			break;
+		}
+		if ( ! $added ) {
+			break;
+		}
+	}
+
+	if ( ! $rows ) {
+		return array(
+			'windows' => array(),
+			'avg_yen' => null,
+			'picked'  => array(),
+		);
+	}
+
+	usort(
+		$rows,
+		static function ( $a, $b ) {
+			return (int) $a['index'] <=> (int) $b['index'];
+		}
+	);
+	$avg = array_sum( array_column( $rows, 'yen' ) ) / count( $rows );
+
+	return array(
+		'windows' => gaming_hub_ecoflow_group_hour_windows( $rows ),
+		'avg_yen' => round( $avg, 1 ),
+		'picked'  => $rows,
 	);
 }
 
@@ -2116,8 +2270,21 @@ function gaming_hub_ecoflow_stick_current_charge_pick( array $picked, $from_hour
 function gaming_hub_ecoflow_apply_sticky_current_charge_slot( array $plan, array $status ) {
 	$soc    = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
 	$target = isset( $plan['target_soc'] ) ? (int) $plan['target_soc'] : (int) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC;
+	$delta_soc = null;
+	if ( isset( $status['secondary']['battery_percent'] ) && is_numeric( $status['secondary']['battery_percent'] ) ) {
+		$delta_soc = (int) round( (float) $status['secondary']['battery_percent'] );
+	} elseif ( isset( $plan['soc_now_delta'] ) && is_numeric( $plan['soc_now_delta'] ) ) {
+		$delta_soc = (int) round( (float) $plan['soc_now_delta'] );
+	}
+	$delta_target = isset( $plan['target_soc_delta'] ) && is_numeric( $plan['target_soc_delta'] )
+		? (int) $plan['target_soc_delta']
+		: (int) GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC;
 
-	if ( ! gaming_hub_ecoflow_should_stick_current_charge( $soc, $target ) ) {
+	$stick = gaming_hub_ecoflow_should_stick_current_charge( $soc, $target );
+	if ( ! $stick && null !== $delta_soc ) {
+		$stick = gaming_hub_ecoflow_should_stick_current_charge( $delta_soc, $delta_target );
+	}
+	if ( ! $stick ) {
 		return $plan;
 	}
 

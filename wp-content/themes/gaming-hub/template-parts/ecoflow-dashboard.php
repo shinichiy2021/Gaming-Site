@@ -202,7 +202,7 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 
 			<div class="ecoflow-rate-chart ecoflow-plan-chart<?php echo $show_delta_soc ? '' : ' is-pro-soc-only'; ?>">
 				<div class="ecoflow-rate-y ecoflow-rate-y-soc" aria-hidden="true">
-					<span class="ecoflow-rate-y-unit"><?php echo $show_delta_soc ? esc_html__('Share %', 'gaming-hub') : esc_html__( '%', 'gaming-hub' ); ?></span>
+					<span class="ecoflow-rate-y-unit"><?php esc_html_e( '%', 'gaming-hub' ); ?></span>
 					<?php foreach ( $soc_ticks as $tick ) : ?>
 						<span><?php echo esc_html( (string) $tick ); ?></span>
 					<?php endforeach; ?>
@@ -235,8 +235,17 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 								$col_class .= ' is-empty';
 							}
 							$tip_parts = array( sprintf( '%d:00', $h ), $mode_label[ $mode ] ?? $mode );
-							if ( $has_soc ) {
-								$tip_parts[] = 'Pro ' . number_format_i18n( (float) $soc_pct, 0 ) . '%';
+							$pro_tip   = isset( $plan['soc_series_pro'][ $h ] ) && is_numeric( $plan['soc_series_pro'][ $h ] )
+								? (float) $plan['soc_series_pro'][ $h ]
+								: ( $has_soc ? (float) $soc_pct : null );
+							$delta_tip = isset( $plan['soc_series_delta'][ $h ] ) && is_numeric( $plan['soc_series_delta'][ $h ] )
+								? (float) $plan['soc_series_delta'][ $h ]
+								: null;
+							if ( null !== $pro_tip ) {
+								$tip_parts[] = 'Pro ' . number_format_i18n( $pro_tip, 0 ) . '%';
+							}
+							if ( $show_delta_soc && null !== $delta_tip ) {
+								$tip_parts[] = '1500 ' . number_format_i18n( $delta_tip, 0 ) . '%';
 							}
 							if ( $is_charge ) {
 								$tip_parts[] = gaming_hub_format_ecoflow_watts( $slot['watts'] ?? $charge_w );
@@ -299,7 +308,7 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 			</div>
 			<p class="ecoflow-plan-chart-hint"><?php esc_html_e('Swipe the chart sideways', 'gaming-hub'); ?></p>
 			<p class="ecoflow-rate-legend"><?php echo $show_delta_soc
-				? esc_html__('Yellow: Pro watts · Orange: 1500 watts · Bar height: share of combined capacity · Gold band: planned grid charge · Orange band: forecast solar Pro 800W + 1500 500W · Orange line: forecast AC load · Teal line: billed rate', 'gaming-hub')
+				? esc_html__('Yellow: Pro SOC · Orange: 1500 SOC · Gold band: planned grid charge · Orange band: forecast solar Pro 800W + 1500 500W · Orange line: forecast AC load · Teal line: billed rate', 'gaming-hub')
 				: esc_html__('Yellow: Pro SOC · Gold band: planned grid charge · Orange band: generation forecast Pro 800 W + 1500 500 W · Vermilion line: AC-out forecast · Teal: billed rate', 'gaming-hub'); ?></p>
 			<p class="ecoflow-plan-next" data-ecoflow-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 

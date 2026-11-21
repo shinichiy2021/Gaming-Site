@@ -7785,19 +7785,26 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-soc-stack {
 	display: flex;
-	flex-direction: column-reverse;
-	justify-content: flex-start;
-	align-items: center;
+	flex-direction: row;
+	justify-content: center;
+	align-items: flex-end;
+	gap: 1px;
 	width: 100%;
 	height: 100%;
 	z-index: 2;
 }
 
 .ecoflow-soc-stack .ecoflow-rate-bar {
-	width: 10px;
-	max-width: 10px;
+	width: 5px;
+	max-width: 5px;
 	min-height: 0;
 	flex: 0 0 auto;
+	align-self: flex-end;
+}
+
+.ecoflow-rate-chart.is-pro-soc-only .ecoflow-soc-stack .ecoflow-rate-bar {
+	width: 10px;
+	max-width: 10px;
 }
 
 .ecoflow-rate-col.is-empty .ecoflow-soc-stack .ecoflow-rate-bar {
@@ -7983,7 +7990,12 @@ body.home .site-header.is-scrolled {
 		top: -14px;
 	}
 
-	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-soc-stack .ecoflow-rate-bar,
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-soc-stack .ecoflow-rate-bar {
+		width: 7px;
+		max-width: 7px;
+	}
+
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-chart.is-pro-soc-only .ecoflow-soc-stack .ecoflow-rate-bar,
 	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-bar {
 		width: 16px;
 		max-width: 16px;

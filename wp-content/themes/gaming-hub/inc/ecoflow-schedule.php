@@ -482,6 +482,7 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false, $plan = nul
 	}
 
 	$saved['last_applied_w']       = $watts;
+	$saved['last_applied_delta_w'] = isset( $delta_w ) ? (int) $delta_w : (int) $watts;
 	$saved['last_applied_reserve'] = $reserve;
 	$saved['last_applied_hour']    = $hour_key;
 	$saved['last_applied_at']      = wp_date( 'c' );
@@ -536,30 +537,96 @@ function gaming_hub_ecoflow_maybe_apply_device_guard( array $status ) {
 
 	$hour_id = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
 	$last    = (string) ( $saved['last_applied_hour'] ?? '' );
+	$plan    = ( isset( $status['charge_plan'] ) && is_array( $status['charge_plan'] ) )
+		? $status['charge_plan']
+		: array();
 	$soc     = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
-	$target  = isset( $status['charge_plan']['target_soc'] )
-		? (int) $status['charge_plan']['target_soc']
+	$target  = isset( $plan['target_soc'] )
+		? (int) $plan['target_soc']
 		: ( defined( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC : 100 );
+	$delta_soc = null;
+	if ( isset( $status['secondary']['battery_percent'] ) && is_numeric( $status['secondary']['battery_percent'] ) ) {
+		$delta_soc = (float) $status['secondary']['battery_percent'];
+	} elseif ( isset( $plan['soc_now_delta'] ) && is_numeric( $plan['soc_now_delta'] ) ) {
+		$delta_soc = (float) $plan['soc_now_delta'];
+	}
+	$delta_target = isset( $plan['target_soc_delta'] ) && is_numeric( $plan['target_soc_delta'] )
+		? (int) $plan['target_soc_delta']
+		: ( defined( 'GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC : 100 );
 	$last_w  = array_key_exists( 'last_applied_w', $saved ) && null !== $saved['last_applied_w']
 		? (int) $saved['last_applied_w']
 		: null;
+	$last_delta_w = array_key_exists( 'last_applied_delta_w', $saved ) && null !== $saved['last_applied_delta_w']
+		? (int) $saved['last_applied_delta_w']
+		: $last_w;
+	$pro_charging   = null !== $last_w && $last_w > (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W && $last === $hour_id;
+	$delta_charging = null !== $last_delta_w && $last_delta_w > (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W && $last === $hour_id;
+	$pro_done       = $soc >= $target;
+	$delta_done     = null !== $delta_soc && $delta_soc >= $delta_target;
 
-	if ( null !== $last_w
-		&& $last_w > (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W
-		&& $last === $hour_id
-		&& $soc >= $target ) {
-		return gaming_hub_ecoflow_apply_approved_schedule(
-			true,
-			array(
-				'slots' => array(
-					array(
-						'id'    => $hour_id,
-						'watts' => (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
-						'mode'  => 'idle',
+	if ( $pro_charging || $delta_charging ) {
+		$slot = gaming_hub_ecoflow_current_approved_slot( $saved, $plan['slots'] ?? null );
+		$slot_w = $slot && null !== ( $slot['watts'] ?? null )
+			? gaming_hub_ecoflow_clamp_charge_watts( (int) $slot['watts'] )
+			: (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W;
+
+		if ( $pro_done && $delta_done ) {
+			return gaming_hub_ecoflow_apply_approved_schedule(
+				true,
+				array(
+					'slots' => array(
+						array(
+							'id'    => $hour_id,
+							'watts' => (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
+							'mode'  => 'idle',
+						),
 					),
-				),
-			)
-		);
+				)
+			);
+		}
+
+		if ( $pro_done && $pro_charging && ! $delta_done ) {
+			// Pro hit its solar-aware target — keep Delta charging toward 100%.
+			$result = gaming_hub_ecoflow_apply_charge_and_backup(
+				(int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
+				(int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF
+			);
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			$delta_w = function_exists( 'gaming_hub_ecoflow_clamp_delta1500_charge_watts' )
+				? gaming_hub_ecoflow_clamp_delta1500_charge_watts( $slot_w )
+				: $slot_w;
+			if ( function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
+				$queued = gaming_hub_ecoflow_queue_delta1500_ac_charge( $delta_w );
+				if ( is_wp_error( $queued ) ) {
+					return $queued;
+				}
+			}
+			$saved = gaming_hub_ecoflow_get_saved_schedule();
+			$saved['last_applied_w']       = (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+			$saved['last_applied_delta_w'] = (int) $delta_w;
+			$saved['last_applied_reserve'] = (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
+			$saved['last_applied_hour']    = $hour_id;
+			$saved['last_applied_at']      = wp_date( 'c' );
+			$saved['last_apply_error']     = '';
+			update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $saved, false );
+			return true;
+		}
+
+		if ( $delta_done && $delta_charging && ! $pro_done && $pro_charging ) {
+			if ( function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
+				$queued = gaming_hub_ecoflow_queue_delta1500_ac_charge( (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W );
+				if ( is_wp_error( $queued ) ) {
+					return $queued;
+				}
+			}
+			$saved = gaming_hub_ecoflow_get_saved_schedule();
+			$saved['last_applied_delta_w'] = (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+			$saved['last_applied_at']      = wp_date( 'c' );
+			update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $saved, false );
+			return true;
+		}
 	}
 
 	if ( $last !== $hour_id ) {

@@ -890,7 +890,13 @@
 				deltaEl.style.height = deltaH.toFixed(1) + '%';
 				deltaEl.hidden = !showDelta;
 			}
-			stack.setAttribute('title', 'Pro ' + Math.round(Number(pct)) + '%');
+			const proSeries = plan && plan.soc_series_pro ? plan.soc_series_pro : [];
+			const deltaSeries = plan && plan.soc_series_delta ? plan.soc_series_delta : [];
+			const tipParts = ['Pro ' + Math.round(Number(proSeries[hour] != null ? proSeries[hour] : pct)) + '%'];
+			if (showDelta && deltaSeries[hour] != null) {
+				tipParts.push('1500 ' + Math.round(Number(deltaSeries[hour])) + '%');
+			}
+			stack.setAttribute('title', tipParts.join(' · '));
 			if (col) {
 				col.classList.remove('is-empty');
 				col.classList.toggle('is-actual', kind === 'actual' || kind === 'live');
@@ -903,7 +909,9 @@
 		}
 		const endEl = dashboard.querySelector('[data-ecoflow-soc-end]');
 		if (endEl && plan) {
-			if (plan.soc_now_pro != null) {
+			if (plan.show_delta_soc && plan.soc_now_pro != null && plan.soc_now_delta != null) {
+				endEl.textContent = 'Pro ' + Math.round(Number(plan.soc_now_pro)) + '% · 1500 ' + Math.round(Number(plan.soc_now_delta)) + '%';
+			} else if (plan.soc_now_pro != null) {
 				endEl.textContent = 'Pro ' + Math.round(Number(plan.soc_now_pro)) + '%';
 			} else if (plan.soc_end !== null && plan.soc_end !== undefined) {
 				endEl.textContent = t('24:00 ') + Math.round(Number(plan.soc_end)) + '%';
@@ -1120,8 +1128,16 @@
 				}
 				if (stack) {
 					const tips = [h + ':00', slotModeLabel(mode)];
-					if (hasSoc) {
-						tips.push('Pro ' + Math.round(height) + '%');
+					const proSeries = plan && Array.isArray(plan.soc_series_pro) ? plan.soc_series_pro : [];
+					const deltaSeries = plan && Array.isArray(plan.soc_series_delta) ? plan.soc_series_delta : [];
+					const proTip = proSeries[h] != null && !Number.isNaN(Number(proSeries[h]))
+						? Number(proSeries[h])
+						: (hasSoc ? Number(height) : null);
+					if (proTip != null) {
+						tips.push('Pro ' + Math.round(proTip) + '%');
+					}
+					if (showDelta && deltaSeries[h] != null && !Number.isNaN(Number(deltaSeries[h]))) {
+						tips.push('1500 ' + Math.round(Number(deltaSeries[h])) + '%');
 					}
 					if (isCharge) {
 						tips.push(formatWatts(watts));

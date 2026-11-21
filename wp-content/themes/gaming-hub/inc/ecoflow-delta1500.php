@@ -56,7 +56,24 @@ function gaming_hub_ecoflow_delta1500_plan_charge_watts( $plan = null ) {
 		return 0;
 	}
 
-	return gaming_hub_ecoflow_clamp_delta1500_charge_watts( (int) $slot['watts'] );
+	$watts = gaming_hub_ecoflow_clamp_delta1500_charge_watts( (int) $slot['watts'] );
+	if ( $watts <= 0 ) {
+		return 0;
+	}
+
+	$target = ( is_array( $plan ) && isset( $plan['target_soc_delta'] ) && is_numeric( $plan['target_soc_delta'] ) )
+		? (int) $plan['target_soc_delta']
+		: ( defined( 'GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC : 100 );
+	$soc    = null;
+	if ( is_array( $plan ) && isset( $plan['soc_now_delta'] ) && is_numeric( $plan['soc_now_delta'] ) ) {
+		$soc = (float) $plan['soc_now_delta'];
+	}
+
+	if ( null !== $soc && $soc >= $target ) {
+		return 0;
+	}
+
+	return $watts;
 }
 
 /**

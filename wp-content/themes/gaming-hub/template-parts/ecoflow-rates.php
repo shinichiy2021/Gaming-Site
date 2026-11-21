@@ -152,7 +152,7 @@ $solar_delta_area = $solar_stack['delta_area'];
 			?>
 			<div class="ecoflow-rate-chart<?php echo $show_delta_soc ? '' : ' is-pro-soc-only'; ?>">
 				<div class="ecoflow-rate-y ecoflow-rate-y-soc" aria-hidden="true">
-					<span class="ecoflow-rate-y-unit"><?php echo $show_delta_soc ? esc_html__('Share %', 'gaming-hub') : esc_html__( '%', 'gaming-hub' ); ?></span>
+					<span class="ecoflow-rate-y-unit"><?php esc_html_e( '%', 'gaming-hub' ); ?></span>
 					<?php foreach ( $soc_ticks as $tick ) : ?>
 						<span><?php echo esc_html( (string) $tick ); ?></span>
 					<?php endforeach; ?>
@@ -185,8 +185,17 @@ $solar_delta_area = $solar_stack['delta_area'];
 								$col_class .= ' is-forecast';
 							}
 							$tip = $hour['label'];
-							if ( $has_soc ) {
-								$tip .= ' · Pro ' . number_format( (float) $soc_pct, 0 ) . '%';
+							$pro_tip = isset( $plan['soc_series_pro'][ $hour_num ] ) && is_numeric( $plan['soc_series_pro'][ $hour_num ] )
+								? (float) $plan['soc_series_pro'][ $hour_num ]
+								: ( $has_soc ? (float) $soc_pct : null );
+							$delta_tip = isset( $plan['soc_series_delta'][ $hour_num ] ) && is_numeric( $plan['soc_series_delta'][ $hour_num ] )
+								? (float) $plan['soc_series_delta'][ $hour_num ]
+								: null;
+							if ( null !== $pro_tip ) {
+								$tip .= ' · Pro ' . number_format( $pro_tip, 0 ) . '%';
+							}
+							if ( $show_delta_soc && null !== $delta_tip ) {
+								$tip .= ' · 1500 ' . number_format( $delta_tip, 0 ) . '%';
 							}
 							?>
 							<div class="<?php echo esc_attr( $col_class ); ?>">
@@ -231,7 +240,7 @@ $solar_delta_area = $solar_stack['delta_area'];
 				</div>
 			</div>
 			<p class="ecoflow-rate-legend"><?php echo $show_delta_soc
-				? esc_html__('Yellow: Pro watts · Orange: 1500 watts · Bar height: share of combined capacity · Orange band: forecast solar Pro 800W + 1500 500W · Teal line: LOOOP billed rate', 'gaming-hub')
+				? esc_html__('Yellow: Pro SOC · Orange: 1500 SOC · Orange band: forecast solar Pro 800W + 1500 500W · Teal line: LOOOP billed rate', 'gaming-hub')
 				: esc_html__('Yellow: Pro SOC · Orange band: generation forecast Pro 800 W + 1500 500 W · Teal: LOOOP billed rate', 'gaming-hub'); ?></p>
 		<?php endif; ?>
 	<?php endif; ?>
