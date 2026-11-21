@@ -120,6 +120,7 @@ return array(
 	'実測レビュー・運用メモ' => 'Field tests and operating notes',
 	'電力フロー図・AI PLAN・機器ステータス' => 'Energy flow diagram, AI PLAN, and device status',
 	'日別・時間別の発電量と節約額' => 'Daily and hourly generation with savings',
+	'日別の発電量と節約額' => 'Daily generation with savings',
 	'EcoFlow セクション' => 'EcoFlow sections',
 	'Tesla セクション' => 'Tesla sections',
 	'Model 3 の電力フローと充電' => 'Model 3 energy flow and charging',

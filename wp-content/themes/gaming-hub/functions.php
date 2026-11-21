@@ -9,10 +9,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.23.96' );
+define( 'GAMING_HUB_VERSION', '1.24.2' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );
+
+/** Temporary: hide WP admin-bar site-name (Gaming-Hub) and Edit Tag shortcuts. */
+define( 'GAMING_HUB_HIDE_ADMIN_BAR_SHORTCUTS', true );
+
+/**
+ * Remove Gaming-Hub / Edit Tag admin-bar shortcuts while the flag is on.
+ *
+ * @param WP_Admin_Bar $wp_admin_bar Admin bar.
+ */
+function gaming_hub_hide_admin_bar_shortcuts( $wp_admin_bar ) {
+	if ( ! defined( 'GAMING_HUB_HIDE_ADMIN_BAR_SHORTCUTS' ) || ! GAMING_HUB_HIDE_ADMIN_BAR_SHORTCUTS ) {
+		return;
+	}
+
+	$wp_admin_bar->remove_node( 'site-name' );
+	$wp_admin_bar->remove_node( 'edit' );
+}
+add_action( 'admin_bar_menu', 'gaming_hub_hide_admin_bar_shortcuts', 999 );
 
 /**
  * Browser origin when opening local WordPress via LAN IP (iPad).

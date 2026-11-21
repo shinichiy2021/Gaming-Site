@@ -666,6 +666,7 @@ return array(
 	'日ごとの数字を見る' => 'See daily numbers',
 	'日別の走行とガソリン比較節約' => 'Daily driving and gasoline comparison savings',
 	'日別・時間別の発電量と節約額' => 'Daily and hourly generation with savings',
+	'日別の発電量と節約額' => 'Daily generation with savings',
 	'日本のアカウントは NA リージョン: TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.na.vn.cloud.tesla.com' => 'Japan accounts use the NA region: TESLA_FLEET_API_BASE_URL=https://fleet-api.prd.na.vn.cloud.tesla.com',
 	'日次' => 'Day',
 	'日次／週次サマリー' => 'Daily / weekly summary',

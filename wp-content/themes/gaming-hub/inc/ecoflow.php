@@ -3107,12 +3107,12 @@ function gaming_hub_render_ecoflow_energy_page() {
 function gaming_hub_ecoflow_hub_nav_items() {
 	return array(
 		array(
-			'id'    => 'ecoflow-live',
-			'label' => __('Live', 'gaming-hub'),
-		),
-		array(
 			'id'    => 'energy',
 			'label' => __('Generation log', 'gaming-hub'),
+		),
+		array(
+			'id'    => 'ecoflow-live',
+			'label' => __('Live', 'gaming-hub'),
 		),
 		array(
 			'id'    => 'kit',
@@ -3183,6 +3183,17 @@ function gaming_hub_render_ecoflow_hub_intro() {
  */
 function gaming_hub_render_ecoflow_hub_dashboard_sections() {
 	?>
+	<section id="energy" class="ecoflow-hub-section">
+		<div class="container ecoflow-dashboard-wrap">
+			<?php
+			gaming_hub_render_ecoflow_section_head(
+				__('Generation log', 'gaming-hub'),
+				__('Daily generation with savings', 'gaming-hub')
+			);
+			gaming_hub_render_ecoflow_energy_page();
+			?>
+		</div>
+	</section>
 	<section id="ecoflow-live" class="ecoflow-hub-section">
 		<div class="container ecoflow-dashboard-wrap">
 			<?php
@@ -3191,17 +3202,6 @@ function gaming_hub_render_ecoflow_hub_dashboard_sections() {
 				__('Energy flow diagram, AI PLAN, and device status', 'gaming-hub')
 			);
 			gaming_hub_render_ecoflow_dashboard();
-			?>
-		</div>
-	</section>
-	<section id="energy" class="ecoflow-hub-section">
-		<div class="container ecoflow-dashboard-wrap">
-			<?php
-			gaming_hub_render_ecoflow_section_head(
-				__('Generation log', 'gaming-hub'),
-				__('Daily and hourly generation with savings', 'gaming-hub')
-			);
-			gaming_hub_render_ecoflow_energy_page();
 			?>
 		</div>
 	</section>
@@ -3351,6 +3351,7 @@ function gaming_hub_ecoflow_scripts() {
 					'solar'       => __( 'Low Volt', 'gaming-hub' ),
 					'proLv'       => __( 'Low Volt', 'gaming-hub' ),
 					'hv'          => __('High volt', 'gaming-hub'),
+					'proSolar'    => __( 'High + Low Volt', 'gaming-hub' ),
 					'grid'        => __('Grid', 'gaming-hub'),
 					'gridCharge'  => __('Grid top-up', 'gaming-hub'),
 					'gridIdle'    => __('Standby', 'gaming-hub'),
