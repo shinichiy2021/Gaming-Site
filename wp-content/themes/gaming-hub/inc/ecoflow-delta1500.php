@@ -120,6 +120,11 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 	$from_plan  = $plan_w > 0 && $plan_w >= $rescue_w;
 	$from_rescue = $rescue_w > 0 && $rescue_w > $plan_w;
 
+	$ac_in_now = isset( $delta['ac_in'] ) && is_numeric( $delta['ac_in'] )
+		? max( 0.0, (float) $delta['ac_in'] )
+		: 0.0;
+	$sent_ago  = time() - (int) ( $saved['last_sent_at'] ?? 0 );
+
 	$should_send = false;
 	if ( $want && ! $active ) {
 		$should_send = true;
@@ -127,7 +132,10 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 		$should_send = true;
 	} elseif ( $want && abs( $watts - (int) ( $saved['last_sent_w'] ?? 0 ) ) >= 40 ) {
 		$should_send = true;
-	} elseif ( $want && ! empty( $saved['last_error'] ) && ( time() - (int) ( $saved['last_sent_at'] ?? 0 ) ) >= 30 ) {
+	} elseif ( $want && ! empty( $saved['last_error'] ) && $sent_ago >= 30 ) {
+		$should_send = true;
+	} elseif ( $want && $active && $watts > 0 && $ac_in_now < 50 && $sent_ago >= 120 ) {
+		// MQTT may have ACK'd while disconnected — resend until AC input rises.
 		$should_send = true;
 	}
 
@@ -392,6 +400,11 @@ function gaming_hub_ecoflow_delta1500_rescue_view( array $saved, $load_w, $activ
  * @return true|WP_Error
  */
 function gaming_hub_ecoflow_queue_delta1500_ac_charge( $watts ) {
+	// Local uses Release MQTT for live data; only production's bridge publishes SET.
+	if ( function_exists( 'gaming_hub_ecoflow_mqtt_origin_enabled' ) && gaming_hub_ecoflow_mqtt_origin_enabled() ) {
+		return true;
+	}
+
 	if ( ! function_exists( 'gaming_hub_ecoflow_bridge_cache_dir' ) ) {
 		return new WP_Error( 'ecoflow_no_bridge', __('MQTT bridge is missing.', 'gaming-hub') );
 	}

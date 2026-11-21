@@ -115,6 +115,10 @@ if ! "${SSH[@]}" "test -f ${DEPLOY_PATH}/.env"; then
   echo "Warning: edit ${DEPLOY_PATH}/.env on the server before relying on production secrets."
 fi
 
+# WP (www-data) queues Delta 1500 commands here; the bridge (uid 1000) reads/writes status.
+echo "==> Fixing ecoflow-cache permissions for www-data + bridge..."
+"${SSH[@]}" "mkdir -p ${DEPLOY_PATH}/wp-content/ecoflow-cache && sudo chown -R 1000:33 ${DEPLOY_PATH}/wp-content/ecoflow-cache && sudo chmod 2775 ${DEPLOY_PATH}/wp-content/ecoflow-cache && sudo find ${DEPLOY_PATH}/wp-content/ecoflow-cache -type f -exec chmod 664 {} +"
+
 echo "==> Starting Docker on server..."
 "${SSH[@]}" "cd ${DEPLOY_PATH} && docker compose -f docker-compose.prod.yml up -d"
 

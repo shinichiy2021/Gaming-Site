@@ -61,10 +61,13 @@ services:
     networks:
       - gaming-network
 
+  # Optional local MQTT. Default Local reads Delta 1500 from Release via GAMING_HUB_ENERGY_ORIGIN.
+  # Start only if needed: docker compose --profile local-mqtt up -d ecoflow-bridge
   ecoflow-bridge:
     image: node:20-alpine
     container_name: gaming-site-ecoflow-bridge
     working_dir: /app
+    profiles: ["local-mqtt"]
     restart: unless-stopped
     depends_on:
       - wordpress

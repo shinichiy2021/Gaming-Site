@@ -371,7 +371,12 @@ function gaming_hub_get_ecoflow_status( $force_refresh = false ) {
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_attach_live_addons( array $status ) {
-	if ( isset( $status['secondary'] ) && is_array( $status['secondary'] ) ) {
+	$mqtt_from_origin = function_exists( 'gaming_hub_ecoflow_mqtt_origin_enabled' )
+		&& gaming_hub_ecoflow_mqtt_origin_enabled();
+
+	if ( $mqtt_from_origin && function_exists( 'gaming_hub_ecoflow_apply_origin_mqtt' ) ) {
+		$status = gaming_hub_ecoflow_apply_origin_mqtt( $status );
+	} elseif ( isset( $status['secondary'] ) && is_array( $status['secondary'] ) ) {
 		$secondary = $status['secondary'];
 		if ( ! empty( $secondary['inferred'] ) || empty( $secondary['_quota'] ) ) {
 			$status['secondary'] = gaming_hub_ecoflow_merge_bridge_quota( $secondary );
@@ -389,7 +394,10 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 	}
 
 	$status = gaming_hub_ecoflow_apply_theoretical_lv( $status );
-	$status = gaming_hub_ecoflow_apply_delta1500_soc_model( $status );
+	// Release MQTT already has live pack SOC — do not re-model or merge a local bridge cache.
+	if ( ! $mqtt_from_origin ) {
+		$status = gaming_hub_ecoflow_apply_delta1500_soc_model( $status );
+	}
 
 	$status['charge_plan'] = gaming_hub_ecoflow_get_charge_plan(
 		$status,
@@ -422,7 +430,8 @@ function gaming_hub_ecoflow_attach_live_addons( array $status ) {
 	}
 
 	// Delta 1500: plan hours + low-SOC rescue (after schedule so slots are current).
-	if ( function_exists( 'gaming_hub_ecoflow_apply_delta1500_grid_rescue' ) ) {
+	// When Local reads MQTT from Release, production owns charge commands — keep origin secondary as-is.
+	if ( ! $mqtt_from_origin && function_exists( 'gaming_hub_ecoflow_apply_delta1500_grid_rescue' ) ) {
 		$status = gaming_hub_ecoflow_apply_delta1500_grid_rescue( $status );
 	}
 
@@ -2290,6 +2299,18 @@ function gaming_hub_ecoflow_apply_mqtt_display_policy( array $status ) {
 	$delta = isset( $status['secondary'] ) && is_array( $status['secondary'] )
 		? $status['secondary']
 		: array();
+
+	// Origin secondary is already normalized by Release — keep pack / Extra as returned.
+	if ( ! empty( $delta['mqtt_origin'] ) ) {
+		$delta['mqtt_live'] = ! empty( $delta['online'] ) || ! empty( $delta['mqtt_live'] );
+		$status['secondary'] = $delta;
+		if ( isset( $delta['solar_in'] ) && is_numeric( $delta['solar_in'] ) ) {
+			$status['solar_delta']     = max( 0, (int) round( (float) $delta['solar_in'] ) );
+			$status['solar_in']        = $status['solar_delta'];
+			$status['solar_in_source'] = (string) ( $delta['solar_in_source'] ?? 'mqtt' );
+		}
+		return $status;
+	}
 
 	$sn   = (string) ( $delta['device_sn'] ?? '' );
 	$live = function_exists( 'gaming_hub_ecoflow_bridge_is_live' )

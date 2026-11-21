@@ -682,15 +682,22 @@ function buildDelta1500AcChargePayloads( deviceSn, watts, idBase = Date.now() % 
 	];
 }
 
+/**
+ * @returns {boolean} false when the client cannot publish (caller must retry).
+ */
 function mqttPublishAcCharge( client, userId, deviceSn, watts ) {
 	if ( ! mqttCanPublish( client ) ) {
-		return;
+		return false;
 	}
 
 	const topicSet = `/app/${ userId }/${ deviceSn }/thing/property/set`;
 	buildDelta1500AcChargePayloads( deviceSn, watts ).forEach( ( payload ) => {
 		client.publish( topicSet, JSON.stringify( payload ), { qos: 1 } );
 	} );
+	console.log(
+		`[ecoflow-bridge] ac_charge publish watts=${ Math.max( 0, Math.round( Number( watts ) || 0 ) ) } sn=${ deviceSn }`
+	);
+	return true;
 }
 
 /**
@@ -952,7 +959,15 @@ export async function startPersistentMqttBridge( cacheDir, hooks = {} ) {
 		}
 
 		lastCommandId = commandId;
-		publishers.acCharge( command.watts );
+		const published = publishers.acCharge( command.watts );
+		if ( ! published ) {
+			bridgeLog( `ac_charge deferred watts=${ command.watts } (mqtt not ready)` );
+			writeCommandResult( cacheDir, command, false, 'MQTT not connected' );
+			// Keep bridge-command.json and allow the next poll to retry.
+			lastCommandId = '';
+			return;
+		}
+
 		setTimeout( () => {
 			if ( lastCommandId !== commandId ) {
 				return;

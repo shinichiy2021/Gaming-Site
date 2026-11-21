@@ -15,6 +15,114 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_TTL', 90 );
 define( 'GAMING_HUB_ECOFLOW_EXTRA_CACHE_TTL', 600 );
 define( 'GAMING_HUB_ECOFLOW_BRIDGE_CACHE_STALE_TTL', 86400 );
+define( 'GAMING_HUB_ECOFLOW_MQTT_ORIGIN_TTL', 8 );
+define( 'GAMING_HUB_ECOFLOW_MQTT_ORIGIN_TRANSIENT', 'gaming_hub_ecoflow_mqtt_origin_v1' );
+
+/**
+ * Production origin for Delta 1500 MQTT (same host as energy origin), or empty on the canonical server.
+ */
+function gaming_hub_ecoflow_mqtt_origin_base() {
+	if ( function_exists( 'gaming_hub_ecoflow_energy_origin_base' ) ) {
+		return gaming_hub_ecoflow_energy_origin_base();
+	}
+
+	return '';
+}
+
+/**
+ * Whether this site should read Delta 1500 live data from Release MQTT (via origin status API).
+ */
+function gaming_hub_ecoflow_mqtt_origin_enabled() {
+	return '' !== gaming_hub_ecoflow_mqtt_origin_base();
+}
+
+/**
+ * Fetch EcoFlow status from the Release origin (includes Delta 1500 MQTT fields).
+ *
+ * @return array<string, mixed>|null
+ */
+function gaming_hub_ecoflow_fetch_origin_mqtt_status() {
+	static $done = false;
+	static $memo = null;
+
+	if ( $done ) {
+		return $memo;
+	}
+	$done = true;
+
+	$base = gaming_hub_ecoflow_mqtt_origin_base();
+	if ( '' === $base ) {
+		return null;
+	}
+
+	$cached = get_transient( GAMING_HUB_ECOFLOW_MQTT_ORIGIN_TRANSIENT );
+	if ( is_array( $cached ) && isset( $cached['secondary'] ) && is_array( $cached['secondary'] ) ) {
+		$memo = $cached;
+		return $cached;
+	}
+
+	$url = $base . '/wp-json/gaming-hub/v1/ecoflow/status';
+	$res = wp_remote_get(
+		$url,
+		array(
+			'timeout' => 10,
+			'headers' => array( 'Accept' => 'application/json' ),
+		)
+	);
+	if ( is_wp_error( $res ) ) {
+		return null;
+	}
+
+	$code = (int) wp_remote_retrieve_response_code( $res );
+	$body = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+	if ( 200 !== $code || ! is_array( $body ) || empty( $body['success'] ) || ! is_array( $body['data'] ?? null ) ) {
+		return null;
+	}
+
+	$memo = $body['data'];
+	set_transient( GAMING_HUB_ECOFLOW_MQTT_ORIGIN_TRANSIENT, $memo, GAMING_HUB_ECOFLOW_MQTT_ORIGIN_TTL );
+
+	return $memo;
+}
+
+/**
+ * Replace local Delta 1500 / LV fields with Release MQTT values.
+ *
+ * @param array<string, mixed> $status Local EcoFlow status.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_apply_origin_mqtt( array $status ) {
+	if ( ! gaming_hub_ecoflow_mqtt_origin_enabled() ) {
+		return $status;
+	}
+
+	$remote = gaming_hub_ecoflow_fetch_origin_mqtt_status();
+	if ( ! is_array( $remote ) || ! isset( $remote['secondary'] ) || ! is_array( $remote['secondary'] ) ) {
+		return $status;
+	}
+
+	$secondary = $remote['secondary'];
+	$secondary['mqtt_origin'] = gaming_hub_ecoflow_mqtt_origin_base();
+	if ( ! array_key_exists( 'mqtt_live', $secondary ) ) {
+		$secondary['mqtt_live'] = ! empty( $secondary['online'] );
+	}
+
+	$status['secondary'] = $secondary;
+
+	if ( isset( $remote['solar_delta'] ) && is_numeric( $remote['solar_delta'] ) ) {
+		$status['solar_delta'] = max( 0, (int) round( (float) $remote['solar_delta'] ) );
+		$status['solar_in']    = $status['solar_delta'];
+	} elseif ( isset( $secondary['solar_in'] ) && is_numeric( $secondary['solar_in'] ) ) {
+		$status['solar_delta'] = max( 0, (int) round( (float) $secondary['solar_in'] ) );
+		$status['solar_in']    = $status['solar_delta'];
+	}
+
+	if ( isset( $remote['ups_plug'] ) && is_array( $remote['ups_plug'] ) ) {
+		$status['ups_plug'] = $remote['ups_plug'];
+	}
+
+	return $status;
+}
 
 /**
  * Serial prefixes that require App Login instead of Developer API quota.
@@ -97,6 +205,11 @@ function gaming_hub_ecoflow_bridge_cache_dir() {
  * Sync WordPress / Customizer credentials for the Node bridge.
  */
 function gaming_hub_ecoflow_sync_bridge_config() {
+	// Local reads Delta MQTT from Release; do not refresh credentials for a competing local bridge.
+	if ( gaming_hub_ecoflow_mqtt_origin_enabled() ) {
+		return;
+	}
+
 	$app    = gaming_hub_get_ecoflow_app_config();
 	$config = gaming_hub_get_ecoflow_config();
 
@@ -150,6 +263,21 @@ function gaming_hub_ecoflow_read_bridge_status() {
  * @param string $device_sn Device serial.
  */
 function gaming_hub_ecoflow_bridge_is_live( $device_sn = '' ) {
+	if ( gaming_hub_ecoflow_mqtt_origin_enabled() ) {
+		$remote = gaming_hub_ecoflow_fetch_origin_mqtt_status();
+		if ( ! is_array( $remote ) || ! isset( $remote['secondary'] ) || ! is_array( $remote['secondary'] ) ) {
+			return false;
+		}
+
+		$sec = $remote['secondary'];
+		$device_sn = (string) $device_sn;
+		if ( '' !== $device_sn && ! empty( $sec['device_sn'] ) && (string) $sec['device_sn'] !== $device_sn ) {
+			return false;
+		}
+
+		return ! empty( $sec['online'] ) || ! empty( $sec['mqtt_live'] );
+	}
+
 	$status = gaming_hub_ecoflow_read_bridge_status();
 	if ( is_array( $status ) ) {
 		if ( empty( $status['ok'] ) ) {
@@ -184,6 +312,11 @@ function gaming_hub_ecoflow_bridge_is_live( $device_sn = '' ) {
  * @return array<string, mixed>|null
  */
 function gaming_hub_ecoflow_read_bridge_quota_file( $device_sn ) {
+	// Local uses Release MQTT; a stale on-disk cache must not override live origin SOC.
+	if ( gaming_hub_ecoflow_mqtt_origin_enabled() ) {
+		return null;
+	}
+
 	gaming_hub_ecoflow_sync_bridge_config();
 
 	$device_sn = (string) $device_sn;
@@ -254,6 +387,10 @@ function gaming_hub_ecoflow_extra_is_live() {
  * @return array<string, mixed>|null
  */
 function gaming_hub_ecoflow_read_bridge_quota( $device_sn ) {
+	if ( gaming_hub_ecoflow_mqtt_origin_enabled() ) {
+		return null;
+	}
+
 	if ( ! gaming_hub_ecoflow_bridge_is_live( $device_sn ) ) {
 		return null;
 	}

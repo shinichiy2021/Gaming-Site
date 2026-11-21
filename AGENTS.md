@@ -27,6 +27,8 @@ Crypto / stock / paper-bot / all-assets live in a Next.js app (`crypto-app/`); `
 
 ```bash
 docker compose up -d
+# Local Delta 1500 live data comes from Release MQTT (GAMING_HUB_ENERGY_ORIGIN).
+# Do not run a second MQTT client unless debugging: docker compose --profile local-mqtt up -d ecoflow-bridge
 cd wp-content/themes/gaming-hub && npm install      # first time only
 cd wp-content/themes/gaming-hub && npm run dev:ecoflow   # watch
 cd wp-content/themes/gaming-hub && npm run build:flows   # build flows + hub SPA

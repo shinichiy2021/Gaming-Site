@@ -467,6 +467,20 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false, $plan = nul
 		return $result;
 	}
 
+	// Same hour setpoint as Pro — Delta 1500 uses MQTT (bridge-command.json).
+	if ( function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
+		$delta_w = function_exists( 'gaming_hub_ecoflow_clamp_delta1500_charge_watts' )
+			? gaming_hub_ecoflow_clamp_delta1500_charge_watts( $watts )
+			: max( 0, (int) $watts );
+		$queued  = gaming_hub_ecoflow_queue_delta1500_ac_charge( $delta_w );
+		if ( is_wp_error( $queued ) ) {
+			$saved['last_apply_error'] = $queued->get_error_message();
+			$saved['send_notice']      = gaming_hub_ecoflow_schedule_send_notice( $watts, $reserve, $queued->get_error_message() );
+			update_option( GAMING_HUB_ECOFLOW_SCHEDULE_OPTION, $saved, false );
+			return $queued;
+		}
+	}
+
 	$saved['last_applied_w']       = $watts;
 	$saved['last_applied_reserve'] = $reserve;
 	$saved['last_applied_hour']    = $hour_key;
