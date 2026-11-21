@@ -1,7 +1,10 @@
 (function () {
 	'use strict';
 
-	const dashboard = document.querySelector('.ecoflow-dashboard');
+	// Live kit dashboard only — generation log also uses .ecoflow-dashboard.
+	const dashboard = document.querySelector('#ecoflow-live .ecoflow-dashboard')
+		|| document.querySelector('.ecoflow-dashboard:not(.ecoflow-energy-page)')
+		|| document.querySelector('.ecoflow-dashboard');
 	if (!dashboard || !window.gamingHubEcoflow) {
 		return;
 	}

@@ -3089,7 +3089,7 @@ function gaming_hub_render_ecoflow_dashboard() {
  * hydrate from the dashboard REST poll.
  */
 function gaming_hub_render_ecoflow_energy_page() {
-	echo '<section class="ecoflow-dashboard ecoflow-energy-page" aria-label="' . esc_attr__( 'Generation log', 'gaming-hub' ) . '">';
+	echo '<section class="ecoflow-energy-page" aria-label="' . esc_attr__( 'Generation log', 'gaming-hub' ) . '">';
 	gaming_hub_render_ecoflow_calendar(
 		array(
 			'status' => null,
