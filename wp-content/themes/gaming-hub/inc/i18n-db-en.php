@@ -287,6 +287,7 @@ return array(
 	'エアコン' => 'Climate',
 	'エアコン予想' => 'AC estimate',
 	'いま %1$s W · 過去1ヶ月の類似天気実績（%2$s日）' => 'Now %1$s W · similar weather over past month (%2$s days)',
+	'%1$s · 過去1ヶ月の類似天気実績（%2$s日）' => '%1$s · similar weather over past month (%2$s days)',
 	'エネルギー × ゲーム' => 'Energy × Games',
 	'エネルギーストレージ業界ニュース' => 'Energy storage industry news',
 	'オドメーター' => 'Odometer',

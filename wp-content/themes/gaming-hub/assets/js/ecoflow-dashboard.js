@@ -1432,6 +1432,21 @@
 			formatKwh(plan.solar_hud_kwh != null ? plan.solar_hud_kwh : plan.solar_remaining_kwh)
 		);
 		setField('plan_solar_hud_label', t(plan.solar_hud_label || '') || plan.solar_hud_label || '');
+		(function () {
+			const panel = t('Pro %1$s W + 1500 %2$s W')
+				.replace('%1$s', Number(plan.solar_pro_w != null ? plan.solar_pro_w : 800).toLocaleString())
+				.replace('%2$s', Number(plan.solar_delta_w != null ? plan.solar_delta_w : 500).toLocaleString());
+			if (plan.solar_source === 'similar_weather') {
+				setField(
+					'plan_solar_meta',
+					t('%1$s · similar weather over past month (%2$s days)')
+						.replace('%1$s', panel)
+						.replace('%2$s', Number(plan.solar_match_days || 0).toLocaleString())
+				);
+			} else {
+				setField('plan_solar_meta', panel + ' · ' + t('From now') + ' · ' + t('Tajimi'));
+			}
+		})();
 		setField('plan_load', formatKwh(plan.room_remaining_kwh != null ? plan.room_remaining_kwh : plan.load_remaining_kwh));
 		if (plan.room_daily_kwh != null) {
 			const dayPrefix = plan.plan_day === 'yesterday'

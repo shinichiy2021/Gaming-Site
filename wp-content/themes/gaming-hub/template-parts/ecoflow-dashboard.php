@@ -387,12 +387,21 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 					<div class="ecoflow-plan-card">
 						<span class="ecoflow-stat-label"><?php esc_html_e('Remaining expected generation', 'gaming-hub'); ?></span>
 						<strong data-ecoflow-field="plan_solar_today"><?php echo esc_html( isset( $plan['solar_hud_kwh'] ) ? number_format_i18n( (float) $plan['solar_hud_kwh'], 1 ) . ' kWh' : ( isset( $plan['solar_remaining_kwh'] ) ? number_format_i18n( (float) $plan['solar_remaining_kwh'], 1 ) . ' kWh' : '—' ) ); ?></strong>
-						<small>
+						<small data-ecoflow-field="plan_solar_meta">
 							<?php
 							$panel_note = function_exists( 'gaming_hub_ecoflow_solar_panel_label' )
 								? gaming_hub_ecoflow_solar_panel_label()
 								: __('Pro 800 W + 1500 500 W', 'gaming-hub');
-							echo esc_html( $panel_note . ' · ' . __('From now', 'gaming-hub') . ' · ' . __('Tajimi', 'gaming-hub') );
+							if ( 'similar_weather' === ( $plan['solar_source'] ?? '' ) ) {
+								printf(
+									/* translators: 1: panel label, 2: matched similar days count */
+									esc_html__( '%1$s · similar weather over past month (%2$s days)', 'gaming-hub' ),
+									esc_html( $panel_note ),
+									esc_html( number_format_i18n( (int) ( $plan['solar_match_days'] ?? 0 ) ) )
+								);
+							} else {
+								echo esc_html( $panel_note . ' · ' . __('From now', 'gaming-hub') . ' · ' . __('Tajimi', 'gaming-hub') );
+							}
 							?>
 						</small>
 					</div>
