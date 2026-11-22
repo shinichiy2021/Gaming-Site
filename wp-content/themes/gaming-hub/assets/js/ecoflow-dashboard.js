@@ -1400,16 +1400,25 @@
 			);
 		}
 		setField('plan_ac', formatKwh(plan.ac_today_kwh));
-		setField(
-			'plan_ac_meta',
-			t('Now %1$s W · cool %3$s W@%2$s°C→1 kW@%4$s°C+ · heat %3$s W@%5$s°C→1 kW@%6$s°C−')
-				.replace('%1$s', Number(plan.ac_now_w || 0).toLocaleString())
-				.replace('%2$s', String(Math.round(Number(plan.ac_start_c != null ? plan.ac_start_c : 27))))
-				.replace('%3$s', Number(plan.ac_start_w != null ? plan.ac_start_w : 300).toLocaleString())
-				.replace('%4$s', String(Math.round(Number(plan.ac_max_c != null ? plan.ac_max_c : 34))))
-				.replace('%5$s', String(Math.round(Number(plan.ac_heat_start_c != null ? plan.ac_heat_start_c : 10))))
-				.replace('%6$s', String(Math.round(Number(plan.ac_heat_min_c != null ? plan.ac_heat_min_c : 3))))
-		);
+		if (plan.ac_source === 'similar_weather') {
+			setField(
+				'plan_ac_meta',
+				t('Now %1$s W · similar weather over past month (%2$s days)')
+					.replace('%1$s', Number(plan.ac_now_w || 0).toLocaleString())
+					.replace('%2$s', Number(plan.ac_match_days || 0).toLocaleString())
+			);
+		} else {
+			setField(
+				'plan_ac_meta',
+				t('Now %1$s W · cool %3$s W@%2$s°C→1 kW@%4$s°C+ · heat %3$s W@%5$s°C→1 kW@%6$s°C−')
+					.replace('%1$s', Number(plan.ac_now_w || 0).toLocaleString())
+					.replace('%2$s', String(Math.round(Number(plan.ac_start_c != null ? plan.ac_start_c : 27))))
+					.replace('%3$s', Number(plan.ac_start_w != null ? plan.ac_start_w : 300).toLocaleString())
+					.replace('%4$s', String(Math.round(Number(plan.ac_max_c != null ? plan.ac_max_c : 34))))
+					.replace('%5$s', String(Math.round(Number(plan.ac_heat_start_c != null ? plan.ac_heat_start_c : 10))))
+					.replace('%6$s', String(Math.round(Number(plan.ac_heat_min_c != null ? plan.ac_heat_min_c : 3))))
+			);
+		}
 		setField(
 			'plan_solar_today',
 			formatKwh(

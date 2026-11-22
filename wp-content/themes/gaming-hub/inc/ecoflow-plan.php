@@ -20,6 +20,12 @@ define( 'GAMING_HUB_ECOFLOW_AC_HEAT_START_C', 10.0 );
 define( 'GAMING_HUB_ECOFLOW_AC_START_W', 300 );
 define( 'GAMING_HUB_ECOFLOW_AC_W_PER_C', 100 );
 define( 'GAMING_HUB_ECOFLOW_AC_MAX_W', 1000 );
+/** Past days of measured AC used for similar-weather forecast. */
+define( 'GAMING_HUB_ECOFLOW_AC_SIMILAR_LOOKBACK_DAYS', 31 );
+/** Max |ΔTmax| (°C) to treat a past day as temperature-similar. */
+define( 'GAMING_HUB_ECOFLOW_AC_SIMILAR_TEMP_C', 4.0 );
+/** Minimum similarity score to include a past day. */
+define( 'GAMING_HUB_ECOFLOW_AC_SIMILAR_MIN_SCORE', 3 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC', 95 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_MIN_SOC', 100 - GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC );
 /** Solar may still fill the pack; cheap-grid target is 100% minus forecast solar. */
@@ -443,13 +449,210 @@ function gaming_hub_ecoflow_ac_heat_min_c() {
 }
 
 /**
- * Room energy from base load + temperature-driven AC.
+ * Logged Pro living AC watts by hour for a date (Wh in a full hour ≈ W).
  *
- * @param int               $from_hour Current hour 0–23.
- * @param array<int, mixed> $temps     Hourly outdoor °C (0–23).
+ * Prefers room_out_wh (Pro AC out); falls back to ac_out_wh (AC plug).
+ *
+ * @param string $date Y-m-d.
+ * @return array<int, int|null>
+ */
+function gaming_hub_ecoflow_energy_ac_watts_for_date( $date ) {
+	$hours = function_exists( 'gaming_hub_ecoflow_energy_hours_for_date' )
+		? gaming_hub_ecoflow_energy_hours_for_date( (string) $date )
+		: array();
+	$out   = array_fill( 0, 24, null );
+
+	for ( $h = 0; $h < 24; $h++ ) {
+		$row = is_array( $hours[ $h ] ?? null ) ? $hours[ $h ] : array();
+		$wh  = null;
+		if ( isset( $row['room_out_wh'] ) && is_numeric( $row['room_out_wh'] ) ) {
+			$wh = max( 0.0, (float) $row['room_out_wh'] );
+		} elseif ( isset( $row['ac_out_wh'] ) && is_numeric( $row['ac_out_wh'] ) ) {
+			$wh = max( 0.0, (float) $row['ac_out_wh'] );
+		}
+		if ( null === $wh ) {
+			continue;
+		}
+		$out[ $h ] = (int) round( $wh );
+	}
+
+	return $out;
+}
+
+/**
+ * Dominant daytime weather category for an hourly code list.
+ *
+ * @param array<int, mixed> $weather_codes Hourly WMO codes.
+ * @return string|null
+ */
+function gaming_hub_ecoflow_plan_weather_category( array $weather_codes ) {
+	if ( ! function_exists( 'gaming_hub_tajimi_daytime_icon_code' ) || ! function_exists( 'gaming_hub_tajimi_weather_category' ) ) {
+		return null;
+	}
+
+	$icon = gaming_hub_tajimi_daytime_icon_code( $weather_codes );
+
+	return gaming_hub_tajimi_weather_category( $icon );
+}
+
+/**
+ * Similarity score between the plan day and a past day's weather.
+ *
+ * @param string|null $target_cat  Target daytime category.
+ * @param float|null  $target_tmax Target daily high °C.
+ * @param string|null $day_cat     Past day category.
+ * @param float|null  $day_tmax    Past day high °C.
+ */
+function gaming_hub_ecoflow_ac_weather_similarity_score( $target_cat, $target_tmax, $day_cat, $day_tmax ) {
+	$score = 0;
+
+	if ( $target_cat && $day_cat ) {
+		if ( $target_cat === $day_cat ) {
+			$score += 3;
+		} elseif (
+			( 'sunny' === $target_cat && 'cloudy' === $day_cat )
+			|| ( 'cloudy' === $target_cat && 'sunny' === $day_cat )
+			|| ( 'rain' === $target_cat && 'thunder' === $day_cat )
+			|| ( 'thunder' === $target_cat && 'rain' === $day_cat )
+		) {
+			$score += 1;
+		}
+	}
+
+	if ( null !== $target_tmax && null !== $day_tmax && is_numeric( $target_tmax ) && is_numeric( $day_tmax ) ) {
+		$dt = abs( (float) $target_tmax - (float) $day_tmax );
+		if ( $dt <= 2.0 ) {
+			$score += 3;
+		} elseif ( $dt <= (float) GAMING_HUB_ECOFLOW_AC_SIMILAR_TEMP_C ) {
+			$score += 2;
+		} elseif ( $dt <= (float) GAMING_HUB_ECOFLOW_AC_SIMILAR_TEMP_C + 2.0 ) {
+			$score += 1;
+		}
+	}
+
+	return $score;
+}
+
+/**
+ * AC watts forecast from past-month days with similar weather.
+ *
+ * @param string            $plan_date     Y-m-d being planned.
+ * @param array<int, mixed> $temps         Plan-day hourly °C.
+ * @param array<int, mixed> $weather_codes Plan-day hourly WMO codes.
+ * @return array{ac_watts: array<int, int>, match_days: int, match_dates: array<int, string>}|null
+ */
+function gaming_hub_ecoflow_ac_similar_weather_forecast( $plan_date, array $temps, array $weather_codes = array() ) {
+	$plan_date = (string) $plan_date;
+	if ( ! function_exists( 'gaming_hub_tajimi_history_daily_profiles' ) ) {
+		return null;
+	}
+
+	$lookback = (int) GAMING_HUB_ECOFLOW_AC_SIMILAR_LOOKBACK_DAYS;
+	$history  = gaming_hub_tajimi_history_daily_profiles( $lookback );
+	if ( ! $history ) {
+		return null;
+	}
+
+	$target_cat = gaming_hub_ecoflow_plan_weather_category( $weather_codes );
+	$nums       = array_values( array_filter( $temps, 'is_numeric' ) );
+	$target_tmax = $nums ? (float) max( $nums ) : null;
+
+	$candidates = array();
+	foreach ( $history as $date => $day ) {
+		$date = (string) $date;
+		if ( $date >= $plan_date ) {
+			continue;
+		}
+		$logged = gaming_hub_ecoflow_energy_ac_watts_for_date( $date );
+		$has    = false;
+		foreach ( $logged as $w ) {
+			if ( null !== $w ) {
+				$has = true;
+				break;
+			}
+		}
+		if ( ! $has ) {
+			continue;
+		}
+
+		$score = gaming_hub_ecoflow_ac_weather_similarity_score(
+			$target_cat,
+			$target_tmax,
+			isset( $day['category'] ) ? (string) $day['category'] : null,
+			isset( $day['temp_max'] ) && is_numeric( $day['temp_max'] ) ? (float) $day['temp_max'] : null
+		);
+		if ( $score < (int) GAMING_HUB_ECOFLOW_AC_SIMILAR_MIN_SCORE ) {
+			continue;
+		}
+		$candidates[] = array(
+			'date'   => $date,
+			'score'  => $score,
+			'watts'  => $logged,
+		);
+	}
+
+	if ( ! $candidates ) {
+		return null;
+	}
+
+	usort(
+		$candidates,
+		static function ( $a, $b ) {
+			if ( $a['score'] === $b['score'] ) {
+				return strcmp( (string) $b['date'], (string) $a['date'] );
+			}
+			return $b['score'] <=> $a['score'];
+		}
+	);
+
+	// Keep every day that clears the minimum score (up to 14), newest first.
+	$picked = array_slice( $candidates, 0, 14 );
+
+	$sums   = array_fill( 0, 24, 0.0 );
+	$counts = array_fill( 0, 24, 0 );
+	$dates  = array();
+	foreach ( $picked as $row ) {
+		$dates[] = $row['date'];
+		for ( $h = 0; $h < 24; $h++ ) {
+			if ( null === ( $row['watts'][ $h ] ?? null ) ) {
+				continue;
+			}
+			$sums[ $h ]  += (float) $row['watts'][ $h ];
+			$counts[ $h ] += 1;
+		}
+	}
+
+	$ac_watts = array_fill( 0, 24, null );
+	$filled   = 0;
+	for ( $h = 0; $h < 24; $h++ ) {
+		if ( $counts[ $h ] < 1 ) {
+			continue;
+		}
+		$ac_watts[ $h ] = (int) round( $sums[ $h ] / $counts[ $h ] );
+		$filled++;
+	}
+
+	if ( $filled < 4 ) {
+		return null;
+	}
+
+	return array(
+		'ac_watts'     => $ac_watts,
+		'match_days'   => count( $picked ),
+		'match_dates'  => $dates,
+	);
+}
+
+/**
+ * Room energy from base load + AC (similar-weather actuals, else temp model).
+ *
+ * @param int               $from_hour     Current hour 0–23.
+ * @param array<int, mixed> $temps         Hourly outdoor °C (0–23).
+ * @param string|null       $plan_date     Y-m-d for similar-weather lookback.
+ * @param array<int, mixed> $weather_codes Hourly WMO codes for the plan day.
  * @return array<string, mixed>
  */
-function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
+function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps, $plan_date = null, array $weather_codes = array() ) {
 	$weights    = gaming_hub_ecoflow_room_hourly_weights();
 	$weight_sum = array_sum( $weights ) ?: 24.0;
 	$base_daily = (float) GAMING_HUB_ECOFLOW_ROOM_BASE_DAILY_KWH;
@@ -466,9 +669,21 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 	$base_hours = array_fill( 0, 24, 0.0 );
 	$ac_hours   = array_fill( 0, 24, 0.0 );
 	$ac_watts   = array_fill( 0, 24, 0 );
+	$ac_source  = 'temp_model';
+	$ac_match_days = 0;
+	$ac_match_dates = array();
+
+	$similar = null;
+	if ( $plan_date ) {
+		$similar = gaming_hub_ecoflow_ac_similar_weather_forecast( (string) $plan_date, $temps, $weather_codes );
+	}
 
 	for ( $h = 0; $h < 24; $h++ ) {
 		$base_hours[ $h ] = $base_daily * ( ( $weights[ $h ] ?? 0 ) / $weight_sum );
+		if ( $similar && isset( $similar['ac_watts'][ $h ] ) && null !== $similar['ac_watts'][ $h ] ) {
+			$ac_watts[ $h ] = max( 0, (int) $similar['ac_watts'][ $h ] );
+			continue;
+		}
 		if ( ! $has_temps ) {
 			continue;
 		}
@@ -476,6 +691,30 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 		$ac_watts[ $h ] = gaming_hub_ecoflow_ac_watts_for_temp(
 			isset( $temps[ $h ] ) ? $temps[ $h ] : null
 		);
+	}
+
+	if ( $similar ) {
+		$ac_source      = 'similar_weather';
+		$ac_match_days  = (int) ( $similar['match_days'] ?? 0 );
+		$ac_match_dates = is_array( $similar['match_dates'] ?? null ) ? $similar['match_dates'] : array();
+	}
+
+	// Prefer today's measured living AC for hours already logged.
+	if ( $plan_date && function_exists( 'gaming_hub_ecoflow_energy_ac_watts_for_date' ) ) {
+		$logged_today = gaming_hub_ecoflow_energy_ac_watts_for_date( (string) $plan_date );
+		$today_stamp  = wp_date( 'Y-m-d' );
+		for ( $h = 0; $h < 24; $h++ ) {
+			if ( null === ( $logged_today[ $h ] ?? null ) ) {
+				continue;
+			}
+			if ( (string) $plan_date === $today_stamp && $h >= $from_hour ) {
+				continue;
+			}
+			$ac_watts[ $h ] = max( 0, (int) $logged_today[ $h ] );
+		}
+	}
+
+	for ( $h = 0; $h < 24; $h++ ) {
 		$ac_hours[ $h ] = $ac_watts[ $h ] / 1000.0;
 	}
 
@@ -512,6 +751,9 @@ function gaming_hub_ecoflow_room_energy_from_temps( $from_hour, array $temps ) {
 		'base_remaining_kwh' => round( $base_remaining_kwh, 2 ),
 		'ac_now_w'           => $ac_now_w,
 		'ac_watts'           => $ac_watts,
+		'ac_source'          => $ac_source,
+		'ac_match_days'      => $ac_match_days,
+		'ac_match_dates'     => $ac_match_dates,
 		'ac_on'              => $ac_now_w > 0 || $ac_today_kwh > 0,
 		'ac_start_c'         => (float) GAMING_HUB_ECOFLOW_AC_START_C,
 		'ac_heat_start_c'    => (float) GAMING_HUB_ECOFLOW_AC_HEAT_START_C,
@@ -1153,6 +1395,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	$temp_now            = null;
 	$temp_max            = null;
 	$temp_min            = null;
+	$weather_codes       = array();
 
 	if ( function_exists( 'gaming_hub_powerwall_solar_hourly_profile' ) ) {
 		$profile          = gaming_hub_powerwall_solar_hourly_profile( false, $plan_date );
@@ -1161,8 +1404,9 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		$weather_code     = isset( $profile['icon_code'] ) && is_numeric( $profile['icon_code'] )
 			? (int) $profile['icon_code']
 			: ( isset( $profile['weather_code'] ) && is_numeric( $profile['weather_code'] ) ? (int) $profile['weather_code'] : null );
-		if ( function_exists( 'gaming_hub_tajimi_weather_summary' ) && is_array( $profile['weather_codes'] ?? null ) ) {
-			$weather_summary = gaming_hub_tajimi_weather_summary( $profile['weather_codes'] );
+		$weather_codes = is_array( $profile['weather_codes'] ?? null ) ? $profile['weather_codes'] : array();
+		if ( function_exists( 'gaming_hub_tajimi_weather_summary' ) && $weather_codes ) {
+			$weather_summary = gaming_hub_tajimi_weather_summary( $weather_codes );
 		}
 		$precip_max = isset( $profile['precip_max'] ) && is_numeric( $profile['precip_max'] ) ? (int) $profile['precip_max'] : null;
 		$precip_now = isset( $profile['precip_now'] ) && is_numeric( $profile['precip_now'] ) ? (int) $profile['precip_now'] : null;
@@ -1176,7 +1420,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	$solar_today_kwh     = gaming_hub_ecoflow_sum_hours_kwh( $solar_hours, 0, 1.0 );
 	$solar_remaining_kwh = gaming_hub_ecoflow_sum_hours_kwh( $solar_hours, $hour, $hour_frac_left );
 
-	$room = gaming_hub_ecoflow_room_energy_from_temps( $hour, $temps );
+	$room = gaming_hub_ecoflow_room_energy_from_temps( $hour, $temps, $plan_date, $weather_codes );
 	if ( null === $room['temp_now'] && null !== $temp_now ) {
 		$room['temp_now'] = $temp_now;
 	}
@@ -1442,6 +1686,8 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'ac_remaining_kwh'     => $room['ac_remaining_kwh'],
 		'ac_now_w'             => $room['ac_now_w'],
 		'ac_on'                => ! empty( $room['ac_on'] ),
+		'ac_source'            => (string) ( $room['ac_source'] ?? 'temp_model' ),
+		'ac_match_days'        => (int) ( $room['ac_match_days'] ?? 0 ),
 		'ac_start_c'           => $room['ac_start_c'] ?? GAMING_HUB_ECOFLOW_AC_START_C,
 		'ac_heat_start_c'      => $room['ac_heat_start_c'] ?? GAMING_HUB_ECOFLOW_AC_HEAT_START_C,
 		'ac_start_w'           => $room['ac_start_w'] ?? GAMING_HUB_ECOFLOW_AC_START_W,

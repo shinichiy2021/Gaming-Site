@@ -457,6 +457,167 @@ function gaming_hub_tajimi_fetch_open_meteo() {
 }
 
 /**
+ * Fetch Open-Meteo hourly weather for the past N days (Tajimi).
+ *
+ * Separate from the solar irradiance fetch so solar caching stays small.
+ *
+ * @param int $days Lookback days (1–92).
+ * @return array<string, mixed>|WP_Error
+ */
+function gaming_hub_tajimi_fetch_open_meteo_history( $days = 31 ) {
+	$days = max( 1, min( 92, (int) $days ) );
+	$loc  = gaming_hub_tajimi_solar_location();
+
+	$query = array(
+		'latitude'      => $loc['lat'],
+		'longitude'     => $loc['lon'],
+		'timezone'      => 'Asia/Tokyo',
+		'past_days'     => $days,
+		'forecast_days' => 1,
+		'hourly'        => 'temperature_2m,weather_code',
+		'daily'         => 'weather_code,temperature_2m_max,temperature_2m_min',
+	);
+
+	$cache_key = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'om_hist_v1_' . $days . '_' . wp_date( 'Y-m-d' );
+	$cached    = get_transient( $cache_key );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$last_error = null;
+	foreach ( gaming_hub_tajimi_open_meteo_forecast_urls() as $base ) {
+		$url      = add_query_arg( $query, $base );
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout' => 10,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$last_error = $response;
+			continue;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( $code < 200 || $code >= 300 ) {
+			$last_error = new WP_Error(
+				'open_meteo_http',
+				sprintf(
+					/* translators: 1: HTTP status, 2: host */
+					__( 'Open-Meteo HTTP %1$s from %2$s.', 'gaming-hub' ),
+					(string) $code,
+					(string) wp_parse_url( $base, PHP_URL_HOST )
+				)
+			);
+			continue;
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $body ) || ! empty( $body['error'] ) ) {
+			$last_error = new WP_Error( 'open_meteo_invalid', __( 'Open-Meteo response invalid.', 'gaming-hub' ) );
+			continue;
+		}
+
+		set_transient( $cache_key, $body, DAY_IN_SECONDS );
+
+		return $body;
+	}
+
+	return $last_error instanceof WP_Error
+		? $last_error
+		: new WP_Error( 'open_meteo_unreachable', __( 'Open-Meteo unreachable.', 'gaming-hub' ) );
+}
+
+/**
+ * Daily weather summaries for the past N days (for similar-day matching).
+ *
+ * @param int $days Lookback days.
+ * @return array<string, array{date: string, temp_max: float|null, temp_min: float|null, category: string|null, temps: array<int, float|null>, weather_codes: array<int, int|null>}>
+ */
+function gaming_hub_tajimi_history_daily_profiles( $days = 31 ) {
+	$days      = max( 1, min( 92, (int) $days ) );
+	$cache_key = GAMING_HUB_TAJIMI_SOLAR_CACHE_PREFIX . 'hist_days_v1_' . $days . '_' . wp_date( 'Y-m-d' );
+	$cached    = get_transient( $cache_key );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$payload = gaming_hub_tajimi_fetch_open_meteo_history( $days );
+	$out     = array();
+	if ( is_wp_error( $payload ) ) {
+		return $out;
+	}
+
+	$hourly  = is_array( $payload['hourly'] ?? null ) ? $payload['hourly'] : array();
+	$times   = is_array( $hourly['time'] ?? null ) ? $hourly['time'] : array();
+	$daily   = is_array( $payload['daily'] ?? null ) ? $payload['daily'] : array();
+	$d_times = is_array( $daily['time'] ?? null ) ? $daily['time'] : array();
+
+	foreach ( $d_times as $i => $date ) {
+		$date = (string) $date;
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+			continue;
+		}
+		$temps = array_fill( 0, 24, null );
+		$codes = array_fill( 0, 24, null );
+		$out[ $date ] = array(
+			'date'          => $date,
+			'temp_max'      => isset( $daily['temperature_2m_max'][ $i ] ) && is_numeric( $daily['temperature_2m_max'][ $i ] )
+				? (float) $daily['temperature_2m_max'][ $i ]
+				: null,
+			'temp_min'      => isset( $daily['temperature_2m_min'][ $i ] ) && is_numeric( $daily['temperature_2m_min'][ $i ] )
+				? (float) $daily['temperature_2m_min'][ $i ]
+				: null,
+			'category'      => null,
+			'temps'         => $temps,
+			'weather_codes' => $codes,
+		);
+		$day_code = isset( $daily['weather_code'][ $i ] ) && is_numeric( $daily['weather_code'][ $i ] )
+			? (int) $daily['weather_code'][ $i ]
+			: null;
+		if ( null !== $day_code ) {
+			$out[ $date ]['category'] = gaming_hub_tajimi_weather_category( $day_code );
+		}
+	}
+
+	foreach ( $times as $index => $time ) {
+		$date = substr( (string) $time, 0, 10 );
+		if ( ! isset( $out[ $date ] ) ) {
+			continue;
+		}
+		$hour = (int) substr( (string) $time, 11, 2 );
+		if ( $hour < 0 || $hour > 23 ) {
+			continue;
+		}
+		if ( isset( $hourly['temperature_2m'][ $index ] ) && is_numeric( $hourly['temperature_2m'][ $index ] ) ) {
+			$out[ $date ]['temps'][ $hour ] = (float) $hourly['temperature_2m'][ $index ];
+		}
+		if ( isset( $hourly['weather_code'][ $index ] ) && is_numeric( $hourly['weather_code'][ $index ] ) ) {
+			$out[ $date ]['weather_codes'][ $hour ] = (int) $hourly['weather_code'][ $index ];
+		}
+	}
+
+	foreach ( $out as $date => $day ) {
+		if ( null === ( $day['category'] ?? null ) ) {
+			$icon = gaming_hub_tajimi_daytime_icon_code( $day['weather_codes'] ?? array() );
+			$out[ $date ]['category'] = gaming_hub_tajimi_weather_category( $icon );
+		}
+		if ( null === ( $day['temp_max'] ?? null ) ) {
+			$nums = array_values( array_filter( $day['temps'] ?? array(), 'is_numeric' ) );
+			if ( $nums ) {
+				$out[ $date ]['temp_max'] = max( $nums );
+				$out[ $date ]['temp_min'] = min( $nums );
+			}
+		}
+	}
+
+	set_transient( $cache_key, $out, DAY_IN_SECONDS );
+
+	return $out;
+}
+
+/**
  * Pick irradiance + weather for the current local clock hour.
  *
  * @param array<string, mixed> $payload Open-Meteo JSON.
