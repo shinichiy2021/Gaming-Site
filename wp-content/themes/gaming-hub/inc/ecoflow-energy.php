@@ -287,9 +287,27 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 	$soc      = isset( $status['battery_percent'] ) && null !== $status['battery_percent']
 		? max( 0, min( 100, (float) $status['battery_percent'] ) )
 		: null;
-	$delta_soc = function_exists( 'gaming_hub_ecoflow_plan_delta_pack' )
-		? ( gaming_hub_ecoflow_plan_delta_pack( $status )['soc'] ?? null )
+	$delta_pack = function_exists( 'gaming_hub_ecoflow_plan_delta_pack' )
+		? gaming_hub_ecoflow_plan_delta_pack( $status )
+		: array();
+	$delta_soc  = isset( $delta_pack['soc'] ) && is_numeric( $delta_pack['soc'] )
+		? max( 0.0, min( 100.0, (float) $delta_pack['soc'] ) )
 		: null;
+	$pro_remain = isset( $status['remain_capacity'] ) && is_numeric( $status['remain_capacity'] )
+		? max( 0.0, (float) $status['remain_capacity'] )
+		: null;
+	$delta_remain = null;
+	if ( isset( $delta_pack['remain_wh'] ) && is_numeric( $delta_pack['remain_wh'] ) ) {
+		$delta_remain = max( 0.0, (float) $delta_pack['remain_wh'] );
+	} elseif ( isset( $status['secondary']['remain_capacity'] ) && is_numeric( $status['secondary']['remain_capacity'] ) ) {
+		$delta_remain = max( 0.0, (float) $status['secondary']['remain_capacity'] );
+	}
+	$delta_cap = null;
+	if ( isset( $delta_pack['full_wh'] ) && is_numeric( $delta_pack['full_wh'] ) && (float) $delta_pack['full_wh'] > 0 ) {
+		$delta_cap = max( 1.0, (float) $delta_pack['full_wh'] );
+	} elseif ( isset( $status['secondary']['capacity_wh'] ) && is_numeric( $status['secondary']['capacity_wh'] ) ) {
+		$delta_cap = max( 1.0, (float) $status['secondary']['capacity_wh'] );
+	}
 
 	$last_ts = isset( $state['ts'] ) ? (int) $state['ts'] : 0;
 	$dt      = $last_ts > 0 ? max( 0, $now_ts - $last_ts ) : 0;
@@ -342,8 +360,17 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 	if ( null !== $delta_soc ) {
 		$add['delta_soc'] = $delta_soc;
 	}
+	if ( null !== $pro_remain ) {
+		$add['pro_remain_wh'] = $pro_remain;
+	}
+	if ( null !== $delta_remain ) {
+		$add['delta_remain_wh'] = $delta_remain;
+	}
+	if ( null !== $delta_cap ) {
+		$add['delta_cap_wh'] = $delta_cap;
+	}
 
-	if ( $dt > 0 || null !== $soc || null !== $delta_soc ) {
+	if ( $dt > 0 || null !== $soc || null !== $delta_soc || null !== $pro_remain || null !== $delta_remain ) {
 		gaming_hub_ecoflow_energy_add( $date, $hour, $add );
 	}
 
@@ -424,10 +451,43 @@ function gaming_hub_ecoflow_energy_add( $date, $hour, array $add ) {
 	}
 
 	if ( isset( $add['soc'] ) && is_numeric( $add['soc'] ) ) {
-		$day['hours'][ $h ]['soc'] = round( max( 0, min( 100, (float) $add['soc'] ) ), 1 );
+		$soc_v = round( max( 0, min( 100, (float) $add['soc'] ) ), 1 );
+		if ( ! isset( $day['hours'][ $h ]['soc_open'] ) || ! is_numeric( $day['hours'][ $h ]['soc_open'] ) ) {
+			$day['hours'][ $h ]['soc_open'] = $soc_v;
+		}
+		$day['hours'][ $h ]['soc'] = $soc_v;
+		if ( ! isset( $day['soc_open'] ) || ! is_numeric( $day['soc_open'] ) ) {
+			$day['soc_open'] = $soc_v;
+		}
+		$day['soc_close'] = $soc_v;
 	}
 	if ( isset( $add['delta_soc'] ) && is_numeric( $add['delta_soc'] ) ) {
-		$day['hours'][ $h ]['delta_soc'] = round( max( 0, min( 100, (float) $add['delta_soc'] ) ), 1 );
+		$dsoc_v = round( max( 0, min( 100, (float) $add['delta_soc'] ) ), 1 );
+		if ( ! isset( $day['hours'][ $h ]['delta_soc_open'] ) || ! is_numeric( $day['hours'][ $h ]['delta_soc_open'] ) ) {
+			$day['hours'][ $h ]['delta_soc_open'] = $dsoc_v;
+		}
+		$day['hours'][ $h ]['delta_soc'] = $dsoc_v;
+		if ( ! isset( $day['delta_soc_open'] ) || ! is_numeric( $day['delta_soc_open'] ) ) {
+			$day['delta_soc_open'] = $dsoc_v;
+		}
+		$day['delta_soc_close'] = $dsoc_v;
+	}
+	if ( isset( $add['pro_remain_wh'] ) && is_numeric( $add['pro_remain_wh'] ) ) {
+		$pr = max( 0.0, (float) $add['pro_remain_wh'] );
+		if ( ! isset( $day['pro_remain_open'] ) || ! is_numeric( $day['pro_remain_open'] ) ) {
+			$day['pro_remain_open'] = $pr;
+		}
+		$day['pro_remain_close'] = $pr;
+	}
+	if ( isset( $add['delta_remain_wh'] ) && is_numeric( $add['delta_remain_wh'] ) ) {
+		$dr = max( 0.0, (float) $add['delta_remain_wh'] );
+		if ( ! isset( $day['delta_remain_open'] ) || ! is_numeric( $day['delta_remain_open'] ) ) {
+			$day['delta_remain_open'] = $dr;
+		}
+		$day['delta_remain_close'] = $dr;
+	}
+	if ( isset( $add['delta_cap_wh'] ) && is_numeric( $add['delta_cap_wh'] ) ) {
+		$day['delta_cap_wh'] = max( 1.0, (float) $add['delta_cap_wh'] );
 	}
 
 	$day['samples']    = (int) ( $day['samples'] ?? 0 ) + 1;
@@ -599,23 +659,32 @@ function gaming_hub_ecoflow_energy_today_split_solar_hours() {
  */
 function gaming_hub_ecoflow_energy_empty_day() {
 	return array(
-		'input_wh'       => 0.0,
-		'output_wh'      => 0.0,
-		'solar_wh'       => 0.0,
-		'ac_in_wh'       => 0.0,
-		'room_out_wh'    => 0.0,
-		'ups_out_wh'     => 0.0,
-		'dc_out_wh'      => 0.0,
-		'ac_out_wh'      => 0.0,
-		'delta_ac_in_wh' => 0.0,
-		'pro_ac_in_wh'   => 0.0,
-		'hv_wh'          => 0.0,
-		'pro_lv_wh'      => 0.0,
-		'lv_wh'          => 0.0,
-		'saved_yen'      => 0.0,
-		'samples'   => 0,
-		'hours'     => array(),
-		'updated_at'=> '',
+		'input_wh'          => 0.0,
+		'output_wh'         => 0.0,
+		'solar_wh'          => 0.0,
+		'ac_in_wh'          => 0.0,
+		'room_out_wh'       => 0.0,
+		'ups_out_wh'        => 0.0,
+		'dc_out_wh'         => 0.0,
+		'ac_out_wh'         => 0.0,
+		'delta_ac_in_wh'    => 0.0,
+		'pro_ac_in_wh'      => 0.0,
+		'hv_wh'             => 0.0,
+		'pro_lv_wh'         => 0.0,
+		'lv_wh'             => 0.0,
+		'soc_open'          => null,
+		'soc_close'         => null,
+		'delta_soc_open'    => null,
+		'delta_soc_close'   => null,
+		'pro_remain_open'   => null,
+		'pro_remain_close'  => null,
+		'delta_remain_open' => null,
+		'delta_remain_close'=> null,
+		'delta_cap_wh'      => null,
+		'saved_yen'         => 0.0,
+		'samples'           => 0,
+		'hours'             => array(),
+		'updated_at'        => '',
 	);
 }
 
@@ -1196,12 +1265,98 @@ function gaming_hub_ecoflow_energy_pack_wh() {
 }
 
 /**
+ * Pack Wh swing from day open/close remain or SOC (with hour fallback).
+ *
+ * @param array<string, mixed> $row Day option row.
+ * @return float|null Wh (positive = charged).
+ */
+function gaming_hub_ecoflow_energy_soc_store_wh( array $row ) {
+	$packs     = gaming_hub_ecoflow_energy_pack_wh();
+	$pro_cap   = (float) $packs['pro'];
+	$delta_cap = isset( $row['delta_cap_wh'] ) && is_numeric( $row['delta_cap_wh'] )
+		? max( 1.0, (float) $row['delta_cap_wh'] )
+		: (float) $packs['delta'];
+
+	$stored = null;
+
+	$pro_open  = isset( $row['pro_remain_open'] ) && is_numeric( $row['pro_remain_open'] ) ? (float) $row['pro_remain_open'] : null;
+	$pro_close = isset( $row['pro_remain_close'] ) && is_numeric( $row['pro_remain_close'] ) ? (float) $row['pro_remain_close'] : null;
+	if ( null !== $pro_open && null !== $pro_close ) {
+		$stored = $pro_close - $pro_open;
+	}
+
+	$d_open  = isset( $row['delta_remain_open'] ) && is_numeric( $row['delta_remain_open'] ) ? (float) $row['delta_remain_open'] : null;
+	$d_close = isset( $row['delta_remain_close'] ) && is_numeric( $row['delta_remain_close'] ) ? (float) $row['delta_remain_close'] : null;
+	if ( null !== $d_open && null !== $d_close ) {
+		$stored = ( null === $stored ? 0.0 : $stored ) + ( $d_close - $d_open );
+	}
+
+	if ( null !== $stored ) {
+		$max = $pro_cap + $delta_cap;
+		return max( -$max, min( $max, $stored ) );
+	}
+
+	$soc_open  = isset( $row['soc_open'] ) && is_numeric( $row['soc_open'] ) ? (float) $row['soc_open'] : null;
+	$soc_close = isset( $row['soc_close'] ) && is_numeric( $row['soc_close'] ) ? (float) $row['soc_close'] : null;
+	$ds_open   = isset( $row['delta_soc_open'] ) && is_numeric( $row['delta_soc_open'] ) ? (float) $row['delta_soc_open'] : null;
+	$ds_close  = isset( $row['delta_soc_close'] ) && is_numeric( $row['delta_soc_close'] ) ? (float) $row['delta_soc_close'] : null;
+
+	// Legacy rows: reconstruct open/close from hour buckets (last sample per hour).
+	if ( null === $soc_open || null === $soc_close || null === $ds_open || null === $ds_close ) {
+		$hours = is_array( $row['hours'] ?? null ) ? $row['hours'] : array();
+		for ( $h = 0; $h < 24; $h++ ) {
+			$hr = is_array( $hours[ $h ] ?? null ) ? $hours[ $h ] : array();
+			if ( isset( $hr['soc_open'] ) && is_numeric( $hr['soc_open'] ) ) {
+				$v = max( 0.0, min( 100.0, (float) $hr['soc_open'] ) );
+				if ( null === $soc_open ) {
+					$soc_open = $v;
+				}
+			}
+			if ( isset( $hr['soc'] ) && is_numeric( $hr['soc'] ) ) {
+				$v = max( 0.0, min( 100.0, (float) $hr['soc'] ) );
+				if ( null === $soc_open ) {
+					$soc_open = $v;
+				}
+				$soc_close = $v;
+			}
+			if ( isset( $hr['delta_soc_open'] ) && is_numeric( $hr['delta_soc_open'] ) ) {
+				$v = max( 0.0, min( 100.0, (float) $hr['delta_soc_open'] ) );
+				if ( null === $ds_open ) {
+					$ds_open = $v;
+				}
+			}
+			if ( isset( $hr['delta_soc'] ) && is_numeric( $hr['delta_soc'] ) ) {
+				$v = max( 0.0, min( 100.0, (float) $hr['delta_soc'] ) );
+				if ( null === $ds_open ) {
+					$ds_open = $v;
+				}
+				$ds_close = $v;
+			}
+		}
+	}
+
+	if ( null !== $soc_open && null !== $soc_close ) {
+		$stored = ( ( $soc_close - $soc_open ) / 100.0 ) * $pro_cap;
+	}
+	if ( null !== $ds_open && null !== $ds_close ) {
+		$stored = ( null === $stored ? 0.0 : $stored ) + ( ( $ds_close - $ds_open ) / 100.0 ) * $delta_cap;
+	}
+	if ( null === $stored ) {
+		return null;
+	}
+
+	$max = $pro_cap + $delta_cap;
+	return max( -$max, min( $max, $stored ) );
+}
+
+/**
  * Site-boundary kWh for one logged day (supply / load / SOC store).
  *
  * IN  = site input Wh (powIn) reconciled with solar + grid components.
  * OUT = max(room + UPS + DC, site powOut+UPS) + standby self-use.
- * STORE = pack SOC swing, clamped so books cannot invent energy.
- * LOSS = IN − OUT − STORE (charge heat + residual meter gap), floored at 0.
+ * STORE = pack remain/SOC swing; if meters show strong charge/discharge but SOC
+ *         barely moved, fall back to meter surplus×efficiency so LOSS is not inflated.
+ * LOSS = IN − OUT − STORE (charge heat + residual), floored at 0.
  *
  * @param array<string, mixed>|null $row Day option row.
  * @return array{input_kwh: float|null, output_kwh: float|null, solar_kwh: float|null, grid_kwh: float|null, stored_kwh: float|null, loss_kwh: float|null}
@@ -1252,50 +1407,40 @@ function gaming_hub_ecoflow_energy_day_balance( $row ) {
 	// Standby not visible on AC/UPS meters — count as delivered OUT, not LOSS.
 	$load += gaming_hub_ecoflow_energy_self_wh( $row );
 
-	$stored = null;
-	$hours  = is_array( $row['hours'] ?? null ) ? $row['hours'] : array();
-	$packs  = gaming_hub_ecoflow_energy_pack_wh();
-	$first_soc = null;
-	$last_soc  = null;
-	$first_d   = null;
-	$last_d    = null;
-	for ( $h = 0; $h < 24; $h++ ) {
-		$hr = is_array( $hours[ $h ] ?? null ) ? $hours[ $h ] : array();
-		if ( isset( $hr['soc'] ) && is_numeric( $hr['soc'] ) ) {
-			$v = max( 0.0, min( 100.0, (float) $hr['soc'] ) );
-			if ( null === $first_soc ) {
-				$first_soc = $v;
-			}
-			$last_soc = $v;
+	$packs      = gaming_hub_ecoflow_energy_pack_wh();
+	$max_store  = (float) $packs['pro'] + (float) $packs['delta'];
+	$soc_store  = gaming_hub_ecoflow_energy_soc_store_wh( $row );
+	$net        = $supply - $load;
+	$charge_eff = 0.90;
+	$stored     = $soc_store;
+
+	// When watt meters show a clear pack transfer but open→close SOC barely moved
+	// (sparse hour samples / single-bucket days), attribute surplus to STORE.
+	if ( $net > 400.0 ) {
+		$meter_store = $net * $charge_eff;
+		if ( null === $stored || $stored < $meter_store * 0.45 ) {
+			$stored = null === $stored ? $meter_store : max( $stored, $meter_store );
 		}
-		if ( isset( $hr['delta_soc'] ) && is_numeric( $hr['delta_soc'] ) ) {
-			$v = max( 0.0, min( 100.0, (float) $hr['delta_soc'] ) );
-			if ( null === $first_d ) {
-				$first_d = $v;
-			}
-			$last_d = $v;
+	} elseif ( $net < -400.0 ) {
+		$meter_store = $net / $charge_eff;
+		if ( null === $stored || $stored > $meter_store * 0.45 ) {
+			// meter_store is more negative; take the stronger discharge signal.
+			$stored = null === $stored ? $meter_store : min( $stored, $meter_store );
 		}
+	} elseif ( null === $stored && abs( $net ) > 1.0 ) {
+		$stored = $net > 0 ? $net * $charge_eff : $net;
 	}
-	if ( null !== $first_soc && null !== $last_soc ) {
-		$stored = ( ( $last_soc - $first_soc ) / 100.0 ) * (float) $packs['pro'];
-	}
-	if ( null !== $first_d && null !== $last_d ) {
-		$stored = ( null === $stored ? 0.0 : $stored ) + ( ( $last_d - $first_d ) / 100.0 ) * (float) $packs['delta'];
-	}
+
 	if ( null !== $stored ) {
-		$max_store = (float) $packs['pro'] + (float) $packs['delta'];
-		$stored    = max( -$max_store, min( $max_store, $stored ) );
+		$stored = max( -$max_store, min( $max_store, $stored ) );
 	}
 
 	$loss = null;
 	if ( null !== $stored && ( $supply > 0 || $load > 0 ) ) {
-		// Discharging cannot invent more load energy than OUT meters saw.
 		if ( $stored < 0 && $load > 0 && abs( $stored ) > $load ) {
 			$stored = -$load;
 		}
 		$loss = $supply - $load - $stored;
-		// SOC×nameplate can run ahead of watt meters while charging; that gap is
-		// estimation error, not heat — keep STORE as SOC and floor LOSS at 0.
 		if ( $loss < 0 ) {
 			$loss = 0.0;
 		}
