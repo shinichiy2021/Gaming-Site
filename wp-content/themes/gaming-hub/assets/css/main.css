@@ -8102,6 +8102,107 @@ body.home .site-header.is-scrolled {
 	color: var(--color-text-muted);
 }
 
+.ecoflow-cal-week {
+	margin: 4px 0 8px;
+}
+
+.ecoflow-cal-week-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+	margin-bottom: 6px;
+}
+
+.ecoflow-cal-week-head .ecoflow-cal-chart-label {
+	margin: 0;
+}
+
+.ecoflow-cal-week-nav {
+	align-items: center;
+	gap: 8px;
+}
+
+.ecoflow-cal-week-nav [data-ecoflow-cal-week-label] {
+	min-width: 4.5em;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	color: var(--color-text-muted);
+	font-size: 0.78rem;
+}
+
+.ecoflow-cal-week-chart {
+	grid-template-columns: 34px minmax(0, 1fr);
+	min-height: 168px;
+}
+
+.ecoflow-cal-week-track,
+.ecoflow-cal-week-chart .ecoflow-rate-hours {
+	gap: 4px;
+}
+
+.ecoflow-cal-week-pair {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+	align-items: flex-end;
+	gap: 2px;
+	width: 100%;
+	height: 100%;
+	z-index: 2;
+}
+
+.ecoflow-cal-week-pair .ecoflow-rate-bar {
+	width: 8px;
+	max-width: 8px;
+	flex: 0 0 auto;
+	align-self: flex-end;
+	min-height: 0;
+}
+
+.ecoflow-cal-in-bar {
+	background:
+		repeating-linear-gradient(
+			to top,
+			transparent 0 2px,
+			rgba(0, 0, 0, 0.22) 2px 3px
+		),
+		linear-gradient(180deg, #7ad7ff, #2aa8e0);
+	box-shadow: 0 0 8px rgba(122, 215, 255, 0.35);
+}
+
+.ecoflow-cal-out-bar {
+	background:
+		repeating-linear-gradient(
+			to top,
+			transparent 0 2px,
+			rgba(0, 0, 0, 0.22) 2px 3px
+		),
+		linear-gradient(180deg, #ff7ad0, #d63d9a);
+	box-shadow: 0 0 8px rgba(255, 122, 208, 0.32);
+}
+
+.ecoflow-cal-week-col.is-now .ecoflow-cal-in-bar,
+.ecoflow-cal-week-col.is-now .ecoflow-cal-out-bar {
+	outline: 1px solid #fff;
+}
+
+.ecoflow-cal-week-totals {
+	margin: 6px 0 0;
+	font-size: 0.78rem;
+	color: var(--color-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.ecoflow-cal .ecoflow-cal-store {
+	color: #9ad4ff;
+}
+
+.ecoflow-cal .ecoflow-cal-store b {
+	color: #ccebff;
+}
+
 .ecoflow-cal-today[hidden] {
 	display: none;
 }

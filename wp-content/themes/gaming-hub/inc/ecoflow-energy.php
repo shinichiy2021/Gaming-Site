@@ -1108,16 +1108,270 @@ function gaming_hub_ecoflow_energy_hour_chart_rows( $hours ) {
 	for ( $h = 0; $h < 24; $h++ ) {
 		$row   = isset( $hours[ $h ] ) && is_array( $hours[ $h ] ) ? $hours[ $h ] : array();
 		$solar = isset( $row['solar_wh'] ) ? round( (float) $row['solar_wh'] / 1000, 3 ) : null;
+		$in    = isset( $row['input_wh'] ) ? round( (float) $row['input_wh'] / 1000, 3 ) : null;
 		$out   = isset( $row['output_wh'] ) ? round( (float) $row['output_wh'] / 1000, 3 ) : null;
+		$load  = null;
+		if ( isset( $row['room_out_wh'] ) || isset( $row['ups_out_wh'] ) ) {
+			$load = round(
+				( max( 0, (float) ( $row['room_out_wh'] ?? 0 ) ) + max( 0, (float) ( $row['ups_out_wh'] ?? 0 ) ) ) / 1000,
+				3
+			);
+		} elseif ( null !== $out ) {
+			$load = $out;
+		}
 		$rows[] = array(
 			'hour'       => $h,
 			'solar_kwh'  => $solar,
-			'output_kwh' => $out,
-			'has_data'   => null !== $solar || null !== $out,
+			'input_kwh'  => $in,
+			'output_kwh' => null !== $load ? $load : $out,
+			'has_data'   => null !== $solar || null !== $in || null !== $out || null !== $load,
 		);
 	}
 
 	return $rows;
+}
+
+/**
+ * Pack Wh used for SOC→kWh conversion on the generation log.
+ *
+ * @return array{pro: int, delta: int}
+ */
+function gaming_hub_ecoflow_energy_pack_wh() {
+	$pro = defined( 'GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH' )
+		? (int) GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH
+		: 4096;
+	$delta = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH' )
+		? (int) GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH
+		: 2500;
+
+	return array(
+		'pro'   => max( 1, $pro ),
+		'delta' => max( 1, $delta ),
+	);
+}
+
+/**
+ * Site-boundary kWh for one logged day (supply / load / SOC store).
+ *
+ * IN  = solar + grid AC (Pro + Delta). Prefer component fields over raw powIn.
+ * OUT = living AC + UPS (load delivered). Prefer room+ups over raw powOut.
+ * STORE = pack SOC swing (cannot exceed combined pack Wh).
+ *
+ * @param array<string, mixed>|null $row Day option row.
+ * @return array{input_kwh: float|null, output_kwh: float|null, solar_kwh: float|null, grid_kwh: float|null, stored_kwh: float|null, loss_kwh: float|null}
+ */
+function gaming_hub_ecoflow_energy_day_balance( $row ) {
+	$null = array(
+		'input_kwh'  => null,
+		'output_kwh' => null,
+		'solar_kwh'  => null,
+		'grid_kwh'   => null,
+		'stored_kwh' => null,
+		'loss_kwh'   => null,
+	);
+	if ( ! is_array( $row ) ) {
+		return $null;
+	}
+
+	$solar = max( 0.0, (float) ( $row['solar_wh'] ?? 0 ) );
+	$has_grid = array_key_exists( 'pro_ac_in_wh', $row ) || array_key_exists( 'delta_ac_in_wh', $row ) || array_key_exists( 'ac_in_wh', $row );
+	$grid     = max( 0.0, (float) ( $row['pro_ac_in_wh'] ?? 0 ) ) + max( 0.0, (float) ( $row['delta_ac_in_wh'] ?? 0 ) );
+	if ( $grid <= 0 && array_key_exists( 'ac_in_wh', $row ) ) {
+		$grid = max( 0.0, (float) $row['ac_in_wh'] );
+	}
+	$has_load = array_key_exists( 'room_out_wh', $row ) || array_key_exists( 'ups_out_wh', $row );
+	$load     = max( 0.0, (float) ( $row['room_out_wh'] ?? 0 ) ) + max( 0.0, (float) ( $row['ups_out_wh'] ?? 0 ) );
+	if ( ! $has_load && isset( $row['output_wh'] ) ) {
+		$load = max( 0.0, (float) $row['output_wh'] );
+	}
+
+	$supply = $solar + $grid;
+	if ( $supply <= 0 && ! $has_grid && isset( $row['input_wh'] ) ) {
+		$supply = max( 0.0, (float) $row['input_wh'] );
+	}
+
+	$stored = null;
+	$hours  = is_array( $row['hours'] ?? null ) ? $row['hours'] : array();
+	$packs  = gaming_hub_ecoflow_energy_pack_wh();
+	$first_soc = null;
+	$last_soc  = null;
+	$first_d   = null;
+	$last_d    = null;
+	for ( $h = 0; $h < 24; $h++ ) {
+		$hr = is_array( $hours[ $h ] ?? null ) ? $hours[ $h ] : array();
+		if ( isset( $hr['soc'] ) && is_numeric( $hr['soc'] ) ) {
+			$v = max( 0.0, min( 100.0, (float) $hr['soc'] ) );
+			if ( null === $first_soc ) {
+				$first_soc = $v;
+			}
+			$last_soc = $v;
+		}
+		if ( isset( $hr['delta_soc'] ) && is_numeric( $hr['delta_soc'] ) ) {
+			$v = max( 0.0, min( 100.0, (float) $hr['delta_soc'] ) );
+			if ( null === $first_d ) {
+				$first_d = $v;
+			}
+			$last_d = $v;
+		}
+	}
+	if ( null !== $first_soc && null !== $last_soc ) {
+		$stored = ( ( $last_soc - $first_soc ) / 100.0 ) * (float) $packs['pro'];
+	}
+	if ( null !== $first_d && null !== $last_d ) {
+		$stored = ( null === $stored ? 0.0 : $stored ) + ( ( $last_d - $first_d ) / 100.0 ) * (float) $packs['delta'];
+	}
+	if ( null !== $stored ) {
+		// Charge/discharge efficiency: pack Wh change is the real storage ceiling.
+		$max_store = (float) $packs['pro'] + (float) $packs['delta'];
+		$stored    = max( -$max_store, min( $max_store, $stored ) );
+	}
+
+	$loss = null;
+	if ( null !== $stored && $supply > 0 ) {
+		$loss = $supply - $load - $stored;
+	}
+
+	$has = $supply > 0 || $load > 0 || $solar > 0 || ( null !== $stored && abs( $stored ) > 1 );
+
+	return array(
+		'input_kwh'  => $has ? round( $supply / 1000.0, 2 ) : null,
+		'output_kwh' => $has ? round( $load / 1000.0, 2 ) : null,
+		'solar_kwh'  => $has ? round( $solar / 1000.0, 2 ) : null,
+		'grid_kwh'   => $has ? round( $grid / 1000.0, 2 ) : null,
+		'stored_kwh' => null === $stored ? null : round( $stored / 1000.0, 2 ),
+		'loss_kwh'   => null === $loss ? null : round( $loss / 1000.0, 2 ),
+	);
+}
+
+/**
+ * Group month day cells into Sun–Sat weeks for IN/OUT comparison charts.
+ *
+ * @param array<int, array<string, mixed>> $cells Month day cells.
+ * @param int                              $start_wday Sunday=0 of the 1st.
+ * @param string                           $today Y-m-d.
+ * @return array<int, array<string, mixed>>
+ */
+function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $today ) {
+	$start_wday = max( 0, min( 6, (int) $start_wday ) );
+	$weeks      = array();
+	$cursor     = array();
+	$pad        = $start_wday;
+
+	for ( $i = 0; $i < $pad; $i++ ) {
+		$cursor[] = null;
+	}
+
+	foreach ( $cells as $cell ) {
+		$cursor[] = $cell;
+		if ( 7 === count( $cursor ) ) {
+			$weeks[] = $cursor;
+			$cursor  = array();
+		}
+	}
+	if ( $cursor ) {
+		while ( count( $cursor ) < 7 ) {
+			$cursor[] = null;
+		}
+		$weeks[] = $cursor;
+	}
+
+	$out     = array();
+	$active  = 0;
+	foreach ( $weeks as $index => $days ) {
+		$in = 0.0;
+		$out_kwh = 0.0;
+		$pv = 0.0;
+		$store = 0.0;
+		$has = false;
+		$has_today = false;
+		$first_day = null;
+		$last_day = null;
+		$chart_days = array();
+		foreach ( $days as $dow => $cell ) {
+			if ( ! is_array( $cell ) ) {
+				$chart_days[] = array(
+					'dow'        => $dow,
+					'day'        => null,
+					'date'       => null,
+					'input_kwh'  => null,
+					'output_kwh' => null,
+					'solar_kwh'  => null,
+					'stored_kwh' => null,
+					'is_today'   => false,
+					'has_data'   => false,
+				);
+				continue;
+			}
+			$first_day = null === $first_day ? (int) $cell['day'] : $first_day;
+			$last_day  = (int) $cell['day'];
+			if ( ! empty( $cell['is_today'] ) ) {
+				$has_today = true;
+				$active    = $index;
+			}
+			if ( ! empty( $cell['has_data'] ) ) {
+				$has = true;
+				$in     += (float) ( $cell['input_kwh'] ?? 0 );
+				$out_kwh += (float) ( $cell['output_kwh'] ?? 0 );
+				$pv     += (float) ( $cell['solar_kwh'] ?? 0 );
+				if ( isset( $cell['stored_kwh'] ) && is_numeric( $cell['stored_kwh'] ) ) {
+					$store += (float) $cell['stored_kwh'];
+				}
+			}
+			$chart_days[] = array(
+				'dow'        => $dow,
+				'day'        => (int) $cell['day'],
+				'date'       => (string) $cell['date'],
+				'input_kwh'  => $cell['input_kwh'] ?? null,
+				'output_kwh' => $cell['output_kwh'] ?? null,
+				'solar_kwh'  => $cell['solar_kwh'] ?? null,
+				'stored_kwh' => $cell['stored_kwh'] ?? null,
+				'is_today'   => ! empty( $cell['is_today'] ),
+				'has_data'   => ! empty( $cell['has_data'] ),
+			);
+		}
+
+		$label = '';
+		if ( null !== $first_day && null !== $last_day ) {
+			$label = sprintf(
+				/* translators: 1: first day of month, 2: last day of month */
+				__( '%1$s–%2$s', 'gaming-hub' ),
+				(string) $first_day,
+				(string) $last_day
+			);
+		}
+
+		$day_max = 0.01;
+		foreach ( $chart_days as $cd ) {
+			$day_max = max(
+				$day_max,
+				(float) ( $cd['input_kwh'] ?? 0 ),
+				(float) ( $cd['output_kwh'] ?? 0 )
+			);
+		}
+		list( $kwh_max, $kwh_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $day_max );
+
+		$out[] = array(
+			'index'      => $index,
+			'label'      => $label,
+			'is_active'  => $has_today || ( ! $today && 0 === $index ),
+			'days'       => $chart_days,
+			'totals'     => array(
+				'input_kwh'  => round( $in, 2 ),
+				'output_kwh' => round( $out_kwh, 2 ),
+				'solar_kwh'  => round( $pv, 2 ),
+				'stored_kwh' => round( $store, 2 ),
+			),
+			'has_data'   => $has,
+			'kwh_max'    => $kwh_max,
+			'kwh_ticks'  => $kwh_ticks,
+		);
+	}
+
+	if ( $out && ! array_filter( array_column( $out, 'is_active' ) ) ) {
+		$out[ min( $active, count( $out ) - 1 ) ]['is_active'] = true;
+	}
+
+	return $out;
 }
 
 /**
@@ -1150,25 +1404,29 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 	);
 
 	for ( $d = 1; $d <= $days_in_month; $d++ ) {
-		$date = $ym . '-' . sprintf( '%02d', $d );
-		$row  = isset( $log[ $date ] ) && is_array( $log[ $date ] ) ? $log[ $date ] : null;
-		$cell = array(
+		$date    = $ym . '-' . sprintf( '%02d', $d );
+		$row     = isset( $log[ $date ] ) && is_array( $log[ $date ] ) ? $log[ $date ] : null;
+		$balance = gaming_hub_ecoflow_energy_day_balance( $row );
+		$cell    = array(
 			'date'       => $date,
 			'day'        => $d,
-			'input_kwh'  => $row ? round( (float) $row['input_wh'] / 1000, 2 ) : null,
-			'output_kwh' => $row ? round( (float) $row['output_wh'] / 1000, 2 ) : null,
-			'solar_kwh'  => $row ? round( (float) $row['solar_wh'] / 1000, 2 ) : null,
+			'input_kwh'  => $balance['input_kwh'],
+			'output_kwh' => $balance['output_kwh'],
+			'solar_kwh'  => $balance['solar_kwh'],
+			'grid_kwh'   => $balance['grid_kwh'],
+			'stored_kwh' => $balance['stored_kwh'],
+			'loss_kwh'   => $balance['loss_kwh'],
 			'saved_yen'  => $row ? round( (float) $row['saved_yen'], 0 ) : null,
-			'has_data'   => (bool) $row,
+			'has_data'   => (bool) $row && ( null !== $balance['input_kwh'] || null !== $balance['output_kwh'] || null !== $balance['solar_kwh'] ),
 			'is_today'   => $date === $today,
 		);
 		$cells[] = $cell;
 
-		if ( $row ) {
-			$totals['input_kwh']  += (float) $cell['input_kwh'];
-			$totals['output_kwh'] += (float) $cell['output_kwh'];
-			$totals['solar_kwh']  += (float) $cell['solar_kwh'];
-			$totals['saved_yen']  += (float) $cell['saved_yen'];
+		if ( $cell['has_data'] ) {
+			$totals['input_kwh']  += (float) ( $cell['input_kwh'] ?? 0 );
+			$totals['output_kwh'] += (float) ( $cell['output_kwh'] ?? 0 );
+			$totals['solar_kwh']  += (float) ( $cell['solar_kwh'] ?? 0 );
+			$totals['saved_yen']  += (float) ( $cell['saved_yen'] ?? 0 );
 		}
 	}
 
@@ -1178,10 +1436,12 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 		$max_kwh = max(
 			$max_kwh,
 			(float) ( $cell['solar_kwh'] ?? 0 ),
+			(float) ( $cell['input_kwh'] ?? 0 ),
 			(float) ( $cell['output_kwh'] ?? 0 )
 		);
 		$max_yen = max( $max_yen, abs( (float) ( $cell['saved_yen'] ?? 0 ) ) );
 	}
+	$weeks = gaming_hub_ecoflow_energy_week_groups( $cells, $start_wday, $today );
 	list( $kwh_max, $kwh_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $max_kwh );
 	list( $yen_max, $yen_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $max_yen );
 
@@ -1229,6 +1489,7 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 		'today'      => $today,
 		'start_wday' => $start_wday,
 		'days'       => $cells,
+		'weeks'      => $weeks,
 		'totals'     => array(
 			'input_kwh'  => round( $totals['input_kwh'], 2 ),
 			'output_kwh' => round( $totals['output_kwh'], 2 ),

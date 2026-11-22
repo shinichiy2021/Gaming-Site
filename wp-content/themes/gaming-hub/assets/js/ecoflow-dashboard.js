@@ -707,6 +707,7 @@
 			in: formatCalKwh(day.input_kwh),
 			out: formatCalKwh(day.output_kwh),
 			pv: formatCalKwh(day.solar_kwh),
+			store: formatCalKwh(day.stored_kwh),
 			save: formatCalYen(day.saved_yen),
 		};
 		Object.keys(map).forEach(function (key) {
@@ -717,12 +718,116 @@
 		});
 	}
 
+	function activeWeekIndex(energy) {
+		const weeks = Array.isArray(energy && energy.weeks) ? energy.weeks : [];
+		const marked = weeks.findIndex(function (week) {
+			return week && week.is_active;
+		});
+		if (marked >= 0) {
+			return marked;
+		}
+		return 0;
+	}
+
+	function renderEnergyWeekChart(root, energy, weekIndex) {
+		if (!root || !energy) {
+			return;
+		}
+		const weeks = Array.isArray(energy.weeks) ? energy.weeks : [];
+		if (!weeks.length) {
+			return;
+		}
+		let index = Number.isFinite(weekIndex) ? weekIndex : Number(root.getAttribute('data-week'));
+		if (!Number.isFinite(index) || index < 0 || index >= weeks.length) {
+			index = activeWeekIndex(energy);
+		}
+		root.setAttribute('data-week', String(index));
+		const week = weeks[index] || weeks[0];
+		const days = Array.isArray(week.days) ? week.days : [];
+		const axis = energyTicks(week.kwh_max || 1, 4);
+		const max = Math.max(1, Number(week.kwh_max) || axis.max || 1);
+
+		const label = root.querySelector('[data-ecoflow-cal-week-label]');
+		if (label) {
+			label.textContent = week.label || '';
+		}
+
+		setTickTexts(root.querySelectorAll('[data-ecoflow-cal-week-kwh-tick]'), week.kwh_ticks || axis.ticks, false);
+
+		const track = root.querySelector('[data-ecoflow-cal-week-track]');
+		const hoursRow = root.querySelector('[data-ecoflow-cal-week-hours]');
+		if (track) {
+			track.innerHTML = '';
+			days.forEach(function (day) {
+				const inV = day && day.input_kwh != null ? Number(day.input_kwh) : null;
+				const outV = day && day.output_kwh != null ? Number(day.output_kwh) : null;
+				const inH = inV == null ? 0 : Math.max(0, Math.min(100, (inV / max) * 100));
+				const outH = outV == null ? 0 : Math.max(0, Math.min(100, (outV / max) * 100));
+				const col = document.createElement('div');
+				col.className = 'ecoflow-rate-col ecoflow-cal-week-col'
+					+ (day && day.is_today ? ' is-now' : '')
+					+ (day && day.has_data ? '' : ' is-empty');
+				col.setAttribute('data-ecoflow-cal-week-col', '');
+				if (day && day.date) {
+					col.setAttribute('data-date', day.date);
+				}
+				if (day && day.is_today) {
+					const pip = document.createElement('span');
+					pip.className = 'ecoflow-rate-now-pip';
+					pip.textContent = 'NOW';
+					col.appendChild(pip);
+				}
+				const pair = document.createElement('span');
+				pair.className = 'ecoflow-cal-week-pair';
+				const inBar = document.createElement('span');
+				inBar.className = 'ecoflow-rate-bar ecoflow-cal-in-bar';
+				inBar.style.height = inH.toFixed(1) + '%';
+				inBar.title = 'IN ' + formatCalKwh(inV);
+				const outBar = document.createElement('span');
+				outBar.className = 'ecoflow-rate-bar ecoflow-cal-out-bar';
+				outBar.style.height = outH.toFixed(1) + '%';
+				outBar.title = 'OUT ' + formatCalKwh(outV);
+				pair.appendChild(inBar);
+				pair.appendChild(outBar);
+				col.appendChild(pair);
+				track.appendChild(col);
+			});
+		}
+		if (hoursRow) {
+			hoursRow.innerHTML = '';
+			days.forEach(function (day) {
+				const hour = document.createElement('span');
+				hour.className = 'ecoflow-rate-hour' + (day && day.is_today ? ' is-now' : '');
+				hour.textContent = day && day.day != null ? String(day.day) : '';
+				hoursRow.appendChild(hour);
+			});
+		}
+
+		const totalsEl = root.querySelector('[data-ecoflow-cal-week-totals]');
+		if (totalsEl && week.totals) {
+			totalsEl.textContent = t('Week')
+				+ ' · IN ' + formatCalKwh(week.totals.input_kwh)
+				+ ' · OUT ' + formatCalKwh(week.totals.output_kwh)
+				+ ' · STORE ' + formatCalKwh(week.totals.stored_kwh) + ' kWh';
+		}
+
+		const prevWeek = root.querySelector('[data-ecoflow-cal-week-prev]');
+		const nextWeek = root.querySelector('[data-ecoflow-cal-week-next]');
+		if (prevWeek) {
+			prevWeek.disabled = index <= 0;
+		}
+		if (nextWeek) {
+			nextWeek.disabled = index >= weeks.length - 1;
+		}
+	}
+
 	function renderEnergyCalendar(energy) {
 		const root = calRoot();
 		if (!root || !energy) {
 			return;
 		}
 
+		root._energyMonth = energy;
 		root.setAttribute('data-month', energy.month || '');
 		const label = root.querySelector('[data-ecoflow-cal-label]');
 		if (label && energy.label) {
@@ -743,6 +848,7 @@
 		applyTodayBuy(energy.today_buy);
 		renderEnergyTodayChart(root, energy);
 		renderEnergyMonthChart(root, energy);
+		renderEnergyWeekChart(root, energy, activeWeekIndex(energy));
 
 		const grid = root.querySelector('[data-ecoflow-cal-grid]');
 		if (!grid || !Array.isArray(energy.days)) {
@@ -777,6 +883,7 @@
 				['ecoflow-plan-slot-mode', 'IN ', 'in', formatCalKwh(day.input_kwh)],
 				['ecoflow-plan-slot-mode', 'OUT ', 'out', formatCalKwh(day.output_kwh)],
 				['ecoflow-plan-slot-watts', 'PV ', 'pv', formatCalKwh(day.solar_kwh)],
+				['ecoflow-plan-slot-mode ecoflow-cal-store', 'STORE ', 'store', formatCalKwh(day.stored_kwh)],
 				['ecoflow-plan-slot-yen', 'SAVE ', 'save', formatCalYen(day.saved_yen)],
 			].forEach(function (row) {
 				const line = document.createElement('span');
@@ -808,9 +915,11 @@
 			return;
 		}
 
+		root._energyMonth = energy;
 		applyEnergyTotals(root, energy);
 		renderEnergyTodayChart(root, energy);
 		renderEnergyMonthChart(root, energy);
+		renderEnergyWeekChart(root, energy, Number(root.getAttribute('data-week')));
 
 		const today = (energy.days || []).find(function (day) {
 			return day.is_today;
@@ -820,11 +929,28 @@
 		}
 	}
 
+	function seedEnergyFromDom(root) {
+		if (!root || root._energyMonth) {
+			return root && root._energyMonth;
+		}
+		const boot = root.querySelector('[data-ecoflow-cal-bootstrap]');
+		if (!boot || !boot.textContent) {
+			return null;
+		}
+		try {
+			root._energyMonth = JSON.parse(boot.textContent);
+		} catch (err) {
+			return null;
+		}
+		return root._energyMonth;
+	}
+
 	function bindCalendarNav() {
 		const root = calRoot();
 		if (!root || !gamingHubEcoflow.energyUrl) {
 			return;
 		}
+		seedEnergyFromDom(root);
 
 		function loadMonth(month) {
 			if (!month) {
@@ -854,6 +980,28 @@
 		if (nextBtn) {
 			nextBtn.addEventListener('click', function () {
 				loadMonth(nextBtn.getAttribute('data-month'));
+			});
+		}
+
+		const prevWeek = root.querySelector('[data-ecoflow-cal-week-prev]');
+		const nextWeek = root.querySelector('[data-ecoflow-cal-week-next]');
+		function shiftWeek(delta) {
+			const energy = seedEnergyFromDom(root) || root._energyMonth;
+			if (!energy || !Array.isArray(energy.weeks) || !energy.weeks.length) {
+				return;
+			}
+			const cur = Number(root.getAttribute('data-week'));
+			const next = Math.max(0, Math.min(energy.weeks.length - 1, (Number.isFinite(cur) ? cur : activeWeekIndex(energy)) + delta));
+			renderEnergyWeekChart(root, energy, next);
+		}
+		if (prevWeek) {
+			prevWeek.addEventListener('click', function () {
+				shiftWeek(-1);
+			});
+		}
+		if (nextWeek) {
+			nextWeek.addEventListener('click', function () {
+				shiftWeek(1);
 			});
 		}
 	}

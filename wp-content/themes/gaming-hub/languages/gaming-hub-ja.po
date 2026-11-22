@@ -3051,6 +3051,24 @@ msgstr "水"
 msgid "Week"
 msgstr "週次"
 
+msgid "Weekly IN / OUT"
+msgstr "週次 IN / OUT"
+
+msgid "Prev week"
+msgstr "前の週"
+
+msgid "Next week"
+msgstr "次の週"
+
+msgid "Weekly input versus output"
+msgstr "週次の入力と出力の比較"
+
+msgid "Cyan bars: IN (solar + grid) · Magenta bars: OUT (living + UPS)"
+msgstr "水色棒: IN（太陽光＋買電）· マゼンタ棒: OUT（リビング＋UPS）"
+
+msgid "IN = solar + grid buy (Pro + 1500). OUT = living load + UPS. STORE = pack SOC change (not IN−OUT). Charging loss is separate from usable storage."
+msgstr "IN＝太陽光＋買電（Pro＋1500）。OUT＝リビング負荷＋UPS。STORE＝パックSOC変化（IN−OUTではない）。充電ロスは実効蓄電とは別です。"
+
 msgid "Weekdays: on above 28°C"
 msgstr "平日は 28℃超でオン"
 
