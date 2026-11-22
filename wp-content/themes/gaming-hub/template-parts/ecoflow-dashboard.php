@@ -369,7 +369,7 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 									esc_html( number_format_i18n( (int) ( $plan['ac_now_w'] ?? 0 ) ) ),
 									esc_html( number_format_i18n( (int) ( $plan['ac_match_days'] ?? 0 ) ) )
 								);
-							} else {
+							} elseif ( isset( $plan['ac_source'] ) || isset( $plan['ac_today_kwh'] ) ) {
 								printf(
 									/* translators: 1: watts now, 2: cool start C, 3: start watts, 4: cool max C, 5: heat start C, 6: heat min C */
 									esc_html__('Now %1$s W · cool %3$s W@%2$s°C→1 kW@%4$s°C+ · heat %3$s W@%5$s°C→1 kW@%6$s°C−', 'gaming-hub'),
@@ -380,6 +380,8 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 									esc_html( number_format_i18n( (float) ( $plan['ac_heat_start_c'] ?? ( defined( 'GAMING_HUB_ECOFLOW_AC_HEAT_START_C' ) ? GAMING_HUB_ECOFLOW_AC_HEAT_START_C : 10 ) ), 0 ) ),
 									esc_html( number_format_i18n( (float) ( $plan['ac_heat_min_c'] ?? ( function_exists( 'gaming_hub_ecoflow_ac_heat_min_c' ) ? gaming_hub_ecoflow_ac_heat_min_c() : 3 ) ), 0 ) )
 								);
+							} else {
+								echo '—';
 							}
 							?>
 						</small>
@@ -399,8 +401,11 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 									esc_html( $panel_note ),
 									esc_html( number_format_i18n( (int) ( $plan['solar_match_days'] ?? 0 ) ) )
 								);
-							} else {
+							} elseif ( isset( $plan['solar_source'] ) || isset( $plan['solar_remaining_kwh'] ) || isset( $plan['solar_hud_kwh'] ) ) {
 								echo esc_html( $panel_note . ' · ' . __('From now', 'gaming-hub') . ' · ' . __('Tajimi', 'gaming-hub') );
+							} else {
+								// Async skeleton stub has no solar fields — avoid fake open_meteo/Tajimi copy.
+								echo '—';
 							}
 							?>
 						</small>
