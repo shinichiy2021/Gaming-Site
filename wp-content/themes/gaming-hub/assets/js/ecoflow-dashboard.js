@@ -355,6 +355,16 @@
 		return Number(value).toFixed(2);
 	}
 
+	function formatCalIn(input, solar) {
+		if (input === null || input === undefined) {
+			if (solar === null || solar === undefined) {
+				return '—';
+			}
+			return '— (PV ' + formatCalKwh(solar) + ')';
+		}
+		return formatCalKwh(input) + ' (PV ' + formatCalKwh(solar) + ')';
+	}
+
 	function formatCalYen(value) {
 		if (value === null || value === undefined) {
 			return '—';
@@ -704,10 +714,10 @@
 		cellEl.classList.toggle('is-charge', !!day.has_data && Number(day.saved_yen) > 0);
 		cellEl.classList.toggle('is-past', !day.is_today && !day.has_data);
 		const map = {
-			in: formatCalKwh(day.input_kwh),
+			in: formatCalIn(day.input_kwh, day.solar_kwh),
 			out: formatCalKwh(day.output_kwh),
-			pv: formatCalKwh(day.solar_kwh),
 			store: formatCalKwh(day.stored_kwh),
+			loss: formatCalKwh(day.loss_kwh),
 			save: formatCalYen(day.saved_yen),
 		};
 		Object.keys(map).forEach(function (key) {
@@ -806,9 +816,10 @@
 		const totalsEl = root.querySelector('[data-ecoflow-cal-week-totals]');
 		if (totalsEl && week.totals) {
 			totalsEl.textContent = t('Week')
-				+ ' · IN ' + formatCalKwh(week.totals.input_kwh)
+				+ ' · IN ' + formatCalIn(week.totals.input_kwh, week.totals.solar_kwh)
 				+ ' · OUT ' + formatCalKwh(week.totals.output_kwh)
-				+ ' · STORE ' + formatCalKwh(week.totals.stored_kwh) + ' kWh';
+				+ ' · STORE ' + formatCalKwh(week.totals.stored_kwh)
+				+ ' · LOSS ' + formatCalKwh(week.totals.loss_kwh) + ' kWh';
 		}
 
 		const prevWeek = root.querySelector('[data-ecoflow-cal-week-prev]');
@@ -880,10 +891,10 @@
 			cell.appendChild(hourEl);
 
 			[
-				['ecoflow-plan-slot-mode', 'IN ', 'in', formatCalKwh(day.input_kwh)],
+				['ecoflow-plan-slot-mode ecoflow-cal-in', 'IN ', 'in', formatCalIn(day.input_kwh, day.solar_kwh)],
 				['ecoflow-plan-slot-mode', 'OUT ', 'out', formatCalKwh(day.output_kwh)],
-				['ecoflow-plan-slot-watts', 'PV ', 'pv', formatCalKwh(day.solar_kwh)],
 				['ecoflow-plan-slot-mode ecoflow-cal-store', 'STORE ', 'store', formatCalKwh(day.stored_kwh)],
+				['ecoflow-plan-slot-mode ecoflow-cal-loss', 'LOSS ', 'loss', formatCalKwh(day.loss_kwh)],
 				['ecoflow-plan-slot-yen', 'SAVE ', 'save', formatCalYen(day.saved_yen)],
 			].forEach(function (row) {
 				const line = document.createElement('span');

@@ -28,6 +28,14 @@ $format_yen = static function ( $value ) {
 	return number_format( (float) $value, 0 ) . ' 円';
 };
 
+$format_in = static function ( $input, $solar ) use ( $format_kwh ) {
+	$in = $format_kwh( $input );
+	if ( null === $input && null === $solar ) {
+		return $in;
+	}
+	return $in . ' (PV ' . $format_kwh( $solar ) . ')';
+};
+
 $format_tick = static function ( $value ) {
 	$n = (float) $value;
 	if ( $n >= 10 ) {
@@ -60,7 +68,7 @@ $week_index = (int) ( $active_week['index'] ?? 0 );
 		<div>
 			<p class="ecoflow-plan-kicker"><?php esc_html_e('GEN LOG', 'gaming-hub'); ?></p>
 			<h3><?php esc_html_e('Generation log', 'gaming-hub'); ?></h3>
-			<p class="ecoflow-plan-note"><?php esc_html_e('IN = solar + grid buy (Pro + 1500). OUT = living load + UPS. STORE = pack SOC change (not IN−OUT). Charging loss is separate from usable storage.', 'gaming-hub'); ?></p>
+			<p class="ecoflow-plan-note"><?php esc_html_e('IN = OUT + STORE + LOSS. IN = site input (solar + grid). OUT = living + UPS + DC + standby. STORE = pack SOC Wh. LOSS = charge heat and remaining meter gap — not extra storage.', 'gaming-hub'); ?></p>
 		</div>
 		<p class="ecoflow-plan-limits">
 			<span data-ecoflow-cal-label><?php echo esc_html( $calendar['label'] ?? '' ); ?></span>
@@ -132,9 +140,10 @@ $week_index = (int) ( $active_week['index'] ?? 0 );
 			$wt = is_array( $active_week['totals'] ?? null ) ? $active_week['totals'] : array();
 			echo esc_html(
 				__( 'Week', 'gaming-hub' )
-				. ' · IN ' . $format_kwh( $wt['input_kwh'] ?? 0 )
+				. ' · IN ' . $format_in( $wt['input_kwh'] ?? 0, $wt['solar_kwh'] ?? 0 )
 				. ' · OUT ' . $format_kwh( $wt['output_kwh'] ?? 0 )
 				. ' · STORE ' . $format_kwh( $wt['stored_kwh'] ?? 0 )
+				. ' · LOSS ' . $format_kwh( $wt['loss_kwh'] ?? 0 )
 				. ' kWh'
 			);
 			?>
@@ -174,10 +183,10 @@ $week_index = (int) ( $active_week['index'] ?? 0 );
 				data-ecoflow-cal-day="<?php echo esc_attr( $cell['date'] ); ?>"
 			>
 				<span class="ecoflow-plan-slot-hour"><?php echo esc_html( (string) ( $cell['day'] ?? '' ) ); ?></span>
-				<span class="ecoflow-plan-slot-mode">IN <b data-k="in"><?php echo esc_html( $format_kwh( $cell['input_kwh'] ?? null ) ); ?></b></span>
+				<span class="ecoflow-plan-slot-mode ecoflow-cal-in">IN <b data-k="in"><?php echo esc_html( $format_in( $cell['input_kwh'] ?? null, $cell['solar_kwh'] ?? null ) ); ?></b></span>
 				<span class="ecoflow-plan-slot-mode">OUT <b data-k="out"><?php echo esc_html( $format_kwh( $cell['output_kwh'] ?? null ) ); ?></b></span>
-				<span class="ecoflow-plan-slot-watts">PV <b data-k="pv"><?php echo esc_html( $format_kwh( $cell['solar_kwh'] ?? null ) ); ?></b></span>
 				<span class="ecoflow-plan-slot-mode ecoflow-cal-store">STORE <b data-k="store"><?php echo esc_html( $format_kwh( $cell['stored_kwh'] ?? null ) ); ?></b></span>
+				<span class="ecoflow-plan-slot-mode ecoflow-cal-loss">LOSS <b data-k="loss"><?php echo esc_html( $format_kwh( $cell['loss_kwh'] ?? null ) ); ?></b></span>
 				<span class="ecoflow-plan-slot-yen">SAVE <b data-k="save"><?php echo esc_html( $format_yen( $cell['saved_yen'] ?? null ) ); ?></b></span>
 			</li>
 		<?php endforeach; ?>

@@ -8203,6 +8203,14 @@ body.home .site-header.is-scrolled {
 	color: #ccebff;
 }
 
+.ecoflow-cal .ecoflow-cal-loss {
+	color: #c9b8a0;
+}
+
+.ecoflow-cal .ecoflow-cal-loss b {
+	color: #e8d4b8;
+}
+
 .ecoflow-cal-today[hidden] {
 	display: none;
 }
@@ -8298,7 +8306,8 @@ body.home .site-header.is-scrolled {
 	font-weight: 600;
 }
 
-.ecoflow-cal .ecoflow-plan-slot-watts {
+.ecoflow-cal .ecoflow-plan-slot-watts,
+.ecoflow-cal .ecoflow-cal-in b {
 	color: #ff9f1c;
 }
 

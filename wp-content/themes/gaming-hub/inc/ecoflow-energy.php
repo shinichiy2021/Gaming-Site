@@ -281,6 +281,9 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 	$aircon_w = (float) ( $savings['ac_out'] ?? 0 );
 	$d_ac_w   = $savings['delta_ac_in'];
 	$p_ac_w   = (float) ( $savings['pro_ac_in'] ?? 0 );
+	$pro_dc_w = max( 0.0, (float) ( $status['dc_out'] ?? 0 ) );
+	$sec_dc_w = max( 0.0, (float) ( $status['secondary']['dc_out'] ?? 0 ) );
+	$dc_w     = $pro_dc_w + $sec_dc_w;
 	$soc      = isset( $status['battery_percent'] ) && null !== $status['battery_percent']
 		? max( 0, min( 100, (float) $status['battery_percent'] ) )
 		: null;
@@ -303,6 +306,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 		'ac_in_wh'       => 0.0,
 		'room_out_wh'    => 0.0,
 		'ups_out_wh'     => 0.0,
+		'dc_out_wh'      => 0.0,
 		'ac_out_wh'      => 0.0,
 		'delta_ac_in_wh' => 0.0,
 		'pro_ac_in_wh'   => 0.0,
@@ -321,6 +325,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 		$add['ac_in_wh']    = ( ( (float) ( $state['ac_in_w'] ?? $ac_in_w ) + $ac_in_w ) / 2 ) * $hours;
 		$add['room_out_wh']  = ( ( (float) ( $state['room_out_w'] ?? $room_w ) + $room_w ) / 2 ) * $hours;
 		$add['ups_out_wh']   = ( ( (float) ( $state['ups_out_w'] ?? $ups_w ) + $ups_w ) / 2 ) * $hours;
+		$add['dc_out_wh']    = ( ( (float) ( $state['dc_out_w'] ?? $dc_w ) + $dc_w ) / 2 ) * $hours;
 		$add['ac_out_wh']    = ( ( (float) ( $state['ac_out_w'] ?? $aircon_w ) + $aircon_w ) / 2 ) * $hours;
 		$add['pro_ac_in_wh'] = ( ( (float) ( $state['pro_ac_in_w'] ?? $p_ac_w ) + $p_ac_w ) / 2 ) * $hours;
 
@@ -357,6 +362,7 @@ function gaming_hub_ecoflow_energy_sample( array $status ) {
 			'ac_in_w'       => $ac_in_w,
 			'room_out_w'    => $room_w,
 			'ups_out_w'     => $ups_w,
+			'dc_out_w'      => $dc_w,
 			'ac_out_w'      => $aircon_w,
 			'delta_ac_in_w' => $d_ac_w,
 			'pro_ac_in_w'   => $p_ac_w,
@@ -394,6 +400,7 @@ function gaming_hub_ecoflow_energy_add( $date, $hour, array $add ) {
 			'ac_in_wh'       => 0.0,
 			'room_out_wh'    => 0.0,
 			'ups_out_wh'     => 0.0,
+			'dc_out_wh'      => 0.0,
 			'ac_out_wh'      => 0.0,
 			'delta_ac_in_wh' => 0.0,
 			'pro_ac_in_wh'   => 0.0,
@@ -406,7 +413,7 @@ function gaming_hub_ecoflow_energy_add( $date, $hour, array $add ) {
 		);
 	}
 
-	foreach ( array( 'input_wh', 'output_wh', 'solar_wh', 'ac_in_wh', 'room_out_wh', 'ups_out_wh', 'ac_out_wh', 'delta_ac_in_wh', 'pro_ac_in_wh', 'hv_wh', 'pro_lv_wh', 'lv_wh' ) as $field ) {
+	foreach ( array( 'input_wh', 'output_wh', 'solar_wh', 'ac_in_wh', 'room_out_wh', 'ups_out_wh', 'dc_out_wh', 'ac_out_wh', 'delta_ac_in_wh', 'pro_ac_in_wh', 'hv_wh', 'pro_lv_wh', 'lv_wh' ) as $field ) {
 		$delta                        = max( 0, (float) ( $add[ $field ] ?? 0 ) );
 		$day['hours'][ $h ][ $field ] = (float) ( $day['hours'][ $h ][ $field ] ?? 0 ) + $delta;
 		$day[ $field ]                = (float) ( $day[ $field ] ?? 0 ) + $delta;
@@ -598,6 +605,7 @@ function gaming_hub_ecoflow_energy_empty_day() {
 		'ac_in_wh'       => 0.0,
 		'room_out_wh'    => 0.0,
 		'ups_out_wh'     => 0.0,
+		'dc_out_wh'      => 0.0,
 		'ac_out_wh'      => 0.0,
 		'delta_ac_in_wh' => 0.0,
 		'pro_ac_in_wh'   => 0.0,
@@ -609,6 +617,43 @@ function gaming_hub_ecoflow_energy_empty_day() {
 		'hours'     => array(),
 		'updated_at'=> '',
 	);
+}
+
+/**
+ * Approximate Pro+Delta standby Wh for hours that have samples.
+ *
+ * @param array<string, mixed> $row Day option row.
+ * @return float Wh.
+ */
+function gaming_hub_ecoflow_energy_self_wh( array $row ) {
+	$hours = is_array( $row['hours'] ?? null ) ? $row['hours'] : array();
+	$n     = 0;
+	foreach ( $hours as $hr ) {
+		if ( ! is_array( $hr ) ) {
+			continue;
+		}
+		$hit = false;
+		foreach ( array( 'input_wh', 'output_wh', 'solar_wh', 'room_out_wh', 'ups_out_wh', 'dc_out_wh', 'pro_ac_in_wh' ) as $field ) {
+			if ( isset( $hr[ $field ] ) && is_numeric( $hr[ $field ] ) && (float) $hr[ $field ] > 0 ) {
+				$hit = true;
+				break;
+			}
+		}
+		if ( ! $hit && isset( $hr['soc'] ) && is_numeric( $hr['soc'] ) ) {
+			$hit = true;
+		}
+		if ( $hit ) {
+			$n++;
+		}
+	}
+	if ( $n <= 0 ) {
+		return 0.0;
+	}
+
+	// Typical online standby while metering (not full inverter load).
+	$idle_w = 28.0;
+
+	return $idle_w * (float) $n;
 }
 
 /**
@@ -1153,9 +1198,10 @@ function gaming_hub_ecoflow_energy_pack_wh() {
 /**
  * Site-boundary kWh for one logged day (supply / load / SOC store).
  *
- * IN  = solar + grid AC (Pro + Delta). Prefer component fields over raw powIn.
- * OUT = living AC + UPS (load delivered). Prefer room+ups over raw powOut.
- * STORE = pack SOC swing (cannot exceed combined pack Wh).
+ * IN  = site input Wh (powIn) reconciled with solar + grid components.
+ * OUT = max(room + UPS + DC, site powOut+UPS) + standby self-use.
+ * STORE = pack SOC swing, clamped so books cannot invent energy.
+ * LOSS = IN − OUT − STORE (charge heat + residual meter gap), floored at 0.
  *
  * @param array<string, mixed>|null $row Day option row.
  * @return array{input_kwh: float|null, output_kwh: float|null, solar_kwh: float|null, grid_kwh: float|null, stored_kwh: float|null, loss_kwh: float|null}
@@ -1174,21 +1220,37 @@ function gaming_hub_ecoflow_energy_day_balance( $row ) {
 	}
 
 	$solar = max( 0.0, (float) ( $row['solar_wh'] ?? 0 ) );
-	$has_grid = array_key_exists( 'pro_ac_in_wh', $row ) || array_key_exists( 'delta_ac_in_wh', $row ) || array_key_exists( 'ac_in_wh', $row );
-	$grid     = max( 0.0, (float) ( $row['pro_ac_in_wh'] ?? 0 ) ) + max( 0.0, (float) ( $row['delta_ac_in_wh'] ?? 0 ) );
+	$grid  = max( 0.0, (float) ( $row['pro_ac_in_wh'] ?? 0 ) ) + max( 0.0, (float) ( $row['delta_ac_in_wh'] ?? 0 ) );
 	if ( $grid <= 0 && array_key_exists( 'ac_in_wh', $row ) ) {
 		$grid = max( 0.0, (float) $row['ac_in_wh'] );
 	}
-	$has_load = array_key_exists( 'room_out_wh', $row ) || array_key_exists( 'ups_out_wh', $row );
-	$load     = max( 0.0, (float) ( $row['room_out_wh'] ?? 0 ) ) + max( 0.0, (float) ( $row['ups_out_wh'] ?? 0 ) );
-	if ( ! $has_load && isset( $row['output_wh'] ) ) {
-		$load = max( 0.0, (float) $row['output_wh'] );
+	$supply = $solar + $grid;
+	$site_in = isset( $row['input_wh'] ) && is_numeric( $row['input_wh'] )
+		? max( 0.0, (float) $row['input_wh'] )
+		: 0.0;
+	// Components can double-count solar into AC; site powIn is the ceiling.
+	if ( $site_in > 0 && $supply > $site_in * 1.02 ) {
+		$supply = $site_in;
+		$solar  = min( $solar, $supply );
+		$grid   = max( 0.0, $supply - $solar );
+	} elseif ( $supply <= 0 && $site_in > 0 ) {
+		$supply = $site_in;
+		$solar  = min( $solar, $supply );
+		$grid   = max( 0.0, $supply - $solar );
 	}
 
-	$supply = $solar + $grid;
-	if ( $supply <= 0 && ! $has_grid && isset( $row['input_wh'] ) ) {
-		$supply = max( 0.0, (float) $row['input_wh'] );
+	$load = max( 0.0, (float) ( $row['room_out_wh'] ?? 0 ) )
+		+ max( 0.0, (float) ( $row['ups_out_wh'] ?? 0 ) )
+		+ max( 0.0, (float) ( $row['dc_out_wh'] ?? 0 ) );
+	$site_out = isset( $row['output_wh'] ) && is_numeric( $row['output_wh'] )
+		? max( 0.0, (float) $row['output_wh'] )
+		: 0.0;
+	// powOutSumW already folds AC+DC on Pro; take the larger site boundary.
+	if ( $site_out > 0 ) {
+		$load = max( $load, $site_out );
 	}
+	// Standby not visible on AC/UPS meters — count as delivered OUT, not LOSS.
+	$load += gaming_hub_ecoflow_energy_self_wh( $row );
 
 	$stored = null;
 	$hours  = is_array( $row['hours'] ?? null ) ? $row['hours'] : array();
@@ -1221,14 +1283,22 @@ function gaming_hub_ecoflow_energy_day_balance( $row ) {
 		$stored = ( null === $stored ? 0.0 : $stored ) + ( ( $last_d - $first_d ) / 100.0 ) * (float) $packs['delta'];
 	}
 	if ( null !== $stored ) {
-		// Charge/discharge efficiency: pack Wh change is the real storage ceiling.
 		$max_store = (float) $packs['pro'] + (float) $packs['delta'];
 		$stored    = max( -$max_store, min( $max_store, $stored ) );
 	}
 
 	$loss = null;
-	if ( null !== $stored && $supply > 0 ) {
+	if ( null !== $stored && ( $supply > 0 || $load > 0 ) ) {
+		// Discharging cannot invent more load energy than OUT meters saw.
+		if ( $stored < 0 && $load > 0 && abs( $stored ) > $load ) {
+			$stored = -$load;
+		}
 		$loss = $supply - $load - $stored;
+		// SOC×nameplate can run ahead of watt meters while charging; that gap is
+		// estimation error, not heat — keep STORE as SOC and floor LOSS at 0.
+		if ( $loss < 0 ) {
+			$loss = 0.0;
+		}
 	}
 
 	$has = $supply > 0 || $load > 0 || $solar > 0 || ( null !== $stored && abs( $stored ) > 1 );
@@ -1282,6 +1352,7 @@ function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $toda
 		$out_kwh = 0.0;
 		$pv = 0.0;
 		$store = 0.0;
+		$loss = 0.0;
 		$has = false;
 		$has_today = false;
 		$first_day = null;
@@ -1297,6 +1368,7 @@ function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $toda
 					'output_kwh' => null,
 					'solar_kwh'  => null,
 					'stored_kwh' => null,
+					'loss_kwh'   => null,
 					'is_today'   => false,
 					'has_data'   => false,
 				);
@@ -1316,6 +1388,9 @@ function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $toda
 				if ( isset( $cell['stored_kwh'] ) && is_numeric( $cell['stored_kwh'] ) ) {
 					$store += (float) $cell['stored_kwh'];
 				}
+				if ( isset( $cell['loss_kwh'] ) && is_numeric( $cell['loss_kwh'] ) ) {
+					$loss += (float) $cell['loss_kwh'];
+				}
 			}
 			$chart_days[] = array(
 				'dow'        => $dow,
@@ -1325,6 +1400,7 @@ function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $toda
 				'output_kwh' => $cell['output_kwh'] ?? null,
 				'solar_kwh'  => $cell['solar_kwh'] ?? null,
 				'stored_kwh' => $cell['stored_kwh'] ?? null,
+				'loss_kwh'   => $cell['loss_kwh'] ?? null,
 				'is_today'   => ! empty( $cell['is_today'] ),
 				'has_data'   => ! empty( $cell['has_data'] ),
 			);
@@ -1360,6 +1436,7 @@ function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $toda
 				'output_kwh' => round( $out_kwh, 2 ),
 				'solar_kwh'  => round( $pv, 2 ),
 				'stored_kwh' => round( $store, 2 ),
+				'loss_kwh'   => round( $loss, 2 ),
 			),
 			'has_data'   => $has,
 			'kwh_max'    => $kwh_max,

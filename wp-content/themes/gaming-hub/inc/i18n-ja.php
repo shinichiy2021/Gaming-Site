@@ -384,7 +384,7 @@ return array(
 	'Generation calendar' => '発電カレンダー',
 	'Generation log' => '発電ログ',
 	'Generation log →' => '発電ログ →',
-	'IN = solar + grid buy (Pro + 1500). OUT = living load + UPS. STORE = pack SOC change (not IN−OUT). Charging loss is separate from usable storage.' => 'IN＝太陽光＋買電（Pro＋1500）。OUT＝リビング負荷＋UPS。STORE＝パックSOC変化（IN−OUTではない）。充電ロスは実効蓄電とは別です。',
+	'IN = OUT + STORE + LOSS. IN = site input (solar + grid). OUT = living + UPS + DC + standby. STORE = pack SOC Wh. LOSS = charge heat and remaining meter gap — not extra storage.' => 'IN＝OUT＋STORE＋LOSS。IN＝サイト入力（太陽光＋買電）。OUT＝リビング＋UPS＋DC＋待機。STORE＝パックSOC換算Wh。LOSS＝充電熱と残りの計測ギャップであり、追加の蓄電ではありません。',
 	'Weekly IN / OUT' => '週次 IN / OUT',
 	'Prev week' => '前の週',
 	'Next week' => '次の週',

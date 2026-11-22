@@ -3066,8 +3066,8 @@ msgstr "週次の入力と出力の比較"
 msgid "Cyan bars: IN (solar + grid) · Magenta bars: OUT (living + UPS)"
 msgstr "水色棒: IN（太陽光＋買電）· マゼンタ棒: OUT（リビング＋UPS）"
 
-msgid "IN = solar + grid buy (Pro + 1500). OUT = living load + UPS. STORE = pack SOC change (not IN−OUT). Charging loss is separate from usable storage."
-msgstr "IN＝太陽光＋買電（Pro＋1500）。OUT＝リビング負荷＋UPS。STORE＝パックSOC変化（IN−OUTではない）。充電ロスは実効蓄電とは別です。"
+msgid "IN = OUT + STORE + LOSS. IN = site input (solar + grid). OUT = living + UPS + DC + standby. STORE = pack SOC Wh. LOSS = charge heat and remaining meter gap — not extra storage."
+msgstr "IN＝OUT＋STORE＋LOSS。IN＝サイト入力（太陽光＋買電）。OUT＝リビング＋UPS＋DC＋待機。STORE＝パックSOC換算Wh。LOSS＝充電熱と残りの計測ギャップであり、追加の蓄電ではありません。"
 
 msgid "Weekdays: on above 28°C"
 msgstr "平日は 28℃超でオン"
