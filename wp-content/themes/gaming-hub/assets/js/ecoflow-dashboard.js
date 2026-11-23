@@ -1194,13 +1194,19 @@
 		if (mode === 'charge') {
 			return t('Charge');
 		}
+		if (mode === 'bypass') {
+			return t('Bypass');
+		}
+		if (mode === 'use') {
+			return t('Use pack');
+		}
 		if (mode === 'solar') {
 			return t('Solar');
 		}
 		if (mode === 'past') {
 			return t('Past');
 		}
-		return t('Charge off');
+		return t('Use pack');
 	}
 
 	function todayStamp() {
@@ -1495,9 +1501,9 @@
 		paintPlanDayNav();
 
 		const titles = {
-			yesterday: t('Yesterday’s charge plan'),
-			today: t('Today’s charge plan'),
-			tomorrow: t('Tomorrow’s charge plan'),
+			yesterday: t('Yesterday’s energy plan'),
+			today: t('Today’s energy plan'),
+			tomorrow: t('Tomorrow’s energy plan'),
 		};
 		// Prefer client locale titles; cached API payloads may still carry English.
 		setField('plan_title', titles[plan.plan_day] || t(plan.title || '') || titles.today);

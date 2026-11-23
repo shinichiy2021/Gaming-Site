@@ -7230,6 +7230,14 @@ body.home .site-header.is-scrolled {
 	background: rgba(255, 230, 0, 0.12);
 }
 
+.ecoflow-plan-col.is-bypass {
+	background: rgba(122, 215, 255, 0.1);
+}
+
+.ecoflow-plan-col.is-use {
+	background: rgba(255, 159, 28, 0.08);
+}
+
 .ecoflow-plan-col .ecoflow-rate-bar {
 	position: relative;
 	z-index: 2;

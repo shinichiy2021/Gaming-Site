@@ -1,8 +1,9 @@
 <?php
 /**
- * EcoFlow daily charge plan: in cheap hours, charge Pro toward
- * (100% − remaining Pro solar from now), so later PV can still fill the pack.
- * Example: 10% of pack still expected from solar → cheap-grid target 90%.
+ * EcoFlow daily energy plan (Smart Time ONE):
+ * - Expensive hours: use pack / solar (Energy Backup reserve low).
+ * - Cheap hours: grid bypass — do not discharge storage.
+ * - Never AC-charge storage from the grid (solar may still fill the pack).
  *
  * @package Gaming_Hub
  */
@@ -38,8 +39,16 @@ define( 'GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM', 8.0 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC', true );
 define( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W', 1000 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W', 0 );
-define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON', 100 );
-define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF', 5 );
+/** Hold pack / bypass loads to grid (cheap hours). */
+define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS', 100 );
+/** Allow pack discharge down to this SOC (expensive / solar-use hours). */
+define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK', 5 );
+/** @deprecated Alias — bypass hold. */
+define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON', GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS );
+/** @deprecated Alias — use pack. */
+define( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF', GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK );
+/** Never schedule AC grid→storage charge. */
+define( 'GAMING_HUB_ECOFLOW_PLAN_ALLOW_GRID_CHARGE', false );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_DC_W', 100 );
 define( 'GAMING_HUB_ECOFLOW_PLAN_CACHE_TTL', 10 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_ECOFLOW_PRO_CAPACITY_WH', 4096 );
@@ -987,19 +996,22 @@ function gaming_hub_ecoflow_soc_series( $from_hour, $soc, $full_wh, array $slots
 		}
 	}
 	$grid_w   = array_fill( 0, 24, GAMING_HUB_ECOFLOW_PLAN_IDLE_W );
+	$modes    = array_fill( 0, 24, 'use' );
 	$full_kwh = max( 0.5, (float) $full_wh / 1000.0 );
 	$series   = array_fill( 0, 24, null );
 	$pct      = max( 0.0, min( 100.0, (float) $soc ) );
+	$allow_grid = $use_grid && gaming_hub_ecoflow_plan_allows_grid_charge();
 
-	if ( $use_grid ) {
-		foreach ( $slots as $slot ) {
-			if ( ( $slot['date'] ?? '' ) !== $plan_date ) {
-				continue;
-			}
-			$h = (int) ( $slot['hour'] ?? -1 );
-			if ( $h < 0 || $h > 23 || null === ( $slot['watts'] ?? null ) ) {
-				continue;
-			}
+	foreach ( $slots as $slot ) {
+		if ( ( $slot['date'] ?? '' ) !== $plan_date ) {
+			continue;
+		}
+		$h = (int) ( $slot['hour'] ?? -1 );
+		if ( $h < 0 || $h > 23 ) {
+			continue;
+		}
+		$modes[ $h ] = (string) ( $slot['mode'] ?? 'use' );
+		if ( $allow_grid && null !== ( $slot['watts'] ?? null ) ) {
 			$grid_w[ $h ] = (int) $slot['watts'];
 		}
 	}
@@ -1008,12 +1020,106 @@ function gaming_hub_ecoflow_soc_series( $from_hour, $soc, $full_wh, array $slots
 		$series[ $h ] = round( $pct, 1 );
 		$load_w       = max( 0, (float) ( $load_watts[ $h ] ?? 0 ) );
 		$solar_w      = max( 0, (float) ( $solar_hours[ $h ] ?? 0 ) );
-		$net_w        = ( $use_grid ? $grid_w[ $h ] : 0 ) + $solar_w - $load_w;
-		$pct         += ( $net_w / 1000.0 ) / $full_kwh * 100.0;
-		$pct          = max( 0.0, min( 100.0, $pct ) );
+		$mode         = (string) ( $modes[ $h ] ?? 'use' );
+		// Bypass: loads come from grid; solar may still top up the pack.
+		if ( 'bypass' === $mode || ( 'charge' === $mode && ! $allow_grid ) ) {
+			$net_w = $solar_w;
+		} else {
+			$net_w = ( $allow_grid ? $grid_w[ $h ] : 0 ) + $solar_w - $load_w;
+		}
+		$pct += ( $net_w / 1000.0 ) / $full_kwh * 100.0;
+		$pct  = max( 0.0, min( 100.0, $pct ) );
 	}
 
 	return $series;
+}
+
+/**
+ * Whether AI Plan may schedule AC grid→storage charge.
+ */
+function gaming_hub_ecoflow_plan_allows_grid_charge() {
+	return defined( 'GAMING_HUB_ECOFLOW_PLAN_ALLOW_GRID_CHARGE' )
+		? (bool) GAMING_HUB_ECOFLOW_PLAN_ALLOW_GRID_CHARGE
+		: false;
+}
+
+/**
+ * True when this hour's yen is in the cheap band (bypass / do not use pack).
+ *
+ * @param float|null $yen       Yen/kWh for the hour.
+ * @param string     $plan_date Y-m-d.
+ */
+function gaming_hub_ecoflow_plan_hour_is_cheap( $yen, $plan_date ) {
+	if ( null === $yen || ! is_numeric( $yen ) ) {
+		return false;
+	}
+	$map = gaming_hub_ecoflow_day_price_map( (string) $plan_date );
+	if ( ! $map ) {
+		return false;
+	}
+	$floor = min( $map );
+	return (float) $yen <= ( (float) $floor + (float) GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM );
+}
+
+/**
+ * Cheap-hour bypass windows for HUD (no grid charge).
+ *
+ * @param int    $from_hour 0–23.
+ * @param string $plan_date Y-m-d.
+ * @return array{windows: array<int, string>, avg_yen: float|null, picked: array<int, array{hour: int, index: int, yen: float}>}
+ */
+function gaming_hub_ecoflow_pick_bypass_hours( $from_hour, $plan_date ) {
+	$from_hour = max( 0, min( 23, (int) $from_hour ) );
+	$map       = gaming_hub_ecoflow_day_price_map( (string) $plan_date );
+	$picked    = array();
+	if ( ! $map ) {
+		return array(
+			'windows' => array(),
+			'avg_yen' => null,
+			'picked'  => array(),
+		);
+	}
+	$floor = min( $map );
+	$cap   = (float) $floor + (float) GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM;
+	for ( $h = $from_hour; $h < 24; $h++ ) {
+		if ( ! isset( $map[ $h ] ) ) {
+			continue;
+		}
+		$yen = (float) $map[ $h ];
+		if ( $yen > $cap ) {
+			continue;
+		}
+		$picked[] = array(
+			'hour'  => $h,
+			'index' => $h - $from_hour,
+			'yen'   => $yen,
+		);
+	}
+
+	return array(
+		'windows' => $picked ? gaming_hub_ecoflow_group_hour_windows( $picked ) : array(),
+		'avg_yen' => $picked ? round( array_sum( array_column( $picked, 'yen' ) ) / count( $picked ), 1 ) : null,
+		'picked'  => $picked,
+	);
+}
+
+/**
+ * Day yen map for a Y-m-d (0–23).
+ *
+ * @param string $plan_date Y-m-d.
+ * @return array<int, float>
+ */
+function gaming_hub_ecoflow_day_price_map( $plan_date ) {
+	$plan_date = (string) $plan_date;
+	$dates     = gaming_hub_ecoflow_plan_dates();
+	$which     = 'today';
+	if ( $plan_date === $dates['yesterday'] ) {
+		$which = 'yesterday';
+	} elseif ( $plan_date === $dates['tomorrow'] ) {
+		$which = 'tomorrow';
+	}
+	$map = gaming_hub_ecoflow_price_map_for_day( $which );
+	return is_array( $map ) ? $map : array();
 }
 
 /**
@@ -1136,7 +1242,7 @@ function gaming_hub_ecoflow_get_charge_plan( array $status, $force = false ) {
 	$dates      = gaming_hub_ecoflow_plan_dates();
 	$was_grid   = gaming_hub_ecoflow_plan_was_grid_charging() ? '1' : '0';
 	// v43: invalidate plans cached before solar_source / similar-weather solar meta.
-	$key        = 'gaming_hub_ecoflow_plan_v43_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_HEAT_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH . '_d' . ( GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC ? '1' : '0' );
+	$key        = 'gaming_hub_ecoflow_plan_v44_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_gc' . ( gaming_hub_ecoflow_plan_allows_grid_charge() ? '1' : '0' ) . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_HEAT_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH . '_d' . ( GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC ? '1' : '0' );
 
 	if ( ! $force ) {
 		$cached = get_transient( $key );
@@ -1419,9 +1525,9 @@ function gaming_hub_ecoflow_charge_plan_day_labels( $day_key, $target_soc = null
 		: (float) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC;
 
 	$titles = array(
-		'yesterday' => __( 'Yesterday’s charge plan', 'gaming-hub' ),
-		'today'     => __( 'Today’s charge plan', 'gaming-hub' ),
-		'tomorrow'  => __( 'Tomorrow’s charge plan', 'gaming-hub' ),
+		'yesterday' => __( 'Yesterday’s energy plan', 'gaming-hub' ),
+		'today'     => __( 'Today’s energy plan', 'gaming-hub' ),
+		'tomorrow'  => __( 'Tomorrow’s energy plan', 'gaming-hub' ),
 	);
 	$pv_labels = array(
 		'yesterday' => __( 'Measured generation', 'gaming-hub' ),
@@ -1430,16 +1536,20 @@ function gaming_hub_ecoflow_charge_plan_day_labels( $day_key, $target_soc = null
 	);
 	$buy_labels = array(
 		'yesterday' => __( 'Yesterday’s import', 'gaming-hub' ),
-		'today'     => sprintf(
-			/* translators: %s: target SOC percent */
-			__( 'Charge to %s%%', 'gaming-hub' ),
-			number_format_i18n( $target )
-		),
-		'tomorrow'  => sprintf(
-			/* translators: %s: target SOC percent */
-			__( 'Tomorrow charge to %s%%', 'gaming-hub' ),
-			number_format_i18n( $target )
-		),
+		'today'     => gaming_hub_ecoflow_plan_allows_grid_charge()
+			? sprintf(
+				/* translators: %s: target SOC percent */
+				__( 'Charge to %s%%', 'gaming-hub' ),
+				number_format_i18n( $target )
+			)
+			: __( 'Grid→storage off', 'gaming-hub' ),
+		'tomorrow'  => gaming_hub_ecoflow_plan_allows_grid_charge()
+			? sprintf(
+				/* translators: %s: target SOC percent */
+				__( 'Tomorrow charge to %s%%', 'gaming-hub' ),
+				number_format_i18n( $target )
+			)
+			: __( 'Grid→storage off', 'gaming-hub' ),
 	);
 
 	return array(
@@ -1476,8 +1586,10 @@ function gaming_hub_ecoflow_localize_charge_plan_labels( array $plan ) {
 	$plan['note']              = gaming_hub_ecoflow_charge_plan_note_text( $plan );
 
 	$needs_grid = ! empty( $plan['needs_grid'] );
-	if ( ! $needs_grid ) {
-		$plan['window_label'] = __( 'No grid charge needed', 'gaming-hub' );
+	if ( ! $needs_grid && empty( $plan['window_label'] ) ) {
+		$plan['window_label'] = gaming_hub_ecoflow_plan_allows_grid_charge()
+			? __( 'No grid charge needed', 'gaming-hub' )
+			: __( 'No cheap bypass window left today', 'gaming-hub' );
 	}
 
 	return $plan;
@@ -1512,6 +1624,10 @@ function gaming_hub_ecoflow_charge_plan_note_text( array $plan ) {
 
 	if ( 'yesterday' === $day_key ) {
 		return __( 'Yesterday’s measured data. Yellow/orange bars are SOC; gold bands are logged grid charge. Approve today’s plan only.', 'gaming-hub' );
+	}
+
+	if ( ! gaming_hub_ecoflow_plan_allows_grid_charge() ) {
+		return __( 'No grid charge. Cheap hours bypass (hold pack); expensive hours use solar/storage. Packs charge from PV only.', 'gaming-hub' );
 	}
 
 	if ( ! $needs_grid ) {
@@ -1681,6 +1797,14 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 	$delta_skip    = null === $delta_soc || $delta_full_wh <= 0
 		|| gaming_hub_ecoflow_plan_deficit_skips_grid( $delta_deficit_kwh, true );
 	$needed        = $pro_skip && $delta_skip;
+	// Baseline policy: never AC-charge packs from the grid.
+	if ( ! gaming_hub_ecoflow_plan_allows_grid_charge() && 'yesterday' !== $day_key ) {
+		$needed           = true;
+		$deficit_kwh      = 0.0;
+		$delta_deficit_kwh = 0.0;
+		$pro_skip         = true;
+		$delta_skip       = true;
+	}
 
 	$windows = array();
 	$avg_yen = null;
@@ -1727,23 +1851,32 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		$avg_yen = $picked['avg_yen'];
 		$note    = __('Yesterday’s measured data. Yellow/orange bars are SOC; gold bands are logged grid charge. Approve today’s plan only.', 'gaming-hub');
 	} elseif ( $needed ) {
-		$target   = number_format_i18n( $target_soc );
-		$headroom = number_format_i18n( (int) round( $headroom_soc ) );
-		$note     = 'today' === $day_key
-			? sprintf(
-				/* translators: 1: cheap-hour target SOC, 2: solar headroom percent */
-				__('Leaving about %2$s%% for solar, the cheap-hour target is %1$s%%. Current SOC is enough, so no grid charge.', 'gaming-hub'),
-				$target,
-				$headroom
-			)
-			: ( 'tomorrow' === $day_key
+		if ( ! gaming_hub_ecoflow_plan_allows_grid_charge() && 'yesterday' !== $day_key ) {
+			$picked  = gaming_hub_ecoflow_pick_bypass_hours( $hour, $plan_date );
+			$windows = $picked['windows'];
+			$avg_yen = $picked['avg_yen'];
+			$note    = 'tomorrow' === $day_key
+				? __( 'No grid charge. Cheap hours bypass (hold pack); expensive hours use solar/storage. Packs charge from PV only.', 'gaming-hub' )
+				: __( 'No grid charge. Cheap hours bypass (hold pack); expensive hours use solar/storage. Packs charge from PV only.', 'gaming-hub' );
+		} else {
+			$target   = number_format_i18n( $target_soc );
+			$headroom = number_format_i18n( (int) round( $headroom_soc ) );
+			$note     = 'today' === $day_key
 				? sprintf(
 					/* translators: 1: cheap-hour target SOC, 2: solar headroom percent */
-					__('Leaving about %2$s%% for tomorrow’s solar, the cheap-hour target is %1$s%%. No grid charge needed.', 'gaming-hub'),
+					__('Leaving about %2$s%% for solar, the cheap-hour target is %1$s%%. Current SOC is enough, so no grid charge.', 'gaming-hub'),
 					$target,
 					$headroom
 				)
-				: __('Yesterday looks like no grid charge was needed.', 'gaming-hub') );
+				: ( 'tomorrow' === $day_key
+					? sprintf(
+						/* translators: 1: cheap-hour target SOC, 2: solar headroom percent */
+						__('Leaving about %2$s%% for tomorrow’s solar, the cheap-hour target is %1$s%%. No grid charge needed.', 'gaming-hub'),
+						$target,
+						$headroom
+					)
+					: __('Yesterday looks like no grid charge was needed.', 'gaming-hub') );
+		}
 	} else {
 		$pick_kwh = max(
 			$pro_skip ? 0.0 : (float) $deficit_kwh,
@@ -1813,7 +1946,7 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		}
 	}
 
-	if ( 'today' === $day_key ) {
+	if ( 'today' === $day_key && gaming_hub_ecoflow_plan_allows_grid_charge() ) {
 		$stick_target = $pro_skip ? $delta_target_soc : $target_soc;
 		$stick_soc    = $pro_skip && null !== $delta_soc ? (int) round( (float) $delta_soc ) : (int) $soc;
 		$stuck = gaming_hub_ecoflow_stick_current_charge_pick( $picked, $hour, $stick_soc, $stick_target, $plan_date );
@@ -1826,7 +1959,14 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		}
 	}
 
-	$slots    = gaming_hub_ecoflow_build_day_slots( $hour, $solar_hours, $picked['picked'], $plan_date, $logged_keys );
+	// Without grid charge, pass empty charge picks so slots classify by yen (bypass/use/solar).
+	$slots = gaming_hub_ecoflow_build_day_slots(
+		$hour,
+		$solar_hours,
+		gaming_hub_ecoflow_plan_allows_grid_charge() ? $picked['picked'] : array(),
+		$plan_date,
+		'yesterday' === $day_key ? $logged_keys : array()
+	);
 	$ac_watts = $ac_watts_plan;
 	$soc_series_pro = gaming_hub_ecoflow_soc_series(
 		$hour,
@@ -1874,7 +2014,11 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'needs_grid_pro'       => ! $pro_skip,
 		'needs_grid_delta'     => ! $delta_skip,
 		'needs_grid'           => ! $needed,
-		'window_label'         => $windows ? implode( '、', $windows ) : __('No grid charge needed', 'gaming-hub'),
+		'window_label'         => $windows
+			? implode( '、', $windows )
+			: ( gaming_hub_ecoflow_plan_allows_grid_charge()
+				? __( 'No grid charge needed', 'gaming-hub' )
+				: __( 'No cheap bypass window left today', 'gaming-hub' ) ),
 		'window_avg_yen'       => $avg_yen,
 		'load_remaining_kwh'   => round( $load_remaining_kwh, 2 ),
 		'room_remaining_kwh'   => round( $room_remaining_kwh, 2 ),
@@ -1920,8 +2064,11 @@ function gaming_hub_ecoflow_build_charge_plan( array $status, $plan_date = null,
 		'reserve_soc'          => GAMING_HUB_ECOFLOW_PLAN_MIN_SOC,
 		'usable_soc'           => GAMING_HUB_ECOFLOW_PLAN_USABLE_SOC,
 		'room_daily_kwh'       => $room['room_today_kwh'],
-		'charge_w'             => GAMING_HUB_ECOFLOW_PLAN_CHARGE_W,
+		'charge_w'             => gaming_hub_ecoflow_plan_allows_grid_charge() ? GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
 		'idle_w'               => GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
+		'allow_grid_charge'    => gaming_hub_ecoflow_plan_allows_grid_charge(),
+		'backup_bypass_soc'    => (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS,
+		'backup_use_pack_soc'  => (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK,
 		'slots'                => $slots,
 		'soc_series'           => $soc_series_pro,
 		'soc_series_pro'       => $soc_series_pro,
@@ -2550,12 +2697,22 @@ function gaming_hub_ecoflow_build_day_slots( $from_hour, $solar_hours, $picked, 
  * @return array<int, array<string, mixed>>
  */
 function gaming_hub_ecoflow_normalize_plan_slots( array $slots ) {
+	$allow = gaming_hub_ecoflow_plan_allows_grid_charge();
 	foreach ( $slots as &$slot ) {
-		if ( ! is_array( $slot ) || ! empty( $slot['past'] ) || null === ( $slot['watts'] ?? null ) ) {
+		if ( ! is_array( $slot ) || ! empty( $slot['past'] ) ) {
 			continue;
 		}
 
-		$mode = (string) ( $slot['mode'] ?? 'idle' );
+		$mode = (string) ( $slot['mode'] ?? 'use' );
+		if ( ! $allow && 'charge' === $mode ) {
+			$mode          = 'bypass';
+			$slot['mode']  = $mode;
+			$slot['watts'] = (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+			continue;
+		}
+		if ( null === ( $slot['watts'] ?? null ) ) {
+			continue;
+		}
 		$slot['watts'] = 'charge' === $mode
 			? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W
 			: (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
@@ -2577,9 +2734,11 @@ function gaming_hub_ecoflow_normalize_plan_slots( array $slots ) {
  * @return array<string, mixed>
  */
 function gaming_hub_ecoflow_make_slot( $date, $hour, $past, $solar_hours, $charge_keys, $yen ) {
-	$key      = $date . '-' . (int) $hour;
-	$solar_w  = (float) ( $solar_hours[ $hour ] ?? 0 );
-	$is_charge = ! $past && isset( $charge_keys[ $key ] );
+	$key       = $date . '-' . (int) $hour;
+	$solar_w   = (float) ( $solar_hours[ $hour ] ?? 0 );
+	$allow     = gaming_hub_ecoflow_plan_allows_grid_charge();
+	$is_charge = $allow && ! $past && isset( $charge_keys[ $key ] );
+	$is_cheap  = ! $past && gaming_hub_ecoflow_plan_hour_is_cheap( $yen, $date );
 
 	if ( $past ) {
 		$mode  = 'past';
@@ -2587,11 +2746,16 @@ function gaming_hub_ecoflow_make_slot( $date, $hour, $past, $solar_hours, $charg
 	} elseif ( $is_charge ) {
 		$mode  = 'charge';
 		$watts = GAMING_HUB_ECOFLOW_PLAN_CHARGE_W;
+	} elseif ( $is_cheap ) {
+		// Cheap: bypass grid for loads; do not discharge storage.
+		$mode  = 'bypass';
+		$watts = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
 	} elseif ( $solar_w >= 80 ) {
 		$mode  = 'solar';
 		$watts = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
 	} else {
-		$mode  = 'idle';
+		// Expensive: use pack / stored solar.
+		$mode  = 'use';
 		$watts = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
 	}
 

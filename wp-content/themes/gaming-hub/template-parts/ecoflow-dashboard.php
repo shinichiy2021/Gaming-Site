@@ -118,8 +118,10 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 		$now_mode   = (string) ( $now_slot['mode'] ?? 'idle' );
 		$mode_label = array(
 			'charge' => __('Charge', 'gaming-hub'),
+			'bypass' => __('Bypass', 'gaming-hub'),
+			'use'    => __('Use pack', 'gaming-hub'),
 			'solar'  => __('Solar', 'gaming-hub'),
-			'idle'   => __('Charge off', 'gaming-hub'),
+			'idle'   => __('Use pack', 'gaming-hub'),
 			'past'   => __('Past', 'gaming-hub'),
 		);
 		$soc_ticks  = array( 100, 75, 50, 25, 0 );
@@ -156,7 +158,7 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 			<div class="ecoflow-plan-header ecoflow-plan-head">
 				<div>
 					<p class="ecoflow-plan-kicker"><?php esc_html_e( 'AI PLAN', 'gaming-hub' ); ?></p>
-					<h3 data-ecoflow-field="plan_title"><?php esc_html_e('Today’s charge plan', 'gaming-hub'); ?></h3>
+					<h3 data-ecoflow-field="plan_title"><?php esc_html_e('Today’s energy plan', 'gaming-hub'); ?></h3>
 					<p class="ecoflow-plan-note" data-ecoflow-field="plan_note"><?php echo esc_html( $plan['note'] ?? '' ); ?></p>
 				</div>
 			</div>
@@ -308,8 +310,8 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 			</div>
 			<p class="ecoflow-plan-chart-hint"><?php esc_html_e('Swipe the chart sideways', 'gaming-hub'); ?></p>
 			<p class="ecoflow-rate-legend"><?php echo $show_delta_soc
-				? esc_html__('Yellow: Pro SOC · Orange: 1500 SOC · Gold band: planned grid charge · Orange band: forecast solar Pro 800W + 1500 500W · Orange line: forecast AC load · Teal line: billed rate', 'gaming-hub')
-				: esc_html__('Yellow: Pro SOC · Gold band: planned grid charge · Orange band: generation forecast Pro 800 W + 1500 500 W · Vermilion line: AC-out forecast · Teal: billed rate', 'gaming-hub'); ?></p>
+				? esc_html__('Yellow: Pro SOC · Orange: 1500 SOC · Cool band: cheap bypass (hold pack) · Orange band: forecast solar · Warm hours: use pack · Orange line: AC load · Teal: rate', 'gaming-hub')
+				: esc_html__('Yellow: Pro SOC · Cool band: cheap bypass (hold pack) · Orange band: solar forecast · Warm hours: use pack · Vermilion: AC-out · Teal: rate', 'gaming-hub'); ?></p>
 			<p class="ecoflow-plan-next" data-ecoflow-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 
 			<details class="ecoflow-plan-more">
@@ -317,13 +319,11 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 				<p class="ecoflow-plan-limits">
 					<?php
 					printf(
-						/* translators: 1: charge watts, 2: idle watts, 3: dc watts, 4: reserve on, 5: reserve off */
-						esc_html__('Charging %1$s W / otherwise %2$s W · DC 12V→1500 always %3$s W · backup reserve grid on %4$s%% / off %5$s%%', 'gaming-hub'),
-						esc_html( number_format_i18n( (int) ( $plan['charge_w'] ?? 0 ) ) ),
-						esc_html( number_format_i18n( (int) ( $plan['idle_w'] ?? 0 ) ) ),
+						/* translators: 1: dc watts, 2: bypass reserve, 3: use-pack reserve */
+						esc_html__('No grid→storage charge · DC 12V→1500 always %1$s W · backup reserve bypass %2$s%% / use pack %3$s%%', 'gaming-hub'),
 						esc_html( number_format_i18n( (int) ( $plan['dc1500_w'] ?? 100 ) ) ),
-						esc_html( number_format_i18n( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON' ) ? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON : 100 ) ),
-						esc_html( number_format_i18n( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF' ) ? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF : 5 ) )
+						esc_html( number_format_i18n( (int) ( $plan['backup_bypass_soc'] ?? ( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS' ) ? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS : 100 ) ) ) ),
+						esc_html( number_format_i18n( (int) ( $plan['backup_use_pack_soc'] ?? ( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK' ) ? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK : 5 ) ) ) )
 					);
 					?>
 					<span data-ecoflow-field="plan_provider">

@@ -431,11 +431,17 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false, $plan = nul
 	if ( $missing ) {
 		$hour_key = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
 		$watts    = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
-		$reserve  = GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
+		$reserve  = defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK' )
+			? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK
+			: (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
 	} else {
 		$hour_key = (string) ( $slot['id'] ?? '' );
 		$watts    = gaming_hub_ecoflow_clamp_charge_watts( (int) $slot['watts'] );
-		$reserve  = gaming_hub_ecoflow_backup_reserve_for_watts( $watts );
+		if ( function_exists( 'gaming_hub_ecoflow_plan_allows_grid_charge' )
+			&& ! gaming_hub_ecoflow_plan_allows_grid_charge() ) {
+			$watts = (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+		}
+		$reserve = gaming_hub_ecoflow_backup_reserve_for_slot( $slot );
 	}
 
 	$same_command = (int) ( $saved['last_applied_w'] ?? 0 ) === (int) $watts
@@ -654,8 +660,28 @@ function gaming_hub_ecoflow_clamp_charge_watts( $watts ) {
  */
 function gaming_hub_ecoflow_backup_reserve_for_watts( $watts ) {
 	return (int) $watts > GAMING_HUB_ECOFLOW_PLAN_IDLE_W
-		? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON
-		: GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
+		? ( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS' ) ? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS : GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON )
+		: ( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK' ) ? GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK : GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF );
+}
+
+/**
+ * Backup reserve from plan slot mode.
+ *
+ * bypass/charge(hold) → 100% (do not discharge). use/solar/idle → 5% (use pack).
+ *
+ * @param array<string, mixed> $slot Current hour slot.
+ */
+function gaming_hub_ecoflow_backup_reserve_for_slot( array $slot ) {
+	$mode = (string) ( $slot['mode'] ?? 'use' );
+	if ( 'bypass' === $mode || 'charge' === $mode ) {
+		return defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS' )
+			? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS
+			: (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON;
+	}
+
+	return defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK' )
+		? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK
+		: (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
 }
 
 /**
