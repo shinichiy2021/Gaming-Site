@@ -355,14 +355,18 @@
 		return Number(value).toFixed(2);
 	}
 
-	function formatCalIn(input, solar) {
-		if (input === null || input === undefined) {
-			if (solar === null || solar === undefined) {
-				return '—';
-			}
-			return '— (PV ' + formatCalKwh(solar) + ')';
+	function formatCalIn(input, solar, grid) {
+		if (input == null && solar == null && grid == null) {
+			return '—';
 		}
-		return formatCalKwh(input) + ' (PV ' + formatCalKwh(solar) + ')';
+		const pv = solar == null ? 0 : Math.max(0, Number(solar) || 0);
+		const g = grid != null
+			? Math.max(0, Number(grid) || 0)
+			: (input == null ? 0 : Math.max(0, (Number(input) || 0) - pv));
+		const total = input == null ? (g + pv) : Number(input);
+		return 'Grid: ' + formatCalKwh(g)
+			+ ' / PV: ' + formatCalKwh(pv)
+			+ ' (計 ' + formatCalKwh(total) + ' kWh)';
 	}
 
 	function formatCalYen(value) {
@@ -370,6 +374,16 @@
 			return '—';
 		}
 		return Math.round(Number(value)).toLocaleString() + t(' yen');
+	}
+
+	function formatCalLossSummary(loss, input, rate) {
+		const rateText = rate == null || rate === undefined
+			? '—'
+			: Number(rate).toFixed(1);
+		return t('累計LOSS: %1$s kWh / 総IN: %2$s kWh（平均ロス率: %3$s%%）')
+			.replace('%1$s', formatCalKwh(loss))
+			.replace('%2$s', formatCalKwh(input))
+			.replace('%3$s', rateText);
 	}
 
 	let lastTodayYen = null;
@@ -525,21 +539,37 @@
 		if (!energy.totals) {
 			return;
 		}
+		const tot = energy.totals;
 		const monthSave = root.querySelector('[data-ecoflow-cal-month-save]');
 		const monthIn = root.querySelector('[data-ecoflow-cal-month-in]');
 		const monthOut = root.querySelector('[data-ecoflow-cal-month-out]');
 		const monthPv = root.querySelector('[data-ecoflow-cal-month-pv]');
+		const saveLine = root.querySelector('[data-ecoflow-cal-month-save-line]');
+		const inLine = root.querySelector('[data-ecoflow-cal-month-in-line]');
+		const lossLine = root.querySelector('[data-ecoflow-cal-month-loss-line]');
 		if (monthSave) {
-			monthSave.textContent = formatCalYen(energy.totals.saved_yen);
+			monthSave.textContent = formatCalYen(tot.saved_yen);
 		}
 		if (monthOut) {
-			monthOut.textContent = formatCalKwh(energy.totals.output_kwh) + ' kWh';
+			monthOut.textContent = formatCalKwh(tot.output_kwh) + ' kWh';
 		}
 		if (monthIn) {
-			monthIn.textContent = t('In ') + formatCalKwh(energy.totals.input_kwh) + ' kWh';
+			monthIn.textContent = formatCalIn(tot.input_kwh, tot.solar_kwh, tot.grid_in_kwh);
 		}
 		if (monthPv) {
-			monthPv.textContent = formatCalKwh(energy.totals.solar_kwh) + ' kWh';
+			monthPv.textContent = formatCalKwh(tot.solar_kwh) + ' kWh';
+		}
+		if (saveLine) {
+			saveLine.textContent = t('SAVE（キャッシュフロー）') + ' ' + formatCalYen(tot.saved_yen)
+				+ ' · ' + t('実質SAVE（貯蔵補正後）') + ' ' + formatCalYen(tot.effective_saved_yen);
+		}
+		if (inLine) {
+			inLine.textContent = 'IN ' + formatCalIn(tot.input_kwh, tot.solar_kwh, tot.grid_in_kwh)
+				+ ' · OUT ' + formatCalKwh(tot.output_kwh)
+				+ ' · STORE ' + formatCalKwh(tot.stored_kwh);
+		}
+		if (lossLine) {
+			lossLine.textContent = formatCalLossSummary(tot.loss_kwh, tot.input_kwh, tot.loss_rate);
 		}
 	}
 
@@ -714,11 +744,12 @@
 		cellEl.classList.toggle('is-charge', !!day.has_data && Number(day.saved_yen) > 0);
 		cellEl.classList.toggle('is-past', !day.is_today && !day.has_data);
 		const map = {
-			in: formatCalIn(day.input_kwh, day.solar_kwh),
+			in: formatCalIn(day.input_kwh, day.solar_kwh, day.grid_in_kwh),
 			out: formatCalKwh(day.output_kwh),
 			store: formatCalKwh(day.stored_kwh),
 			loss: formatCalKwh(day.loss_kwh),
 			save: formatCalYen(day.saved_yen),
+			effsave: formatCalYen(day.effective_saved_yen),
 		};
 		Object.keys(map).forEach(function (key) {
 			const el = cellEl.querySelector('[data-k="' + key + '"]');
@@ -815,11 +846,14 @@
 
 		const totalsEl = root.querySelector('[data-ecoflow-cal-week-totals]');
 		if (totalsEl && week.totals) {
+			const wt = week.totals;
 			totalsEl.textContent = t('Week')
-				+ ' · IN ' + formatCalIn(week.totals.input_kwh, week.totals.solar_kwh)
-				+ ' · OUT ' + formatCalKwh(week.totals.output_kwh)
-				+ ' · STORE ' + formatCalKwh(week.totals.stored_kwh)
-				+ ' · LOSS ' + formatCalKwh(week.totals.loss_kwh) + ' kWh';
+				+ ' · IN ' + formatCalIn(wt.input_kwh, wt.solar_kwh, wt.grid_in_kwh)
+				+ ' · OUT ' + formatCalKwh(wt.output_kwh)
+				+ ' · STORE ' + formatCalKwh(wt.stored_kwh)
+				+ ' · ' + t('SAVE（キャッシュフロー）') + ' ' + formatCalYen(wt.saved_yen)
+				+ ' · ' + t('実質SAVE（貯蔵補正後）') + ' ' + formatCalYen(wt.effective_saved_yen)
+				+ ' · ' + formatCalLossSummary(wt.loss_kwh, wt.input_kwh, wt.loss_rate);
 		}
 
 		const prevWeek = root.querySelector('[data-ecoflow-cal-week-prev]');
@@ -891,11 +925,12 @@
 			cell.appendChild(hourEl);
 
 			[
-				['ecoflow-plan-slot-mode ecoflow-cal-in', 'IN ', 'in', formatCalIn(day.input_kwh, day.solar_kwh)],
+				['ecoflow-plan-slot-mode ecoflow-cal-in', 'IN ', 'in', formatCalIn(day.input_kwh, day.solar_kwh, day.grid_in_kwh)],
 				['ecoflow-plan-slot-mode', 'OUT ', 'out', formatCalKwh(day.output_kwh)],
 				['ecoflow-plan-slot-mode ecoflow-cal-store', 'STORE ', 'store', formatCalKwh(day.stored_kwh)],
 				['ecoflow-plan-slot-mode ecoflow-cal-loss', 'LOSS ', 'loss', formatCalKwh(day.loss_kwh)],
 				['ecoflow-plan-slot-yen', 'SAVE ', 'save', formatCalYen(day.saved_yen)],
+				['ecoflow-plan-slot-yen ecoflow-cal-eff-save', t('実質SAVE') + ' ', 'effsave', formatCalYen(day.effective_saved_yen)],
 			].forEach(function (row) {
 				const line = document.createElement('span');
 				line.className = row[0];

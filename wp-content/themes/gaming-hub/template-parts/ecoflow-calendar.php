@@ -13,6 +13,7 @@ $weeks    = is_array( $calendar['weeks'] ?? null ) ? $calendar['weeks'] : array(
 $weekdays = is_array( $calendar['weekdays'] ?? null ) ? $calendar['weekdays'] : array( '日', '月', '火', '水', '木', '金', '土' );
 $start_w  = (int) ( $calendar['start_wday'] ?? 0 );
 $today    = (string) ( $calendar['today'] ?? '' );
+$totals   = is_array( $calendar['totals'] ?? null ) ? $calendar['totals'] : array();
 
 $format_kwh = static function ( $value, $digits = 2 ) {
 	if ( null === $value ) {
@@ -28,12 +29,22 @@ $format_yen = static function ( $value ) {
 	return number_format( (float) $value, 0 ) . ' 円';
 };
 
-$format_in = static function ( $input, $solar ) use ( $format_kwh ) {
-	$in = $format_kwh( $input );
-	if ( null === $input && null === $solar ) {
-		return $in;
+$format_in = static function ( $input, $solar, $grid = null ) use ( $format_kwh ) {
+	if ( null === $input && null === $solar && null === $grid ) {
+		return '—';
 	}
-	return $in . ' (PV ' . $format_kwh( $solar ) . ')';
+	$in  = null === $input ? null : (float) $input;
+	$pv  = null === $solar ? 0.0 : max( 0.0, (float) $solar );
+	$g   = null !== $grid
+		? max( 0.0, (float) $grid )
+		: ( null === $in ? 0.0 : max( 0.0, $in - $pv ) );
+	$total = null === $in ? ( $g + $pv ) : $in;
+	return sprintf(
+		'Grid: %s / PV: %s (計 %s kWh)',
+		$format_kwh( $g ),
+		$format_kwh( $pv ),
+		$format_kwh( $total )
+	);
 };
 
 $format_tick = static function ( $value ) {
@@ -42,6 +53,19 @@ $format_tick = static function ( $value ) {
 		return number_format( $n, 0 );
 	}
 	return number_format( $n, $n >= 1 ? 1 : 2 );
+};
+
+$format_loss_summary = static function ( $loss, $input, $rate ) use ( $format_kwh ) {
+	$loss_s = $format_kwh( $loss );
+	$in_s   = $format_kwh( $input );
+	$rate_s = null === $rate ? '—' : number_format( (float) $rate, 1 );
+	return sprintf(
+		/* translators: 1: loss kWh, 2: input kWh, 3: loss rate % */
+		__( '累計LOSS: %1$s kWh / 総IN: %2$s kWh（平均ロス率: %3$s%%）', 'gaming-hub' ),
+		$loss_s,
+		$in_s,
+		$rate_s
+	);
 };
 
 $active_week = null;
@@ -60,6 +84,7 @@ $week_max   = max( 1, (float) ( $active_week['kwh_max'] ?? 1 ) );
 $week_ticks = is_array( $active_week['kwh_ticks'] ?? null ) ? $active_week['kwh_ticks'] : array( $week_max, 0 );
 $week_label = (string) ( $active_week['label'] ?? '' );
 $week_index = (int) ( $active_week['index'] ?? 0 );
+$wt         = is_array( $active_week['totals'] ?? null ) ? $active_week['totals'] : array();
 ?>
 
 <section class="ecoflow-plan ecoflow-cal" aria-label="<?php esc_attr_e('Generation log', 'gaming-hub'); ?>" data-ecoflow-cal data-month="<?php echo esc_attr( $calendar['month'] ?? '' ); ?>" data-week="<?php echo esc_attr( (string) $week_index ); ?>">
@@ -77,6 +102,49 @@ $week_index = (int) ( $active_week['index'] ?? 0 );
 				<button type="button" class="ecoflow-plan-cancel" data-ecoflow-cal-next data-month="<?php echo esc_attr( $calendar['next'] ?? '' ); ?>"><?php esc_html_e('Next month', 'gaming-hub'); ?></button>
 			</span>
 		</p>
+	</div>
+
+	<div class="ecoflow-cal-month-summary" data-ecoflow-cal-month-summary>
+		<p class="ecoflow-cal-month-line" data-ecoflow-cal-month-save-line>
+			<?php
+			echo esc_html(
+				__( 'SAVE（キャッシュフロー）', 'gaming-hub' ) . ' '
+				. $format_yen( $totals['saved_yen'] ?? null )
+				. ' · '
+				. __( '実質SAVE（貯蔵補正後）', 'gaming-hub' ) . ' '
+				. $format_yen( $totals['effective_saved_yen'] ?? null )
+			);
+			?>
+		</p>
+		<p class="ecoflow-cal-month-line" data-ecoflow-cal-month-in-line>
+			<?php
+			echo esc_html(
+				'IN '
+				. $format_in(
+					$totals['input_kwh'] ?? null,
+					$totals['solar_kwh'] ?? null,
+					$totals['grid_in_kwh'] ?? null
+				)
+				. ' · OUT ' . $format_kwh( $totals['output_kwh'] ?? null )
+				. ' · STORE ' . $format_kwh( $totals['stored_kwh'] ?? null )
+			);
+			?>
+		</p>
+		<p class="ecoflow-cal-month-line" data-ecoflow-cal-month-loss-line>
+			<?php
+			echo esc_html(
+				$format_loss_summary(
+					$totals['loss_kwh'] ?? null,
+					$totals['input_kwh'] ?? null,
+					$totals['loss_rate'] ?? null
+				)
+			);
+			?>
+		</p>
+		<span hidden data-ecoflow-cal-month-save><?php echo esc_html( $format_yen( $totals['saved_yen'] ?? null ) ); ?></span>
+		<span hidden data-ecoflow-cal-month-in><?php echo esc_html( $format_in( $totals['input_kwh'] ?? null, $totals['solar_kwh'] ?? null, $totals['grid_in_kwh'] ?? null ) ); ?></span>
+		<span hidden data-ecoflow-cal-month-out><?php echo esc_html( $format_kwh( $totals['output_kwh'] ?? null ) ); ?></span>
+		<span hidden data-ecoflow-cal-month-pv><?php echo esc_html( $format_kwh( $totals['solar_kwh'] ?? null ) ); ?></span>
 	</div>
 
 	<div class="ecoflow-cal-week" data-ecoflow-cal-week>
@@ -137,14 +205,14 @@ $week_index = (int) ( $active_week['index'] ?? 0 );
 		<p class="ecoflow-rate-legend"><?php esc_html_e('Cyan bars: IN (solar + grid) · Magenta bars: OUT (living + UPS)', 'gaming-hub'); ?></p>
 		<p class="ecoflow-cal-week-totals" data-ecoflow-cal-week-totals>
 			<?php
-			$wt = is_array( $active_week['totals'] ?? null ) ? $active_week['totals'] : array();
 			echo esc_html(
 				__( 'Week', 'gaming-hub' )
-				. ' · IN ' . $format_in( $wt['input_kwh'] ?? 0, $wt['solar_kwh'] ?? 0 )
+				. ' · IN ' . $format_in( $wt['input_kwh'] ?? 0, $wt['solar_kwh'] ?? 0, $wt['grid_in_kwh'] ?? null )
 				. ' · OUT ' . $format_kwh( $wt['output_kwh'] ?? 0 )
 				. ' · STORE ' . $format_kwh( $wt['stored_kwh'] ?? 0 )
-				. ' · LOSS ' . $format_kwh( $wt['loss_kwh'] ?? 0 )
-				. ' kWh'
+				. ' · ' . __( 'SAVE（キャッシュフロー）', 'gaming-hub' ) . ' ' . $format_yen( $wt['saved_yen'] ?? null )
+				. ' · ' . __( '実質SAVE（貯蔵補正後）', 'gaming-hub' ) . ' ' . $format_yen( $wt['effective_saved_yen'] ?? null )
+				. ' · ' . $format_loss_summary( $wt['loss_kwh'] ?? 0, $wt['input_kwh'] ?? 0, $wt['loss_rate'] ?? null )
 			);
 			?>
 		</p>
@@ -183,11 +251,12 @@ $week_index = (int) ( $active_week['index'] ?? 0 );
 				data-ecoflow-cal-day="<?php echo esc_attr( $cell['date'] ); ?>"
 			>
 				<span class="ecoflow-plan-slot-hour"><?php echo esc_html( (string) ( $cell['day'] ?? '' ) ); ?></span>
-				<span class="ecoflow-plan-slot-mode ecoflow-cal-in">IN <b data-k="in"><?php echo esc_html( $format_in( $cell['input_kwh'] ?? null, $cell['solar_kwh'] ?? null ) ); ?></b></span>
+				<span class="ecoflow-plan-slot-mode ecoflow-cal-in">IN <b data-k="in"><?php echo esc_html( $format_in( $cell['input_kwh'] ?? null, $cell['solar_kwh'] ?? null, $cell['grid_in_kwh'] ?? null ) ); ?></b></span>
 				<span class="ecoflow-plan-slot-mode">OUT <b data-k="out"><?php echo esc_html( $format_kwh( $cell['output_kwh'] ?? null ) ); ?></b></span>
 				<span class="ecoflow-plan-slot-mode ecoflow-cal-store">STORE <b data-k="store"><?php echo esc_html( $format_kwh( $cell['stored_kwh'] ?? null ) ); ?></b></span>
 				<span class="ecoflow-plan-slot-mode ecoflow-cal-loss">LOSS <b data-k="loss"><?php echo esc_html( $format_kwh( $cell['loss_kwh'] ?? null ) ); ?></b></span>
 				<span class="ecoflow-plan-slot-yen">SAVE <b data-k="save"><?php echo esc_html( $format_yen( $cell['saved_yen'] ?? null ) ); ?></b></span>
+				<span class="ecoflow-plan-slot-yen ecoflow-cal-eff-save">実質SAVE <b data-k="effsave"><?php echo esc_html( $format_yen( $cell['effective_saved_yen'] ?? null ) ); ?></b></span>
 			</li>
 		<?php endforeach; ?>
 	</ol>

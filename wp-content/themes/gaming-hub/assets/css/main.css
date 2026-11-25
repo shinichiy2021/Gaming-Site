@@ -8201,6 +8201,34 @@ body.home .site-header.is-scrolled {
 	font-size: 0.78rem;
 	color: var(--color-text-muted);
 	font-variant-numeric: tabular-nums;
+	line-height: 1.45;
+}
+
+.ecoflow-cal-month-summary {
+	margin: 0 0 14px;
+	padding: 10px 12px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(0, 0, 0, 0.18);
+	font-size: 0.8rem;
+	color: var(--color-text-muted);
+	font-variant-numeric: tabular-nums;
+	line-height: 1.5;
+}
+
+.ecoflow-cal-month-line {
+	margin: 0;
+}
+
+.ecoflow-cal-month-line + .ecoflow-cal-month-line {
+	margin-top: 4px;
+}
+
+.ecoflow-cal .ecoflow-cal-eff-save {
+	color: #b8e0c8;
+}
+
+.ecoflow-cal .ecoflow-cal-eff-save b {
+	color: #d4f0de;
 }
 
 .ecoflow-cal .ecoflow-cal-store {

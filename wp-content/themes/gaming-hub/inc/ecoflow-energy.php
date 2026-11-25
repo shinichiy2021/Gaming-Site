@@ -16,6 +16,8 @@ define( 'GAMING_HUB_ECOFLOW_ENERGY_MAX_DT', 15 * MINUTE_IN_SECONDS );
 define( 'GAMING_HUB_ECOFLOW_ENERGY_MIN_DT', 8 );
 define( 'GAMING_HUB_ECOFLOW_ENERGY_ORIGIN_DEFAULT', 'https://shinichiy-gaming-hub.com' );
 define( 'GAMING_HUB_ECOFLOW_ENERGY_ORIGIN_TTL', 8 );
+/** ¥/kWh used to value STORE when computing effective SAVE (display layer). */
+define( 'GAMING_HUB_ECOFLOW_ENERGY_STORAGE_YEN_PER_KWH', 40.0 );
 
 /**
  * Whether this WordPress instance is a local / LAN copy (not production).
@@ -1350,6 +1352,87 @@ function gaming_hub_ecoflow_energy_soc_store_wh( array $row ) {
 }
 
 /**
+ * Storage valuation ¥/kWh for effective SAVE (overridable constant).
+ */
+function gaming_hub_ecoflow_energy_storage_unit_price() {
+	return defined( 'GAMING_HUB_ECOFLOW_ENERGY_STORAGE_YEN_PER_KWH' )
+		? (float) GAMING_HUB_ECOFLOW_ENERGY_STORAGE_YEN_PER_KWH
+		: 40.0;
+}
+
+/**
+ * Grid buy kWh for display: IN − PV (floored at 0).
+ *
+ * @param float|null $in_kwh Site IN kWh.
+ * @param float|null $pv_kwh PV kWh.
+ * @return float|null
+ */
+function gaming_hub_ecoflow_energy_grid_in_kwh( $in_kwh, $pv_kwh ) {
+	if ( null === $in_kwh && null === $pv_kwh ) {
+		return null;
+	}
+
+	$in = max( 0.0, (float) ( $in_kwh ?? 0 ) );
+	$pv = max( 0.0, (float) ( $pv_kwh ?? 0 ) );
+
+	return round( max( 0.0, $in - $pv ), 2 );
+}
+
+/**
+ * Effective SAVE = cashflow SAVE + STORE × storage unit price.
+ *
+ * @param float|null $raw_save   Cashflow saved_yen.
+ * @param float|null $store_kwh  STORE kWh (may be negative).
+ * @return float|null
+ */
+function gaming_hub_ecoflow_energy_effective_saved_yen( $raw_save, $store_kwh ) {
+	if ( null === $raw_save ) {
+		return null;
+	}
+
+	$store = null === $store_kwh ? 0.0 : (float) $store_kwh;
+
+	return (float) round( (float) $raw_save + ( $store * gaming_hub_ecoflow_energy_storage_unit_price() ) );
+}
+
+/**
+ * Cumulative loss rate % = LOSS / IN × 100.
+ *
+ * @param float $loss_kwh Period LOSS kWh.
+ * @param float $in_kwh   Period IN kWh.
+ */
+function gaming_hub_ecoflow_energy_loss_rate( $loss_kwh, $in_kwh ) {
+	$in = (float) $in_kwh;
+	if ( $in <= 0 ) {
+		return 0.0;
+	}
+
+	return round( ( (float) $loss_kwh / $in ) * 100, 1 );
+}
+
+/**
+ * Presentation fields derived from day balance + cashflow SAVE (no DB writes).
+ *
+ * @param array<string, mixed> $balance day_balance().
+ * @param float|null           $raw_save saved_yen.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_energy_display_enrich( array $balance, $raw_save ) {
+	$in    = $balance['input_kwh'] ?? null;
+	$pv    = $balance['solar_kwh'] ?? null;
+	$store = $balance['stored_kwh'] ?? null;
+	$grid  = gaming_hub_ecoflow_energy_grid_in_kwh( $in, $pv );
+	$raw   = null === $raw_save ? null : (float) $raw_save;
+
+	return array(
+		'grid_in_kwh'         => $grid,
+		'saved_yen'           => null === $raw ? null : round( $raw, 0 ),
+		'effective_saved_yen' => gaming_hub_ecoflow_energy_effective_saved_yen( $raw, $store ),
+		'storage_yen_per_kwh' => gaming_hub_ecoflow_energy_storage_unit_price(),
+	);
+}
+
+/**
  * Site-boundary kWh for one logged day (supply / load / SOC store).
  *
  * IN  = site input Wh (powIn) reconciled with solar + grid components.
@@ -1498,6 +1581,8 @@ function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $toda
 		$pv = 0.0;
 		$store = 0.0;
 		$loss = 0.0;
+		$save = 0.0;
+		$eff_save = 0.0;
 		$has = false;
 		$has_today = false;
 		$first_day = null;
@@ -1536,6 +1621,12 @@ function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $toda
 				if ( isset( $cell['loss_kwh'] ) && is_numeric( $cell['loss_kwh'] ) ) {
 					$loss += (float) $cell['loss_kwh'];
 				}
+				if ( isset( $cell['saved_yen'] ) && is_numeric( $cell['saved_yen'] ) ) {
+					$save += (float) $cell['saved_yen'];
+				}
+				if ( isset( $cell['effective_saved_yen'] ) && is_numeric( $cell['effective_saved_yen'] ) ) {
+					$eff_save += (float) $cell['effective_saved_yen'];
+				}
 			}
 			$chart_days[] = array(
 				'dow'        => $dow,
@@ -1571,17 +1662,26 @@ function gaming_hub_ecoflow_energy_week_groups( array $cells, $start_wday, $toda
 		}
 		list( $kwh_max, $kwh_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $day_max );
 
-		$out[] = array(
+		$in_r    = round( $in, 2 );
+		$pv_r    = round( $pv, 2 );
+		$loss_r  = round( $loss, 2 );
+		$store_r = round( $store, 2 );
+		$save_r  = round( $save, 0 );
+		$out[]   = array(
 			'index'      => $index,
 			'label'      => $label,
 			'is_active'  => $has_today || ( ! $today && 0 === $index ),
 			'days'       => $chart_days,
 			'totals'     => array(
-				'input_kwh'  => round( $in, 2 ),
-				'output_kwh' => round( $out_kwh, 2 ),
-				'solar_kwh'  => round( $pv, 2 ),
-				'stored_kwh' => round( $store, 2 ),
-				'loss_kwh'   => round( $loss, 2 ),
+				'input_kwh'           => $in_r,
+				'output_kwh'          => round( $out_kwh, 2 ),
+				'solar_kwh'           => $pv_r,
+				'grid_in_kwh'         => gaming_hub_ecoflow_energy_grid_in_kwh( $in_r, $pv_r ),
+				'stored_kwh'          => $store_r,
+				'loss_kwh'            => $loss_r,
+				'loss_rate'           => gaming_hub_ecoflow_energy_loss_rate( $loss_r, $in_r ),
+				'saved_yen'           => $save_r,
+				'effective_saved_yen' => round( $eff_save, 0 ),
 			),
 			'has_data'   => $has,
 			'kwh_max'    => $kwh_max,
@@ -1619,28 +1719,36 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 	$log           = gaming_hub_ecoflow_energy_month_days( $ym );
 	$cells         = array();
 	$totals        = array(
-		'input_kwh'  => 0.0,
-		'output_kwh' => 0.0,
-		'solar_kwh'  => 0.0,
-		'saved_yen'  => 0.0,
+		'input_kwh'           => 0.0,
+		'output_kwh'          => 0.0,
+		'solar_kwh'           => 0.0,
+		'stored_kwh'          => 0.0,
+		'loss_kwh'            => 0.0,
+		'saved_yen'           => 0.0,
+		'effective_saved_yen' => 0.0,
 	);
 
 	for ( $d = 1; $d <= $days_in_month; $d++ ) {
 		$date    = $ym . '-' . sprintf( '%02d', $d );
 		$row     = isset( $log[ $date ] ) && is_array( $log[ $date ] ) ? $log[ $date ] : null;
 		$balance = gaming_hub_ecoflow_energy_day_balance( $row );
-		$cell    = array(
-			'date'       => $date,
-			'day'        => $d,
-			'input_kwh'  => $balance['input_kwh'],
-			'output_kwh' => $balance['output_kwh'],
-			'solar_kwh'  => $balance['solar_kwh'],
-			'grid_kwh'   => $balance['grid_kwh'],
-			'stored_kwh' => $balance['stored_kwh'],
-			'loss_kwh'   => $balance['loss_kwh'],
-			'saved_yen'  => $row ? round( (float) $row['saved_yen'], 0 ) : null,
-			'has_data'   => (bool) $row && ( null !== $balance['input_kwh'] || null !== $balance['output_kwh'] || null !== $balance['solar_kwh'] ),
-			'is_today'   => $date === $today,
+		$raw_save = $row ? round( (float) $row['saved_yen'], 0 ) : null;
+		$display  = gaming_hub_ecoflow_energy_display_enrich( $balance, $raw_save );
+		$cell     = array(
+			'date'                => $date,
+			'day'                 => $d,
+			'input_kwh'           => $balance['input_kwh'],
+			'output_kwh'          => $balance['output_kwh'],
+			'solar_kwh'           => $balance['solar_kwh'],
+			'grid_kwh'            => $balance['grid_kwh'],
+			'grid_in_kwh'         => $display['grid_in_kwh'],
+			'stored_kwh'          => $balance['stored_kwh'],
+			'loss_kwh'            => $balance['loss_kwh'],
+			'saved_yen'           => $display['saved_yen'],
+			'effective_saved_yen' => $display['effective_saved_yen'],
+			'storage_yen_per_kwh' => $display['storage_yen_per_kwh'],
+			'has_data'            => (bool) $row && ( null !== $balance['input_kwh'] || null !== $balance['output_kwh'] || null !== $balance['solar_kwh'] ),
+			'is_today'            => $date === $today,
 		);
 		$cells[] = $cell;
 
@@ -1648,7 +1756,16 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 			$totals['input_kwh']  += (float) ( $cell['input_kwh'] ?? 0 );
 			$totals['output_kwh'] += (float) ( $cell['output_kwh'] ?? 0 );
 			$totals['solar_kwh']  += (float) ( $cell['solar_kwh'] ?? 0 );
-			$totals['saved_yen']  += (float) ( $cell['saved_yen'] ?? 0 );
+			if ( isset( $cell['stored_kwh'] ) && is_numeric( $cell['stored_kwh'] ) ) {
+				$totals['stored_kwh'] += (float) $cell['stored_kwh'];
+			}
+			if ( isset( $cell['loss_kwh'] ) && is_numeric( $cell['loss_kwh'] ) ) {
+				$totals['loss_kwh'] += (float) $cell['loss_kwh'];
+			}
+			$totals['saved_yen'] += (float) ( $cell['saved_yen'] ?? 0 );
+			if ( isset( $cell['effective_saved_yen'] ) && is_numeric( $cell['effective_saved_yen'] ) ) {
+				$totals['effective_saved_yen'] += (float) $cell['effective_saved_yen'];
+			}
 		}
 	}
 
@@ -1661,11 +1778,22 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 			(float) ( $cell['input_kwh'] ?? 0 ),
 			(float) ( $cell['output_kwh'] ?? 0 )
 		);
-		$max_yen = max( $max_yen, abs( (float) ( $cell['saved_yen'] ?? 0 ) ) );
+		$max_yen = max(
+			$max_yen,
+			abs( (float) ( $cell['saved_yen'] ?? 0 ) ),
+			abs( (float) ( $cell['effective_saved_yen'] ?? 0 ) )
+		);
 	}
 	$weeks = gaming_hub_ecoflow_energy_week_groups( $cells, $start_wday, $today );
 	list( $kwh_max, $kwh_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $max_kwh );
 	list( $yen_max, $yen_ticks ) = gaming_hub_ecoflow_energy_axis_ticks( $max_yen );
+
+	$in_total    = round( $totals['input_kwh'], 2 );
+	$pv_total    = round( $totals['solar_kwh'], 2 );
+	$loss_total  = round( $totals['loss_kwh'], 2 );
+	$store_total = round( $totals['stored_kwh'], 2 );
+	$save_total  = round( $totals['saved_yen'], 0 );
+	$eff_total   = round( $totals['effective_saved_yen'], 0 );
 
 	$today_hours      = array();
 	$today_kwh_max    = 1.0;
@@ -1713,10 +1841,16 @@ function gaming_hub_ecoflow_energy_month_payload( $ym, $status = null ) {
 		'days'       => $cells,
 		'weeks'      => $weeks,
 		'totals'     => array(
-			'input_kwh'  => round( $totals['input_kwh'], 2 ),
-			'output_kwh' => round( $totals['output_kwh'], 2 ),
-			'solar_kwh'  => round( $totals['solar_kwh'], 2 ),
-			'saved_yen'  => round( $totals['saved_yen'], 0 ),
+			'input_kwh'           => $in_total,
+			'output_kwh'          => round( $totals['output_kwh'], 2 ),
+			'solar_kwh'           => $pv_total,
+			'grid_in_kwh'         => gaming_hub_ecoflow_energy_grid_in_kwh( $in_total, $pv_total ),
+			'stored_kwh'          => $store_total,
+			'loss_kwh'            => $loss_total,
+			'loss_rate'           => gaming_hub_ecoflow_energy_loss_rate( $loss_total, $in_total ),
+			'saved_yen'           => $save_total,
+			'effective_saved_yen' => $eff_total,
+			'storage_yen_per_kwh' => gaming_hub_ecoflow_energy_storage_unit_price(),
 		),
 		'now'        => $now,
 		'prev'       => $prev,
