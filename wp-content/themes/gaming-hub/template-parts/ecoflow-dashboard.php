@@ -60,6 +60,36 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 			}
 		}
 
+		$selfpowered = is_array( $plan['selfpowered_schedule'] ?? null ) ? $plan['selfpowered_schedule'] : array();
+		$sp_hours    = is_array( $selfpowered['hours'] ?? null ) ? $selfpowered['hours'] : array();
+		$sp_rows     = is_array( $selfpowered['rows'] ?? null ) ? $selfpowered['rows'] : array();
+		if ( ! empty( $selfpowered['enabled'] ) && $sp_hours ) {
+			foreach ( $sp_hours as $h => $sp_slot ) {
+				$h = (int) $h;
+				if ( $h < 0 || $h > 23 || ! is_array( $sp_slot ) ) {
+					continue;
+				}
+				$base = isset( $today_by_hour[ $h ] ) && is_array( $today_by_hour[ $h ] )
+					? $today_by_hour[ $h ]
+					: array(
+						'date' => $today,
+						'hour' => $h,
+						'yen'  => null,
+					);
+				if ( 'charge' === ( $sp_slot['mode'] ?? '' ) ) {
+					$base['mode']  = 'charge';
+					$base['watts'] = (int) ( $sp_slot['watts'] ?? ( $plan['charge_w'] ?? 1000 ) );
+				} elseif ( empty( $base['mode'] ) || 'idle' === ( $base['mode'] ?? '' ) || 'past' === ( $base['mode'] ?? '' ) ) {
+					// Keep past hours as past; otherwise show self-powered phase mode.
+					if ( 'past' !== ( $base['mode'] ?? '' ) ) {
+						$base['mode'] = (string) ( $sp_slot['mode'] ?? 'idle' );
+					}
+				}
+				$base['selfpowered'] = $sp_slot;
+				$today_by_hour[ $h ] = $base;
+			}
+		}
+
 		$charge_w    = max( 1, (int) ( $plan['charge_w'] ?? 1000 ) );
 		$solar_hours = is_array( $plan['solar_chart'] ?? null )
 			? $plan['solar_chart']
@@ -176,7 +206,7 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 					</small>
 				</div>
 				<div class="ecoflow-rates-stat">
-					<span><?php esc_html_e( 'WINDOW', 'gaming-hub' ); ?></span>
+					<span data-ecoflow-field="plan_window_kicker"><?php echo ! empty( $selfpowered['enabled'] ) ? esc_html__( 'CHARGE', 'gaming-hub' ) : esc_html__( 'WINDOW', 'gaming-hub' ); ?></span>
 					<strong data-ecoflow-field="plan_window"><?php echo esc_html( $plan['window_label'] ?? '—' ); ?></strong>
 					<small data-ecoflow-field="plan_window_price">
 						<?php
@@ -309,9 +339,37 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 				</div>
 			</div>
 			<p class="ecoflow-plan-chart-hint"><?php esc_html_e('Swipe the chart sideways', 'gaming-hub'); ?></p>
-			<p class="ecoflow-rate-legend"><?php echo $show_delta_soc
-				? esc_html__('Yellow: Pro SOC · Orange: 1500 SOC · Cool band: cheap bypass (hold pack) · Orange band: forecast solar · Warm hours: use pack · Orange line: AC load · Teal: rate', 'gaming-hub')
-				: esc_html__('Yellow: Pro SOC · Cool band: cheap bypass (hold pack) · Orange band: solar forecast · Warm hours: use pack · Vermilion: AC-out · Teal: rate', 'gaming-hub'); ?></p>
+			<p class="ecoflow-rate-legend"><?php
+			if ( ! empty( $selfpowered['enabled'] ) ) {
+				echo $show_delta_soc
+					? esc_html__('Gold bar: grid charge window · Yellow: Pro SOC · Orange: 1500 SOC · Warm hours: use pack · Orange line: AC load · Teal: rate', 'gaming-hub')
+					: esc_html__('Gold bar: grid charge window · Yellow: Pro SOC · Warm hours: use pack · Vermilion: AC-out · Teal: rate', 'gaming-hub');
+			} else {
+				echo $show_delta_soc
+					? esc_html__('Yellow: Pro SOC · Orange: 1500 SOC · Cool band: cheap bypass (hold pack) · Orange band: forecast solar · Warm hours: use pack · Orange line: AC load · Teal: rate', 'gaming-hub')
+					: esc_html__('Yellow: Pro SOC · Cool band: cheap bypass (hold pack) · Orange band: solar forecast · Warm hours: use pack · Vermilion: AC-out · Teal: rate', 'gaming-hub');
+			}
+			?></p>
+			<p class="ecoflow-plan-schedule-summary" data-ecoflow-plan-schedule-summary <?php echo ! empty( $selfpowered['enabled'] ) && ! empty( $selfpowered['summary'] ) ? '' : 'hidden'; ?>>
+				<?php echo esc_html( (string) ( $selfpowered['summary'] ?? '' ) ); ?>
+			</p>
+			<ul class="ecoflow-plan-schedule" data-ecoflow-plan-schedule <?php echo ! empty( $selfpowered['enabled'] ) && $sp_rows ? '' : 'hidden'; ?>>
+				<?php foreach ( $sp_rows as $row ) : ?>
+					<li class="ecoflow-plan-schedule-row is-<?php echo esc_attr( sanitize_html_class( (string) ( $row['mode'] ?? 'idle' ) ) ); ?><?php echo ! empty( $row['active'] ) ? ' is-active' : ''; ?><?php echo ! empty( $row['has_actual'] ) ? ' has-actual' : ''; ?>">
+						<span class="ecoflow-plan-schedule-time"><?php echo esc_html( (string) ( $row['time'] ?? '' ) ); ?></span>
+						<span class="ecoflow-plan-schedule-body">
+							<span class="ecoflow-plan-schedule-planned">
+								<?php esc_html_e('Plan', 'gaming-hub'); ?>
+								<b><?php echo esc_html( (string) ( $row['action'] ?? '' ) ); ?></b>
+							</span>
+							<span class="ecoflow-plan-schedule-actual">
+								<?php esc_html_e('Actual', 'gaming-hub'); ?>
+								<b><?php echo esc_html( ! empty( $row['has_actual'] ) ? (string) ( $row['actual'] ?? '—' ) : '—' ); ?></b>
+							</span>
+						</span>
+					</li>
+				<?php endforeach; ?>
+			</ul>
 			<p class="ecoflow-plan-next" data-ecoflow-plan-next <?php echo $next_note ? '' : 'hidden'; ?>><?php echo esc_html( $next_note ); ?></p>
 
 			<details class="ecoflow-plan-more">

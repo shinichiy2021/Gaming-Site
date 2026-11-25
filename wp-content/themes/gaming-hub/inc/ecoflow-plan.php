@@ -1242,7 +1242,9 @@ function gaming_hub_ecoflow_get_charge_plan( array $status, $force = false ) {
 	$dates      = gaming_hub_ecoflow_plan_dates();
 	$was_grid   = gaming_hub_ecoflow_plan_was_grid_charging() ? '1' : '0';
 	// v43: invalidate plans cached before solar_source / similar-weather solar meta.
-	$key        = 'gaming_hub_ecoflow_plan_v44_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_gc' . ( gaming_hub_ecoflow_plan_allows_grid_charge() ? '1' : '0' ) . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_HEAT_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH . '_d' . ( GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC ? '1' : '0' );
+	$sp = ( function_exists( 'gaming_hub_ecoflow_selfpowered_reserve_control_enabled' ) && gaming_hub_ecoflow_selfpowered_reserve_control_enabled() ? '1' : '0' )
+		. ( function_exists( 'gaming_hub_ecoflow_delta1500_selfpowered_control_enabled' ) && gaming_hub_ecoflow_delta1500_selfpowered_control_enabled() ? '1' : '0' );
+	$key        = 'gaming_hub_ecoflow_plan_v45_' . $dates['today'] . '_' . $hour . '_m' . (int) floor( (int) wp_date( 'i' ) / 15 ) . '_' . (int) floor( $soc / 5 ) . '_' . $delta_key . '_g' . $was_grid . '_gc' . ( gaming_hub_ecoflow_plan_allows_grid_charge() ? '1' : '0' ) . '_sp' . $sp . '_' . GAMING_HUB_ECOFLOW_PLAN_CHARGE_W . '_' . GAMING_HUB_ECOFLOW_PLAN_IDLE_W . '_' . GAMING_HUB_ECOFLOW_SOLAR_CAPACITY_W . '_' . GAMING_HUB_ECOFLOW_AC_START_C . '_' . GAMING_HUB_ECOFLOW_AC_HEAT_START_C . '_' . GAMING_HUB_ECOFLOW_AC_START_W . '_' . GAMING_HUB_ECOFLOW_AC_MAX_W . '_' . GAMING_HUB_ECOFLOW_PLAN_MIN_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC_MAX . '_' . GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC . '_' . GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_START_KWH . '_' . GAMING_HUB_ECOFLOW_PLAN_DEFICIT_STOP_KWH . '_d' . ( GAMING_HUB_ECOFLOW_PLAN_SHOW_DELTA_SOC ? '1' : '0' );
 
 	if ( ! $force ) {
 		$cached = get_transient( $key );
@@ -1320,7 +1322,30 @@ function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status, $l
 		$plan = gaming_hub_ecoflow_attach_schedule_state( $plan );
 	}
 
-	$plan['charge_w'] = GAMING_HUB_ECOFLOW_PLAN_CHARGE_W;
+	if ( function_exists( 'gaming_hub_ecoflow_selfpowered_plan_schedule' ) ) {
+		$sp_sched = gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, $status );
+		$plan['selfpowered_schedule'] = $sp_sched;
+		if ( ! empty( $sp_sched['enabled'] ) ) {
+			$plan['window_label'] = (string) ( $sp_sched['window_label'] ?? $plan['window_label'] ?? '' );
+			if ( isset( $sp_sched['day_min'] ) && is_numeric( $sp_sched['day_min'] ) && ! empty( $sp_sched['will_charge'] ) ) {
+				$plan['window_avg_yen'] = (float) $sp_sched['day_min'];
+			}
+			if ( ! empty( $sp_sched['summary'] ) ) {
+				$plan['schedule_note'] = (string) $sp_sched['summary'];
+			}
+			if ( ! empty( $sp_sched['delta_watts'] ) ) {
+				$plan['charge_w'] = max(
+					(int) ( $plan['charge_w'] ?? GAMING_HUB_ECOFLOW_PLAN_CHARGE_W ),
+					(int) $sp_sched['delta_watts'],
+					(int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W
+				);
+			}
+		}
+	} else {
+		$plan['selfpowered_schedule'] = array( 'enabled' => false );
+	}
+
+	$plan['charge_w'] = isset( $plan['charge_w'] ) ? (int) $plan['charge_w'] : GAMING_HUB_ECOFLOW_PLAN_CHARGE_W;
 	$plan['idle_w']   = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
 	if ( isset( $plan['slots'] ) && is_array( $plan['slots'] ) ) {
 		$plan['slots'] = gaming_hub_ecoflow_normalize_plan_slots( $plan['slots'] );

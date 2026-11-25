@@ -7128,6 +7128,73 @@ body.home .site-header.is-scrolled {
 	display: none;
 }
 
+.ecoflow-plan-schedule-summary {
+	margin: 10px 0 0;
+	font-size: 0.82rem;
+	color: var(--color-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.ecoflow-plan-schedule-summary[hidden],
+.ecoflow-plan-schedule[hidden] {
+	display: none;
+}
+
+.ecoflow-plan-schedule {
+	list-style: none;
+	margin: 8px 0 0;
+	padding: 0;
+	display: grid;
+	gap: 6px;
+}
+
+.ecoflow-plan-schedule-row {
+	display: grid;
+	grid-template-columns: minmax(7.5rem, auto) minmax(0, 1fr);
+	gap: 10px;
+	align-items: start;
+	padding: 8px 10px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(0, 0, 0, 0.16);
+	font-size: 0.8rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.ecoflow-plan-schedule-row.is-charge {
+	border-color: rgba(255, 196, 72, 0.35);
+	background: rgba(255, 159, 28, 0.12);
+}
+
+.ecoflow-plan-schedule-time {
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+
+.ecoflow-plan-schedule-row.is-charge .ecoflow-plan-schedule-time {
+	color: #ffc14d;
+}
+
+.ecoflow-plan-schedule-body {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.ecoflow-plan-schedule-planned,
+.ecoflow-plan-schedule-actual {
+	color: var(--color-text-muted);
+}
+
+.ecoflow-plan-schedule-planned b {
+	color: #ffc14d;
+	font-weight: 600;
+}
+
+.ecoflow-plan-schedule-actual b {
+	color: #7ad7ff;
+	font-weight: 600;
+}
+
 .ecoflow-plan-more {
 	margin-top: 14px;
 }

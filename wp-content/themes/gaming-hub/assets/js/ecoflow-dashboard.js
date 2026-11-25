@@ -1279,6 +1279,28 @@
 			}
 		});
 
+		const sp = plan && plan.selfpowered_schedule && typeof plan.selfpowered_schedule === 'object'
+			? plan.selfpowered_schedule
+			: null;
+		if (sp && sp.enabled && sp.hours && typeof sp.hours === 'object') {
+			Object.keys(sp.hours).forEach(function (key) {
+				const h = Number(key);
+				const spSlot = sp.hours[key];
+				if (!Number.isFinite(h) || !spSlot) {
+					return;
+				}
+				const base = byHour[h] || { date: viewDate, hour: h, yen: null };
+				if (spSlot.mode === 'charge') {
+					base.mode = 'charge';
+					base.watts = Number(spSlot.watts != null ? spSlot.watts : chargeW) || chargeW;
+				} else if (!base.mode || base.mode === 'idle') {
+					base.mode = spSlot.mode || 'idle';
+				}
+				base.selfpowered = spSlot;
+				byHour[h] = base;
+			});
+		}
+
 		const socSeries = plan && Array.isArray(plan.soc_series) ? plan.soc_series : [];
 		const proBars = plan && Array.isArray(plan.soc_bar_pro) ? plan.soc_bar_pro : [];
 		const deltaBars = plan && Array.isArray(plan.soc_bar_delta) ? plan.soc_bar_delta : [];
@@ -1390,6 +1412,60 @@
 				nextEl.hidden = true;
 				nextEl.textContent = '';
 			}
+		}
+
+		const summaryEl = dashboard.querySelector('[data-ecoflow-plan-schedule-summary]');
+		if (summaryEl) {
+			if (sp && sp.enabled && sp.summary) {
+				summaryEl.hidden = false;
+				summaryEl.textContent = sp.summary;
+			} else {
+				summaryEl.hidden = true;
+				summaryEl.textContent = '';
+			}
+		}
+		const scheduleEl = dashboard.querySelector('[data-ecoflow-plan-schedule]');
+		if (scheduleEl) {
+			const rows = sp && sp.enabled && Array.isArray(sp.rows) ? sp.rows : [];
+			if (!rows.length) {
+				scheduleEl.hidden = true;
+				scheduleEl.innerHTML = '';
+			} else {
+				scheduleEl.hidden = false;
+				scheduleEl.innerHTML = '';
+				rows.forEach(function (row) {
+					const li = document.createElement('li');
+					li.className = 'ecoflow-plan-schedule-row is-' + (row.mode || 'idle')
+						+ (row.active ? ' is-active' : '')
+						+ (row.has_actual ? ' has-actual' : '');
+					const time = document.createElement('span');
+					time.className = 'ecoflow-plan-schedule-time';
+					time.textContent = row.time || '';
+					const body = document.createElement('span');
+					body.className = 'ecoflow-plan-schedule-body';
+					const planned = document.createElement('span');
+					planned.className = 'ecoflow-plan-schedule-planned';
+					planned.appendChild(document.createTextNode(t('Plan') + ' '));
+					const plannedB = document.createElement('b');
+					plannedB.textContent = row.action || '';
+					planned.appendChild(plannedB);
+					const actual = document.createElement('span');
+					actual.className = 'ecoflow-plan-schedule-actual';
+					actual.appendChild(document.createTextNode(t('Actual') + ' '));
+					const actualB = document.createElement('b');
+					actualB.textContent = row.has_actual ? (row.actual || '—') : '—';
+					actual.appendChild(actualB);
+					body.appendChild(planned);
+					body.appendChild(actual);
+					li.appendChild(time);
+					li.appendChild(body);
+					scheduleEl.appendChild(li);
+				});
+			}
+		}
+		const windowKicker = dashboard.querySelector('[data-ecoflow-field="plan_window_kicker"]');
+		if (windowKicker) {
+			windowKicker.textContent = (sp && sp.enabled) ? t('CHARGE') : t('WINDOW');
 		}
 
 		const solarLine = dashboard.querySelector('[data-ecoflow-plan-solar-line]');

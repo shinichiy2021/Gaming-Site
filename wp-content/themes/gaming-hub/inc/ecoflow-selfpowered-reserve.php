@@ -291,6 +291,340 @@ function gaming_hub_ecoflow_selfpowered_today_price_slots() {
 }
 
 /**
+ * Whether a calendar day is a “charge day” from LOOOP day/peak spread.
+ *
+ * @param string $ymd Y-m-d.
+ * @return array{charge_day: bool, day_min: float, peak_max: float, spread: float}
+ */
+function gaming_hub_ecoflow_selfpowered_spread_for_date( $ymd ) {
+	$ymd = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $ymd ) ? (string) $ymd : wp_date( 'Y-m-d' );
+	$map = function_exists( 'gaming_hub_ecoflow_day_price_map' )
+		? gaming_hub_ecoflow_day_price_map( $ymd )
+		: array();
+
+	$day_vals  = array();
+	$peak_vals = array();
+	if ( is_array( $map ) && $map ) {
+		// Half-hour index approx from hourly map: hour h → slots 2h and 2h+1.
+		for ( $h = 10; $h <= 14; $h++ ) {
+			if ( isset( $map[ $h ] ) && is_numeric( $map[ $h ] ) ) {
+				$day_vals[] = (float) $map[ $h ];
+			}
+		}
+		for ( $h = 15; $h <= 21; $h++ ) {
+			if ( isset( $map[ $h ] ) && is_numeric( $map[ $h ] ) ) {
+				$peak_vals[] = (float) $map[ $h ];
+			}
+		}
+	}
+
+	$day_min  = $day_vals ? min( $day_vals ) : 0.0;
+	$peak_max = $peak_vals ? max( $peak_vals ) : 0.0;
+	$spread   = $peak_max - $day_min;
+	$threshold = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_SPREAD_YEN' )
+		? (float) GAMING_HUB_ECOFLOW_SELFPOWERED_SPREAD_YEN
+		: 15.0;
+
+	return array(
+		'charge_day' => $spread >= $threshold,
+		'day_min'    => round( $day_min, 2 ),
+		'peak_max'   => round( $peak_max, 2 ),
+		'spread'     => round( $spread, 2 ),
+	);
+}
+
+/**
+ * Aggregate measured Wh for a list of hours on a plan date.
+ *
+ * @param string     $plan_date Y-m-d.
+ * @param array<int> $hours     Hours 0–23.
+ * @return array{has: bool, label: string|null, grid_kwh: float, solar_kwh: float, out_kwh: float}
+ */
+function gaming_hub_ecoflow_selfpowered_sum_hours_actual( $plan_date, array $hours ) {
+	$empty = array(
+		'has'       => false,
+		'label'     => null,
+		'grid_kwh'  => 0.0,
+		'solar_kwh' => 0.0,
+		'out_kwh'   => 0.0,
+	);
+	if ( ! function_exists( 'gaming_hub_ecoflow_energy_hours_for_date' ) ) {
+		return $empty;
+	}
+
+	$log   = gaming_hub_ecoflow_energy_hours_for_date( $plan_date );
+	$log   = is_array( $log ) ? $log : array();
+	$grid  = 0.0;
+	$solar = 0.0;
+	$out   = 0.0;
+	$has   = false;
+
+	foreach ( $hours as $h ) {
+		$h   = (int) $h;
+		$row = isset( $log[ $h ] ) && is_array( $log[ $h ] ) ? $log[ $h ] : null;
+		if ( ! $row ) {
+			continue;
+		}
+		$pro   = max( 0.0, (float) ( $row['pro_ac_in_wh'] ?? 0 ) );
+		$delta = max( 0.0, (float) ( $row['delta_ac_in_wh'] ?? 0 ) );
+		if ( $delta <= 0 && isset( $row['ac_in_wh'] ) ) {
+			$delta = max( 0.0, (float) $row['ac_in_wh'] );
+		}
+		$pv = max( 0.0, (float) ( $row['solar_wh'] ?? 0 ) );
+		$load = max( 0.0, (float) ( $row['room_out_wh'] ?? 0 ) ) + max( 0.0, (float) ( $row['ups_out_wh'] ?? 0 ) );
+		if ( $load <= 0 && isset( $row['output_wh'] ) ) {
+			$load = max( 0.0, (float) $row['output_wh'] );
+		}
+		if ( $pro > 0 || $delta > 0 || $pv > 0 || $load > 0 || isset( $row['soc'] ) ) {
+			$has = true;
+		}
+		$grid  += $pro + $delta;
+		$solar += $pv;
+		$out   += $load;
+	}
+
+	if ( ! $has ) {
+		return $empty;
+	}
+
+	$grid_kwh  = round( $grid / 1000.0, 2 );
+	$solar_kwh = round( $solar / 1000.0, 2 );
+	$out_kwh   = round( $out / 1000.0, 2 );
+	$bits      = array();
+	if ( $grid_kwh > 0 ) {
+		$bits[] = sprintf(
+			/* translators: %s: kWh */
+			__( 'Grid %s kWh', 'gaming-hub' ),
+			number_format_i18n( $grid_kwh, 2 )
+		);
+	}
+	if ( $solar_kwh > 0 ) {
+		$bits[] = sprintf(
+			/* translators: %s: kWh */
+			__( 'PV %s kWh', 'gaming-hub' ),
+			number_format_i18n( $solar_kwh, 2 )
+		);
+	}
+	if ( $out_kwh > 0 ) {
+		$bits[] = sprintf(
+			/* translators: %s: kWh */
+			__( 'OUT %s kWh', 'gaming-hub' ),
+			number_format_i18n( $out_kwh, 2 )
+		);
+	}
+	if ( ! $bits ) {
+		$bits[] = __( '計測あり', 'gaming-hub' );
+	}
+
+	return array(
+		'has'       => true,
+		'label'     => implode( ' · ', $bits ),
+		'grid_kwh'  => $grid_kwh,
+		'solar_kwh' => $solar_kwh,
+		'out_kwh'   => $out_kwh,
+	);
+}
+
+/**
+ * Actuals for the three self-powered windows on a plan date.
+ *
+ * @param string                    $plan_date Y-m-d.
+ * @param array<string, array<int>> $windows   Named hour lists.
+ * @return array<string, array{has: bool, label: string|null, grid_kwh: float, solar_kwh: float, out_kwh: float}>
+ */
+function gaming_hub_ecoflow_selfpowered_window_actuals( $plan_date, array $windows ) {
+	$out = array();
+	foreach ( $windows as $key => $hours ) {
+		$out[ $key ] = gaming_hub_ecoflow_selfpowered_sum_hours_actual( $plan_date, $hours );
+	}
+	return $out;
+}
+
+/**
+ * AI Plan overlay: self-powered grid-charge schedule (Pro reserve + Delta AC).
+ *
+ * @param string               $plan_date Y-m-d.
+ * @param array<string, mixed> $status    Device status.
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status = array() ) {
+	$pro_on   = function_exists( 'gaming_hub_ecoflow_selfpowered_reserve_control_enabled' )
+		&& gaming_hub_ecoflow_selfpowered_reserve_control_enabled();
+	$delta_on = function_exists( 'gaming_hub_ecoflow_delta1500_selfpowered_control_enabled' )
+		&& gaming_hub_ecoflow_delta1500_selfpowered_control_enabled();
+
+	if ( ! $pro_on && ! $delta_on ) {
+		return array(
+			'enabled' => false,
+		);
+	}
+
+	$spread_info = gaming_hub_ecoflow_selfpowered_spread_for_date( $plan_date );
+	$charge_day  = ! empty( $spread_info['charge_day'] );
+	$idle_r      = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_IDLE_RESERVE' )
+		? (int) GAMING_HUB_ECOFLOW_SELFPOWERED_IDLE_RESERVE
+		: 5;
+	$charge_r    = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE' )
+		? (int) GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE
+		: 90;
+	$delta_w     = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W' )
+		? (int) GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W
+		: 600;
+	$pro_soc     = isset( $status['battery_percent'] ) && is_numeric( $status['battery_percent'] )
+		? (float) $status['battery_percent']
+		: null;
+	$delta_soc   = isset( $status['secondary']['battery_percent'] ) && is_numeric( $status['secondary']['battery_percent'] )
+		? (float) $status['secondary']['battery_percent']
+		: null;
+	$pro_needs   = null === $pro_soc || $pro_soc < 90.0;
+	$delta_needs = null === $delta_soc || $delta_soc < 100.0;
+	$will_charge = $charge_day && ( ( $pro_on && $pro_needs ) || ( $delta_on && $delta_needs ) );
+
+	$hours = array();
+	for ( $h = 0; $h < 24; $h++ ) {
+		if ( 14 === $h && $will_charge ) {
+			$hours[ $h ] = array(
+				'mode'        => 'charge',
+				'phase'       => 'ac_topup',
+				'pro_reserve' => $pro_on ? $charge_r : null,
+				'delta_watts' => $delta_on ? $delta_w : null,
+				'watts'       => $delta_on ? $delta_w : ( defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000 ),
+			);
+		} elseif ( $h >= 15 && $h <= 21 ) {
+			$hours[ $h ] = array(
+				'mode'        => 'use',
+				'phase'       => 'peak_discharge',
+				'pro_reserve' => $pro_on ? $idle_r : null,
+				'delta_watts' => $delta_on ? 0 : null,
+				'watts'       => 0,
+			);
+		} else {
+			$hours[ $h ] = array(
+				'mode'        => 'idle',
+				'phase'       => ( 14 === $h ) ? 'ac_topup_skip' : 'standby',
+				'pro_reserve' => $pro_on ? $idle_r : null,
+				'delta_watts' => $delta_on ? 0 : null,
+				'watts'       => 0,
+			);
+		}
+	}
+
+	$windows = array(
+		'charge'  => array( 14 ),
+		'peak'    => range( 15, 21 ),
+		'standby' => array_merge( range( 22, 23 ), range( 0, 13 ) ),
+	);
+	$actuals = gaming_hub_ecoflow_selfpowered_window_actuals( $plan_date, $windows );
+
+	$rows = array();
+	if ( $will_charge ) {
+		$parts = array();
+		if ( $pro_on ) {
+			$parts[] = sprintf(
+				/* translators: %d: backup reserve percent */
+				__( 'Pro 予備残量 %d%%', 'gaming-hub' ),
+				$charge_r
+			);
+		}
+		if ( $delta_on ) {
+			$parts[] = sprintf(
+				/* translators: %d: AC charge watts */
+				__( 'Delta AC %d W', 'gaming-hub' ),
+				$delta_w
+			);
+		}
+		$rows[] = array(
+			'time'   => '14:00–15:00',
+			'action' => __( 'グリッド充電', 'gaming-hub' ) . '（' . implode( ' · ', $parts ) . '）',
+			'mode'   => 'charge',
+			'active' => true,
+			'actual' => $actuals['charge']['label'] ?? null,
+			'has_actual' => ! empty( $actuals['charge']['has'] ),
+		);
+	} elseif ( $charge_day ) {
+		$rows[] = array(
+			'time'   => '14:00–15:00',
+			'action' => __( 'グリッド充電スキップ（目標SOC到達済み）', 'gaming-hub' ),
+			'mode'   => 'idle',
+			'active' => false,
+			'actual' => $actuals['charge']['label'] ?? null,
+			'has_actual' => ! empty( $actuals['charge']['has'] ),
+		);
+	} else {
+		$rows[] = array(
+			'time'   => '14:00–15:00',
+			'action' => __( 'グリッド充電なし（価格スプレッド不足）', 'gaming-hub' ),
+			'mode'   => 'idle',
+			'active' => false,
+			'actual' => $actuals['charge']['label'] ?? null,
+			'has_actual' => ! empty( $actuals['charge']['has'] ),
+		);
+	}
+	$rows[] = array(
+		'time'   => '15:00–22:00',
+		'action' => __( 'ピーク放電（パック優先・グリッド充電オフ）', 'gaming-hub' ),
+		'mode'   => 'use',
+		'active' => true,
+		'actual' => $actuals['peak']['label'] ?? null,
+		'has_actual' => ! empty( $actuals['peak']['has'] ),
+	);
+	$standby = __( '待機（グリッド充電オフ）', 'gaming-hub' );
+	if ( $pro_on && $delta_on ) {
+		$standby = __( '待機（Proは太陽光優先 / Deltaはソーラーなし・グリッド充電オフ）', 'gaming-hub' );
+	} elseif ( $pro_on ) {
+		$standby = __( '待機（太陽光優先・グリッド充電オフ）', 'gaming-hub' );
+	} elseif ( $delta_on ) {
+		$standby = __( '待機（ソーラーなし / グリッド充電オフ）', 'gaming-hub' );
+	}
+	$rows[] = array(
+		'time'   => '22:00–14:00',
+		'action' => $standby,
+		'mode'   => 'idle',
+		'active' => true,
+		'actual' => $actuals['standby']['label'] ?? null,
+		'has_actual' => ! empty( $actuals['standby']['has'] ),
+	);
+
+	$summary = $will_charge
+		? sprintf(
+			/* translators: 1: spread yen, 2: charge window */
+			__( 'self-powered · charge day（スプレッド %1$s 円）· 充電枠 %2$s', 'gaming-hub' ),
+			number_format_i18n( (float) $spread_info['spread'], 1 ),
+			'14:00'
+		)
+		: ( $charge_day
+			? sprintf(
+				/* translators: %s: spread yen */
+				__( 'self-powered · charge day（スプレッド %s 円）· 本日の追加充電なし', 'gaming-hub' ),
+				number_format_i18n( (float) $spread_info['spread'], 1 )
+			)
+			: sprintf(
+				/* translators: %s: spread yen */
+				__( 'self-powered · 非charge day（スプレッド %s 円）· グリッド充電なし', 'gaming-hub' ),
+				number_format_i18n( (float) $spread_info['spread'], 1 )
+			) );
+
+	return array(
+		'enabled'       => true,
+		'pro'           => $pro_on,
+		'delta'         => $delta_on,
+		'charge_day'    => $charge_day,
+		'will_charge'   => $will_charge,
+		'day_min'       => $spread_info['day_min'],
+		'peak_max'      => $spread_info['peak_max'],
+		'spread'        => $spread_info['spread'],
+		'charge_hour'   => 14,
+		'pro_reserve'   => $charge_r,
+		'idle_reserve'  => $idle_r,
+		'delta_watts'   => $delta_w,
+		'window_label'  => $will_charge ? '14:00' : __( '充電枠なし', 'gaming-hub' ),
+		'summary'       => $summary,
+		'rows'          => $rows,
+		'hours'         => $hours,
+	);
+}
+
+/**
  * Decide target backup reserve for the current local hour + SOC.
  *
  * @param int   $hour       0–23 Asia/Tokyo.
