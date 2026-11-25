@@ -1044,6 +1044,137 @@ function gaming_hub_ecoflow_plan_allows_grid_charge() {
 }
 
 /**
+ * Re-forecast Pro / Delta SOC using self-powered grid watts (AI plan disables grid).
+ *
+ * @param array<string, mixed> $plan     Charge plan with selfpowered_schedule.
+ * @param array<string, mixed> $status   Device status.
+ * @param bool                 $is_today Live day (start from current hour).
+ * @return array<string, mixed>
+ */
+function gaming_hub_ecoflow_apply_selfpowered_soc_forecast( array $plan, array $status, $is_today = true ) {
+	$sp = is_array( $plan['selfpowered_schedule'] ?? null ) ? $plan['selfpowered_schedule'] : array();
+	if ( empty( $sp['enabled'] ) ) {
+		return $plan;
+	}
+
+	$raw_hours = $sp['hours'] ?? array();
+	if ( ! is_array( $raw_hours ) || ! $raw_hours ) {
+		return $plan;
+	}
+
+	$pro_grid   = array_fill( 0, 24, 0 );
+	$delta_grid = array_fill( 0, 24, 0 );
+	foreach ( $raw_hours as $key => $slot ) {
+		if ( ! is_array( $slot ) ) {
+			continue;
+		}
+		$h = is_numeric( $key ) ? (int) $key : (int) ( $slot['hour'] ?? -1 );
+		if ( $h < 0 || $h > 23 ) {
+			continue;
+		}
+		if ( isset( $slot['pro_watts'] ) && is_numeric( $slot['pro_watts'] ) ) {
+			$pro_grid[ $h ] = max( 0, (int) $slot['pro_watts'] );
+		}
+		if ( isset( $slot['delta_watts'] ) && is_numeric( $slot['delta_watts'] ) ) {
+			$delta_grid[ $h ] = max( 0, (int) $slot['delta_watts'] );
+		}
+	}
+
+	$from_hour = $is_today ? (int) wp_date( 'G' ) : 0;
+	$pro_wh    = gaming_hub_ecoflow_plan_full_wh( $status );
+	$delta_pack = gaming_hub_ecoflow_plan_delta_pack( $status );
+	$delta_wh   = (float) ( $delta_pack['full_wh'] ?? 0 );
+
+	$pro_soc = $is_today && isset( $status['battery_percent'] ) && is_numeric( $status['battery_percent'] )
+		? (float) $status['battery_percent']
+		: ( isset( $plan['soc_now_pro'] ) && is_numeric( $plan['soc_now_pro'] )
+			? (float) $plan['soc_now_pro']
+			: ( isset( $plan['soc_now'] ) && is_numeric( $plan['soc_now'] ) ? (float) $plan['soc_now'] : null ) );
+	$delta_soc = $is_today && isset( $delta_pack['soc'] ) && is_numeric( $delta_pack['soc'] )
+		? (float) $delta_pack['soc']
+		: ( isset( $plan['soc_now_delta'] ) && is_numeric( $plan['soc_now_delta'] ) ? (float) $plan['soc_now_delta'] : null );
+
+	$ac_load = is_array( $plan['ac_chart'] ?? null ) ? $plan['ac_chart'] : array_fill( 0, 24, 0 );
+	$dc_w    = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_DC_W' ) ? (int) GAMING_HUB_ECOFLOW_DELTA1500_DC_W : 100;
+	$delta_load = array_fill( 0, 24, $dc_w );
+	// Cheap bypass hours: loads come from grid — do not drain Pro pack in the forecast.
+	$pro_load = $ac_load;
+	foreach ( $raw_hours as $key => $slot ) {
+		if ( ! is_array( $slot ) ) {
+			continue;
+		}
+		$h = is_numeric( $key ) ? (int) $key : (int) ( $slot['hour'] ?? -1 );
+		if ( $h < 0 || $h > 23 ) {
+			continue;
+		}
+		$phase   = (string) ( $slot['phase'] ?? '' );
+		$mode    = (string) ( $slot['mode'] ?? '' );
+		$reserve = isset( $slot['pro_reserve'] ) ? (int) $slot['pro_reserve'] : 0;
+		// Bypass = hold pack (reserve 100%), even if the hour is also a Delta charge slot.
+		if ( 'bypass' === $mode || 'grid_bypass' === $phase || $reserve >= 100 ) {
+			$pro_load[ $h ] = 0;
+		}
+	}
+	$solar_split = gaming_hub_ecoflow_split_solar_hours(
+		is_array( $plan['solar_hours'] ?? null ) ? $plan['solar_hours'] : array()
+	);
+
+	if ( null !== $pro_soc && $pro_wh > 0 ) {
+		$plan['soc_series_pro'] = gaming_hub_ecoflow_soc_series_forced_grid(
+			$from_hour,
+			$pro_soc,
+			$pro_wh,
+			$pro_grid,
+			$pro_load,
+			is_array( $solar_split['pro'] ?? null ) ? $solar_split['pro'] : array()
+		);
+		$plan['soc_series'] = $plan['soc_series_pro'];
+	}
+	if ( null !== $delta_soc && $delta_wh > 0 ) {
+		$plan['soc_series_delta'] = gaming_hub_ecoflow_soc_series_forced_grid(
+			$from_hour,
+			$delta_soc,
+			$delta_wh,
+			$delta_grid,
+			$delta_load,
+			array()
+		);
+	}
+
+	return $plan;
+}
+
+/**
+ * SOC path when grid watts are forced per hour (self-powered overlay).
+ *
+ * @param int               $from_hour   Start hour 0–23.
+ * @param float             $soc         Start SOC %.
+ * @param float             $full_wh     Pack Wh.
+ * @param array<int, int>   $grid_watts  Hourly AC grid→pack watts.
+ * @param array<int, mixed> $load_watts  Hourly load on this pack.
+ * @param array<int, mixed> $solar_hours Hourly solar into this pack.
+ * @return array<int, float|null>
+ */
+function gaming_hub_ecoflow_soc_series_forced_grid( $from_hour, $soc, $full_wh, array $grid_watts, array $load_watts, array $solar_hours = array() ) {
+	$from_hour = max( 0, min( 23, (int) $from_hour ) );
+	$full_kwh  = max( 0.5, (float) $full_wh / 1000.0 );
+	$series    = array_fill( 0, 24, null );
+	$pct       = max( 0.0, min( 100.0, (float) $soc ) );
+
+	for ( $h = $from_hour; $h < 24; $h++ ) {
+		$series[ $h ] = round( $pct, 1 );
+		$grid_w       = max( 0, (float) ( $grid_watts[ $h ] ?? 0 ) );
+		$load_w       = max( 0, (float) ( $load_watts[ $h ] ?? 0 ) );
+		$solar_w      = max( 0, (float) ( $solar_hours[ $h ] ?? 0 ) );
+		$net_w        = $grid_w + $solar_w - $load_w;
+		$pct         += ( $net_w / 1000.0 ) / $full_kwh * 100.0;
+		$pct          = max( 0.0, min( 100.0, $pct ) );
+	}
+
+	return $series;
+}
+
+/**
  * True when this hour's yen is in the cheap band (bypass / do not use pack).
  *
  * @param float|null $yen       Yen/kWh for the hour.
@@ -1340,6 +1471,7 @@ function gaming_hub_ecoflow_finalize_charge_plan( array $plan, array $status, $l
 					(int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W
 				);
 			}
+			$plan = gaming_hub_ecoflow_apply_selfpowered_soc_forecast( $plan, $status, $is_today );
 		}
 	} else {
 		$plan['selfpowered_schedule'] = array( 'enabled' => false );

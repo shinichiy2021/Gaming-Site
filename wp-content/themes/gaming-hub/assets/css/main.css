@@ -7232,18 +7232,43 @@ body.home .site-header.is-scrolled {
 
 .ecoflow-plan-charge-bar {
 	position: absolute;
-	left: 0;
-	right: 0;
 	bottom: 0;
+	width: 100%;
+	z-index: 1;
+}
+
+.ecoflow-plan-charge-bar.is-pro {
+	left: 0;
+	right: auto;
 	width: 100%;
 	background:
 		repeating-linear-gradient(
 			to top,
-			rgba(255, 230, 0, 0.7) 0 3px,
-			rgba(255, 159, 28, 0.25) 3px 6px
+			rgba(255, 230, 0, 0.78) 0 3px,
+			rgba(255, 196, 72, 0.28) 3px 6px
 		);
 	box-shadow: 0 0 12px rgba(255, 230, 0, 0.55);
-	z-index: 1;
+}
+
+.ecoflow-plan-charge-bar.is-delta {
+	right: 0;
+	left: auto;
+	width: 100%;
+	background:
+		repeating-linear-gradient(
+			to top,
+			rgba(255, 107, 53, 0.82) 0 3px,
+			rgba(255, 159, 28, 0.3) 3px 6px
+		);
+	box-shadow: 0 0 12px rgba(255, 107, 53, 0.5);
+}
+
+.ecoflow-plan-col.is-charge-pro.is-charge-delta .ecoflow-plan-charge-bar.is-pro {
+	width: 46%;
+}
+
+.ecoflow-plan-col.is-charge-pro.is-charge-delta .ecoflow-plan-charge-bar.is-delta {
+	width: 46%;
 }
 
 .ecoflow-plan-charge-bar[hidden] {
@@ -7348,10 +7373,21 @@ body.home .site-header.is-scrolled {
 	box-shadow: inset 0 -1px 0 rgba(255, 107, 53, 0.55);
 }
 
+.ecoflow-sp-phase.is-bypass {
+	color: #7ad7ff;
+	background: linear-gradient(180deg, rgba(0, 245, 212, 0.38), rgba(122, 215, 255, 0.08));
+	box-shadow: inset 0 -1px 0 rgba(0, 245, 212, 0.55);
+}
+
 .ecoflow-sp-phase.is-standby {
 	color: #9adfff;
 	background: linear-gradient(180deg, rgba(122, 215, 255, 0.22), rgba(122, 215, 255, 0.03));
 	box-shadow: inset 0 -1px 0 rgba(122, 215, 255, 0.35);
+}
+
+.ecoflow-plan-chart.is-selfpowered .ecoflow-plan-col.is-sp-bypass {
+	background: rgba(0, 245, 212, 0.12);
+	box-shadow: inset 0 0 0 1px rgba(0, 245, 212, 0.28);
 }
 
 .ecoflow-plan-chart.is-selfpowered .ecoflow-rate-track {

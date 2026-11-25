@@ -1247,9 +1247,12 @@
 		return t('Use pack');
 	}
 
-	function selfpoweredPhaseForHour(h) {
-		if (h === 14) {
+	function selfpoweredPhaseForHour(h, mode) {
+		if (mode === 'charge') {
 			return 'charge';
+		}
+		if (mode === 'bypass') {
+			return 'bypass';
 		}
 		if (h >= 15 && h <= 21) {
 			return 'peak';
@@ -1257,9 +1260,12 @@
 		return 'standby';
 	}
 
-	function selfpoweredPhaseLabel(phase, isCharge) {
+	function selfpoweredPhaseLabel(phase) {
 		if (phase === 'charge') {
-			return isCharge ? t('Charge') : t('Charge window (skipped)');
+			return t('Charge');
+		}
+		if (phase === 'bypass') {
+			return t('Bypass');
 		}
 		if (phase === 'peak') {
 			return t('Discharge');
@@ -1269,8 +1275,49 @@
 
 	function selfpoweredLegend(showDelta) {
 		return showDelta
-			? t('Gold: charge 14–15 · Coral: discharge 15–22 · Cool: standby · Yellow/Orange bars: Pro / 1500 SOC · Orange line: AC load · Teal: rate')
-			: t('Gold: charge 14–15 · Coral: discharge 15–22 · Cool: standby · Yellow: Pro SOC · Vermilion: AC-out · Teal: rate');
+			? t('Gold charge: Pro · Orange charge: 1500 · Cyan: cheap bypass · Coral: discharge 15–22 · Cool: standby · Yellow/Orange bars: Pro / 1500 SOC · Orange line: AC load · Teal: rate')
+			: t('Gold charge: Pro · Cyan: cheap bypass · Coral: discharge 15–22 · Cool: standby · Yellow: Pro SOC · Vermilion: AC-out · Teal: rate');
+	}
+
+	function slotChargeWatts(slot, chargeW) {
+		const sp = slot && slot.selfpowered && typeof slot.selfpowered === 'object' ? slot.selfpowered : null;
+		let proW = sp && sp.pro_watts != null ? Math.max(0, Number(sp.pro_watts) || 0) : 0;
+		let deltaW = sp && sp.delta_watts != null ? Math.max(0, Number(sp.delta_watts) || 0) : 0;
+		if ((slot && slot.mode === 'charge') && proW <= 0 && deltaW <= 0) {
+			proW = chargeW;
+		}
+		return { proW: proW, deltaW: deltaW };
+	}
+
+	function renderSelfpoweredPhases(byHour) {
+		const phasesEl = dashboard.querySelector('[data-ecoflow-sp-phases]');
+		if (!phasesEl) {
+			return;
+		}
+		const kinds = [];
+		for (let h = 0; h < 24; h += 1) {
+			const mode = (byHour[h] && byHour[h].mode) || 'idle';
+			kinds[h] = selfpoweredPhaseForHour(h, mode);
+		}
+		phasesEl.innerHTML = '';
+		let start = 0;
+		let kind = kinds[0] || 'standby';
+		for (let h = 1; h <= 24; h += 1) {
+			const next = h < 24 ? kinds[h] : null;
+			if (h < 24 && next === kind) {
+				continue;
+			}
+			const span = document.createElement('span');
+			span.className = 'ecoflow-sp-phase is-' + kind;
+			span.style.left = ((start / 24) * 100).toFixed(4) + '%';
+			span.style.width = (((h - start) / 24) * 100).toFixed(4) + '%';
+			span.textContent = selfpoweredPhaseLabel(kind);
+			phasesEl.appendChild(span);
+			if (h < 24) {
+				start = h;
+				kind = next;
+			}
+		}
 	}
 
 	function todayStamp() {
@@ -1340,6 +1387,9 @@
 		if (phasesEl) {
 			phasesEl.hidden = !spEnabled;
 		}
+		if (spEnabled) {
+			renderSelfpoweredPhases(byHour);
+		}
 		const legendEl = dashboard.querySelector('[data-ecoflow-plan-legend]');
 		const showDelta = !!(plan && plan.show_delta_soc);
 		if (legendEl && spEnabled) {
@@ -1359,22 +1409,22 @@
 			const mode = slot.mode || 'idle';
 			const isNow = isLiveDay && h === hour;
 			const isPast = isLiveDay && h < hour;
-			const spPhase = selfpoweredPhaseForHour(h);
-			const isCharge = mode === 'charge';
-			const isDeferred = spEnabled && spPhase === 'charge' && !isCharge;
+			const spPhase = selfpoweredPhaseForHour(h, mode);
+			const chg = slotChargeWatts(slot, chargeW);
+			const isCharge = mode === 'charge' || chg.proW > 0 || chg.deltaW > 0;
 			const soc = socSeries[h];
 			const hasSoc = soc !== null && soc !== undefined && !Number.isNaN(Number(soc));
 			const height = hasSoc ? Math.max(0, Math.min(100, Number(soc))) : 0;
 			const proH = Math.max(0, Math.min(100, Number(proBars[h] != null ? proBars[h] : height) || 0));
 			const deltaH = showDelta ? Math.max(0, Math.min(100, Number(deltaBars[h]) || 0)) : 0;
-			const watts = isCharge ? Number(slot.watts != null ? slot.watts : chargeW) : 0;
-			const chargeH = isCharge
-				? Math.max(8, Math.min(100, (watts / chargeW) * 100))
-				: (isDeferred ? 42 : 0);
+			const proChargeH = chg.proW > 0 ? Math.max(8, Math.min(100, (chg.proW / chargeW) * 100)) : 0;
+			const deltaChargeH = chg.deltaW > 0 ? Math.max(8, Math.min(100, (chg.deltaW / chargeW) * 100)) : 0;
 			const col = track.querySelector('[data-ecoflow-plan-col][data-hour="' + h + '"]');
 			if (col) {
 				col.className = 'ecoflow-rate-col ecoflow-plan-col is-' + mode
 					+ (spEnabled ? ' is-sp-' + spPhase : '')
+					+ (chg.proW > 0 ? ' is-charge-pro' : '')
+					+ (chg.deltaW > 0 ? ' is-charge-delta' : '')
 					+ (isNow ? ' is-now' : '')
 					+ (isPast ? ' is-past' : '')
 					+ (hasSoc ? '' : ' is-empty');
@@ -1392,11 +1442,35 @@
 				} else if (!isNow && pip) {
 					pip.remove();
 				}
-				const chargeBar = col.querySelector('[data-ecoflow-plan-charge-bar]');
-				if (chargeBar) {
-					chargeBar.style.height = chargeH.toFixed(1) + '%';
-					chargeBar.hidden = !(isCharge || isDeferred);
-					chargeBar.classList.toggle('is-deferred', !!isDeferred);
+				let proChargeBar = col.querySelector('[data-ecoflow-plan-charge-bar-pro]');
+				let deltaChargeBar = col.querySelector('[data-ecoflow-plan-charge-bar-delta]');
+				if (!proChargeBar) {
+					const legacy = col.querySelector('[data-ecoflow-plan-charge-bar]');
+					if (legacy) {
+						legacy.setAttribute('data-ecoflow-plan-charge-bar-pro', '');
+						legacy.classList.add('is-pro');
+						legacy.removeAttribute('data-ecoflow-plan-charge-bar');
+						proChargeBar = legacy;
+					}
+				}
+				if (!deltaChargeBar) {
+					deltaChargeBar = document.createElement('span');
+					deltaChargeBar.className = 'ecoflow-plan-charge-bar is-delta';
+					deltaChargeBar.setAttribute('data-ecoflow-plan-charge-bar-delta', '');
+					if (proChargeBar && proChargeBar.parentNode) {
+						proChargeBar.parentNode.insertBefore(deltaChargeBar, proChargeBar.nextSibling);
+					} else {
+						col.insertBefore(deltaChargeBar, col.firstChild);
+					}
+				}
+				if (proChargeBar) {
+					proChargeBar.style.height = proChargeH.toFixed(1) + '%';
+					proChargeBar.hidden = !(chg.proW > 0);
+					proChargeBar.classList.add('is-pro');
+				}
+				if (deltaChargeBar) {
+					deltaChargeBar.style.height = deltaChargeH.toFixed(1) + '%';
+					deltaChargeBar.hidden = !(chg.deltaW > 0);
 				}
 				const bar = col.querySelector('[data-ecoflow-plan-bar]');
 				const deltaBar = col.querySelector('[data-ecoflow-plan-bar-delta]');
@@ -1411,7 +1485,7 @@
 				if (stack) {
 					const tips = [
 						h + ':00',
-						spEnabled ? selfpoweredPhaseLabel(spPhase, isCharge) : slotModeLabel(mode)
+						spEnabled ? selfpoweredPhaseLabel(spPhase) : slotModeLabel(mode)
 					];
 					const proSeries = plan && Array.isArray(plan.soc_series_pro) ? plan.soc_series_pro : [];
 					const deltaSeries = plan && Array.isArray(plan.soc_series_delta) ? plan.soc_series_delta : [];
@@ -1424,8 +1498,11 @@
 					if (showDelta && deltaSeries[h] != null && !Number.isNaN(Number(deltaSeries[h]))) {
 						tips.push('1500 ' + Math.round(Number(deltaSeries[h])) + '%');
 					}
-					if (isCharge) {
-						tips.push(formatWatts(watts));
+					if (chg.proW > 0) {
+						tips.push('Pro ' + formatWatts(chg.proW));
+					}
+					if (chg.deltaW > 0) {
+						tips.push('1500 ' + formatWatts(chg.deltaW));
 					}
 					if (slot.yen !== null && slot.yen !== undefined) {
 						tips.push(formatYen(slot.yen));
@@ -1445,7 +1522,7 @@
 		dashboard.querySelectorAll('[data-ecoflow-plan-hour]').forEach(function (el) {
 			const h = Number(el.getAttribute('data-hour'));
 			const isNow = isLiveDay && h === hour;
-			const isBoundary = spEnabled && (h === 14 || h === 15 || h === 22);
+			const isBoundary = spEnabled && (h === 14 || h === 15 || h === 22 || (byHour[h] && byHour[h].mode === 'charge'));
 			el.classList.toggle('is-now', isNow);
 			el.classList.toggle('is-sp-boundary', isBoundary);
 			el.textContent = (h % 3 === 0 || isNow || isBoundary) ? String(h) : '';

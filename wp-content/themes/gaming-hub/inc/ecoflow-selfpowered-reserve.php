@@ -25,6 +25,8 @@ define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_SPREAD_YEN', 15.0 );
 define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE', 90 );
 /** Reserve % for discharge / PV-only / hold-off grid charge. */
 define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_IDLE_RESERVE', 5 );
+/** Reserve % that holds the pack and bypasses loads to grid (cheap hours). */
+define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_BYPASS_RESERVE', 100 );
 /** Daytime window used for cheapest slot scan (10:00–15:00 → idx 20–29). */
 define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_DAY_IDX_START', 20 );
 define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_DAY_IDX_END', 29 );
@@ -467,6 +469,9 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 	$charge_r    = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE' )
 		? (int) GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE
 		: 90;
+	$bypass_r    = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_BYPASS_RESERVE' )
+		? (int) GAMING_HUB_ECOFLOW_SELFPOWERED_BYPASS_RESERVE
+		: ( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS' ) ? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS : 100 );
 	$charge_w    = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' )
 		? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W
 		: 1000;
@@ -480,18 +485,40 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 		? (float) $status['secondary']['battery_percent']
 		: null;
 	$pro_needs   = null === $pro_soc || $pro_soc < 90.0;
-	$delta_needs = null === $delta_soc || $delta_soc < 100.0;
-	$will_charge = $charge_day && ( ( $pro_on && $pro_needs ) || ( $delta_on && $delta_needs ) );
+	$dates       = function_exists( 'gaming_hub_ecoflow_plan_dates' ) ? gaming_hub_ecoflow_plan_dates() : array( 'today' => wp_date( 'Y-m-d' ) );
+	$from_hour   = ( $plan_date === ( $dates['today'] ?? wp_date( 'Y-m-d' ) ) ) ? (int) wp_date( 'G' ) : 0;
+	$delta_pick  = ( $delta_on && function_exists( 'gaming_hub_ecoflow_delta1500_pick_cheap_full_hours' ) )
+		? gaming_hub_ecoflow_delta1500_pick_cheap_full_hours( $plan_date, $from_hour, $delta_soc, null, $status )
+		: array(
+			'charge_hours' => array(),
+			'windows'      => array(),
+			'avg_yen'      => null,
+			'deficit_kwh'  => 0.0,
+			'day_min'      => null,
+		);
+	$delta_hours = is_array( $delta_pick['charge_hours'] ?? null )
+		? array_values( array_map( 'intval', $delta_pick['charge_hours'] ) )
+		: array();
+	$pro_will    = $pro_on && $charge_day && $pro_needs;
+	$delta_will  = $delta_on && ! empty( $delta_hours );
+	$will_charge = $pro_will || $delta_will;
 
-	$hours = array();
+	$pro_bypass_hours = array();
+	$hours            = array();
 	for ( $h = 0; $h < 24; $h++ ) {
-		if ( 14 === $h && $will_charge ) {
+		$pro_chg   = $pro_will && 14 === $h;
+		$delta_chg = $delta_will && in_array( $h, $delta_hours, true );
+		$cheap     = $pro_on && gaming_hub_ecoflow_selfpowered_hour_is_cheap( $h, $plan_date );
+		// Bypass only on charge days (enough day/peak spread). Reserve 100% can trickle-charge ~200 W.
+		$pro_bypass = $pro_on && $charge_day && ! $pro_chg && $cheap && ( $h < 15 || $h > 21 );
+
+		if ( $pro_chg || $delta_chg ) {
 			$hours[ $h ] = array(
 				'mode'        => 'charge',
 				'phase'       => 'ac_topup',
-				'pro_reserve' => $pro_on ? $charge_r : null,
-				'pro_watts'   => $pro_on ? $charge_w : null,
-				'delta_watts' => $delta_on ? $delta_w : null,
+				'pro_reserve' => $pro_on ? ( $pro_chg ? $charge_r : ( $pro_bypass ? $bypass_r : $idle_r ) ) : null,
+				'pro_watts'   => $pro_chg ? $charge_w : ( $pro_on ? 0 : null ),
+				'delta_watts' => $delta_chg ? $delta_w : ( $delta_on ? 0 : null ),
 				'watts'       => $charge_w,
 			);
 		} elseif ( $h >= 15 && $h <= 21 ) {
@@ -502,10 +529,20 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 				'delta_watts' => $delta_on ? 0 : null,
 				'watts'       => 0,
 			);
+		} elseif ( $pro_bypass ) {
+			$pro_bypass_hours[] = $h;
+			$hours[ $h ]        = array(
+				'mode'        => 'bypass',
+				'phase'       => 'grid_bypass',
+				'pro_reserve' => $bypass_r,
+				'pro_watts'   => 0,
+				'delta_watts' => $delta_on ? 0 : null,
+				'watts'       => 0,
+			);
 		} else {
 			$hours[ $h ] = array(
 				'mode'        => 'idle',
-				'phase'       => ( 14 === $h ) ? 'ac_topup_skip' : 'standby',
+				'phase'       => ( 14 === $h && $pro_on ) ? 'ac_topup_skip' : 'standby',
 				'pro_reserve' => $pro_on ? $idle_r : null,
 				'delta_watts' => $delta_on ? 0 : null,
 				'watts'       => 0,
@@ -513,140 +550,270 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 		}
 	}
 
-	$windows = array(
-		'charge'  => array( 14 ),
-		'peak'    => range( 15, 21 ),
-		'standby' => array_merge( range( 22, 23 ), range( 0, 13 ) ),
+	$actual_windows = array(
+		'pro_charge'   => array( 14 ),
+		'pro_bypass'   => $pro_bypass_hours ? $pro_bypass_hours : array(),
+		'delta_charge' => $delta_hours ? $delta_hours : array( 14 ),
+		'peak'         => range( 15, 21 ),
+		'standby'      => array_values(
+			array_diff(
+				array_merge( range( 22, 23 ), range( 0, 14 ) ),
+				$delta_hours,
+				$pro_bypass_hours
+			)
+		),
 	);
-	$actuals = gaming_hub_ecoflow_selfpowered_window_actuals( $plan_date, $windows );
+	$actuals = gaming_hub_ecoflow_selfpowered_window_actuals( $plan_date, $actual_windows );
 
 	$rows = array();
-	if ( $will_charge ) {
-		$parts = array();
-		if ( $pro_on ) {
-			$parts[] = sprintf(
-				/* translators: 1: AC charge watts, 2: backup reserve percent */
-				__( 'Pro AC %1$d W · 予備残量 %2$d%%', 'gaming-hub' ),
-				$charge_w,
-				$charge_r
+	if ( $pro_on ) {
+		if ( $pro_will ) {
+			$rows[] = array(
+				'time'       => '14:00–15:00',
+				'action'     => sprintf(
+					/* translators: 1: AC charge watts, 2: backup reserve percent */
+					__( 'Pro グリッド充電（AC %1$d W · 予備残量 %2$d%%）', 'gaming-hub' ),
+					$charge_w,
+					$charge_r
+				),
+				'mode'       => 'charge',
+				'active'     => true,
+				'actual'     => $actuals['pro_charge']['label'] ?? null,
+				'has_actual' => ! empty( $actuals['pro_charge']['has'] ),
+			);
+		} elseif ( $charge_day ) {
+			$rows[] = array(
+				'time'       => '14:00–15:00',
+				'action'     => __( 'Pro グリッド充電スキップ（目標SOC到達済み）', 'gaming-hub' ),
+				'mode'       => 'idle',
+				'active'     => false,
+				'actual'     => $actuals['pro_charge']['label'] ?? null,
+				'has_actual' => ! empty( $actuals['pro_charge']['has'] ),
+			);
+		} else {
+			$rows[] = array(
+				'time'       => '14:00–15:00',
+				'action'     => __( 'Pro グリッド充電なし（価格スプレッド不足）', 'gaming-hub' ),
+				'mode'       => 'idle',
+				'active'     => false,
+				'actual'     => $actuals['pro_charge']['label'] ?? null,
+				'has_actual' => ! empty( $actuals['pro_charge']['has'] ),
 			);
 		}
-		if ( $delta_on ) {
-			$parts[] = sprintf(
-				/* translators: %d: AC charge watts */
-				__( 'Delta AC %d W', 'gaming-hub' ),
-				$delta_w
+
+		if ( $pro_bypass_hours ) {
+			$bypass_picked = array();
+			foreach ( $pro_bypass_hours as $bh ) {
+				$bypass_picked[] = array(
+					'hour'  => (int) $bh,
+					'index' => (int) $bh,
+				);
+			}
+			$bypass_time = function_exists( 'gaming_hub_ecoflow_group_hour_windows' )
+				? implode( ' · ', array_map( 'strval', gaming_hub_ecoflow_group_hour_windows( $bypass_picked ) ) )
+				: implode(
+					' · ',
+					array_map(
+						static function ( $h ) {
+							return sprintf( '%02d:00', (int) $h );
+						},
+						$pro_bypass_hours
+					)
+				);
+			$rows[] = array(
+				'time'       => $bypass_time,
+				'action'     => sprintf(
+					/* translators: %d: backup reserve percent */
+					__( 'Pro 最安バイパス（価格差あり · 予備残量 %d%% · 残量があっても買電で負荷）', 'gaming-hub' ),
+					$bypass_r
+				),
+				'mode'       => 'bypass',
+				'active'     => true,
+				'actual'     => $actuals['pro_bypass']['label'] ?? null,
+				'has_actual' => ! empty( $actuals['pro_bypass']['has'] ),
 			);
 		}
-		$rows[] = array(
-			'time'   => '14:00–15:00',
-			'action' => __( 'グリッド充電', 'gaming-hub' ) . '（' . implode( ' · ', $parts ) . '）',
-			'mode'   => 'charge',
-			'active' => true,
-			'actual' => $actuals['charge']['label'] ?? null,
-			'has_actual' => ! empty( $actuals['charge']['has'] ),
-		);
-	} elseif ( $charge_day ) {
-		$rows[] = array(
-			'time'   => '14:00–15:00',
-			'action' => __( 'グリッド充電スキップ（目標SOC到達済み）', 'gaming-hub' ),
-			'mode'   => 'idle',
-			'active' => false,
-			'actual' => $actuals['charge']['label'] ?? null,
-			'has_actual' => ! empty( $actuals['charge']['has'] ),
-		);
-	} else {
-		$rows[] = array(
-			'time'   => '14:00–15:00',
-			'action' => __( 'グリッド充電なし（価格スプレッド不足）', 'gaming-hub' ),
-			'mode'   => 'idle',
-			'active' => false,
-			'actual' => $actuals['charge']['label'] ?? null,
-			'has_actual' => ! empty( $actuals['charge']['has'] ),
-		);
 	}
+
+	if ( $delta_on ) {
+		if ( $delta_will ) {
+			$delta_time = ! empty( $delta_pick['windows'] )
+				? implode( ' · ', array_map( 'strval', $delta_pick['windows'] ) )
+				: implode(
+					' · ',
+					array_map(
+						static function ( $h ) {
+							return sprintf( '%02d:00', (int) $h );
+						},
+						$delta_hours
+					)
+				);
+			$delta_action = sprintf(
+				/* translators: 1: AC watts, 2: deficit kWh, 3: avg yen */
+				__( 'Delta 最安フル充電（AC %1$d W · 不足 %2$s kWh · 平均 %3$s 円）', 'gaming-hub' ),
+				$delta_w,
+				number_format_i18n( (float) ( $delta_pick['deficit_kwh'] ?? 0 ), 1 ),
+				null !== ( $delta_pick['avg_yen'] ?? null )
+					? number_format_i18n( (float) $delta_pick['avg_yen'], 1 )
+					: '—'
+			);
+			$rows[] = array(
+				'time'       => $delta_time,
+				'action'     => $delta_action,
+				'mode'       => 'charge',
+				'active'     => true,
+				'actual'     => $actuals['delta_charge']['label'] ?? null,
+				'has_actual' => ! empty( $actuals['delta_charge']['has'] ),
+			);
+		} else {
+			$rows[] = array(
+				'time'       => '—',
+				'action'     => __( 'Delta フル充電不要（SOC到達済み）', 'gaming-hub' ),
+				'mode'       => 'idle',
+				'active'     => false,
+				'actual'     => $actuals['delta_charge']['label'] ?? null,
+				'has_actual' => ! empty( $actuals['delta_charge']['has'] ),
+			);
+		}
+	}
+
 	$rows[] = array(
-		'time'   => '15:00–22:00',
-		'action' => __( 'ピーク放電（パック優先・グリッド充電オフ）', 'gaming-hub' ),
-		'mode'   => 'use',
-		'active' => true,
-		'actual' => $actuals['peak']['label'] ?? null,
+		'time'       => '15:00–22:00',
+		'action'     => __( 'ピーク放電（パック優先・グリッド充電オフ）', 'gaming-hub' ),
+		'mode'       => 'use',
+		'active'     => true,
+		'actual'     => $actuals['peak']['label'] ?? null,
 		'has_actual' => ! empty( $actuals['peak']['has'] ),
 	);
 	$standby = __( '待機（グリッド充電オフ）', 'gaming-hub' );
 	if ( $pro_on && $delta_on ) {
-		$standby = __( '待機（Proは太陽光優先 / Deltaはソーラーなし・グリッド充電オフ）', 'gaming-hub' );
+		$standby = __( '待機（Proは高価時のみ蓄電使用 / Deltaは最安枠以外グリッド充電オフ）', 'gaming-hub' );
 	} elseif ( $pro_on ) {
-		$standby = __( '待機（太陽光優先・グリッド充電オフ）', 'gaming-hub' );
+		$standby = __( '待機（高価時は蓄電・太陽光優先）', 'gaming-hub' );
 	} elseif ( $delta_on ) {
-		$standby = __( '待機（ソーラーなし / グリッド充電オフ）', 'gaming-hub' );
+		$standby = __( '待機（Deltaは最安枠以外グリッド充電オフ）', 'gaming-hub' );
 	}
 	$rows[] = array(
-		'time'   => '22:00–14:00',
-		'action' => $standby,
-		'mode'   => 'idle',
-		'active' => true,
-		'actual' => $actuals['standby']['label'] ?? null,
+		'time'       => 'その他',
+		'action'     => $standby,
+		'mode'       => 'idle',
+		'active'     => true,
+		'actual'     => $actuals['standby']['label'] ?? null,
 		'has_actual' => ! empty( $actuals['standby']['has'] ),
 	);
 
-	$summary = $will_charge
-		? sprintf(
-			/* translators: 1: spread yen, 2: charge window */
-			__( 'self-powered · charge day（スプレッド %1$s 円）· 充電枠 %2$s', 'gaming-hub' ),
-			number_format_i18n( (float) $spread_info['spread'], 1 ),
-			'14:00'
-		)
-		: ( $charge_day
+	$window_bits = array();
+	if ( $pro_will ) {
+		$window_bits[] = 'Pro 14:00';
+	}
+	if ( $delta_will && ! empty( $delta_pick['windows'] ) ) {
+		$window_bits[] = 'Delta ' . implode( ', ', array_map( 'strval', $delta_pick['windows'] ) );
+	} elseif ( $delta_will ) {
+		$window_bits[] = 'Delta';
+	}
+	$window_label = $window_bits ? implode( ' · ', $window_bits ) : __( '充電枠なし', 'gaming-hub' );
+
+	$summary_bits = array( 'self-powered' );
+	if ( $pro_on ) {
+		$summary_bits[] = $charge_day
 			? sprintf(
 				/* translators: %s: spread yen */
-				__( 'self-powered · charge day（スプレッド %s 円）· 本日の追加充電なし', 'gaming-hub' ),
+				__( 'Pro charge day（スプレッド %s 円）', 'gaming-hub' ),
 				number_format_i18n( (float) $spread_info['spread'], 1 )
 			)
 			: sprintf(
 				/* translators: %s: spread yen */
-				__( 'self-powered · 非charge day（スプレッド %s 円）· グリッド充電なし', 'gaming-hub' ),
+				__( 'Pro 非charge day（スプレッド %s 円）', 'gaming-hub' ),
 				number_format_i18n( (float) $spread_info['spread'], 1 )
-			) );
+			);
+	}
+	if ( $delta_on ) {
+		$summary_bits[] = $delta_will
+			? sprintf(
+				/* translators: 1: windows, 2: deficit kWh */
+				__( 'Delta 最安フル充電 %1$s（不足 %2$s kWh）', 'gaming-hub' ),
+				! empty( $delta_pick['windows'] ) ? implode( ', ', array_map( 'strval', $delta_pick['windows'] ) ) : '—',
+				number_format_i18n( (float) ( $delta_pick['deficit_kwh'] ?? 0 ), 1 )
+			)
+			: __( 'Delta フル充電不要', 'gaming-hub' );
+	}
+	$summary = implode( ' · ', $summary_bits );
 
 	return array(
-		'enabled'       => true,
-		'pro'           => $pro_on,
-		'delta'         => $delta_on,
-		'charge_day'    => $charge_day,
-		'will_charge'   => $will_charge,
-		'day_min'       => $spread_info['day_min'],
-		'peak_max'      => $spread_info['peak_max'],
-		'spread'        => $spread_info['spread'],
-		'charge_hour'   => 14,
-		'pro_reserve'   => $charge_r,
-		'idle_reserve'  => $idle_r,
-		'pro_watts'     => $charge_w,
-		'delta_watts'   => $delta_w,
-		'charge_w'      => $charge_w,
-		'window_label'  => $will_charge ? '14:00' : __( '充電枠なし', 'gaming-hub' ),
-		'summary'       => $summary,
-		'rows'          => $rows,
-		'hours'         => $hours,
+		'enabled'            => true,
+		'pro'                => $pro_on,
+		'delta'              => $delta_on,
+		'charge_day'         => $charge_day,
+		'will_charge'        => $will_charge,
+		'pro_will_charge'    => $pro_will,
+		'delta_will_charge'  => $delta_will,
+		'day_min'            => $spread_info['day_min'],
+		'peak_max'           => $spread_info['peak_max'],
+		'spread'             => $spread_info['spread'],
+		'charge_hour'        => 14,
+		'delta_charge_hours' => $delta_hours,
+		'delta_windows'      => $delta_pick['windows'] ?? array(),
+		'delta_deficit_kwh'  => $delta_pick['deficit_kwh'] ?? 0,
+		'delta_avg_yen'      => $delta_pick['avg_yen'] ?? null,
+		'pro_reserve'        => $charge_r,
+		'idle_reserve'       => $idle_r,
+		'bypass_reserve'     => $bypass_r,
+		'pro_bypass_hours'   => $pro_bypass_hours,
+		'pro_watts'          => $charge_w,
+		'delta_watts'        => $delta_w,
+		'charge_w'           => $charge_w,
+		'window_label'       => $window_label,
+		'summary'            => $summary,
+		'rows'               => $rows,
+		'hours'              => $hours,
 	);
+}
+
+/**
+ * Whether this hour’s LOOOP rate is in the cheap bypass band.
+ *
+ * @param int         $hour      0–23.
+ * @param string|null $plan_date Y-m-d.
+ */
+function gaming_hub_ecoflow_selfpowered_hour_is_cheap( $hour, $plan_date = null ) {
+	$plan_date = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $plan_date ) ? (string) $plan_date : wp_date( 'Y-m-d' );
+	if ( ! function_exists( 'gaming_hub_ecoflow_day_price_map' ) || ! function_exists( 'gaming_hub_ecoflow_plan_hour_is_cheap' ) ) {
+		return false;
+	}
+	$map = gaming_hub_ecoflow_day_price_map( $plan_date );
+	if ( ! is_array( $map ) || ! isset( $map[ (int) $hour ] ) ) {
+		return false;
+	}
+	return gaming_hub_ecoflow_plan_hour_is_cheap( (float) $map[ (int) $hour ], $plan_date );
 }
 
 /**
  * Decide target backup reserve for the current local hour + SOC.
  *
- * @param int   $hour       0–23 Asia/Tokyo.
- * @param float $soc        Live Pro SOC %.
- * @param bool  $charge_day Price-spread charge day.
+ * Bypass (reserve 100%) only on charge days with enough day/peak spread —
+ * setting 100% can trickle ~200 W from grid. Peak still prefers the pack.
+ * 14:00 may top-up on charge days.
+ *
+ * @param int         $hour       0–23 Asia/Tokyo.
+ * @param float       $soc        Live Pro SOC %.
+ * @param bool        $charge_day Price-spread charge day.
+ * @param string|null $plan_date  Y-m-d for yen lookup.
  * @return array{reserve: int, watts: int, phase: string, reason: string}
  */
-function gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, $soc, $charge_day ) {
+function gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, $soc, $charge_day, $plan_date = null ) {
 	$idle   = (int) GAMING_HUB_ECOFLOW_SELFPOWERED_IDLE_RESERVE;
 	$charge = (int) GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE;
+	$bypass = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_BYPASS_RESERVE' )
+		? (int) GAMING_HUB_ECOFLOW_SELFPOWERED_BYPASS_RESERVE
+		: ( defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS' ) ? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS : 100 );
 	$watts  = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000;
 	$idle_w = defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0;
+	$hour   = (int) $hour;
+	$cheap  = gaming_hub_ecoflow_selfpowered_hour_is_cheap( $hour, $plan_date );
+	$do_bypass = $charge_day && $cheap;
 
 	// 14:00–14:59 — concentrated AC top-up window (winter).
-	if ( 14 === (int) $hour ) {
+	if ( 14 === $hour ) {
 		if ( $charge_day && (float) $soc < 90.0 ) {
 			return array(
 				'reserve' => $charge,
@@ -661,18 +828,30 @@ function gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, $soc, $charge_day
 			);
 		}
 
+		if ( $do_bypass ) {
+			return array(
+				'reserve' => $bypass,
+				'watts'   => $idle_w,
+				'phase'   => 'grid_bypass',
+				'reason'  => sprintf(
+					'Charge day + cheap (no top-up needed) → reserve %d%% · AC idle (grid bypass, hold pack).',
+					$bypass
+				),
+			);
+		}
+
 		return array(
 			'reserve' => $idle,
 			'watts'   => $idle_w,
 			'phase'   => 'ac_topup_skip',
 			'reason'  => $charge_day
 				? sprintf( 'SOC %.1f%% already ≥ 90%% → reserve %d%% · AC idle (no grid charge).', $soc, $idle )
-				: sprintf( 'Spread below threshold → reserve %d%% · AC idle (no grid charge).', $idle ),
+				: sprintf( 'Spread below threshold → reserve %d%% · AC idle (no bypass / no grid charge).', $idle ),
 		);
 	}
 
-	// 15:00–21:59 — peak discharge.
-	if ( (int) $hour >= 15 && (int) $hour <= 21 ) {
+	// 15:00–21:59 — peak discharge (never bypass; prefer pack).
+	if ( $hour >= 15 && $hour <= 21 ) {
 		return array(
 			'reserve' => $idle,
 			'watts'   => $idle_w,
@@ -681,12 +860,27 @@ function gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, $soc, $charge_day
 		);
 	}
 
-	// 22:00–13:59 — standby / PV-only.
+	// Charge-day cheap hours only — hold pack and feed loads from grid.
+	if ( $do_bypass ) {
+		return array(
+			'reserve' => $bypass,
+			'watts'   => $idle_w,
+			'phase'   => 'grid_bypass',
+			'reason'  => sprintf(
+				'Charge day + cheap grid → reserve %d%% · AC idle (bypass loads; keep pack for peak).',
+				$bypass
+			),
+		);
+	}
+
+	// Expensive or low-spread standby — PV / pack first (avoid 100% trickle charge).
 	return array(
 		'reserve' => $idle,
 		'watts'   => $idle_w,
 		'phase'   => 'pv_standby',
-		'reason'  => sprintf( 'Standby / PV-priority → reserve %d%% · AC idle (no grid charge).', $idle ),
+		'reason'  => $charge_day
+			? sprintf( 'Standby / PV-priority → reserve %d%% · AC idle (no free grid).', $idle )
+			: sprintf( 'Low spread → reserve %d%% · AC idle (no bypass; avoid trickle charge).', $idle ),
 	);
 }
 
@@ -783,7 +977,12 @@ function gaming_hub_ecoflow_selfpowered_reserve_run( $dry_run = false ) {
 		);
 	}
 
-	$decision = gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, (float) $soc, ! empty( $prices['charge_day'] ) );
+	$decision = gaming_hub_ecoflow_selfpowered_decide_reserve(
+		$hour,
+		(float) $soc,
+		! empty( $prices['charge_day'] ),
+		$now->format( 'Y-m-d' )
+	);
 	$reserve  = (int) $decision['reserve'];
 	$watts    = isset( $decision['watts'] ) ? (int) $decision['watts'] : ( defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0 );
 	$cache    = gaming_hub_ecoflow_selfpowered_load_cache();

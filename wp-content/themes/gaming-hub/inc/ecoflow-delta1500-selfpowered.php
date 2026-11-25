@@ -2,10 +2,9 @@
 /**
  * DELTA 3 1500 — winter self-powered style AC controller (MQTT via bridge).
  *
- * Same price-spread / hour windows as Pro’s backup-reserve controller, but the
- * 1500 has no solar input: never leave PV headroom. On charge days fill toward
- * 100% via AC in the 14:00 window; otherwise keep AC charge off (bypassBan +
- * Energy Management off via bridge ac_charge 0 W) so UPS draws from the pack.
+ * Plans cheapest non-peak LOOOP hours to fill toward 100% (no solar headroom).
+ * Peak 15:00–21:59 stays pack-first. Outside cheap windows keep AC charge off
+ * (bypassBan + Energy Management off via bridge ac_charge 0 W).
  *
  * Control path: bridge-command.json → ecoflow-bridge → watthConfig / bypassBan /
  * acChgCfg. Never sends maxChgSoc / minDsgSoc.
@@ -175,18 +174,221 @@ function gaming_hub_ecoflow_delta1500_selfpowered_charge_watts( $load_w = 0.0 ) 
 }
 
 /**
+ * Usable Delta 1500 pack Wh for full-charge planning.
+ *
+ * @param array<string, mixed> $status Optional EcoFlow status.
+ */
+function gaming_hub_ecoflow_delta1500_selfpowered_full_wh( array $status = array() ) {
+	if ( $status && function_exists( 'gaming_hub_ecoflow_plan_delta_pack' ) ) {
+		$pack = gaming_hub_ecoflow_plan_delta_pack( $status );
+		if ( isset( $pack['full_wh'] ) && is_numeric( $pack['full_wh'] ) && (float) $pack['full_wh'] > 0 ) {
+			return (float) $pack['full_wh'];
+		}
+	}
+
+	$cap = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH' )
+		? (float) GAMING_HUB_ECOFLOW_DELTA1500_CAPACITY_WH
+		: 2500.0;
+	$extra = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH' )
+		? (float) GAMING_HUB_ECOFLOW_DELTA1500_EXTRA_WH
+		: 1000.0;
+
+	return max( 500.0, $cap - $extra );
+}
+
+/**
+ * Whether this hour is in the peak discharge window (no free grid charge).
+ *
+ * @param int $hour 0–23.
+ */
+function gaming_hub_ecoflow_delta1500_selfpowered_is_peak_hour( $hour ) {
+	$h = (int) $hour;
+	return $h >= 15 && $h <= 21;
+}
+
+/**
+ * Pick cheapest non-peak hours to fill Delta to 100% at fixed AC watts.
+ *
+ * Prefers pre-peak hours so the UPS pack is full before the evening discharge
+ * window. Does not require Pro’s day/peak spread gate — Delta has no PV.
+ *
+ * @param string               $plan_date Y-m-d.
+ * @param int                  $from_hour Inclusive start hour (0 for full day).
+ * @param float|null           $soc       Live / start SOC %.
+ * @param float|null           $full_wh   Pack Wh (null → default usable).
+ * @param array<string, mixed> $status    Optional status for capacity.
+ * @return array{
+ *   deficit_kwh: float,
+ *   hours_needed: int,
+ *   charge_hours: array<int, int>,
+ *   windows: array<int, string>,
+ *   avg_yen: float|null,
+ *   day_min: float|null,
+ *   picked: array<int, array{hour: int, index: int, yen: float}>
+ * }
+ */
+function gaming_hub_ecoflow_delta1500_pick_cheap_full_hours( $plan_date, $from_hour, $soc = null, $full_wh = null, array $status = array() ) {
+	$empty = array(
+		'deficit_kwh'  => 0.0,
+		'hours_needed' => 0,
+		'charge_hours' => array(),
+		'windows'      => array(),
+		'avg_yen'      => null,
+		'day_min'      => null,
+		'picked'       => array(),
+	);
+
+	$plan_date = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $plan_date ) ? (string) $plan_date : wp_date( 'Y-m-d' );
+	$from_hour = max( 0, min( 23, (int) $from_hour ) );
+	$full_wh   = null !== $full_wh && is_numeric( $full_wh ) && (float) $full_wh > 0
+		? (float) $full_wh
+		: gaming_hub_ecoflow_delta1500_selfpowered_full_wh( $status );
+	$target    = defined( 'GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC' )
+		? (float) GAMING_HUB_ECOFLOW_PLAN_DELTA_TARGET_SOC
+		: 100.0;
+	$below     = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_BELOW_SOC' )
+		? (float) GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_BELOW_SOC
+		: 100.0;
+	$soc_val   = null !== $soc && is_numeric( $soc ) ? (float) $soc : null;
+
+	if ( null !== $soc_val && $soc_val >= $below ) {
+		return $empty;
+	}
+
+	$deficit = 0.0;
+	if ( null !== $soc_val && function_exists( 'gaming_hub_ecoflow_plan_charge_to_target_kwh' ) ) {
+		$deficit = (float) gaming_hub_ecoflow_plan_charge_to_target_kwh( $soc_val, $full_wh, $target );
+	} elseif ( null === $soc_val ) {
+		// Unknown SOC → reserve enough for a full pack top-up.
+		$deficit = max( 0.5, $full_wh / 1000.0 );
+	}
+	if ( $deficit < 0.05 ) {
+		return $empty;
+	}
+
+	$charge_w = gaming_hub_ecoflow_delta1500_selfpowered_charge_watts( 0 );
+	$kwh_h    = max( 0.1, $charge_w / 1000.0 );
+	$needed   = max( 1, (int) ceil( $deficit / $kwh_h ) );
+
+	$map = function_exists( 'gaming_hub_ecoflow_day_price_map' )
+		? gaming_hub_ecoflow_day_price_map( $plan_date )
+		: array();
+	if ( ! is_array( $map ) || ! $map ) {
+		return array_merge(
+			$empty,
+			array(
+				'deficit_kwh'  => round( $deficit, 2 ),
+				'hours_needed' => $needed,
+			)
+		);
+	}
+
+	$candidates = array();
+	for ( $h = $from_hour; $h < 24; $h++ ) {
+		if ( gaming_hub_ecoflow_delta1500_selfpowered_is_peak_hour( $h ) ) {
+			continue;
+		}
+		if ( ! isset( $map[ $h ] ) || ! is_numeric( $map[ $h ] ) ) {
+			continue;
+		}
+		$candidates[] = array(
+			'hour'     => $h,
+			'index'    => $h - $from_hour,
+			'yen'      => (float) $map[ $h ],
+			'pre_peak' => $h < 15 ? 0 : 1,
+		);
+	}
+	if ( ! $candidates ) {
+		return array_merge(
+			$empty,
+			array(
+				'deficit_kwh'  => round( $deficit, 2 ),
+				'hours_needed' => $needed,
+			)
+		);
+	}
+
+	$min_yen = min( array_column( $candidates, 'yen' ) );
+	$premium = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM' )
+		? (float) GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM
+		: 8.0;
+	$ceiling = $min_yen + max( 0.0, $premium );
+	$eligible = array();
+	foreach ( $candidates as $row ) {
+		if ( (float) $row['yen'] <= $ceiling + 0.05 ) {
+			$eligible[] = $row;
+		}
+	}
+	if ( ! $eligible ) {
+		$eligible = $candidates;
+	}
+
+	usort(
+		$eligible,
+		static function ( $a, $b ) {
+			if ( $a['pre_peak'] !== $b['pre_peak'] ) {
+				return $a['pre_peak'] <=> $b['pre_peak'];
+			}
+			if ( $a['yen'] !== $b['yen'] ) {
+				return $a['yen'] <=> $b['yen'];
+			}
+			return $a['index'] <=> $b['index'];
+		}
+	);
+
+	$picked = array_slice( $eligible, 0, min( $needed, count( $eligible ) ) );
+	usort(
+		$picked,
+		static function ( $a, $b ) {
+			return $a['hour'] <=> $b['hour'];
+		}
+	);
+
+	$clean = array();
+	$hours = array();
+	foreach ( $picked as $row ) {
+		$h       = (int) $row['hour'];
+		$hours[] = $h;
+		$clean[] = array(
+			'hour'  => $h,
+			'index' => (int) $row['index'],
+			'yen'   => (float) $row['yen'],
+		);
+	}
+
+	$windows = function_exists( 'gaming_hub_ecoflow_group_hour_windows' )
+		? gaming_hub_ecoflow_group_hour_windows( $clean )
+		: array();
+	$avg     = $clean
+		? round( array_sum( array_column( $clean, 'yen' ) ) / count( $clean ), 1 )
+		: null;
+
+	return array(
+		'deficit_kwh'  => round( $deficit, 2 ),
+		'hours_needed' => $needed,
+		'charge_hours' => $hours,
+		'windows'      => $windows,
+		'avg_yen'      => $avg,
+		'day_min'      => round( $min_yen, 2 ),
+		'picked'       => $clean,
+	);
+}
+
+/**
  * Decide AC setpoint for the current local hour + SOC.
  *
- * No solar: never assume PV will refill — charge-day top-up aims near 100%,
- * and a deep-discharge floor always requests AC charge.
+ * No solar: fill toward 100% in the cheapest non-peak hours; peak stays pack-first;
+ * a deep-discharge floor always requests AC charge.
  *
- * @param int   $hour       0–23 Asia/Tokyo.
- * @param float $soc        Live Delta SOC %.
- * @param bool  $charge_day Price-spread charge day.
- * @param float $load_w     UPS / AC-out watts.
- * @return array{watts: int, phase: string, reason: string}
+ * @param int        $hour         0–23 Asia/Tokyo.
+ * @param float      $soc          Live Delta SOC %.
+ * @param bool       $charge_day   Unused (kept for call-site compatibility).
+ * @param float      $load_w       UPS / AC-out watts.
+ * @param array<int> $charge_hours Planned cheap charge hours (empty → recompute).
+ * @return array{watts: int, phase: string, reason: string, charge_hours?: array<int, int>}
  */
-function gaming_hub_ecoflow_delta1500_selfpowered_decide( $hour, $soc, $charge_day, $load_w = 0.0 ) {
+function gaming_hub_ecoflow_delta1500_selfpowered_decide( $hour, $soc, $charge_day, $load_w = 0.0, array $charge_hours = array() ) {
+	unset( $charge_day );
 	$idle_w   = 0;
 	$charge_w = gaming_hub_ecoflow_delta1500_selfpowered_charge_watts( $load_w );
 	$below    = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_BELOW_SOC' )
@@ -195,13 +397,15 @@ function gaming_hub_ecoflow_delta1500_selfpowered_decide( $hour, $soc, $charge_d
 	$rescue   = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_RESCUE_SOC' )
 		? (float) GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_RESCUE_SOC
 		: 5.0;
+	$hour     = (int) $hour;
 
 	// Emergency floor — no PV to recover from a drained UPS pack.
 	if ( (float) $soc <= $rescue ) {
 		return array(
-			'watts'  => $charge_w,
-			'phase'  => 'rescue_floor',
-			'reason' => sprintf(
+			'watts'         => $charge_w,
+			'phase'         => 'rescue_floor',
+			'charge_hours'  => $charge_hours,
+			'reason'        => sprintf(
 				'SOC %.1f%% ≤ %.0f%% floor (no solar) → AC charge %d W.',
 				$soc,
 				$rescue,
@@ -210,44 +414,62 @@ function gaming_hub_ecoflow_delta1500_selfpowered_decide( $hour, $soc, $charge_d
 		);
 	}
 
-	// 14:00–14:59 — concentrated AC top-up (same window as Pro). No PV headroom → near 100%.
-	if ( 14 === (int) $hour ) {
-		if ( $charge_day && (float) $soc < $below ) {
-			return array(
-				'watts'  => $charge_w,
-				'phase'  => 'ac_topup',
-				'reason' => sprintf(
-					'Charge day and SOC %.1f%% < %.0f%% (no solar headroom) → AC charge %d W.',
-					$soc,
-					$below,
-					$charge_w
-				),
-			);
-		}
+	if ( ! $charge_hours ) {
+		$pick          = gaming_hub_ecoflow_delta1500_pick_cheap_full_hours(
+			wp_date( 'Y-m-d' ),
+			$hour,
+			(float) $soc
+		);
+		$charge_hours  = is_array( $pick['charge_hours'] ?? null ) ? $pick['charge_hours'] : array();
+	}
+	$charge_hours = array_values( array_map( 'intval', $charge_hours ) );
 
+	if ( in_array( $hour, $charge_hours, true ) && (float) $soc < $below ) {
 		return array(
-			'watts'  => $idle_w,
-			'phase'  => 'ac_topup_skip',
-			'reason' => $charge_day
-				? sprintf( 'SOC %.1f%% already ≥ %.0f%% → AC idle (no grid charge).', $soc, $below )
-				: 'Spread below threshold → AC idle (no grid charge).',
+			'watts'        => $charge_w,
+			'phase'        => 'ac_topup',
+			'charge_hours' => $charge_hours,
+			'reason'       => sprintf(
+				'Cheapest-hour window and SOC %.1f%% < %.0f%% (no solar) → AC charge %d W.',
+				$soc,
+				$below,
+				$charge_w
+			),
 		);
 	}
 
 	// 15:00–21:59 — peak: pack supplies UPS, no free grid charge.
-	if ( (int) $hour >= 15 && (int) $hour <= 21 ) {
+	if ( gaming_hub_ecoflow_delta1500_selfpowered_is_peak_hour( $hour ) ) {
 		return array(
-			'watts'  => $idle_w,
-			'phase'  => 'peak_discharge',
-			'reason' => 'Peak window → AC idle (prefer pack; no solar refill).',
+			'watts'        => $idle_w,
+			'phase'        => 'peak_discharge',
+			'charge_hours' => $charge_hours,
+			'reason'       => 'Peak window → AC idle (prefer pack; no solar refill).',
 		);
 	}
 
-	// 22:00–13:59 — standby. Unlike Pro there is no PV-priority charge path.
+	if ( $charge_hours ) {
+		$labels = array();
+		foreach ( $charge_hours as $h ) {
+			$labels[] = sprintf( '%02d:00', (int) $h );
+		}
+		return array(
+			'watts'        => $idle_w,
+			'phase'        => 'await_cheap',
+			'charge_hours' => $charge_hours,
+			'reason'       => sprintf(
+				'Waiting for cheap full-charge hours (%s); SOC %.1f%%.',
+				implode( ', ', $labels ),
+				$soc
+			),
+		);
+	}
+
 	return array(
-		'watts'  => $idle_w,
-		'phase'  => 'standby_no_pv',
-		'reason' => 'Standby (no solar input) → AC idle (no free grid charge).',
+		'watts'        => $idle_w,
+		'phase'        => 'standby_full',
+		'charge_hours' => array(),
+		'reason'       => sprintf( 'SOC %.1f%% already ≥ %.0f%% → AC idle (no grid charge).', $soc, $below ),
 	);
 }
 
@@ -336,16 +558,22 @@ function gaming_hub_ecoflow_delta1500_selfpowered_run( $dry_run = false ) {
 		);
 	}
 
-	$load_w   = gaming_hub_ecoflow_delta1500_selfpowered_load_w();
+	$load_w = gaming_hub_ecoflow_delta1500_selfpowered_load_w();
+	$pick   = gaming_hub_ecoflow_delta1500_pick_cheap_full_hours(
+		$now->format( 'Y-m-d' ),
+		$hour,
+		(float) $soc
+	);
 	$decision = gaming_hub_ecoflow_delta1500_selfpowered_decide(
 		$hour,
 		(float) $soc,
 		! empty( $prices['charge_day'] ),
-		$load_w
+		$load_w,
+		is_array( $pick['charge_hours'] ?? null ) ? $pick['charge_hours'] : array()
 	);
-	$watts  = (int) $decision['watts'];
-	$cache  = gaming_hub_ecoflow_delta1500_selfpowered_load_cache();
-	$last   = isset( $cache['watts'] ) ? (int) $cache['watts'] : null;
+	$watts   = (int) $decision['watts'];
+	$cache   = gaming_hub_ecoflow_delta1500_selfpowered_load_cache();
+	$last    = isset( $cache['watts'] ) ? (int) $cache['watts'] : null;
 	$skipped = ( null !== $last && $last === $watts );
 	$sent    = false;
 	$error   = '';
@@ -357,43 +585,53 @@ function gaming_hub_ecoflow_delta1500_selfpowered_run( $dry_run = false ) {
 		} else {
 			$sent  = true;
 			$cache = array(
-				'watts'      => $watts,
-				'phase'      => $decision['phase'],
-				'soc'        => round( (float) $soc, 2 ),
-				'load_w'     => (int) round( $load_w ),
-				'charge_day' => ! empty( $prices['charge_day'] ),
-				'spread'     => $prices['spread'],
-				'at'         => $now->format( 'c' ),
-				'reason'     => $decision['reason'],
+				'watts'         => $watts,
+				'phase'         => $decision['phase'],
+				'soc'           => round( (float) $soc, 2 ),
+				'load_w'        => (int) round( $load_w ),
+				'charge_day'    => ! empty( $prices['charge_day'] ),
+				'spread'        => $prices['spread'],
+				'charge_hours'  => $pick['charge_hours'] ?? array(),
+				'windows'       => $pick['windows'] ?? array(),
+				'deficit_kwh'   => $pick['deficit_kwh'] ?? 0,
+				'avg_yen'       => $pick['avg_yen'] ?? null,
+				'at'            => $now->format( 'c' ),
+				'reason'        => $decision['reason'],
 			);
 			gaming_hub_ecoflow_delta1500_selfpowered_save_cache( $cache );
 			update_option( 'gaming_hub_ecoflow_delta1500_selfpowered_control', 1, false );
 		}
 	} elseif ( $skipped && ! $dry_run ) {
-		$cache['skipped_at'] = $now->format( 'c' );
-		$cache['soc']        = round( (float) $soc, 2 );
-		$cache['load_w']     = (int) round( $load_w );
+		$cache['skipped_at']   = $now->format( 'c' );
+		$cache['soc']          = round( (float) $soc, 2 );
+		$cache['load_w']       = (int) round( $load_w );
+		$cache['charge_hours'] = $pick['charge_hours'] ?? array();
+		$cache['windows']      = $pick['windows'] ?? array();
 		gaming_hub_ecoflow_delta1500_selfpowered_save_cache( $cache );
 	}
 
 	return array(
-		'ok'         => '' === $error,
-		'error'      => $error,
-		'at'         => $now->format( 'c' ),
-		'hour'       => $hour,
-		'soc'        => round( (float) $soc, 2 ),
-		'load_w'     => (int) round( $load_w ),
-		'charge_day' => ! empty( $prices['charge_day'] ),
-		'day_min'    => $prices['day_min'],
-		'peak_max'   => $prices['peak_max'],
-		'spread'     => $prices['spread'],
-		'phase'      => $decision['phase'],
-		'reason'     => $decision['reason'],
-		'watts'      => $watts,
-		'last'       => $last,
-		'skipped'    => $skipped,
-		'sent'       => $sent,
-		'dry_run'    => (bool) $dry_run,
+		'ok'            => '' === $error,
+		'error'         => $error,
+		'at'            => $now->format( 'c' ),
+		'hour'          => $hour,
+		'soc'           => round( (float) $soc, 2 ),
+		'load_w'        => (int) round( $load_w ),
+		'charge_day'    => ! empty( $prices['charge_day'] ),
+		'day_min'       => $prices['day_min'],
+		'peak_max'      => $prices['peak_max'],
+		'spread'        => $prices['spread'],
+		'phase'         => $decision['phase'],
+		'reason'        => $decision['reason'],
+		'watts'         => $watts,
+		'charge_hours'  => $pick['charge_hours'] ?? array(),
+		'windows'       => $pick['windows'] ?? array(),
+		'deficit_kwh'   => $pick['deficit_kwh'] ?? 0,
+		'avg_yen'       => $pick['avg_yen'] ?? null,
+		'last'          => $last,
+		'skipped'       => $skipped,
+		'sent'          => $sent,
+		'dry_run'       => (bool) $dry_run,
 		'no_solar'   => true,
 	);
 }
