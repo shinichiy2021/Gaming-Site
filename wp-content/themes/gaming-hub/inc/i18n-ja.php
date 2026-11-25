@@ -125,6 +125,8 @@ return array(
 	'Asleep — no charge commands. Battery % stays at the pre-sleep value.' => 'スリープ中のため充電コマンドは送りません。残量表示は入眠時の値のままです。',
 	'Asleep. Battery % is frozen at the pre-sleep value and is not refreshed via API until the car wakes.' => 'スリープ中です。残量は入眠時の値を固定表示し、API では更新しません。起きたら自動で再開します。',
 	'At %s%% or below, start grid charge at UPS load + 200 W and hold that floor.' => '残量 %s%% 以下で UPS 負荷 + 200 W のグリッド充電を始め、それ以上下げません。',
+	'At %1$s%% or below, start grid charge at UPS load + 200 W; stop at %2$s%%.' => '残量 %1$s%% 以下で UPS 負荷 + 200 W のグリッド充電を始め、%2$s%% で止めます。',
+	'Grid→storage is off. Low-SOC rescue charge is disabled.' => 'グリッド→蓄電はオフです。残量低下時の補給充電はしません。',
 	'Attack' => 'わざ',
 	'Auto control error: %s' => '自動制御エラー: %s',
 	'Auto-approved. Reviews the plan every 15 minutes and sends only when this hour’s charge command changes. Last charge cap %1$s W · backup reserve %2$s%%.' => '自動承認中。15分ごとに計画を見直し、この時間帯の充電コマンドが変わったときだけ送ります。直近は充電上限 %1$s W · 予備残量 %2$s%% です。',

@@ -395,7 +395,9 @@ function gaming_hub_ecoflow_cancel_schedule() {
 		return $backup;
 	}
 
-	if ( function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
+	$delta_selfpowered = function_exists( 'gaming_hub_ecoflow_delta1500_selfpowered_control_enabled' )
+		&& gaming_hub_ecoflow_delta1500_selfpowered_control_enabled();
+	if ( ! $delta_selfpowered && function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
 		gaming_hub_ecoflow_queue_delta1500_ac_charge( (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W );
 	}
 
@@ -428,12 +430,19 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false, $plan = nul
 	$missing = ! $slot || null === ( $slot['watts'] ?? null );
 	$expire  = $missing && ! $is_auto;
 
+	$live_soc = null;
+	if ( is_array( $plan ) ) {
+		if ( isset( $plan['soc_now'] ) && is_numeric( $plan['soc_now'] ) ) {
+			$live_soc = (float) $plan['soc_now'];
+		} elseif ( isset( $plan['soc_now_pro'] ) && is_numeric( $plan['soc_now_pro'] ) ) {
+			$live_soc = (float) $plan['soc_now_pro'];
+		}
+	}
+
 	if ( $missing ) {
 		$hour_key = wp_date( 'Y-m-d' ) . 'T' . sprintf( '%02d', (int) wp_date( 'G' ) );
 		$watts    = GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
-		$reserve  = defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK' )
-			? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK
-			: (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
+		$reserve  = gaming_hub_ecoflow_backup_reserve_for_slot( array( 'mode' => 'use' ), $live_soc );
 	} else {
 		$hour_key = (string) ( $slot['id'] ?? '' );
 		$watts    = gaming_hub_ecoflow_clamp_charge_watts( (int) $slot['watts'] );
@@ -441,7 +450,7 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false, $plan = nul
 			&& ! gaming_hub_ecoflow_plan_allows_grid_charge() ) {
 			$watts = (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
 		}
-		$reserve = gaming_hub_ecoflow_backup_reserve_for_slot( $slot );
+		$reserve = gaming_hub_ecoflow_backup_reserve_for_slot( $slot, $live_soc );
 	}
 
 	$same_command = (int) ( $saved['last_applied_w'] ?? 0 ) === (int) $watts
@@ -474,11 +483,22 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false, $plan = nul
 	}
 
 	// Same hour setpoint as Pro — Delta 1500 uses MQTT (bridge-command.json).
-	if ( function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
-		$delta_w = function_exists( 'gaming_hub_ecoflow_clamp_delta1500_charge_watts' )
-			? gaming_hub_ecoflow_clamp_delta1500_charge_watts( $watts )
-			: max( 0, (int) $watts );
-		$queued  = gaming_hub_ecoflow_queue_delta1500_ac_charge( $delta_w );
+	// Skip when Delta self-powered controller owns AC, or watts are unchanged.
+	$delta_selfpowered = function_exists( 'gaming_hub_ecoflow_delta1500_selfpowered_control_enabled' )
+		&& gaming_hub_ecoflow_delta1500_selfpowered_control_enabled();
+	$delta_w = function_exists( 'gaming_hub_ecoflow_clamp_delta1500_charge_watts' )
+		? gaming_hub_ecoflow_clamp_delta1500_charge_watts( $watts )
+		: max( 0, (int) $watts );
+	if ( function_exists( 'gaming_hub_ecoflow_plan_allows_grid_charge' )
+		&& ! gaming_hub_ecoflow_plan_allows_grid_charge() ) {
+		$delta_w = (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
+	}
+	$last_delta_w = array_key_exists( 'last_applied_delta_w', $saved ) && null !== $saved['last_applied_delta_w']
+		? (int) $saved['last_applied_delta_w']
+		: null;
+	$delta_changed = null === $last_delta_w || (int) $last_delta_w !== (int) $delta_w;
+	if ( ! $delta_selfpowered && $delta_changed && function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
+		$queued = gaming_hub_ecoflow_queue_delta1500_ac_charge( $delta_w );
 		if ( is_wp_error( $queued ) ) {
 			$saved['last_apply_error'] = $queued->get_error_message();
 			$saved['send_notice']      = gaming_hub_ecoflow_schedule_send_notice( $watts, $reserve, $queued->get_error_message() );
@@ -488,7 +508,9 @@ function gaming_hub_ecoflow_apply_approved_schedule( $force = false, $plan = nul
 	}
 
 	$saved['last_applied_w']       = $watts;
-	$saved['last_applied_delta_w'] = isset( $delta_w ) ? (int) $delta_w : (int) $watts;
+	$saved['last_applied_delta_w'] = $delta_selfpowered
+		? (int) ( $last_delta_w ?? GAMING_HUB_ECOFLOW_PLAN_IDLE_W )
+		: ( isset( $delta_w ) ? (int) $delta_w : (int) $watts );
 	$saved['last_applied_reserve'] = $reserve;
 	$saved['last_applied_hour']    = $hour_key;
 	$saved['last_applied_at']      = wp_date( 'c' );
@@ -547,6 +569,19 @@ function gaming_hub_ecoflow_maybe_apply_device_guard( array $status ) {
 		? $status['charge_plan']
 		: array();
 	$soc     = isset( $status['battery_percent'] ) ? (int) $status['battery_percent'] : 0;
+	$use_floor = defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK' )
+		? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK
+		: 5;
+	$last_reserve = isset( $saved['last_applied_reserve'] ) ? (int) $saved['last_applied_reserve'] : null;
+	// Pack at EB floor → turn Energy Backup off (reserve 0). Bypass 100% would grid-charge.
+	// Skipped when self-powered reserve controller owns Pro backup %.
+	$selfpowered = function_exists( 'gaming_hub_ecoflow_selfpowered_reserve_control_enabled' )
+		&& gaming_hub_ecoflow_selfpowered_reserve_control_enabled();
+	if ( ! $selfpowered && $soc > 0 && $soc <= $use_floor + 2 && ( null === $last_reserve || 0 !== $last_reserve ) ) {
+		$plan['soc_now'] = $soc;
+		return gaming_hub_ecoflow_apply_approved_schedule( true, $plan );
+	}
+
 	$target  = isset( $plan['target_soc'] )
 		? (int) $plan['target_soc']
 		: ( defined( 'GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_TARGET_SOC : 100 );
@@ -591,8 +626,12 @@ function gaming_hub_ecoflow_maybe_apply_device_guard( array $status ) {
 			);
 		}
 
+		$delta_selfpowered = function_exists( 'gaming_hub_ecoflow_delta1500_selfpowered_control_enabled' )
+			&& gaming_hub_ecoflow_delta1500_selfpowered_control_enabled();
+
 		if ( $pro_done && $pro_charging && ! $delta_done ) {
-			// Pro hit its solar-aware target — keep Delta charging toward 100%.
+			// Pro hit its solar-aware target — keep Delta charging toward 100%
+			// unless the Delta self-powered controller owns AC (no solar path).
 			$result = gaming_hub_ecoflow_apply_charge_and_backup(
 				(int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W,
 				(int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF
@@ -603,7 +642,7 @@ function gaming_hub_ecoflow_maybe_apply_device_guard( array $status ) {
 			$delta_w = function_exists( 'gaming_hub_ecoflow_clamp_delta1500_charge_watts' )
 				? gaming_hub_ecoflow_clamp_delta1500_charge_watts( $slot_w )
 				: $slot_w;
-			if ( function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
+			if ( ! $delta_selfpowered && function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
 				$queued = gaming_hub_ecoflow_queue_delta1500_ac_charge( $delta_w );
 				if ( is_wp_error( $queued ) ) {
 					return $queued;
@@ -611,7 +650,9 @@ function gaming_hub_ecoflow_maybe_apply_device_guard( array $status ) {
 			}
 			$saved = gaming_hub_ecoflow_get_saved_schedule();
 			$saved['last_applied_w']       = (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W;
-			$saved['last_applied_delta_w'] = (int) $delta_w;
+			$saved['last_applied_delta_w'] = $delta_selfpowered
+				? (int) ( $last_delta_w ?? GAMING_HUB_ECOFLOW_PLAN_IDLE_W )
+				: (int) $delta_w;
 			$saved['last_applied_reserve'] = (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
 			$saved['last_applied_hour']    = $hour_id;
 			$saved['last_applied_at']      = wp_date( 'c' );
@@ -621,7 +662,7 @@ function gaming_hub_ecoflow_maybe_apply_device_guard( array $status ) {
 		}
 
 		if ( $delta_done && $delta_charging && ! $pro_done && $pro_charging ) {
-			if ( function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
+			if ( ! $delta_selfpowered && function_exists( 'gaming_hub_ecoflow_queue_delta1500_ac_charge' ) ) {
 				$queued = gaming_hub_ecoflow_queue_delta1500_ac_charge( (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W );
 				if ( is_wp_error( $queued ) ) {
 					return $queued;
@@ -636,7 +677,8 @@ function gaming_hub_ecoflow_maybe_apply_device_guard( array $status ) {
 	}
 
 	if ( $last !== $hour_id ) {
-		return gaming_hub_ecoflow_apply_approved_schedule( false, null );
+		$plan['soc_now'] = $soc;
+		return gaming_hub_ecoflow_apply_approved_schedule( false, $plan );
 	}
 
 	return true;
@@ -668,37 +710,51 @@ function gaming_hub_ecoflow_backup_reserve_for_watts( $watts ) {
  * Backup reserve from plan slot mode.
  *
  * bypass/charge(hold) → 100% (do not discharge). use/solar/idle → 5% (use pack).
+ * When the pack is already at/near the use-pack floor, return 0 (= Energy Backup OFF).
+ * EB at SOC≈reserve chatters the transfer relay; EB at 100% forces grid→pack charge.
  *
  * @param array<string, mixed> $slot Current hour slot.
+ * @param int|float|null       $soc  Live Pro SOC percent when known.
  */
-function gaming_hub_ecoflow_backup_reserve_for_slot( array $slot ) {
-	$mode = (string) ( $slot['mode'] ?? 'use' );
-	if ( 'bypass' === $mode || 'charge' === $mode ) {
-		return defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS' )
-			? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS
-			: (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON;
-	}
-
-	return defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK' )
+function gaming_hub_ecoflow_backup_reserve_for_slot( array $slot, $soc = null ) {
+	$bypass = defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS' )
+		? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_BYPASS
+		: (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_ON;
+	$use    = defined( 'GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK' )
 		? (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_USE_PACK
 		: (int) GAMING_HUB_ECOFLOW_BACKUP_RESERVE_GRID_OFF;
+
+	$mode = (string) ( $slot['mode'] ?? 'use' );
+	if ( null !== $soc && is_numeric( $soc ) && (float) $soc <= (float) $use + 2.0 ) {
+		return 0;
+	}
+	if ( 'bypass' === $mode || 'charge' === $mode ) {
+		return $bypass;
+	}
+
+	return $use;
 }
 
 /**
  * SET Pro 3 AC charge watts and Energy Backup reserve together.
  *
  * @param int $watts   Charge watts.
- * @param int $reserve Backup reserve percent.
+ * @param int $reserve Backup reserve percent (0 = Energy Backup off).
  * @return true|WP_Error
  */
 function gaming_hub_ecoflow_apply_charge_and_backup( $watts, $reserve ) {
 	$watts   = gaming_hub_ecoflow_clamp_charge_watts( $watts );
-	$reserve = max( 5, min( 100, (int) $reserve ) );
+	$reserve = max( 0, min( 100, (int) $reserve ) );
+	// Winter self-powered controller owns backup reserve — never send maxChgSoc/minDsgSoc.
+	$selfpowered = function_exists( 'gaming_hub_ecoflow_selfpowered_reserve_control_enabled' )
+		&& gaming_hub_ecoflow_selfpowered_reserve_control_enabled();
 
 	if ( $watts > GAMING_HUB_ECOFLOW_PLAN_IDLE_W ) {
-		$backup = gaming_hub_ecoflow_set_pro_backup_reserve( $reserve );
-		if ( is_wp_error( $backup ) ) {
-			return $backup;
+		if ( ! $selfpowered ) {
+			$backup = gaming_hub_ecoflow_set_pro_backup_reserve( $reserve );
+			if ( is_wp_error( $backup ) ) {
+				return $backup;
+			}
 		}
 		return gaming_hub_ecoflow_set_pro_charge_watts( $watts );
 	}
@@ -706,6 +762,10 @@ function gaming_hub_ecoflow_apply_charge_and_backup( $watts, $reserve ) {
 	$charge = gaming_hub_ecoflow_set_pro_charge_watts( $watts );
 	if ( is_wp_error( $charge ) ) {
 		return $charge;
+	}
+
+	if ( $selfpowered ) {
+		return true;
 	}
 
 	return gaming_hub_ecoflow_set_pro_backup_reserve( $reserve );
@@ -736,7 +796,7 @@ function gaming_hub_ecoflow_set_pro_charge_watts( $watts ) {
 /**
  * SET Pro 3 Energy Backup reserve percent.
  *
- * @param int $soc Backup reserve 5–100.
+ * @param int $soc Backup reserve 5–100, or 0 to disable Energy Backup.
  * @return true|WP_Error
  */
 function gaming_hub_ecoflow_set_pro_backup_reserve( $soc ) {
@@ -744,9 +804,11 @@ function gaming_hub_ecoflow_set_pro_backup_reserve( $soc ) {
 		return new WP_Error( 'ecoflow_not_configured', __('EcoFlow API is not configured.', 'gaming-hub') );
 	}
 
-	$config = gaming_hub_get_ecoflow_config();
-	$api    = new Gaming_Hub_Ecoflow_Api( $config['access_key'], $config['secret_key'], $config['region'] );
-	$result = $api->set_energy_backup( $config['device_sn'], $soc, true );
+	$config  = gaming_hub_get_ecoflow_config();
+	$api     = new Gaming_Hub_Ecoflow_Api( $config['access_key'], $config['secret_key'], $config['region'] );
+	$enabled = (int) $soc > 0;
+	$start   = $enabled ? max( 5, min( 100, (int) $soc ) ) : 5;
+	$result  = $api->set_energy_backup( $config['device_sn'], $start, $enabled );
 
 	if ( is_wp_error( $result ) ) {
 		return $result;

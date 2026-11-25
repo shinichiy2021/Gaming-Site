@@ -12,7 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_OPTION', 'gaming_hub_delta1500_grid_rescue_v1' );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_LOCK', 'gaming_hub_delta1500_grid_rescue_lock' );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_START_SOC', 5 );
-define( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_STOP_SOC', 6 );
+// Wide stop band — a 5→6% window chatters the AC / Energy Backup relay.
+define( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_STOP_SOC', 20 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_FLOOR_SOC', 5 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_HEADROOM_W', 200 );
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_MIN_W', 100 );
@@ -109,16 +110,27 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 	$saved  = is_array( $saved ) ? $saved : array();
 	$active = ! empty( $saved['active'] );
 
-	$plan_w = gaming_hub_ecoflow_delta1500_plan_charge_watts(
-		isset( $status['charge_plan'] ) && is_array( $status['charge_plan'] )
-			? $status['charge_plan']
-			: null
-	);
+	$allow_grid = ! function_exists( 'gaming_hub_ecoflow_plan_allows_grid_charge' )
+		|| gaming_hub_ecoflow_plan_allows_grid_charge();
+
+	// Winter self-powered controller owns Delta AC (no solar) — skip plan + rescue.
+	$selfpowered = function_exists( 'gaming_hub_ecoflow_delta1500_selfpowered_control_enabled' )
+		&& gaming_hub_ecoflow_delta1500_selfpowered_control_enabled();
+
+	$plan_w = ( $allow_grid && ! $selfpowered )
+		? gaming_hub_ecoflow_delta1500_plan_charge_watts(
+			isset( $status['charge_plan'] ) && is_array( $status['charge_plan'] )
+				? $status['charge_plan']
+				: null
+		)
+		: 0;
 
 	$rescue_want = false;
 	$rescue_w    = 0;
 	$was_rescue  = ! empty( $saved['rescue'] );
-	if ( null !== $soc ) {
+	// Policy: never grid→storage when allow_grid_charge is off (stops 5%/6% relay chatter).
+	// Self-powered owns the deep-discharge floor as well (no solar recovery path).
+	if ( $allow_grid && ! $selfpowered && null !== $soc ) {
 		if ( $soc <= GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_START_SOC ) {
 			$rescue_want = true;
 		} elseif ( $soc >= GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_STOP_SOC ) {
@@ -142,16 +154,21 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 		: 0.0;
 	$sent_ago  = time() - (int) ( $saved['last_sent_at'] ?? 0 );
 
+	// One-shot: stop AC charge (bypassBan) + keep Energy Management off.
+	$need_idle_clear = ! $want && empty( $saved['idle_cleared_v4'] );
+
 	$should_send = false;
 	if ( $want && ! $active ) {
 		$should_send = true;
 	} elseif ( ! $want && $active ) {
 		$should_send = true;
+	} elseif ( $need_idle_clear ) {
+		$should_send = true;
 	} elseif ( $want && abs( $watts - (int) ( $saved['last_sent_w'] ?? 0 ) ) >= 40 ) {
 		$should_send = true;
 	} elseif ( $want && ! empty( $saved['last_error'] ) && $sent_ago >= 30 ) {
 		$should_send = true;
-	} elseif ( $want && $active && $watts > 0 && $ac_in_now < 50 && $sent_ago >= 120 ) {
+	} elseif ( $allow_grid && $want && $active && $watts > 0 && $ac_in_now < 50 && $sent_ago >= 120 ) {
 		// MQTT may have ACK'd while disconnected — resend until AC input rises.
 		$should_send = true;
 	}
@@ -169,10 +186,12 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 		$saved['last_error']   = is_wp_error( $queued ) ? $queued->get_error_message() : '';
 		$saved['source']       = $from_plan ? 'plan' : ( $from_rescue ? 'rescue' : ( $want ? 'plan' : '' ) );
 		if ( $want ) {
-			$saved['started_at'] = wp_date( 'c' );
-			$saved['stopped_at'] = '';
+			$saved['started_at']     = wp_date( 'c' );
+			$saved['stopped_at']     = '';
+			$saved['idle_cleared_v4'] = 0;
 		} else {
-			$saved['stopped_at'] = wp_date( 'c' );
+			$saved['stopped_at']      = wp_date( 'c' );
+			$saved['idle_cleared_v4'] = 1;
 		}
 		update_option( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_OPTION, $saved, false );
 		$active = $want;
@@ -368,27 +387,32 @@ function gaming_hub_ecoflow_delta1500_rescue_view( array $saved, $load_w, $activ
 	$watts = $active
 		? (int) ( $saved['watts'] ?? gaming_hub_ecoflow_delta1500_rescue_watts( $load_w ) )
 		: (int) $set_w;
-	$note  = $active
-		? sprintf(
+	$allow_grid = ! function_exists( 'gaming_hub_ecoflow_plan_allows_grid_charge' )
+		|| gaming_hub_ecoflow_plan_allows_grid_charge();
+	if ( ! $allow_grid ) {
+		$note = __('Grid→storage is off. Low-SOC rescue charge is disabled.', 'gaming-hub');
+	} elseif ( $active ) {
+		$note = sprintf(
 			/* translators: 1: load watts, 2: charge watts, 3: floor soc */
 			__('SOC at or below %3$s%%, so grid charging. UPS load %1$s W + 200 W = %2$s W. Will not go lower.', 'gaming-hub'),
 			number_format_i18n( (int) round( $load_w ) ),
 			number_format_i18n( max( $watts, (int) $set_w ) ),
 			number_format_i18n( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_FLOOR_SOC )
-		)
-		: (
-			(int) $plan_w > 0
-				? sprintf(
-					/* translators: %s: charge watts */
-					__('Grid charging per plan. Charge cap %s W', 'gaming-hub'),
-					number_format_i18n( (int) $plan_w )
-				)
-				: sprintf(
-					/* translators: %s: floor soc percent */
-					__('At %s%% or below, start grid charge at UPS load + 200 W and hold that floor.', 'gaming-hub'),
-					number_format_i18n( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_FLOOR_SOC )
-				)
 		);
+	} elseif ( (int) $plan_w > 0 ) {
+		$note = sprintf(
+			/* translators: %s: charge watts */
+			__('Grid charging per plan. Charge cap %s W', 'gaming-hub'),
+			number_format_i18n( (int) $plan_w )
+		);
+	} else {
+		$note = sprintf(
+			/* translators: 1: start soc, 2: stop soc */
+			__('At %1$s%% or below, start grid charge at UPS load + 200 W; stop at %2$s%%.', 'gaming-hub'),
+			number_format_i18n( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_START_SOC ),
+			number_format_i18n( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_STOP_SOC )
+		);
+	}
 
 	if ( ! empty( $saved['last_error'] ) ) {
 		$note = sprintf(

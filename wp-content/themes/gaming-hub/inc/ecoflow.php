@@ -15,6 +15,8 @@ require get_template_directory() . '/inc/ecoflow-plan.php';
 require get_template_directory() . '/inc/ecoflow-schedule.php';
 require get_template_directory() . '/inc/ecoflow-energy.php';
 require get_template_directory() . '/inc/ecoflow-delta1500.php';
+require get_template_directory() . '/inc/ecoflow-selfpowered-reserve.php';
+require get_template_directory() . '/inc/ecoflow-delta1500-selfpowered.php';
 
 define( 'GAMING_HUB_ECOFLOW_TAG_SLUG', 'ecoflow' );
 define( 'GAMING_HUB_ENERGY_TAG_SLUG', 'energy' );

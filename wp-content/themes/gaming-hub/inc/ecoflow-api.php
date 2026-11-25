@@ -28,7 +28,16 @@ class Gaming_Hub_Ecoflow_Api {
 	public function __construct( $access_key, $secret_key, $region = 'us' ) {
 		$this->access_key = $access_key;
 		$this->secret_key = $secret_key;
-		$this->base_url   = ( 'eu' === $region ) ? 'https://api-e.ecoflow.com' : 'https://api.ecoflow.com';
+		// Optional absolute override (e.g. https://api-a.ecoflow.com).
+		$override = getenv( 'ECOFLOW_API_BASE' );
+		if ( is_string( $override ) && '' !== $override ) {
+			$this->base_url = rtrim( $override, '/' );
+			return;
+		}
+		// REGION=a is used for Japan accounts, but many Developer keys still
+		// authenticate on api.ecoflow.com (api-a returns accessKey is invalid).
+		$region = strtolower( (string) $region );
+		$this->base_url = ( 'eu' === $region ) ? 'https://api-e.ecoflow.com' : 'https://api.ecoflow.com';
 	}
 
 	/**

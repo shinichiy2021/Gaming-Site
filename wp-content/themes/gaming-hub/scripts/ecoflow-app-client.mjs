@@ -614,7 +614,7 @@ function mqttPublishLatestQuotas( client, userId, deviceSn ) {
  * Setting cfgChgWatts alone only updates the cap. D361 ignores chgPauseFlag.
  * To actually start/stop grid charging we also set:
  * - bypassBan.banBypassEn 0=allow AC charge, 1=standalone (no charge)
- * - watthConfig.bpPowerSoc 100=force grid charge (like Pro backup 100%), 5=idle floor
+ * - watthConfig: charge uses isConfig:1 bpPowerSoc 100; idle uses isConfig:0 + bypassBan 1
  *
  * @param {string} deviceSn
  * @param {number} watts
@@ -624,10 +624,11 @@ function mqttPublishLatestQuotas( client, userId, deviceSn ) {
 function buildDelta1500AcChargePayloads( deviceSn, watts, idBase = Date.now() % 1000000 ) {
 	const chgWatts = Math.max( 0, Math.round( Number( watts ) || 0 ) );
 	const charging = chgWatts > 0;
-	const limitW = charging ? Math.max( 200, chgWatts ) : Math.max( 200, chgWatts || 200 );
-	const reserve = charging ? 100 : 5;
+	// Stop must use 0 W — a lingering 200 W + bpPowerSoc 5% floor chatters the
+	// Energy Backup relay when the pack sits near empty (the "カチカチ" loop).
+	const limitW = charging ? Math.max( 200, chgWatts ) : 0;
 
-	return [
+	const payloads = [
 		{
 			id: idBase,
 			version: '1.0',
@@ -654,32 +655,71 @@ function buildDelta1500AcChargePayloads( deviceSn, watts, idBase = Date.now() % 
 				chgPauseFlag: 255,
 			},
 		},
-		{
-			id: idBase + 2,
-			version: '1.0',
-			sn: deviceSn,
-			moduleType: 1,
-			operateType: 'bypassBan',
-			from: 'Android',
-			params: {
-				banBypassEn: charging ? 0 : 1,
-			},
-		},
-		{
-			id: idBase + 3,
-			version: '1.0',
-			sn: deviceSn,
-			moduleType: 1,
-			operateType: 'watthConfig',
-			from: 'Android',
-			params: {
-				isConfig: 1,
-				bpPowerSoc: reserve,
-				minDsgSoc: 0,
-				minChgSoc: 0,
-			},
-		},
 	];
+
+	if ( charging ) {
+		// While grid-charging: allow AC path and park reserve high.
+		payloads.push(
+			{
+				id: idBase + 2,
+				version: '1.0',
+				sn: deviceSn,
+				moduleType: 1,
+				operateType: 'bypassBan',
+				from: 'Android',
+				params: {
+					banBypassEn: 0,
+				},
+			},
+			{
+				id: idBase + 3,
+				version: '1.0',
+				sn: deviceSn,
+				moduleType: 1,
+				operateType: 'watthConfig',
+				from: 'Android',
+				params: {
+					isConfig: 1,
+					bpPowerSoc: 100,
+					minDsgSoc: 0,
+					minChgSoc: 0,
+				},
+			}
+		);
+	} else {
+		// Stop AC charge: ban bypass (1=standalone). isConfig:0 alone lets a plugged
+		// AC cable freely charge the pack. Keep Energy Management off so SOC≈5%
+		// does not chatter the transfer relay (bpPowerSoc floor is 5%).
+		payloads.push(
+			{
+				id: idBase + 2,
+				version: '1.0',
+				sn: deviceSn,
+				moduleType: 1,
+				operateType: 'bypassBan',
+				from: 'Android',
+				params: {
+					banBypassEn: 1,
+				},
+			},
+			{
+				id: idBase + 3,
+				version: '1.0',
+				sn: deviceSn,
+				moduleType: 1,
+				operateType: 'watthConfig',
+				from: 'Android',
+				params: {
+					isConfig: 0,
+					bpPowerSoc: 5,
+					minDsgSoc: 0,
+					minChgSoc: 0,
+				},
+			}
+		);
+	}
+
+	return payloads;
 }
 
 /**
