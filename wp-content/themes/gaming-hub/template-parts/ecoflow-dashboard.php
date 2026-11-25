@@ -63,7 +63,8 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 		$selfpowered = is_array( $plan['selfpowered_schedule'] ?? null ) ? $plan['selfpowered_schedule'] : array();
 		$sp_hours    = is_array( $selfpowered['hours'] ?? null ) ? $selfpowered['hours'] : array();
 		$sp_rows     = is_array( $selfpowered['rows'] ?? null ) ? $selfpowered['rows'] : array();
-		if ( ! empty( $selfpowered['enabled'] ) && $sp_hours ) {
+		$sp_enabled  = ! empty( $selfpowered['enabled'] );
+		if ( $sp_enabled && $sp_hours ) {
 			foreach ( $sp_hours as $h => $sp_slot ) {
 				$h = (int) $h;
 				if ( $h < 0 || $h > 23 || ! is_array( $sp_slot ) ) {
@@ -76,15 +77,12 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 						'hour' => $h,
 						'yen'  => null,
 					);
-				if ( 'charge' === ( $sp_slot['mode'] ?? '' ) ) {
-					$base['mode']  = 'charge';
-					$base['watts'] = (int) ( $sp_slot['watts'] ?? ( $plan['charge_w'] ?? 1000 ) );
-				} elseif ( empty( $base['mode'] ) || 'idle' === ( $base['mode'] ?? '' ) || 'past' === ( $base['mode'] ?? '' ) ) {
-					// Keep past hours as past; otherwise show self-powered phase mode.
-					if ( 'past' !== ( $base['mode'] ?? '' ) ) {
-						$base['mode'] = (string) ( $sp_slot['mode'] ?? 'idle' );
-					}
-				}
+				// Self-powered owns the day shape: always paint charge / peak / standby.
+				$sp_mode       = (string) ( $sp_slot['mode'] ?? 'idle' );
+				$base['mode']  = $sp_mode;
+				$base['watts'] = 'charge' === $sp_mode
+					? (int) ( $sp_slot['watts'] ?? ( $plan['charge_w'] ?? 1000 ) )
+					: ( isset( $sp_slot['watts'] ) ? (int) $sp_slot['watts'] : ( $base['watts'] ?? null ) );
 				$base['selfpowered'] = $sp_slot;
 				$today_by_hour[ $h ] = $base;
 			}
@@ -232,7 +230,7 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 				</div>
 			</div>
 
-			<div class="ecoflow-rate-chart ecoflow-plan-chart<?php echo $show_delta_soc ? '' : ' is-pro-soc-only'; ?>">
+			<div class="ecoflow-rate-chart ecoflow-plan-chart<?php echo $show_delta_soc ? '' : ' is-pro-soc-only'; ?><?php echo $sp_enabled ? ' is-selfpowered' : ''; ?>" data-ecoflow-plan-chart>
 				<div class="ecoflow-rate-y ecoflow-rate-y-soc" aria-hidden="true">
 					<span class="ecoflow-rate-y-unit"><?php esc_html_e( '%', 'gaming-hub' ); ?></span>
 					<?php foreach ( $soc_ticks as $tick ) : ?>
@@ -240,7 +238,13 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 					<?php endforeach; ?>
 				</div>
 				<div class="ecoflow-rate-plot">
-					<div class="ecoflow-rate-track" data-ecoflow-plan-track role="img" aria-label="<?php esc_attr_e('Today’s planned grid charge, SOC forecast, expected generation, AC-out forecast, and billed rate', 'gaming-hub'); ?>">
+					<div class="ecoflow-rate-track" data-ecoflow-plan-track role="img" aria-label="<?php echo $sp_enabled ? esc_attr__( 'Self-powered charge, peak discharge, and standby windows with SOC, AC-out, and rate', 'gaming-hub' ) : esc_attr__( 'Today’s planned grid charge, SOC forecast, expected generation, AC-out forecast, and billed rate', 'gaming-hub' ); ?>">
+						<div class="ecoflow-sp-phases" data-ecoflow-sp-phases <?php echo $sp_enabled ? '' : 'hidden'; ?> aria-hidden="true">
+							<span class="ecoflow-sp-phase is-standby" style="left: 0%; width: <?php echo esc_attr( (string) round( 14 / 24 * 100, 4 ) ); ?>%;"><?php esc_html_e( 'Standby', 'gaming-hub' ); ?></span>
+							<span class="ecoflow-sp-phase is-charge" style="left: <?php echo esc_attr( (string) round( 14 / 24 * 100, 4 ) ); ?>%; width: <?php echo esc_attr( (string) round( 1 / 24 * 100, 4 ) ); ?>%;"><?php esc_html_e( 'Charge', 'gaming-hub' ); ?></span>
+							<span class="ecoflow-sp-phase is-peak" style="left: <?php echo esc_attr( (string) round( 15 / 24 * 100, 4 ) ); ?>%; width: <?php echo esc_attr( (string) round( 7 / 24 * 100, 4 ) ); ?>%;"><?php esc_html_e( 'Discharge', 'gaming-hub' ); ?></span>
+							<span class="ecoflow-sp-phase is-standby" style="left: <?php echo esc_attr( (string) round( 22 / 24 * 100, 4 ) ); ?>%; width: <?php echo esc_attr( (string) round( 2 / 24 * 100, 4 ) ); ?>%;"><?php esc_html_e( 'Standby', 'gaming-hub' ); ?></span>
+						</div>
 						<svg class="ecoflow-solar-line" viewBox="0 0 240 100" preserveAspectRatio="none" aria-hidden="true">
 							<polygon class="ecoflow-solar-delta" data-ecoflow-plan-solar-delta-area points="<?php echo esc_attr( $plan_solar_delta_area ); ?>"></polygon>
 							<polygon class="ecoflow-solar-pro" data-ecoflow-plan-solar-area points="<?php echo esc_attr( $plan_solar_area ); ?>"></polygon>
@@ -251,22 +255,46 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 							$slot      = $today_by_hour[ $h ] ?? array();
 							$mode      = (string) ( $slot['mode'] ?? 'idle' );
 							$is_now    = $h === $now_hour;
+							$is_past_h = $h < $now_hour;
+							$sp_phase  = 'standby';
+							if ( 14 === $h ) {
+								$sp_phase = 'charge';
+							} elseif ( $h >= 15 && $h <= 21 ) {
+								$sp_phase = 'peak';
+							}
 							$is_charge = 'charge' === $mode;
+							$is_deferred = $sp_enabled && 'charge' === $sp_phase && ! $is_charge;
 							$soc_pct   = $soc_series[ $h ] ?? null;
 							$has_soc   = is_numeric( $soc_pct );
 							$pro_h     = isset( $soc_bar_pro[ $h ] ) ? max( 0, min( 100, (float) $soc_bar_pro[ $h ] ) ) : ( $has_soc ? max( 0, min( 100, (float) $soc_pct ) ) : 0 );
 							$delta_h   = $show_delta_soc && isset( $soc_bar_delta[ $h ] ) ? max( 0, min( 100, (float) $soc_bar_delta[ $h ] ) ) : 0;
 							$charge_h  = $is_charge
 								? max( 8, min( 100, ( (int) ( $slot['watts'] ?? $charge_w ) / $charge_w ) * 100 ) )
-								: 0;
+								: ( $is_deferred ? 42 : 0 );
 							$col_class = 'ecoflow-rate-col ecoflow-plan-col is-' . sanitize_html_class( $mode );
+							if ( $sp_enabled ) {
+								$col_class .= ' is-sp-' . sanitize_html_class( $sp_phase );
+							}
 							if ( $is_now ) {
 								$col_class .= ' is-now';
+							}
+							if ( $is_past_h ) {
+								$col_class .= ' is-past';
 							}
 							if ( ! $has_soc ) {
 								$col_class .= ' is-empty';
 							}
-							$tip_parts = array( sprintf( '%d:00', $h ), $mode_label[ $mode ] ?? $mode );
+							$phase_tip = $mode_label[ $mode ] ?? $mode;
+							if ( $sp_enabled ) {
+								if ( 'charge' === $sp_phase ) {
+									$phase_tip = $is_charge ? __( 'Charge', 'gaming-hub' ) : __( 'Charge window (skipped)', 'gaming-hub' );
+								} elseif ( 'peak' === $sp_phase ) {
+									$phase_tip = __( 'Discharge', 'gaming-hub' );
+								} else {
+									$phase_tip = __( 'Standby', 'gaming-hub' );
+								}
+							}
+							$tip_parts = array( sprintf( '%d:00', $h ), $phase_tip );
 							$pro_tip   = isset( $plan['soc_series_pro'][ $h ] ) && is_numeric( $plan['soc_series_pro'][ $h ] )
 								? (float) $plan['soc_series_pro'][ $h ]
 								: ( $has_soc ? (float) $soc_pct : null );
@@ -288,15 +316,15 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 							$ac_w_h = (int) round( max( 0, (float) ( $ac_hours[ $h ] ?? 0 ) ) );
 							$tip_parts[] = 'AC ' . number_format_i18n( $ac_w_h ) . ' W';
 							?>
-							<div class="<?php echo esc_attr( $col_class ); ?>" data-ecoflow-plan-col data-hour="<?php echo esc_attr( (string) $h ); ?>">
+							<div class="<?php echo esc_attr( $col_class ); ?>" data-ecoflow-plan-col data-hour="<?php echo esc_attr( (string) $h ); ?>"<?php echo $sp_enabled ? ' data-sp-phase="' . esc_attr( $sp_phase ) . '"' : ''; ?>>
 								<?php if ( $is_now ) : ?>
 									<span class="ecoflow-rate-now-pip"><?php esc_html_e( 'NOW', 'gaming-hub' ); ?></span>
 								<?php endif; ?>
 								<span
-									class="ecoflow-plan-charge-bar"
+									class="ecoflow-plan-charge-bar<?php echo $is_deferred ? ' is-deferred' : ''; ?>"
 									data-ecoflow-plan-charge-bar
 									style="height: <?php echo esc_attr( (string) round( $charge_h, 1 ) ); ?>%;"
-									<?php echo $is_charge ? '' : 'hidden'; ?>
+									<?php echo ( $is_charge || $is_deferred ) ? '' : 'hidden'; ?>
 								></span>
 								<span class="ecoflow-soc-stack" title="<?php echo esc_attr( implode( ' · ', $tip_parts ) ); ?>">
 									<span
@@ -324,10 +352,18 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 					<div class="ecoflow-rate-hours" aria-hidden="true">
 						<?php for ( $h = 0; $h < 24; $h++ ) : ?>
 							<?php
-							$is_now     = $h === $now_hour;
-							$show_label = 0 === $h % 3 || $is_now;
+							$is_now      = $h === $now_hour;
+							$is_boundary = $sp_enabled && in_array( $h, array( 14, 15, 22 ), true );
+							$show_label  = 0 === $h % 3 || $is_now || $is_boundary;
+							$hour_class  = 'ecoflow-rate-hour';
+							if ( $is_now ) {
+								$hour_class .= ' is-now';
+							}
+							if ( $is_boundary ) {
+								$hour_class .= ' is-sp-boundary';
+							}
 							?>
-							<span class="ecoflow-rate-hour<?php echo $is_now ? ' is-now' : ''; ?>" data-ecoflow-plan-hour data-hour="<?php echo esc_attr( (string) $h ); ?>"><?php echo $show_label ? esc_html( (string) $h ) : ''; ?></span>
+							<span class="<?php echo esc_attr( $hour_class ); ?>" data-ecoflow-plan-hour data-hour="<?php echo esc_attr( (string) $h ); ?>"><?php echo $show_label ? esc_html( (string) $h ) : ''; ?></span>
 						<?php endfor; ?>
 					</div>
 				</div>
@@ -339,11 +375,11 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 				</div>
 			</div>
 			<p class="ecoflow-plan-chart-hint"><?php esc_html_e('Swipe the chart sideways', 'gaming-hub'); ?></p>
-			<p class="ecoflow-rate-legend"><?php
-			if ( ! empty( $selfpowered['enabled'] ) ) {
+			<p class="ecoflow-rate-legend" data-ecoflow-plan-legend><?php
+			if ( $sp_enabled ) {
 				echo $show_delta_soc
-					? esc_html__('Gold bar: grid charge window · Yellow: Pro SOC · Orange: 1500 SOC · Warm hours: use pack · Orange line: AC load · Teal: rate', 'gaming-hub')
-					: esc_html__('Gold bar: grid charge window · Yellow: Pro SOC · Warm hours: use pack · Vermilion: AC-out · Teal: rate', 'gaming-hub');
+					? esc_html__('Gold: charge 14–15 · Coral: discharge 15–22 · Cool: standby · Yellow/Orange bars: Pro / 1500 SOC · Orange line: AC load · Teal: rate', 'gaming-hub')
+					: esc_html__('Gold: charge 14–15 · Coral: discharge 15–22 · Cool: standby · Yellow: Pro SOC · Vermilion: AC-out · Teal: rate', 'gaming-hub');
 			} else {
 				echo $show_delta_soc
 					? esc_html__('Yellow: Pro SOC · Orange: 1500 SOC · Cool band: cheap bypass (hold pack) · Orange band: forecast solar · Warm hours: use pack · Orange line: AC load · Teal: rate', 'gaming-hub')

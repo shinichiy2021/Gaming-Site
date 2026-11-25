@@ -23,8 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/** AC top-up watts when the 14:00 charge window is active (clamped to device max). */
-define( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W', 600 );
+/** AC top-up watts when the 14:00 charge window is active (fixed grid charge). */
+define( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W', 1000 );
 /** Start AC top-up when SOC is below this (no PV headroom → aim for full). */
 define( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_BELOW_SOC', 100.0 );
 /** Emergency floor: always AC-charge at/under this SOC (no solar recovery). */
@@ -158,18 +158,15 @@ function gaming_hub_ecoflow_delta1500_selfpowered_load_w() {
 }
 
 /**
- * Charge watts for an active top-up window (covers UPS load + pack surplus).
+ * Charge watts for an active top-up window (fixed 1000 W with Pro).
  *
- * @param float $load_w Live AC-out / UPS watts.
+ * @param float $load_w Unused (kept for call-site compatibility).
  */
 function gaming_hub_ecoflow_delta1500_selfpowered_charge_watts( $load_w = 0.0 ) {
-	$base = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W' )
+	unset( $load_w );
+	$watts = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W' )
 		? (int) GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W
-		: 600;
-	$head = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_HEADROOM_W' )
-		? (int) GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_HEADROOM_W
-		: 200;
-	$watts = max( $base, (int) round( (float) $load_w + $head ) );
+		: ( defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000 );
 	if ( function_exists( 'gaming_hub_ecoflow_clamp_delta1500_charge_watts' ) ) {
 		return gaming_hub_ecoflow_clamp_delta1500_charge_watts( $watts );
 	}

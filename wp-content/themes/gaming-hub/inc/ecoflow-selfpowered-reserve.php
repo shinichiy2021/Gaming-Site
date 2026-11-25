@@ -467,9 +467,12 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 	$charge_r    = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE' )
 		? (int) GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE
 		: 90;
+	$charge_w    = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' )
+		? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W
+		: 1000;
 	$delta_w     = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W' )
 		? (int) GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_W
-		: 600;
+		: $charge_w;
 	$pro_soc     = isset( $status['battery_percent'] ) && is_numeric( $status['battery_percent'] )
 		? (float) $status['battery_percent']
 		: null;
@@ -487,8 +490,9 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 				'mode'        => 'charge',
 				'phase'       => 'ac_topup',
 				'pro_reserve' => $pro_on ? $charge_r : null,
+				'pro_watts'   => $pro_on ? $charge_w : null,
 				'delta_watts' => $delta_on ? $delta_w : null,
-				'watts'       => $delta_on ? $delta_w : ( defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000 ),
+				'watts'       => $charge_w,
 			);
 		} elseif ( $h >= 15 && $h <= 21 ) {
 			$hours[ $h ] = array(
@@ -521,8 +525,9 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 		$parts = array();
 		if ( $pro_on ) {
 			$parts[] = sprintf(
-				/* translators: %d: backup reserve percent */
-				__( 'Pro 予備残量 %d%%', 'gaming-hub' ),
+				/* translators: 1: AC charge watts, 2: backup reserve percent */
+				__( 'Pro AC %1$d W · 予備残量 %2$d%%', 'gaming-hub' ),
+				$charge_w,
 				$charge_r
 			);
 		}
@@ -616,7 +621,9 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 		'charge_hour'   => 14,
 		'pro_reserve'   => $charge_r,
 		'idle_reserve'  => $idle_r,
+		'pro_watts'     => $charge_w,
 		'delta_watts'   => $delta_w,
+		'charge_w'      => $charge_w,
 		'window_label'  => $will_charge ? '14:00' : __( '充電枠なし', 'gaming-hub' ),
 		'summary'       => $summary,
 		'rows'          => $rows,
@@ -630,32 +637,37 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
  * @param int   $hour       0–23 Asia/Tokyo.
  * @param float $soc        Live Pro SOC %.
  * @param bool  $charge_day Price-spread charge day.
- * @return array{reserve: int, phase: string, reason: string}
+ * @return array{reserve: int, watts: int, phase: string, reason: string}
  */
 function gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, $soc, $charge_day ) {
 	$idle   = (int) GAMING_HUB_ECOFLOW_SELFPOWERED_IDLE_RESERVE;
 	$charge = (int) GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE;
+	$watts  = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHARGE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_CHARGE_W : 1000;
+	$idle_w = defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0;
 
 	// 14:00–14:59 — concentrated AC top-up window (winter).
 	if ( 14 === (int) $hour ) {
 		if ( $charge_day && (float) $soc < 90.0 ) {
 			return array(
 				'reserve' => $charge,
+				'watts'   => $watts,
 				'phase'   => 'ac_topup',
 				'reason'  => sprintf(
-					'Charge day (spread ok) and SOC %.1f%% < 90%% → reserve %d%% (grid top-up).',
+					'Charge day (spread ok) and SOC %.1f%% < 90%% → reserve %d%% · AC %d W (grid top-up).',
 					$soc,
-					$charge
+					$charge,
+					$watts
 				),
 			);
 		}
 
 		return array(
 			'reserve' => $idle,
+			'watts'   => $idle_w,
 			'phase'   => 'ac_topup_skip',
 			'reason'  => $charge_day
-				? sprintf( 'SOC %.1f%% already ≥ 90%% → reserve %d%% (no grid charge).', $soc, $idle )
-				: sprintf( 'Spread below threshold → reserve %d%% (no grid charge).', $idle ),
+				? sprintf( 'SOC %.1f%% already ≥ 90%% → reserve %d%% · AC idle (no grid charge).', $soc, $idle )
+				: sprintf( 'Spread below threshold → reserve %d%% · AC idle (no grid charge).', $idle ),
 		);
 	}
 
@@ -663,16 +675,18 @@ function gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, $soc, $charge_day
 	if ( (int) $hour >= 15 && (int) $hour <= 21 ) {
 		return array(
 			'reserve' => $idle,
+			'watts'   => $idle_w,
 			'phase'   => 'peak_discharge',
-			'reason'  => sprintf( 'Peak window → reserve %d%% (prefer pack until floor).', $idle ),
+			'reason'  => sprintf( 'Peak window → reserve %d%% · AC idle (prefer pack until floor).', $idle ),
 		);
 	}
 
 	// 22:00–13:59 — standby / PV-only.
 	return array(
 		'reserve' => $idle,
+		'watts'   => $idle_w,
 		'phase'   => 'pv_standby',
-		'reason'  => sprintf( 'Standby / PV-priority → reserve %d%% (no grid charge).', $idle ),
+		'reason'  => sprintf( 'Standby / PV-priority → reserve %d%% · AC idle (no grid charge).', $idle ),
 	);
 }
 
@@ -771,9 +785,11 @@ function gaming_hub_ecoflow_selfpowered_reserve_run( $dry_run = false ) {
 
 	$decision = gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, (float) $soc, ! empty( $prices['charge_day'] ) );
 	$reserve  = (int) $decision['reserve'];
+	$watts    = isset( $decision['watts'] ) ? (int) $decision['watts'] : ( defined( 'GAMING_HUB_ECOFLOW_PLAN_IDLE_W' ) ? (int) GAMING_HUB_ECOFLOW_PLAN_IDLE_W : 0 );
 	$cache    = gaming_hub_ecoflow_selfpowered_load_cache();
 	$last     = isset( $cache['reserve'] ) ? (int) $cache['reserve'] : null;
-	$skipped  = ( null !== $last && $last === $reserve );
+	$last_w   = isset( $cache['watts'] ) ? (int) $cache['watts'] : null;
+	$skipped  = ( null !== $last && $last === $reserve && null !== $last_w && $last_w === $watts );
 	$sent     = false;
 	$error    = '';
 
@@ -782,22 +798,32 @@ function gaming_hub_ecoflow_selfpowered_reserve_run( $dry_run = false ) {
 		if ( is_wp_error( $put ) ) {
 			$error = $put->get_error_message();
 		} else {
-			$sent = true;
-			$cache = array(
-				'reserve'    => $reserve,
-				'phase'      => $decision['phase'],
-				'soc'        => round( (float) $soc, 2 ),
-				'charge_day' => ! empty( $prices['charge_day'] ),
-				'spread'     => $prices['spread'],
-				'at'         => $now->format( 'c' ),
-				'reason'     => $decision['reason'],
-			);
-			gaming_hub_ecoflow_selfpowered_save_cache( $cache );
-			update_option( 'gaming_hub_ecoflow_selfpowered_reserve_control', 1, false );
+			if ( function_exists( 'gaming_hub_ecoflow_set_pro_charge_watts' ) ) {
+				$chg = gaming_hub_ecoflow_set_pro_charge_watts( $watts );
+				if ( is_wp_error( $chg ) ) {
+					$error = $chg->get_error_message();
+				}
+			}
+			if ( '' === $error ) {
+				$sent  = true;
+				$cache = array(
+					'reserve'    => $reserve,
+					'watts'      => $watts,
+					'phase'      => $decision['phase'],
+					'soc'        => round( (float) $soc, 2 ),
+					'charge_day' => ! empty( $prices['charge_day'] ),
+					'spread'     => $prices['spread'],
+					'at'         => $now->format( 'c' ),
+					'reason'     => $decision['reason'],
+				);
+				gaming_hub_ecoflow_selfpowered_save_cache( $cache );
+				update_option( 'gaming_hub_ecoflow_selfpowered_reserve_control', 1, false );
+			}
 		}
 	} elseif ( $skipped && ! $dry_run ) {
 		$cache['skipped_at'] = $now->format( 'c' );
 		$cache['soc']        = round( (float) $soc, 2 );
+		$cache['watts']      = $watts;
 		gaming_hub_ecoflow_selfpowered_save_cache( $cache );
 	}
 
@@ -814,6 +840,7 @@ function gaming_hub_ecoflow_selfpowered_reserve_run( $dry_run = false ) {
 		'phase'      => $decision['phase'],
 		'reason'     => $decision['reason'],
 		'reserve'    => $reserve,
+		'watts'      => $watts,
 		'last'       => $last,
 		'skipped'    => $skipped,
 		'sent'       => $sent,

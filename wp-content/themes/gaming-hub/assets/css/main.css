@@ -7305,6 +7305,95 @@ body.home .site-header.is-scrolled {
 	background: rgba(255, 159, 28, 0.08);
 }
 
+.ecoflow-sp-phases {
+	position: absolute;
+	top: 0;
+	left: 4px;
+	right: 4px;
+	height: 15px;
+	z-index: 8;
+	pointer-events: none;
+}
+
+.ecoflow-sp-phases[hidden] {
+	display: none;
+}
+
+.ecoflow-sp-phase {
+	position: absolute;
+	top: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	overflow: hidden;
+	font-size: 0.58rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	line-height: 1;
+	white-space: nowrap;
+	text-transform: uppercase;
+}
+
+.ecoflow-sp-phase.is-charge {
+	color: #ffe066;
+	background: linear-gradient(180deg, rgba(255, 196, 72, 0.55), rgba(255, 196, 72, 0.08));
+	box-shadow: inset 0 -1px 0 rgba(255, 196, 72, 0.65);
+	text-shadow: 0 0 6px rgba(255, 196, 72, 0.45);
+}
+
+.ecoflow-sp-phase.is-peak {
+	color: #ffb199;
+	background: linear-gradient(180deg, rgba(255, 107, 53, 0.42), rgba(255, 107, 53, 0.06));
+	box-shadow: inset 0 -1px 0 rgba(255, 107, 53, 0.55);
+}
+
+.ecoflow-sp-phase.is-standby {
+	color: #9adfff;
+	background: linear-gradient(180deg, rgba(122, 215, 255, 0.22), rgba(122, 215, 255, 0.03));
+	box-shadow: inset 0 -1px 0 rgba(122, 215, 255, 0.35);
+}
+
+.ecoflow-plan-chart.is-selfpowered .ecoflow-rate-track {
+	padding-top: 15px;
+}
+
+.ecoflow-plan-chart.is-selfpowered .ecoflow-plan-col.is-sp-charge {
+	background: rgba(255, 230, 0, 0.2);
+	box-shadow: inset 0 0 0 1px rgba(255, 196, 72, 0.55);
+}
+
+.ecoflow-plan-chart.is-selfpowered .ecoflow-plan-col.is-sp-peak {
+	background: rgba(255, 107, 53, 0.16);
+	box-shadow: inset 0 0 0 1px rgba(255, 107, 53, 0.28);
+}
+
+.ecoflow-plan-chart.is-selfpowered .ecoflow-plan-col.is-sp-standby {
+	background: rgba(122, 215, 255, 0.07);
+}
+
+.ecoflow-plan-chart.is-selfpowered .ecoflow-plan-col.is-past.is-sp-peak,
+.ecoflow-plan-chart.is-selfpowered .ecoflow-plan-col.is-past.is-sp-charge,
+.ecoflow-plan-chart.is-selfpowered .ecoflow-plan-col.is-past.is-sp-standby {
+	opacity: 0.72;
+}
+
+.ecoflow-plan-charge-bar.is-deferred {
+	opacity: 0.32;
+	box-shadow: none;
+	background:
+		repeating-linear-gradient(
+			to top,
+			rgba(255, 196, 72, 0.45) 0 3px,
+			rgba(255, 255, 255, 0.04) 3px 6px
+		);
+}
+
+.ecoflow-rate-hour.is-sp-boundary {
+	color: #ffc14d;
+	font-weight: 700;
+}
+
 .ecoflow-plan-col .ecoflow-rate-bar {
 	position: relative;
 	z-index: 2;
