@@ -197,9 +197,15 @@ function gaming_hub_ecoflow_apply_delta1500_grid_rescue( array $status ) {
 		$active = $want;
 	}
 
+	// Key by updated_at too: successful set_reply results can have an empty id,
+	// and must still clear an older "MQTT not connected" error.
 	$result = gaming_hub_ecoflow_read_delta1500_command_result();
-	if ( is_array( $result ) && ( $result['id'] ?? '' ) && ( $result['id'] ?? '' ) !== ( $saved['result_id'] ?? '' ) ) {
-		$saved['result_id']  = (string) $result['id'];
+	$result_key = is_array( $result )
+		? (string) ( $result['updated_at'] ?? '' ) . '|' . (string) ( $result['id'] ?? '' )
+		: '';
+	if ( '' !== $result_key && $result_key !== ( $saved['result_key'] ?? '' ) ) {
+		$saved['result_key'] = $result_key;
+		$saved['result_id']  = (string) ( $result['id'] ?? '' );
 		$saved['last_error'] = empty( $result['ok'] ) ? (string) ( $result['error'] ?? __('MQTT send failed', 'gaming-hub') ) : '';
 		update_option( GAMING_HUB_ECOFLOW_DELTA1500_RESCUE_OPTION, $saved, false );
 	}
