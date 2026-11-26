@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GAMING_HUB_VERSION', '1.24.31' );
+define( 'GAMING_HUB_VERSION', '1.24.32' );
 
 /** Temporary: set true to show the UNIT · EV card under flow diagrams. */
 define( 'GAMING_HUB_MODEL3_UNIT_ENABLED', false );

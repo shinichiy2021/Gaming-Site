@@ -1107,11 +1107,10 @@ function gaming_hub_ecoflow_apply_selfpowered_soc_forecast( array $plan, array $
 		if ( $h < 0 || $h > 23 ) {
 			continue;
 		}
-		$phase   = (string) ( $slot['phase'] ?? '' );
-		$mode    = (string) ( $slot['mode'] ?? '' );
-		$reserve = isset( $slot['pro_reserve'] ) ? (int) $slot['pro_reserve'] : 0;
-		// Bypass = hold pack (reserve 100%), even if the hour is also a Delta charge slot.
-		if ( 'bypass' === $mode || 'grid_bypass' === $phase || $reserve >= 100 ) {
+		$phase = (string) ( $slot['phase'] ?? '' );
+		$mode  = (string) ( $slot['mode'] ?? '' );
+		// Hold (reserve = SOC−2): pack is kept, loads fall back to grid — even on Delta charge hours.
+		if ( 'bypass' === $mode || 'hold_soc' === $phase || ! empty( $slot['pro_hold'] ) ) {
 			$pro_load[ $h ] = 0;
 		}
 	}

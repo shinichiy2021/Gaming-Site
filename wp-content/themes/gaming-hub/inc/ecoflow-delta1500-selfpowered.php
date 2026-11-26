@@ -2,12 +2,13 @@
 /**
  * DELTA 3 1500 — winter self-powered style AC controller (MQTT via bridge).
  *
- * Plans cheapest non-peak LOOOP hours to fill toward 100% (no solar headroom).
- * Peak 15:00–21:59 stays pack-first. Outside cheap windows keep AC charge off
- * (bypassBan + Energy Management off via bridge ac_charge 0 W).
+ * Charge day (day spread ≥ 15 ¥/kWh): grid-charge only in the cheapest contiguous
+ * 3 hours (6 half-hour slots, peak 15:00–21:59 excluded) while SOC < 100%.
+ * Backup reserve (Energy Management): 100% while charging, 5% otherwise
+ * (peak discharge, standby, spread too small, or SOC already 100%).
  *
- * Control path: bridge-command.json → ecoflow-bridge → watthConfig / bypassBan /
- * acChgCfg. Never sends maxChgSoc / minDsgSoc.
+ * Control path: bridge-command.json → ecoflow-bridge → watthConfig (bpPowerSoc
+ * 100 / 5) / bypassBan / acChgCfg. Never sends maxChgSoc / minDsgSoc.
  *
  * CLI:
  *   docker exec gaming-site-wp php /var/www/html/wp-content/themes/gaming-hub/scripts/ecoflow-delta1500-selfpowered-reserve.php
@@ -207,13 +208,37 @@ function gaming_hub_ecoflow_delta1500_selfpowered_is_peak_hour( $hour ) {
 }
 
 /**
- * Pick cheapest non-peak hours to fill Delta to 100% at fixed AC watts.
+ * Cheapest contiguous 3-hour (6 half-hour slots) window for a date, peak 15:00–21:59 excluded.
  *
- * Prefers pre-peak hours so the UPS pack is full before the evening discharge
- * window. Does not require Pro’s day/peak spread gate — Delta has no PV.
+ * @param string $plan_date Y-m-d.
+ * @return array<string, mixed>|null Window + spread info, or null when prices are unavailable.
+ */
+function gaming_hub_ecoflow_delta1500_cheapest_window( $plan_date ) {
+	if ( ! function_exists( 'gaming_hub_ecoflow_selfpowered_price_slots_for_date' )
+		|| ! function_exists( 'gaming_hub_ecoflow_selfpowered_cheapest_window' ) ) {
+		return null;
+	}
+	$slots = gaming_hub_ecoflow_selfpowered_price_slots_for_date( $plan_date );
+	if ( ! $slots ) {
+		return null;
+	}
+	$window = gaming_hub_ecoflow_selfpowered_cheapest_window( $slots );
+	if ( ! $window ) {
+		return null;
+	}
+	$stats = gaming_hub_ecoflow_selfpowered_slot_spread( $slots );
+
+	return array_merge( $window, $stats );
+}
+
+/**
+ * Plan the Delta 1500 charge window: cheapest 3 contiguous hours on charge days.
+ *
+ * Charge only when spread ≥ 15 ¥/kWh and SOC < 100%. $from_hour hides a window that has
+ * already finished today. Pack deficit is informational (3 h at 1000 W covers a full pack).
  *
  * @param string               $plan_date Y-m-d.
- * @param int                  $from_hour Inclusive start hour (0 for full day).
+ * @param int                  $from_hour Inclusive hour (0 for a full day).
  * @param float|null           $soc       Live / start SOC %.
  * @param float|null           $full_wh   Pack Wh (null → default usable).
  * @param array<string, mixed> $status    Optional status for capacity.
@@ -221,21 +246,24 @@ function gaming_hub_ecoflow_delta1500_selfpowered_is_peak_hour( $hour ) {
  *   deficit_kwh: float,
  *   hours_needed: int,
  *   charge_hours: array<int, int>,
+ *   slots_per_hour: array<int, int>,
  *   windows: array<int, string>,
  *   avg_yen: float|null,
  *   day_min: float|null,
- *   picked: array<int, array{hour: int, index: int, yen: float}>
+ *   picked: array<int, array{hour: int, index: int, yen: float}>,
+ *   window?: array<string, mixed>
  * }
  */
 function gaming_hub_ecoflow_delta1500_pick_cheap_full_hours( $plan_date, $from_hour, $soc = null, $full_wh = null, array $status = array() ) {
 	$empty = array(
-		'deficit_kwh'  => 0.0,
-		'hours_needed' => 0,
-		'charge_hours' => array(),
-		'windows'      => array(),
-		'avg_yen'      => null,
-		'day_min'      => null,
-		'picked'       => array(),
+		'deficit_kwh'    => 0.0,
+		'hours_needed'   => 0,
+		'charge_hours'   => array(),
+		'slots_per_hour' => array(),
+		'windows'        => array(),
+		'avg_yen'        => null,
+		'day_min'        => null,
+		'picked'         => array(),
 	);
 
 	$plan_date = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $plan_date ) ? (string) $plan_date : wp_date( 'Y-m-d' );
@@ -251,7 +279,23 @@ function gaming_hub_ecoflow_delta1500_pick_cheap_full_hours( $plan_date, $from_h
 		: 100.0;
 	$soc_val   = null !== $soc && is_numeric( $soc ) ? (float) $soc : null;
 
+	$win = gaming_hub_ecoflow_delta1500_cheapest_window( $plan_date );
+	if ( ! $win ) {
+		return $empty;
+	}
+	$empty['day_min'] = (float) $win['day_min'];
+
+	// Spread below 15 ¥ → no Delta grid charge today.
+	if ( empty( $win['charge_day'] ) ) {
+		return $empty;
+	}
 	if ( null !== $soc_val && $soc_val >= $below ) {
+		return $empty;
+	}
+
+	// Window already finished (today only; from_hour 0 means "full day").
+	$dates = function_exists( 'gaming_hub_ecoflow_plan_dates' ) ? gaming_hub_ecoflow_plan_dates() : array( 'today' => wp_date( 'Y-m-d' ) );
+	if ( $plan_date === ( $dates['today'] ?? '' ) && $from_hour > 0 && ( (int) $win['end'] + 1 ) <= ( $from_hour * 2 ) ) {
 		return $empty;
 	}
 
@@ -259,217 +303,115 @@ function gaming_hub_ecoflow_delta1500_pick_cheap_full_hours( $plan_date, $from_h
 	if ( null !== $soc_val && function_exists( 'gaming_hub_ecoflow_plan_charge_to_target_kwh' ) ) {
 		$deficit = (float) gaming_hub_ecoflow_plan_charge_to_target_kwh( $soc_val, $full_wh, $target );
 	} elseif ( null === $soc_val ) {
-		// Unknown SOC → reserve enough for a full pack top-up.
 		$deficit = max( 0.5, $full_wh / 1000.0 );
 	}
-	if ( $deficit < 0.05 ) {
+	if ( null !== $soc_val && $deficit < 0.05 ) {
 		return $empty;
 	}
 
-	$charge_w = gaming_hub_ecoflow_delta1500_selfpowered_charge_watts( 0 );
-	$kwh_h    = max( 0.1, $charge_w / 1000.0 );
-	$needed   = max( 1, (int) ceil( $deficit / $kwh_h ) );
-
-	$map = function_exists( 'gaming_hub_ecoflow_day_price_map' )
-		? gaming_hub_ecoflow_day_price_map( $plan_date )
-		: array();
-	if ( ! is_array( $map ) || ! $map ) {
-		return array_merge(
-			$empty,
-			array(
-				'deficit_kwh'  => round( $deficit, 2 ),
-				'hours_needed' => $needed,
-			)
-		);
-	}
-
-	$candidates = array();
-	for ( $h = $from_hour; $h < 24; $h++ ) {
-		if ( gaming_hub_ecoflow_delta1500_selfpowered_is_peak_hour( $h ) ) {
-			continue;
-		}
-		if ( ! isset( $map[ $h ] ) || ! is_numeric( $map[ $h ] ) ) {
-			continue;
-		}
-		$candidates[] = array(
-			'hour'     => $h,
-			'index'    => $h - $from_hour,
-			'yen'      => (float) $map[ $h ],
-			'pre_peak' => $h < 15 ? 0 : 1,
-		);
-	}
-	if ( ! $candidates ) {
-		return array_merge(
-			$empty,
-			array(
-				'deficit_kwh'  => round( $deficit, 2 ),
-				'hours_needed' => $needed,
-			)
-		);
-	}
-
-	$min_yen = min( array_column( $candidates, 'yen' ) );
-	$premium = defined( 'GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM' )
-		? (float) GAMING_HUB_ECOFLOW_PLAN_CHEAP_YEN_PREMIUM
-		: 8.0;
-	$ceiling = $min_yen + max( 0.0, $premium );
-	$eligible = array();
-	foreach ( $candidates as $row ) {
-		if ( (float) $row['yen'] <= $ceiling + 0.05 ) {
-			$eligible[] = $row;
-		}
-	}
-	if ( ! $eligible ) {
-		$eligible = $candidates;
-	}
-
-	usort(
-		$eligible,
-		static function ( $a, $b ) {
-			if ( $a['pre_peak'] !== $b['pre_peak'] ) {
-				return $a['pre_peak'] <=> $b['pre_peak'];
+	$slots  = gaming_hub_ecoflow_selfpowered_price_slots_for_date( $plan_date );
+	$clean  = array();
+	foreach ( $win['hours'] as $h ) {
+		$yens = array();
+		for ( $i = $win['start']; $i <= $win['end']; $i++ ) {
+			if ( (int) floor( $i / 2 ) === (int) $h ) {
+				$yens[] = (float) $slots[ $i ];
 			}
-			if ( $a['yen'] !== $b['yen'] ) {
-				return $a['yen'] <=> $b['yen'];
-			}
-			return $a['index'] <=> $b['index'];
 		}
-	);
-
-	$picked = array_slice( $eligible, 0, min( $needed, count( $eligible ) ) );
-	usort(
-		$picked,
-		static function ( $a, $b ) {
-			return $a['hour'] <=> $b['hour'];
-		}
-	);
-
-	$clean = array();
-	$hours = array();
-	foreach ( $picked as $row ) {
-		$h       = (int) $row['hour'];
-		$hours[] = $h;
 		$clean[] = array(
-			'hour'  => $h,
-			'index' => (int) $row['index'],
-			'yen'   => (float) $row['yen'],
+			'hour'  => (int) $h,
+			'index' => (int) $h - $from_hour,
+			'yen'   => $yens ? round( array_sum( $yens ) / count( $yens ), 2 ) : 0.0,
 		);
 	}
-
-	$windows = function_exists( 'gaming_hub_ecoflow_group_hour_windows' )
-		? gaming_hub_ecoflow_group_hour_windows( $clean )
-		: array();
-	$avg     = $clean
-		? round( array_sum( array_column( $clean, 'yen' ) ) / count( $clean ), 1 )
-		: null;
 
 	return array(
-		'deficit_kwh'  => round( $deficit, 2 ),
-		'hours_needed' => $needed,
-		'charge_hours' => $hours,
-		'windows'      => $windows,
-		'avg_yen'      => $avg,
-		'day_min'      => round( $min_yen, 2 ),
-		'picked'       => $clean,
+		'deficit_kwh'    => round( $deficit, 2 ),
+		'hours_needed'   => 3,
+		'charge_hours'   => array_values( array_map( 'intval', $win['hours'] ) ),
+		'slots_per_hour' => $win['slots_per_hour'],
+		'windows'        => array( (string) $win['label'] ),
+		'avg_yen'        => (float) $win['avg'],
+		'day_min'        => (float) $win['day_min'],
+		'picked'         => $clean,
+		'window'         => $win,
 	);
 }
 
 /**
- * Decide AC setpoint for the current local hour + SOC.
+ * Decide the Delta 1500 setpoint for the current local time + SOC.
  *
- * No solar: fill toward 100% in the cheapest non-peak hours; peak stays pack-first;
- * a deep-discharge floor always requests AC charge.
+ * Peak 15:00–21:59 → backup reserve 5% (discharge). Inside the cheapest 3 h window,
+ * on a charge day with SOC < 100% → reserve 100% + AC charge (grid). Otherwise 5%.
  *
- * @param int        $hour         0–23 Asia/Tokyo.
- * @param float      $soc          Live Delta SOC %.
- * @param bool       $charge_day   Unused (kept for call-site compatibility).
- * @param float      $load_w       UPS / AC-out watts.
- * @param array<int> $charge_hours Planned cheap charge hours (empty → recompute).
- * @return array{watts: int, phase: string, reason: string, charge_hours?: array<int, int>}
+ * @param int                       $hour       0–23 Asia/Tokyo.
+ * @param float                     $soc        Live Delta SOC %.
+ * @param bool                      $charge_day Spread ≥ 15 ¥/kWh.
+ * @param int                       $minute     0–59.
+ * @param array<string, mixed>|null $window     Cheapest-window info (start/end slot idx).
+ * @return array{watts: int, reserve: int, phase: string, reason: string, charge_hours?: array<int, int>}
  */
-function gaming_hub_ecoflow_delta1500_selfpowered_decide( $hour, $soc, $charge_day, $load_w = 0.0, array $charge_hours = array() ) {
-	unset( $charge_day );
+function gaming_hub_ecoflow_delta1500_selfpowered_decide( $hour, $soc, $charge_day, $minute = 0, $window = null ) {
 	$idle_w   = 0;
-	$charge_w = gaming_hub_ecoflow_delta1500_selfpowered_charge_watts( $load_w );
+	$idle_r   = 5;
+	$charge_w = gaming_hub_ecoflow_delta1500_selfpowered_charge_watts( 0 );
 	$below    = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_BELOW_SOC' )
 		? (float) GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_CHARGE_BELOW_SOC
-		: 98.0;
-	$rescue   = defined( 'GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_RESCUE_SOC' )
-		? (float) GAMING_HUB_ECOFLOW_DELTA1500_SELFPOWERED_RESCUE_SOC
-		: 5.0;
+		: 100.0;
 	$hour     = (int) $hour;
+	$idx      = ( $hour * 2 ) + ( (int) $minute >= 30 ? 1 : 0 );
+	$hours    = is_array( $window['hours'] ?? null ) ? array_values( array_map( 'intval', $window['hours'] ) ) : array();
 
-	// Emergency floor — no PV to recover from a drained UPS pack.
-	if ( (float) $soc <= $rescue ) {
-		return array(
-			'watts'         => $charge_w,
-			'phase'         => 'rescue_floor',
-			'charge_hours'  => $charge_hours,
-			'reason'        => sprintf(
-				'SOC %.1f%% ≤ %.0f%% floor (no solar) → AC charge %d W.',
-				$soc,
-				$rescue,
-				$charge_w
-			),
-		);
-	}
-
-	if ( ! $charge_hours ) {
-		$pick          = gaming_hub_ecoflow_delta1500_pick_cheap_full_hours(
-			wp_date( 'Y-m-d' ),
-			$hour,
-			(float) $soc
-		);
-		$charge_hours  = is_array( $pick['charge_hours'] ?? null ) ? $pick['charge_hours'] : array();
-	}
-	$charge_hours = array_values( array_map( 'intval', $charge_hours ) );
-
-	if ( in_array( $hour, $charge_hours, true ) && (float) $soc < $below ) {
-		return array(
-			'watts'        => $charge_w,
-			'phase'        => 'ac_topup',
-			'charge_hours' => $charge_hours,
-			'reason'       => sprintf(
-				'Cheapest-hour window and SOC %.1f%% < %.0f%% (no solar) → AC charge %d W.',
-				$soc,
-				$below,
-				$charge_w
-			),
-		);
-	}
-
-	// 15:00–21:59 — peak: pack supplies UPS, no free grid charge.
+	// Peak: reserve 5% so the pack discharges to the floor.
 	if ( gaming_hub_ecoflow_delta1500_selfpowered_is_peak_hour( $hour ) ) {
 		return array(
 			'watts'        => $idle_w,
+			'reserve'      => $idle_r,
 			'phase'        => 'peak_discharge',
-			'charge_hours' => $charge_hours,
-			'reason'       => 'Peak window → AC idle (prefer pack; no solar refill).',
+			'charge_hours' => $hours,
+			'reason'       => 'Peak window → backup reserve 5% · AC idle (discharge).',
 		);
 	}
 
-	if ( $charge_hours ) {
-		$labels = array();
-		foreach ( $charge_hours as $h ) {
-			$labels[] = sprintf( '%02d:00', (int) $h );
+	$in_window = is_array( $window ) && isset( $window['start'], $window['end'] )
+		&& $idx >= (int) $window['start'] && $idx <= (int) $window['end'];
+
+	if ( $in_window ) {
+		if ( $charge_day && (float) $soc < $below ) {
+			return array(
+				'watts'        => $charge_w,
+				'reserve'      => 100,
+				'phase'        => 'ac_topup',
+				'charge_hours' => $hours,
+				'reason'       => sprintf(
+					'Cheapest 3 h window (%s), charge day and SOC %.1f%% < %.0f%% → backup reserve 100%% · AC charge %d W.',
+					(string) ( $window['label'] ?? '' ),
+					$soc,
+					$below,
+					$charge_w
+				),
+			);
 		}
+
 		return array(
 			'watts'        => $idle_w,
-			'phase'        => 'await_cheap',
-			'charge_hours' => $charge_hours,
-			'reason'       => sprintf(
-				'Waiting for cheap full-charge hours (%s); SOC %.1f%%.',
-				implode( ', ', $labels ),
-				$soc
-			),
+			'reserve'      => $idle_r,
+			'phase'        => 'standby_full',
+			'charge_hours' => $hours,
+			'reason'       => $charge_day
+				? sprintf( 'Cheapest window but SOC %.1f%% ≥ %.0f%% → backup reserve 5%% · AC idle.', $soc, $below )
+				: 'Cheapest window but spread below threshold → backup reserve 5% · AC idle.',
 		);
 	}
 
 	return array(
 		'watts'        => $idle_w,
-		'phase'        => 'standby_full',
-		'charge_hours' => array(),
-		'reason'       => sprintf( 'SOC %.1f%% already ≥ %.0f%% → AC idle (no grid charge).', $soc, $below ),
+		'reserve'      => $idle_r,
+		'phase'        => $hours && $charge_day ? 'await_cheap' : 'standby',
+		'charge_hours' => $hours,
+		'reason'       => $hours && $charge_day
+			? sprintf( 'Waiting for cheapest 3 h window (%s); SOC %.1f%% → backup reserve 5%%.', (string) ( $window['label'] ?? '' ), $soc )
+			: sprintf( 'Standby → backup reserve 5%% · AC idle (grid charge off). SOC %.1f%%.', $soc ),
 	);
 }
 
@@ -564,14 +506,19 @@ function gaming_hub_ecoflow_delta1500_selfpowered_run( $dry_run = false ) {
 		$hour,
 		(float) $soc
 	);
+	// Whole-day cheapest 3 h window (is1500Cheapest3Hours) from today's 48 half-hour slots.
+	$window   = function_exists( 'gaming_hub_ecoflow_selfpowered_cheapest_window' ) && ! empty( $prices['slots'] )
+		? gaming_hub_ecoflow_selfpowered_cheapest_window( $prices['slots'] )
+		: null;
 	$decision = gaming_hub_ecoflow_delta1500_selfpowered_decide(
 		$hour,
 		(float) $soc,
 		! empty( $prices['charge_day'] ),
-		$load_w,
-		is_array( $pick['charge_hours'] ?? null ) ? $pick['charge_hours'] : array()
+		(int) $now->format( 'i' ),
+		$window
 	);
 	$watts   = (int) $decision['watts'];
+	$reserve = (int) ( $decision['reserve'] ?? ( $watts > 0 ? 100 : 5 ) );
 	$cache   = gaming_hub_ecoflow_delta1500_selfpowered_load_cache();
 	$last    = isset( $cache['watts'] ) ? (int) $cache['watts'] : null;
 	$skipped = ( null !== $last && $last === $watts );
@@ -586,6 +533,7 @@ function gaming_hub_ecoflow_delta1500_selfpowered_run( $dry_run = false ) {
 			$sent  = true;
 			$cache = array(
 				'watts'         => $watts,
+				'reserve'       => $reserve,
 				'phase'         => $decision['phase'],
 				'soc'           => round( (float) $soc, 2 ),
 				'load_w'        => (int) round( $load_w ),
@@ -624,6 +572,7 @@ function gaming_hub_ecoflow_delta1500_selfpowered_run( $dry_run = false ) {
 		'phase'         => $decision['phase'],
 		'reason'        => $decision['reason'],
 		'watts'         => $watts,
+		'reserve'       => $reserve,
 		'charge_hours'  => $pick['charge_hours'] ?? array(),
 		'windows'       => $pick['windows'] ?? array(),
 		'deficit_kwh'   => $pick['deficit_kwh'] ?? 0,

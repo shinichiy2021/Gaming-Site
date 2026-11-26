@@ -451,8 +451,8 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 			<p class="ecoflow-rate-legend" data-ecoflow-plan-legend><?php
 			if ( $sp_enabled ) {
 				echo $show_delta_soc
-					? esc_html__('Gold charge: Pro · Orange charge: 1500 · Cyan: cheap bypass · Coral: discharge 15–22 · Cool: standby · Yellow/Orange bars: Pro / 1500 SOC · Orange line: AC load · Teal: rate', 'gaming-hub')
-					: esc_html__('Gold charge: Pro · Cyan: cheap bypass · Coral: discharge 15–22 · Cool: standby · Yellow: Pro SOC · Vermilion: AC-out · Teal: rate', 'gaming-hub');
+					? esc_html__('Gold charge: Pro · Orange charge: 1500 · Cyan: bypass (hold) · Coral: discharge 15–22 · Cool: standby · Yellow/Orange bars: Pro / 1500 SOC · Orange line: AC load · Teal: rate', 'gaming-hub')
+					: esc_html__('Gold charge: Pro · Cyan: bypass (hold) · Coral: discharge 15–22 · Cool: standby · Yellow: Pro SOC · Vermilion: AC-out · Teal: rate', 'gaming-hub');
 			} else {
 				echo $show_delta_soc
 					? esc_html__('Yellow: Pro SOC · Orange: 1500 SOC · Cool band: cheap bypass (hold pack) · Orange band: forecast solar · Warm hours: use pack · Orange line: AC load · Teal: rate', 'gaming-hub')

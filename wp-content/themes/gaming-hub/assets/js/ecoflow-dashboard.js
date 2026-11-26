@@ -1275,8 +1275,8 @@
 
 	function selfpoweredLegend(showDelta) {
 		return showDelta
-			? t('Gold charge: Pro · Orange charge: 1500 · Cyan: cheap bypass · Coral: discharge 15–22 · Cool: standby · Yellow/Orange bars: Pro / 1500 SOC · Orange line: AC load · Teal: rate')
-			: t('Gold charge: Pro · Cyan: cheap bypass · Coral: discharge 15–22 · Cool: standby · Yellow: Pro SOC · Vermilion: AC-out · Teal: rate');
+			? t('Gold charge: Pro · Orange charge: 1500 · Cyan: bypass (hold) · Coral: discharge 15–22 · Cool: standby · Yellow/Orange bars: Pro / 1500 SOC · Orange line: AC load · Teal: rate')
+			: t('Gold charge: Pro · Cyan: bypass (hold) · Coral: discharge 15–22 · Cool: standby · Yellow: Pro SOC · Vermilion: AC-out · Teal: rate');
 	}
 
 	function slotChargeWatts(slot, chargeW) {
