@@ -1311,7 +1311,9 @@
 			span.className = 'ecoflow-sp-phase is-' + kind;
 			span.style.left = ((start / 24) * 100).toFixed(4) + '%';
 			span.style.width = (((h - start) / 24) * 100).toFixed(4) + '%';
-			span.textContent = selfpoweredPhaseLabel(kind);
+			const label = document.createElement('span');
+			label.textContent = selfpoweredPhaseLabel(kind);
+			span.appendChild(label);
 			phasesEl.appendChild(span);
 			if (h < 24) {
 				start = h;

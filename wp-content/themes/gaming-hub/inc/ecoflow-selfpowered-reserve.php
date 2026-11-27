@@ -21,8 +21,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /** Price spread (¥/kWh) that marks a “charge day”. */
 define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_SPREAD_YEN', 15.0 );
-/** Reserve % that triggers grid top-up in the 14:00 window. */
-define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE', 90 );
+/** Reserve % for grid top-up in the 13:30–14:59 window (also the SOC threshold: top up only below this). */
+define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE', 80 );
 /** Reserve % for peak discharge (use the pack down to the floor). */
 define( 'GAMING_HUB_ECOFLOW_SELFPOWERED_IDLE_RESERVE', 5 );
 /** Hold / bypass reserve = max(5, SOC − this offset) so the pack is kept and PV still raises SOC. */
@@ -612,7 +612,7 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 		: 5;
 	$charge_r    = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE' )
 		? (int) GAMING_HUB_ECOFLOW_SELFPOWERED_CHARGE_RESERVE
-		: 90;
+		: 80;
 	$hold_off    = defined( 'GAMING_HUB_ECOFLOW_SELFPOWERED_HOLD_OFFSET' )
 		? (int) GAMING_HUB_ECOFLOW_SELFPOWERED_HOLD_OFFSET
 		: 2;
@@ -628,7 +628,7 @@ function gaming_hub_ecoflow_selfpowered_plan_schedule( $plan_date, array $status
 	$delta_soc   = isset( $status['secondary']['battery_percent'] ) && is_numeric( $status['secondary']['battery_percent'] )
 		? (float) $status['secondary']['battery_percent']
 		: null;
-	$pro_needs   = null === $pro_soc || $pro_soc < 90.0;
+	$pro_needs   = null === $pro_soc || $pro_soc < (float) $charge_r;
 	$dates       = function_exists( 'gaming_hub_ecoflow_plan_dates' ) ? gaming_hub_ecoflow_plan_dates() : array( 'today' => wp_date( 'Y-m-d' ) );
 	$from_hour   = ( $plan_date === ( $dates['today'] ?? wp_date( 'Y-m-d' ) ) ) ? (int) wp_date( 'G' ) : 0;
 	$delta_pick  = ( $delta_on && function_exists( 'gaming_hub_ecoflow_delta1500_pick_cheap_full_hours' ) )
@@ -956,7 +956,7 @@ function gaming_hub_ecoflow_selfpowered_hold_reserve( $soc ) {
 /**
  * Decide target backup reserve for the current local time + SOC.
  *
- * A) 13:30–14:59 — charge day (spread ≥ 15 ¥) and SOC < 90% → reserve 90% + AC 1000 W;
+ * A) 13:30–14:59 — charge day (spread ≥ 15 ¥) and SOC < 80% → reserve 80% + AC 1000 W;
  *    otherwise hold at max(5, SOC − 2).
  * B) 15:00–21:59 — reserve 5% (discharge to the floor).
  * C) 22:00–13:29 — hold at max(5, SOC − 2) (bypass, keep pack).
@@ -983,14 +983,15 @@ function gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, $soc, $charge_day
 
 	// A) 13:30–14:59 — AC top-up window.
 	if ( $mins >= $topup_start && $mins < $topup_end ) {
-		if ( $charge_day && (float) $soc < 90.0 ) {
+		if ( $charge_day && (float) $soc < (float) $charge ) {
 			return array(
 				'reserve' => $charge,
 				'watts'   => $watts,
 				'phase'   => 'ac_topup',
 				'reason'  => sprintf(
-					'Charge day (spread ok) and SOC %.1f%% < 90%% → reserve %d%% · AC %d W (grid top-up).',
+					'Charge day (spread ok) and SOC %.1f%% < %d%% → reserve %d%% · AC %d W (grid top-up).',
 					$soc,
+					$charge,
 					$charge,
 					$watts
 				),
@@ -1002,7 +1003,7 @@ function gaming_hub_ecoflow_selfpowered_decide_reserve( $hour, $soc, $charge_day
 			'watts'   => $idle_w,
 			'phase'   => 'ac_topup_skip',
 			'reason'  => $charge_day
-				? sprintf( 'SOC %.1f%% already ≥ 90%% → hold reserve %d%% (SOC−2) · AC idle.', $soc, $hold )
+				? sprintf( 'SOC %.1f%% already ≥ %d%% → hold reserve %d%% (SOC−2) · AC idle.', $soc, $charge, $hold )
 				: sprintf( 'Spread below threshold → hold reserve %d%% (SOC−2) · AC idle.', $hold ),
 		);
 	}

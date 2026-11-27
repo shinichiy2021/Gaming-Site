@@ -273,7 +273,7 @@ $async  = ! empty( $args['async'] ) && ! is_wp_error( $status );
 								$left  = round( $seg_start / 24 * 100, 4 );
 								$width = round( ( $ph - $seg_start ) / 24 * 100, 4 );
 								printf(
-									'<span class="ecoflow-sp-phase is-%1$s" style="left: %2$s%%; width: %3$s%%;">%4$s</span>',
+									'<span class="ecoflow-sp-phase is-%1$s" style="left: %2$s%%; width: %3$s%%;"><span>%4$s</span></span>',
 									esc_attr( $seg_kind ),
 									esc_attr( (string) $left ),
 									esc_attr( (string) $width ),

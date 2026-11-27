@@ -7352,12 +7352,24 @@ body.home .site-header.is-scrolled {
 	justify-content: center;
 	height: 100%;
 	overflow: hidden;
+	container-type: inline-size;
 	font-size: 0.58rem;
 	font-weight: 700;
 	letter-spacing: 0.04em;
 	line-height: 1;
 	white-space: nowrap;
 	text-transform: uppercase;
+}
+
+/* A 1–2 hour band is too narrow for the word; the color still marks the phase. */
+@container (max-width: 3.6rem) {
+	.ecoflow-sp-phase > span {
+		display: none;
+	}
+}
+
+.ecoflow-plan-chart.is-selfpowered .ecoflow-rate-now-pip {
+	top: 16px;
 }
 
 .ecoflow-sp-phase.is-charge {
@@ -8146,6 +8158,41 @@ body.home .site-header.is-scrolled {
 		margin-top: 0;
 		padding-right: 0;
 		padding-top: 4px;
+	}
+
+	/* The day switcher sticks 78px down to clear the site header. On a phone
+	   that bar covers the chart and the legend, so keep it in normal flow. */
+	.ecoflow-plan:not(.ecoflow-cal) > .ecoflow-plan-day-nav {
+		position: static;
+		align-self: stretch;
+		top: auto;
+		margin: 0 0 12px;
+	}
+
+	.ecoflow-plan-day-nav .ecoflow-plan-cancel {
+		flex: 1 1 0;
+		text-align: center;
+	}
+
+	.ecoflow-plan-schedule-row {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 4px;
+	}
+
+	.ecoflow-plan-schedule-time {
+		white-space: normal;
+		font-weight: 700;
+	}
+
+	.ecoflow-plan-hud .ecoflow-rates-stat {
+		min-width: 0;
+	}
+
+	.ecoflow-plan-hud .ecoflow-rates-stat small,
+	.ecoflow-plan-note,
+	.ecoflow-plan-schedule-summary,
+	.ecoflow-plan:not(.ecoflow-cal) .ecoflow-rate-legend {
+		overflow-wrap: anywhere;
 	}
 
 	/* AI PLAN: taller, swipeable 24h plot so bars and lines stay readable. */
@@ -11074,4 +11121,14 @@ body.home .site-header.is-scrolled {
 	.ecoflow-dashboard.is-skeleton .ecoflow-energy-flow-root {
 		animation: none;
 	}
+}
+
+/* EcoFlow tag page: hide top-left logo and header tabs (nav + mobile hub switcher). */
+body.no-site-nav .site-header .site-branding,
+body.no-site-nav .site-header .main-navigation,
+body.no-site-nav .site-header .nav-menu--hub-tags,
+body.no-site-nav .site-header .menu-toggle,
+body.no-site-nav .site-header .hub-switcher,
+body.no-site-nav .ecoflow-hub-nav {
+	display: none !important;
 }
